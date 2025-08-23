@@ -70,8 +70,10 @@ export function CompanyProfile() {
         description: "Your company details have been updated successfully.",
       });
 
-      // Refresh the page to see updated data
-      window.location.reload();
+      // Refresh auth context instead of page reload
+      setTimeout(() => {
+        window.location.reload();
+      }, 1000);
     } catch (error: any) {
       toast({
         title: "Update failed",

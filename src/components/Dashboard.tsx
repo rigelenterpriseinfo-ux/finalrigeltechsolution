@@ -46,7 +46,7 @@ import { TrackingModule } from '@/components/modules/TrackingModule';
 import { AIAssistant } from '@/components/modules/AIAssistant';
 import { CompanyProfile } from '@/components/CompanyProfile';
 
-const menuItems = [
+const menuItems: Array<{ id: ActiveModule; icon: any; label: string; description: string }> = [
   { id: 'dashboard', icon: BarChart3, label: 'Dashboard', description: 'Overview & Analytics' },
   { id: 'inventory', icon: Package, label: 'Inventory', description: 'Manage Products & Stock' },
   { id: 'purchase', icon: ShoppingCart, label: 'Purchase', description: 'Purchase Orders & Suppliers' },
@@ -58,9 +58,11 @@ const menuItems = [
   { id: 'profile', icon: Building2, label: 'Company Profile', description: 'Edit Company Details' },
 ];
 
+type ActiveModule = 'dashboard' | 'inventory' | 'purchase' | 'sales' | 'payments' | 'reports' | 'tracking' | 'ai' | 'profile';
+
 export default function Dashboard() {
   const { user, profile, company, signOut, loading } = useAuth();
-  const [activeModule, setActiveModule] = useState('dashboard');
+  const [activeModule, setActiveModule] = useState<ActiveModule>('dashboard');
 
   console.log('Dashboard render:', { user: !!user, profile: !!profile, company: !!company, loading, activeModule });
 
@@ -400,14 +402,21 @@ export default function Dashboard() {
                     {menuItems.map((item) => (
                       <SidebarMenuItem key={item.id}>
                         <SidebarMenuButton
-                          onClick={() => setActiveModule(item.id)}
+                          onClick={() => {
+                            console.log('Menu item clicked:', item.id);
+                            setActiveModule(item.id);
+                          }}
                           isActive={activeModule === item.id}
-                          className="w-full justify-start p-3 rounded-xl mx-2 my-1 transition-all duration-200 hover:shadow-md"
+                          className={`w-full justify-start p-3 rounded-xl mx-2 my-1 transition-all duration-200 hover:shadow-md ${
+                            activeModule === item.id 
+                              ? 'bg-primary text-primary-foreground shadow-md' 
+                              : 'hover:bg-muted'
+                          }`}
                         >
                           <item.icon className="h-5 w-5" />
                           <div className="flex-1 text-left">
                             <div className="font-medium">{item.label}</div>
-                            <div className="text-xs text-muted-foreground">{item.description}</div>
+                            <div className="text-xs opacity-70">{item.description}</div>
                           </div>
                         </SidebarMenuButton>
                       </SidebarMenuItem>
@@ -420,11 +429,14 @@ export default function Dashboard() {
                 <SidebarGroupContent>
                   <SidebarMenu>
                     <SidebarMenuItem>
-                      <SidebarMenuButton className="w-full justify-start p-3 rounded-xl mx-2 my-1">
+                      <SidebarMenuButton 
+                        onClick={() => setActiveModule('profile')}
+                        className="w-full justify-start p-3 rounded-xl mx-2 my-1 hover:bg-muted transition-colors"
+                      >
                         <User className="h-5 w-5" />
                         <div className="flex-1 text-left">
                           <div className="font-medium">{profile?.first_name} {profile?.last_name}</div>
-                          <div className="text-xs text-muted-foreground">Administrator</div>
+                          <div className="text-xs opacity-70">Click to edit profile</div>
                         </div>
                       </SidebarMenuButton>
                     </SidebarMenuItem>
@@ -447,13 +459,24 @@ export default function Dashboard() {
             <header className="bg-card border-b border-border/50 shadow-sm">
               <div className="px-6 py-4">
                 <div className="flex items-center gap-4 mb-4">
-                  <SidebarTrigger>
+                  <SidebarTrigger className="p-2 rounded-lg hover:bg-muted transition-colors">
                     <Menu className="h-5 w-5" />
                   </SidebarTrigger>
                   <div className="flex-1">
                     <h1 className="text-2xl font-bold text-primary">PrismERP</h1>
                     <p className="text-sm text-muted-foreground">Enterprise Resource Planning</p>
                   </div>
+                  
+                  {/* Quick access to Company Profile */}
+                  <Button 
+                    onClick={() => setActiveModule('profile')}
+                    variant="outline"
+                    size="sm"
+                    className="gap-2"
+                  >
+                    <Building2 className="h-4 w-4" />
+                    Company Profile
+                  </Button>
                 </div>
                 
                 {/* Company Info Card */}
