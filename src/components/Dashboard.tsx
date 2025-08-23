@@ -372,11 +372,11 @@ export default function Dashboard() {
           <Sidebar className="border-0 shadow-elevated">
             <SidebarContent>
               <SidebarGroup>
-                <SidebarGroupLabel className="flex items-center gap-3 px-4 py-4 bg-gradient-primary text-white rounded-xl mx-2 my-4">
-                  <Building2 className="h-6 w-6" />
+                <SidebarGroupLabel className="flex items-center gap-3 px-4 py-3 bg-gradient-primary text-white rounded-xl mx-2 my-2">
+                  <Building2 className="h-5 w-5" />
                   <div className="flex-1 text-left">
-                    <div className="font-semibold">{company?.name || 'Your Company'}</div>
-                    <div className="text-white/80 text-xs">ERP System</div>
+                    <div className="font-medium text-sm">PrismERP</div>
+                    <div className="text-white/70 text-xs">Business Management</div>
                   </div>
                 </SidebarGroupLabel>
                 <SidebarGroupContent>
@@ -429,13 +429,31 @@ export default function Dashboard() {
 
           <main className="flex-1 flex flex-col">
             <header className="bg-card border-b border-border/50 shadow-sm">
-              <div className="px-6 py-4 flex items-center gap-4">
-                <SidebarTrigger>
-                  <Menu className="h-5 w-5" />
-                </SidebarTrigger>
-                <div>
-                  <h2 className="font-semibold text-lg">Dashboard</h2>
-                  <p className="text-sm text-muted-foreground">Overview of your business</p>
+              <div className="px-6 py-4">
+                <div className="flex items-center gap-4 mb-4">
+                  <SidebarTrigger>
+                    <Menu className="h-5 w-5" />
+                  </SidebarTrigger>
+                  <div className="flex-1">
+                    <h1 className="text-2xl font-bold text-primary">PrismERP</h1>
+                    <p className="text-sm text-muted-foreground">Enterprise Resource Planning</p>
+                  </div>
+                </div>
+                
+                {/* Company Info Card */}
+                <div className="bg-gradient-primary rounded-xl p-4 text-white shadow-elevated">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-lg bg-white/20">
+                      <Building2 className="h-6 w-6" />
+                    </div>
+                    <div className="flex-1">
+                      <h2 className="font-semibold text-lg">{company?.name || 'Your Company'}</h2>
+                      <p className="text-white/80 text-sm">Welcome back, {profile?.first_name}!</p>
+                    </div>
+                    <Badge variant="secondary" className="bg-white/20 text-white border-white/30">
+                      Active
+                    </Badge>
+                  </div>
                 </div>
               </div>
             </header>
