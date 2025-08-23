@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useState, ReactNode } from 'react
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { emailSchema, passwordSchema, nameSchema, phoneSchema, otpSchema, checkRateLimit, logSecurityEvent } from '@/lib/security';
 
 interface Profile {
   id: string;
@@ -151,19 +152,65 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const signIn = async (email: string, password: string) => {
     try {
+      // Validate input
+      const emailValidation = emailSchema.safeParse(email);
+      const passwordValidation = passwordSchema.safeParse(password);
+      
+      if (!emailValidation.success) {
+        toast({
+          title: "Invalid email",
+          description: emailValidation.error.errors[0].message,
+          variant: "destructive",
+        });
+        return { error: new Error(emailValidation.error.errors[0].message) };
+      }
+      
+      if (!passwordValidation.success) {
+        toast({
+          title: "Invalid password",
+          description: passwordValidation.error.errors[0].message,
+          variant: "destructive",
+        });
+        return { error: new Error(passwordValidation.error.errors[0].message) };
+      }
+
+      // Check rate limiting
+      const rateLimit = await checkRateLimit(supabase, email);
+      if (!rateLimit.allowed) {
+        const resetTime = rateLimit.resetTime?.toLocaleTimeString() || 'later';
+        toast({
+          title: "Too many attempts",
+          description: `Please try again after ${resetTime}`,
+          variant: "destructive",
+        });
+        return { error: new Error('Rate limited') };
+      }
+
       const { error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
-      
+
       if (error) {
+        // Log failed attempt
+        await logSecurityEvent(supabase, 'login_failed', { email, error: error.message });
+        
         toast({
           title: "Sign in failed",
           description: error.message,
           variant: "destructive",
         });
+        return { error };
       }
-      
+
+      // Log successful login
+      await logSecurityEvent(supabase, 'login_success', { email });
+
+      toast({
+        title: "Welcome back!",
+        description: "You have been signed in successfully.",
+      });
+
       return { error };
     } catch (error: any) {
       toast({
