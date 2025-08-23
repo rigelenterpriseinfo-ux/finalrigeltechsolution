@@ -11,6 +11,10 @@ interface Profile {
   last_name: string | null;
   role: 'owner' | 'admin' | 'manager' | 'staff';
   phone: string | null;
+  city: string | null;
+  state: string | null;
+  country: string | null;
+  phone_verified: boolean;
   avatar_url: string | null;
   is_active: boolean;
 }
@@ -32,9 +36,22 @@ interface AuthContextType {
   company: Company | null;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<{ error: any }>;
-  signUp: (email: string, password: string, companyName: string, firstName: string, lastName: string) => Promise<{ error: any }>;
+  signUp: (
+    email: string, 
+    password: string, 
+    companyName: string, 
+    firstName: string, 
+    lastName: string,
+    phone: string,
+    city: string,
+    state: string,
+    country: string
+  ) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
   updateProfile: (updates: Partial<Profile>) => Promise<{ error: any }>;
+  sendOTP: (phone: string) => Promise<{ error: any }>;
+  verifyOTP: (phone: string, otp: string) => Promise<{ error: any }>;
+  resetPassword: (email: string) => Promise<{ error: any }>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -162,7 +179,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     password: string, 
     companyName: string, 
     firstName: string, 
-    lastName: string
+    lastName: string,
+    phone: string,
+    city: string,
+    state: string,
+    country: string
   ) => {
     try {
       const redirectUrl = `${window.location.origin}/`;
@@ -176,6 +197,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             first_name: firstName,
             last_name: lastName,
             company_name: companyName,
+            phone: phone,
+            city: city,
+            state: state,
+            country: country,
           }
         }
       });
@@ -258,6 +283,150 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  const sendOTP = async (phone: string) => {
+    try {
+      // Generate 6-digit OTP
+      const otp = Math.floor(100000 + Math.random() * 900000).toString();
+      const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+
+      // Store OTP in profile (in real app, use SMS service)
+      const { error } = await supabase
+        .from('profiles')
+        .update({ 
+          otp_code: otp, 
+          otp_expires_at: expiresAt.toISOString() 
+        })
+        .eq('phone', phone);
+
+      if (error) {
+        toast({
+          title: "OTP send failed",
+          description: error.message,
+          variant: "destructive",
+        });
+        return { error };
+      }
+
+      // For demo purposes, show OTP in toast (use SMS service in production)
+      toast({
+        title: "OTP Sent",
+        description: `Your OTP is: ${otp} (Demo mode)`,
+      });
+
+      return { error: null };
+    } catch (error: any) {
+      toast({
+        title: "OTP send failed",
+        description: "An unexpected error occurred",
+        variant: "destructive",
+      });
+      return { error };
+    }
+  };
+
+  const verifyOTP = async (phone: string, otp: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('otp_code, otp_expires_at')
+        .eq('phone', phone)
+        .single();
+
+      if (error || !data) {
+        toast({
+          title: "Verification failed",
+          description: "Invalid phone number",
+          variant: "destructive",
+        });
+        return { error: error || new Error('Phone not found') };
+      }
+
+      if (data.otp_code !== otp) {
+        toast({
+          title: "Verification failed",
+          description: "Invalid OTP code",
+          variant: "destructive",
+        });
+        return { error: new Error('Invalid OTP') };
+      }
+
+      if (new Date() > new Date(data.otp_expires_at)) {
+        toast({
+          title: "Verification failed",
+          description: "OTP has expired",
+          variant: "destructive",
+        });
+        return { error: new Error('OTP expired') };
+      }
+
+      // Mark phone as verified
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({ 
+          phone_verified: true,
+          otp_code: null,
+          otp_expires_at: null 
+        })
+        .eq('phone', phone);
+
+      if (updateError) {
+        toast({
+          title: "Verification failed",
+          description: updateError.message,
+          variant: "destructive",
+        });
+        return { error: updateError };
+      }
+
+      toast({
+        title: "Phone verified",
+        description: "Your phone number has been verified successfully",
+      });
+
+      return { error: null };
+    } catch (error: any) {
+      toast({
+        title: "Verification failed",
+        description: "An unexpected error occurred",
+        variant: "destructive",
+      });
+      return { error };
+    }
+  };
+
+  const resetPassword = async (email: string) => {
+    try {
+      const redirectUrl = `${window.location.origin}/auth?tab=reset`;
+      
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: redirectUrl,
+      });
+
+      if (error) {
+        toast({
+          title: "Reset failed",
+          description: error.message,
+          variant: "destructive",
+        });
+        return { error };
+      }
+
+      toast({
+        title: "Reset link sent",
+        description: "Check your email for password reset instructions",
+      });
+
+      return { error: null };
+    } catch (error: any) {
+      toast({
+        title: "Reset failed",
+        description: "An unexpected error occurred",
+        variant: "destructive",
+      });
+      return { error };
+    }
+  };
+
   const value = {
     user,
     session,
@@ -268,6 +437,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     signUp,
     signOut,
     updateProfile,
+    sendOTP,
+    verifyOTP,
+    resetPassword,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
