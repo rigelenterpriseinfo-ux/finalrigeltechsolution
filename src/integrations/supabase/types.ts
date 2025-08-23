@@ -613,6 +613,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_user_company_id: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
       user_company_id: {
         Args: Record<PropertyKey, never>
         Returns: string
