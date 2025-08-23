@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { Loader2, Building2, Save } from 'lucide-react';
+import { Loader2, Building2, Save, Phone, Mail, Globe, MapPin } from 'lucide-react';
 
 export function CompanyProfile() {
   const { company, profile, user } = useAuth();
@@ -19,6 +19,7 @@ export function CompanyProfile() {
     phone: company?.phone || '',
     address: company?.address || '',
     website: company?.website || '',
+    status: company?.status || 'active',
   });
 
   const handleInputChange = (field: string, value: string) => {
@@ -52,6 +53,7 @@ export function CompanyProfile() {
           phone: formData.phone,
           address: formData.address,
           website: formData.website,
+          status: formData.status,
           updated_at: new Date().toISOString(),
         })
         .eq('id', company?.id);
@@ -85,6 +87,20 @@ export function CompanyProfile() {
     }
   };
 
+  // Update form data when company data changes
+  React.useEffect(() => {
+    if (company) {
+      setFormData({
+        name: company.name || '',
+        email: company.email || '',
+        phone: company.phone || '',
+        address: company.address || '',
+        website: company.website || '',
+        status: company.status || 'active',
+      });
+    }
+  }, [company]);
+
   return (
     <Card className="max-w-2xl mx-auto">
       <CardHeader>
@@ -114,7 +130,10 @@ export function CompanyProfile() {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="company-email">Company Email</Label>
+            <Label htmlFor="company-email" className="flex items-center gap-2">
+              <Mail className="h-4 w-4" />
+              Company Email
+            </Label>
             <Input
               id="company-email"
               type="email"
@@ -125,7 +144,10 @@ export function CompanyProfile() {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="company-phone">Company Phone (10 digits)</Label>
+            <Label htmlFor="company-phone" className="flex items-center gap-2">
+              <Phone className="h-4 w-4" />
+              Company Phone (10 digits)
+            </Label>
             <Input
               id="company-phone"
               type="tel"
@@ -139,18 +161,24 @@ export function CompanyProfile() {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="company-address">Company Address</Label>
+            <Label htmlFor="company-address" className="flex items-center gap-2">
+              <MapPin className="h-4 w-4" />
+              Company Address
+            </Label>
             <Textarea
               id="company-address"
               value={formData.address}
               onChange={(e) => handleInputChange('address', e.target.value)}
-              placeholder="123 Business Street, City, State, ZIP"
-              rows={3}
+              placeholder="123 Business Street, City, State, Country, ZIP"
+              rows={4}
             />
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="company-website">Website</Label>
+            <Label htmlFor="company-website" className="flex items-center gap-2">
+              <Globe className="h-4 w-4" />
+              Website
+            </Label>
             <Input
               id="company-website"
               type="url"
@@ -158,6 +186,19 @@ export function CompanyProfile() {
               onChange={(e) => handleInputChange('website', e.target.value)}
               placeholder="https://www.yourcompany.com"
             />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="company-status">Company Status</Label>
+            <select
+              id="company-status"
+              value={formData.status}
+              onChange={(e) => handleInputChange('status', e.target.value)}
+              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <option value="active">Active</option>
+              <option value="inactive">Inactive</option>
+            </select>
           </div>
 
           <Button type="submit" className="w-full" disabled={isLoading}>
