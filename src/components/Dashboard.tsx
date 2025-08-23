@@ -44,6 +44,7 @@ import { PaymentsModule } from '@/components/modules/PaymentsModule';
 import { ReportsModule } from '@/components/modules/ReportsModule';
 import { TrackingModule } from '@/components/modules/TrackingModule';
 import { AIAssistant } from '@/components/modules/AIAssistant';
+import { CompanyProfile } from '@/components/CompanyProfile';
 
 const menuItems = [
   { id: 'dashboard', icon: BarChart3, label: 'Dashboard', description: 'Overview & Analytics' },
@@ -54,6 +55,7 @@ const menuItems = [
   { id: 'reports', icon: BarChart3, label: 'Reports', description: 'Analytics & Reports' },
   { id: 'tracking', icon: MapPin, label: 'Track & Trace', description: 'Order Tracking' },
   { id: 'ai', icon: Bot, label: 'AI Assistant', description: 'Business Insights' },
+  { id: 'profile', icon: Building2, label: 'Company Profile', description: 'Edit Company Details' },
 ];
 
 export default function Dashboard() {
@@ -176,6 +178,20 @@ export default function Dashboard() {
             }
           >
             <AIAssistant />
+          </DashboardLayout>
+        );
+      case 'profile':
+        return (
+          <DashboardLayout
+            title="Company Profile"
+            subtitle="Manage your company information and settings"
+            headerActions={
+              <Button onClick={() => setActiveModule('dashboard')} variant="outline">
+                Back to Dashboard
+              </Button>
+            }
+          >
+            <CompanyProfile />
           </DashboardLayout>
         );
       default:

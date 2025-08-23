@@ -18,6 +18,7 @@ export default function Auth() {
   const [otpData, setOtpData] = useState({ phone: '', email: '' });
   const [otp, setOtp] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [showExistingUserDialog, setShowExistingUserDialog] = useState(false);
   const [existingUserMessage, setExistingUserMessage] = useState('');
   const [searchParams] = useSearchParams();
@@ -54,6 +55,21 @@ export default function Auth() {
     const city = formData.get('city') as string;
     const state = formData.get('state') as string;
     const country = formData.get('country') as string;
+    
+    // Validate passwords match
+    if (password !== confirmPassword) {
+      alert('Passwords do not match');
+      setIsLoading(false);
+      return;
+    }
+    
+    // Validate phone number (10 digits)
+    const phoneRegex = /^\d{10}$/;
+    if (!phoneRegex.test(phone.replace(/\D/g, ''))) {
+      alert('Phone number must be exactly 10 digits');
+      setIsLoading(false);
+      return;
+    }
     
     // Check for existing user/company
     const { emailExists, companyExists } = await checkExistingUser(email, companyName);
@@ -246,14 +262,17 @@ export default function Auth() {
                     <div className="space-y-2">
                       <Label htmlFor="signup-phone" className="flex items-center gap-2">
                         <Phone className="h-4 w-4" />
-                        Phone Number
+                        Phone Number (10 digits)
                       </Label>
                       <Input
                         id="signup-phone"
                         name="phone"
                         type="tel"
-                        placeholder="+1 (555) 123-4567"
+                        placeholder="1234567890"
+                        pattern="\d{10}"
+                        maxLength={10}
                         required
+                        title="Please enter exactly 10 digits"
                       />
                     </div>
 
@@ -309,6 +328,23 @@ export default function Auth() {
                         minLength={8}
                       />
                       <PasswordStrength password={password} />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="confirm-password">Confirm Password</Label>
+                      <Input
+                        id="confirm-password"
+                        name="confirmPassword"
+                        type="password"
+                        placeholder="Confirm your password"
+                        value={confirmPassword}
+                        onChange={(e) => setConfirmPassword(e.target.value)}
+                        required
+                        minLength={8}
+                      />
+                      {confirmPassword && password !== confirmPassword && (
+                        <p className="text-sm text-destructive">Passwords do not match</p>
+                      )}
                     </div>
 
                     <Button type="submit" className="w-full" disabled={isLoading}>
