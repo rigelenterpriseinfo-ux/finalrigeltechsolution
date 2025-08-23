@@ -430,6 +430,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const checkExistingUser = async (email: string, companyName: string) => {
     try {
+      // Check if email exists using our database function
+      const { data: emailExists, error: emailError } = await supabase
+        .rpc('check_email_exists', { email_to_check: email });
+
       // Check if company name exists
       const { data: companyData, error: companyError } = await supabase
         .from('companies')
@@ -437,10 +441,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         .eq('name', companyName)
         .limit(1);
 
-      // For email check, we'll rely on Supabase's built-in validation during signup
-      // as we cannot directly query auth.users table
       return {
-        emailExists: false, // Will be caught during actual signup
+        emailExists: emailExists || false,
         companyExists: companyData && companyData.length > 0
       };
     } catch (error) {
