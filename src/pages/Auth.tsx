@@ -6,15 +6,20 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp';
+import { AlertDialog, AlertDialogAction, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { PasswordStrength } from '@/components/ui/password-strength';
 import { useAuth } from '@/hooks/useAuth';
-import { Loader2, Building2, Phone, MapPin } from 'lucide-react';
+import { Loader2, Building2, Phone, MapPin, Mail } from 'lucide-react';
 
 export default function Auth() {
-  const { user, signIn, signUp, sendOTP, verifyOTP, resetPassword, loading } = useAuth();
+  const { user, signIn, signUp, sendOTP, verifyOTP, resetPassword, loading, checkExistingUser } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [step, setStep] = useState<'signup' | 'otp'>('signup');
   const [otpData, setOtpData] = useState({ phone: '', email: '' });
   const [otp, setOtp] = useState('');
+  const [password, setPassword] = useState('');
+  const [showExistingUserDialog, setShowExistingUserDialog] = useState(false);
+  const [existingUserMessage, setExistingUserMessage] = useState('');
   const [searchParams] = useSearchParams();
   const defaultTab = searchParams.get('tab') || 'signin';
 
@@ -50,11 +55,26 @@ export default function Auth() {
     const state = formData.get('state') as string;
     const country = formData.get('country') as string;
     
+    // Check for existing user/company
+    const { emailExists, companyExists } = await checkExistingUser(email, companyName);
+    
+    if (emailExists || companyExists) {
+      let message = 'Account already exists:\n';
+      if (emailExists) message += '• Email address is already registered\n';
+      if (companyExists) message += '• Company name is already taken\n';
+      message += 'Please use different credentials or sign in to your existing account.';
+      
+      setExistingUserMessage(message);
+      setShowExistingUserDialog(true);
+      setIsLoading(false);
+      return;
+    }
+    
     const result = await signUp(email, password, companyName, firstName, lastName, phone, city, state, country);
     
     if (!result.error) {
       setOtpData({ phone, email });
-      await sendOTP(phone);
+      await sendOTP(email);
       setStep('otp');
     }
     
@@ -63,7 +83,7 @@ export default function Auth() {
 
   const handleOTPVerification = async () => {
     setIsLoading(true);
-    const result = await verifyOTP(otpData.phone, otp);
+    const result = await verifyOTP(otpData.email, otp);
     if (!result.error) {
       setStep('signup');
     }
@@ -171,7 +191,7 @@ export default function Auth() {
                 <CardDescription>
                   {step === 'signup' 
                     ? 'Set up your company workspace and start managing your business'
-                    : `Enter the OTP sent to ${otpData.phone}`
+                    : `Enter the OTP sent to ${otpData.email}`
                   }
                 </CardDescription>
               </CardHeader>
@@ -283,9 +303,12 @@ export default function Auth() {
                         name="password"
                         type="password"
                         placeholder="Create a strong password"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
                         required
-                        minLength={6}
+                        minLength={8}
                       />
+                      <PasswordStrength password={password} />
                     </div>
 
                     <Button type="submit" className="w-full" disabled={isLoading}>
@@ -302,7 +325,10 @@ export default function Auth() {
                 ) : (
                   <div className="space-y-6">
                     <div className="space-y-2">
-                      <Label htmlFor="otp">Enter verification code</Label>
+                      <Label htmlFor="otp" className="flex items-center gap-2">
+                        <Mail className="h-4 w-4" />
+                        Enter verification code sent to your email
+                      </Label>
                       <div className="flex justify-center">
                         <InputOTP
                           maxLength={6}
@@ -341,7 +367,7 @@ export default function Auth() {
                         <button
                           type="button"
                           onClick={() => {
-                            sendOTP(otpData.phone);
+                            sendOTP(otpData.email);
                           }}
                           className="text-sm text-primary hover:underline"
                         >
@@ -414,6 +440,22 @@ export default function Auth() {
           </TabsContent>
         </Tabs>
       </div>
+
+      <AlertDialog open={showExistingUserDialog} onOpenChange={setShowExistingUserDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Account Already Exists</AlertDialogTitle>
+            <AlertDialogDescription className="whitespace-pre-line">
+              {existingUserMessage}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction onClick={() => setShowExistingUserDialog(false)}>
+              Understood
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

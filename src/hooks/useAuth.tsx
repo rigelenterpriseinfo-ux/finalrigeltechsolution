@@ -49,9 +49,10 @@ interface AuthContextType {
   ) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
   updateProfile: (updates: Partial<Profile>) => Promise<{ error: any }>;
-  sendOTP: (phone: string) => Promise<{ error: any }>;
-  verifyOTP: (phone: string, otp: string) => Promise<{ error: any }>;
+  sendOTP: (email: string) => Promise<{ error: any }>;
+  verifyOTP: (email: string, otp: string) => Promise<{ error: any }>;
   resetPassword: (email: string) => Promise<{ error: any }>;
+  checkExistingUser: (email: string, companyName: string) => Promise<{ emailExists: boolean; companyExists: boolean }>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -283,20 +284,20 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const sendOTP = async (phone: string) => {
+  const sendOTP = async (email: string) => {
     try {
       // Generate 6-digit OTP
       const otp = Math.floor(100000 + Math.random() * 900000).toString();
       const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
 
-      // Store OTP in profile (in real app, use SMS service)
+      // Store OTP in profile (in real app, use email service)
       const { error } = await supabase
         .from('profiles')
         .update({ 
           otp_code: otp, 
           otp_expires_at: expiresAt.toISOString() 
         })
-        .eq('phone', phone);
+        .eq('user_id', (await supabase.auth.getUser()).data.user?.id);
 
       if (error) {
         toast({
@@ -307,10 +308,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         return { error };
       }
 
-      // For demo purposes, show OTP in toast (use SMS service in production)
+      // For demo purposes, show OTP in toast (use email service in production)
       toast({
         title: "OTP Sent",
-        description: `Your OTP is: ${otp} (Demo mode)`,
+        description: `Your OTP is: ${otp} (Demo mode - Check your email)`,
       });
 
       return { error: null };
@@ -324,21 +325,21 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const verifyOTP = async (phone: string, otp: string) => {
+  const verifyOTP = async (email: string, otp: string) => {
     try {
       const { data, error } = await supabase
         .from('profiles')
-        .select('otp_code, otp_expires_at')
-        .eq('phone', phone)
+        .select('otp_code, otp_expires_at, user_id')
+        .eq('user_id', (await supabase.auth.getUser()).data.user?.id)
         .single();
 
       if (error || !data) {
         toast({
           title: "Verification failed",
-          description: "Invalid phone number",
+          description: "Invalid email address",
           variant: "destructive",
         });
-        return { error: error || new Error('Phone not found') };
+        return { error: error || new Error('Email not found') };
       }
 
       if (data.otp_code !== otp) {
@@ -359,15 +360,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         return { error: new Error('OTP expired') };
       }
 
-      // Mark phone as verified
+      // Mark email as verified
       const { error: updateError } = await supabase
         .from('profiles')
         .update({ 
-          phone_verified: true,
+          phone_verified: true, // We'll use this field for email verification status
           otp_code: null,
           otp_expires_at: null 
         })
-        .eq('phone', phone);
+        .eq('user_id', data.user_id);
 
       if (updateError) {
         toast({
@@ -379,8 +380,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
 
       toast({
-        title: "Phone verified",
-        description: "Your phone number has been verified successfully",
+        title: "Email verified",
+        description: "Your email address has been verified successfully",
       });
 
       return { error: null };
@@ -427,6 +428,27 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  const checkExistingUser = async (email: string, companyName: string) => {
+    try {
+      // Check if company name exists
+      const { data: companyData, error: companyError } = await supabase
+        .from('companies')
+        .select('id')
+        .eq('name', companyName)
+        .limit(1);
+
+      // For email check, we'll rely on Supabase's built-in validation during signup
+      // as we cannot directly query auth.users table
+      return {
+        emailExists: false, // Will be caught during actual signup
+        companyExists: companyData && companyData.length > 0
+      };
+    } catch (error) {
+      console.error('Error checking existing user:', error);
+      return { emailExists: false, companyExists: false };
+    }
+  };
+
   const value = {
     user,
     session,
@@ -440,6 +462,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     sendOTP,
     verifyOTP,
     resetPassword,
+    checkExistingUser,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
