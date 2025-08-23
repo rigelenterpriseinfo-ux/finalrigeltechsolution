@@ -56,13 +56,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const { toast } = useToast();
 
   useEffect(() => {
+    console.log('Auth effect started');
     // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        console.log('Auth state changed:', { event, session: !!session, user: !!session?.user });
         setSession(session);
         setUser(session?.user ?? null);
 
         if (session?.user) {
+          console.log('User found, fetching profile...');
           // Fetch user profile and company data
           setTimeout(async () => {
             try {
@@ -74,12 +77,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
               if (profileError) {
                 console.error('Error fetching profile:', profileError);
+                setLoading(false);
                 return;
               }
 
+              console.log('Profile fetched:', profileData);
               setProfile(profileData);
 
               if (profileData?.company_id) {
+                console.log('Fetching company data...');
                 const { data: companyData, error: companyError } = await supabase
                   .from('companies')
                   .select('*')
@@ -88,29 +94,36 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
                 if (companyError) {
                   console.error('Error fetching company:', companyError);
+                  setLoading(false);
                   return;
                 }
 
+                console.log('Company fetched:', companyData);
                 setCompany(companyData);
               }
             } catch (error) {
               console.error('Error in auth state change:', error);
+            } finally {
+              setLoading(false);
             }
           }, 0);
         } else {
+          console.log('No user, clearing profile and company');
           setProfile(null);
           setCompany(null);
+          setLoading(false);
         }
-        
-        setLoading(false);
       }
     );
 
     // Check for existing session
+    console.log('Checking for existing session...');
     supabase.auth.getSession().then(({ data: { session } }) => {
+      console.log('Initial session check:', { session: !!session, user: !!session?.user });
       setSession(session);
       setUser(session?.user ?? null);
       if (!session) {
+        console.log('No initial session found');
         setLoading(false);
       }
     });

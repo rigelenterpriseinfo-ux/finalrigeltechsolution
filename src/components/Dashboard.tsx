@@ -51,7 +51,10 @@ export default function Dashboard() {
   const { user, profile, company, signOut, loading } = useAuth();
   const [activeModule, setActiveModule] = useState('dashboard');
 
+  console.log('Dashboard render:', { user: !!user, profile: !!profile, company: !!company, loading, activeModule });
+
   if (loading) {
+    console.log('Dashboard loading...');
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
@@ -60,10 +63,12 @@ export default function Dashboard() {
   }
 
   if (!user) {
+    console.log('No user, redirecting to auth');
     return <Navigate to="/auth" replace />;
   }
 
   const renderActiveModule = () => {
+    console.log('Rendering active module:', activeModule);
     switch (activeModule) {
       case 'inventory':
         return <InventoryModule />;
@@ -179,6 +184,8 @@ export default function Dashboard() {
         );
     }
   };
+
+  console.log('About to render main dashboard layout');
 
   return (
     <SidebarProvider>
