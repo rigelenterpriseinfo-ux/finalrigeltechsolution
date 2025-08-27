@@ -454,26 +454,9 @@ export default function Dashboard() {
           <main className="flex-1 flex flex-col">
             <header className="bg-card border-b border-border/50 shadow-sm">
               <div className="px-6 py-4">
-                <div className="flex items-center gap-4 mb-4">
-                  <SidebarTrigger className="p-2 rounded-lg hover:bg-muted transition-colors">
-                    <Menu className="h-5 w-5" />
-                  </SidebarTrigger>
-                  <div className="flex-1">
-                    <h1 className="text-2xl font-bold text-primary">PrismERP</h1>
-                    <p className="text-sm text-muted-foreground">Enterprise Resource Planning</p>
-                  </div>
-                  
-                  {/* Quick access to Company Profile */}
-                  <Button 
-                    onClick={() => setActiveModule('profile')}
-                    variant="outline"
-                    size="sm"
-                    className="gap-2"
-                  >
-                    <Building2 className="h-4 w-4" />
-                    Company Profile
-                  </Button>
-                </div>
+                <SidebarTrigger className="p-2 rounded-lg hover:bg-muted transition-colors mb-4">
+                  <Menu className="h-5 w-5" />
+                </SidebarTrigger>
                 
                 {/* Company Info Card */}
                 <div className="bg-gradient-primary rounded-xl p-4 text-white shadow-elevated">
