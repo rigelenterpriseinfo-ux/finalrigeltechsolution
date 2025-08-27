@@ -19,6 +19,7 @@ import Signin from "@/pages/Signin";
 import UserManagement from "@/pages/UserManagement";
 import EmailVerification from "@/pages/EmailVerification";
 import PasswordReset from "@/pages/PasswordReset";
+import EmailConfirmation from "@/pages/EmailConfirmation";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -41,6 +42,7 @@ const App = () => (
             <Route path="/password-reset" element={<PasswordReset />} />
         <Route path="/checkout" element={<Checkout />} />
         <Route path="/register/business" element={<GatedBusinessRegistration />} />
+        <Route path="/confirm-email" element={<EmailConfirmation />} />
         <Route path="/signin" element={<Signin />} />
         <Route path="/gated-signin" element={<GatedSignin />} />
         <Route path="/forgot-password" element={<GatedForgotPassword />} />

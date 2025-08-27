@@ -31,21 +31,25 @@ const GatedBusinessRegistration = () => {
   const [isSuccess, setIsSuccess] = useState(false);
   const [businessRefNo, setBusinessRefNo] = useState('');
   const [currentStep, setCurrentStep] = useState(1);
-  const [otpSent, setOtpSent] = useState(false);
-  const [otpVerified, setOtpVerified] = useState(false);
-  const [otpCountdown, setOtpCountdown] = useState(0);
+  const [emailSent, setEmailSent] = useState(false);
+  const [emailVerified, setEmailVerified] = useState(false);
   const [resendCount, setResendCount] = useState(0);
 
   const paymentData = location.state as any;
   const searchParams = new URLSearchParams(location.search);
   const isPaymentVerified = searchParams.get('txn') === 'DEV-SUCCESS' || paymentData?.paymentVerified;
+  const isEmailPreVerified = searchParams.get('email_verified') === 'true';
 
   // Redirect if no payment verification
   useEffect(() => {
     if (!isPaymentVerified) {
       navigate('/checkout');
     }
-  }, [isPaymentVerified, navigate]);
+    if (isEmailPreVerified) {
+      setEmailVerified(true);
+      setCurrentStep(2);
+    }
+  }, [isPaymentVerified, isEmailPreVerified, navigate]);
 
   const [formData, setFormData] = useState({
     // Business Details
@@ -63,9 +67,7 @@ const GatedBusinessRegistration = () => {
     // Admin User
     username: '',
     password: '',
-    confirmPassword: '',
-    // OTP
-    otp: ''
+    confirmPassword: ''
   });
 
   const businessTypes = [
@@ -118,6 +120,11 @@ const GatedBusinessRegistration = () => {
   };
 
   const validateStep2 = () => {
+    if (!emailVerified) {
+      toast({ title: "Please confirm your email first", variant: "destructive" });
+      return false;
+    }
+
     const { username, password, confirmPassword } = formData;
 
     if (!username.trim() || !password || !confirmPassword) {
@@ -143,12 +150,12 @@ const GatedBusinessRegistration = () => {
     return true;
   };
 
-  const sendOTP = async () => {
+  const sendEmailConfirmation = async () => {
     if (!validateStep1()) return;
     
     setIsLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke('send-otp', {
+      const { data, error } = await supabase.functions.invoke('send-email-confirmation', {
         body: {
           email: formData.email,
           purpose: 'register'
@@ -158,57 +165,18 @@ const GatedBusinessRegistration = () => {
       if (error) throw error;
 
       if (data?.success) {
-        setOtpSent(true);
-        setOtpCountdown(30);
+        setEmailSent(true);
         setResendCount(prev => prev + 1);
         toast({
-          title: "OTP Sent!",
-          description: "Please check your email for the 6-digit OTP code."
+          title: "Confirmation Email Sent!",
+          description: "Please check your email and click the confirmation link."
         });
       } else {
-        throw new Error(data?.error || 'Failed to send OTP');
+        throw new Error(data?.error || 'Failed to send confirmation email');
       }
     } catch (error: any) {
       toast({
-        title: "Failed to send OTP",
-        description: error.message,
-        variant: "destructive"
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const verifyOTP = async () => {
-    if (!formData.otp || formData.otp.length !== 6) {
-      toast({ title: "Please enter the 6-digit OTP", variant: "destructive" });
-      return;
-    }
-
-    setIsLoading(true);
-    try {
-      const { data, error } = await supabase.functions.invoke('verify-otp', {
-        body: {
-          email: formData.email,
-          otp: formData.otp
-        }
-      });
-
-      if (error) throw error;
-
-      if (data?.success) {
-        setOtpVerified(true);
-        setCurrentStep(2);
-        toast({
-          title: "Email Verified!",
-          description: "Please set up your admin login credentials."
-        });
-      } else {
-        throw new Error(data?.error || 'Invalid OTP');
-      }
-    } catch (error: any) {
-      toast({
-        title: "OTP Verification Failed",
+        title: "Failed to send confirmation email",
         description: error.message,
         variant: "destructive"
       });
@@ -264,14 +232,6 @@ const GatedBusinessRegistration = () => {
       setIsLoading(false);
     }
   };
-
-  // Countdown timer effect
-  useEffect(() => {
-    if (otpCountdown > 0) {
-      const timer = setTimeout(() => setOtpCountdown(prev => prev - 1), 1000);
-      return () => clearTimeout(timer);
-    }
-  }, [otpCountdown]);
 
   if (isSuccess) {
     return (
@@ -383,7 +343,7 @@ const GatedBusinessRegistration = () => {
                         onChange={(e) => handleInputChange('email', e.target.value)}
                         placeholder="business@example.com"
                         required
-                        disabled={otpVerified}
+                        disabled={emailVerified}
                       />
                     </div>
 
@@ -485,17 +445,17 @@ const GatedBusinessRegistration = () => {
                     </div>
                   </div>
 
-                  {/* OTP Section */}
-                  {!otpVerified && (
+                  {/* Email Confirmation Section */}
+                  {!emailVerified && (
                     <div className="border-t pt-6">
                       <h3 className="font-semibold mb-4 flex items-center">
                         <Mail className="h-5 w-5 mr-2" />
                         Email Verification
                       </h3>
                       
-                      {!otpSent ? (
+                      {!emailSent ? (
                         <Button
-                          onClick={sendOTP}
+                          onClick={sendEmailConfirmation}
                           disabled={isLoading}
                           className="w-full"
                           variant="outline"
@@ -503,60 +463,42 @@ const GatedBusinessRegistration = () => {
                           {isLoading ? (
                             <>
                               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                              Sending OTP...
+                              Sending confirmation email...
                             </>
                           ) : (
                             <>
                               <Send className="mr-2 h-4 w-4" />
-                              Send OTP to Email
+                              Send Confirmation Email
                             </>
                           )}
                         </Button>
                       ) : (
                         <div className="space-y-4">
-                          <div>
-                            <Label htmlFor="otp">Enter 6-digit OTP *</Label>
-                            <Input
-                              id="otp"
-                              value={formData.otp}
-                              onChange={(e) => handleInputChange('otp', e.target.value.replace(/\D/g, '').slice(0, 6))}
-                              placeholder="123456"
-                              maxLength={6}
-                              className="text-center text-lg tracking-widest"
-                            />
+                          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                            <p className="text-sm text-blue-800">
+                              <strong>Confirmation email sent!</strong><br />
+                              Please check your inbox and click the confirmation link to verify your email address.
+                            </p>
                           </div>
                           
-                          <div className="flex space-x-2">
-                            <Button
-                              onClick={verifyOTP}
-                              disabled={isLoading || formData.otp.length !== 6}
-                              className="flex-1"
-                            >
-                              {isLoading ? (
-                                <>
-                                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                  Verifying...
-                                </>
-                              ) : (
-                                'Verify OTP'
-                              )}
-                            </Button>
-                            
-                            <Button
-                              onClick={sendOTP}
-                              disabled={isLoading || otpCountdown > 0 || resendCount >= 3}
-                              variant="outline"
-                            >
-                              {otpCountdown > 0 ? (
-                                <>
-                                  <Clock className="mr-2 h-4 w-4" />
-                                  {otpCountdown}s
-                                </>
-                              ) : (
-                                'Resend'
-                              )}
-                            </Button>
-                          </div>
+                          <Button
+                            onClick={sendEmailConfirmation}
+                            disabled={isLoading || resendCount >= 3}
+                            variant="outline"
+                            className="w-full"
+                          >
+                            {isLoading ? (
+                              <>
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                Resending...
+                              </>
+                            ) : (
+                              <>
+                                <Mail className="mr-2 h-4 w-4" />
+                                Resend Confirmation Email
+                              </>
+                            )}
+                          </Button>
 
                           {resendCount >= 3 && (
                             <p className="text-xs text-destructive">
@@ -565,6 +507,25 @@ const GatedBusinessRegistration = () => {
                           )}
                         </div>
                       )}
+                    </div>
+                  )}
+
+                  {emailVerified && (
+                    <div className="border-t pt-6">
+                      <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                        <div className="flex items-center">
+                          <CheckCircle className="h-5 w-5 text-green-600 mr-2" />
+                          <p className="text-sm text-green-800">
+                            <strong>Email verified successfully!</strong> You can now proceed to set up your admin credentials.
+                          </p>
+                        </div>
+                      </div>
+                      <Button
+                        onClick={() => setCurrentStep(2)}
+                        className="w-full mt-4 btn-gradient"
+                      >
+                        Continue to Admin Setup
+                      </Button>
                     </div>
                   )}
                 </div>

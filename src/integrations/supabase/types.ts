@@ -237,6 +237,36 @@ export type Database = {
           },
         ]
       }
+      email_confirmations: {
+        Row: {
+          consumed_at: string | null
+          created_at: string
+          email: string
+          expires_at: string
+          id: string
+          purpose: string
+          token_hash: string
+        }
+        Insert: {
+          consumed_at?: string | null
+          created_at?: string
+          email: string
+          expires_at: string
+          id?: string
+          purpose?: string
+          token_hash: string
+        }
+        Update: {
+          consumed_at?: string | null
+          created_at?: string
+          email?: string
+          expires_at?: string
+          id?: string
+          purpose?: string
+          token_hash?: string
+        }
+        Relationships: []
+      }
       email_otps: {
         Row: {
           attempt_count: number | null
