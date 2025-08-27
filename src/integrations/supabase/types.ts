@@ -1080,6 +1080,8 @@ export type Database = {
           account_number: string | null
           account_type: string | null
           address: string | null
+          address_line1: string | null
+          address_line2: string | null
           bank_address: string | null
           bank_name: string | null
           city: string | null
@@ -1087,6 +1089,13 @@ export type Database = {
           contact_person: string | null
           country: string | null
           created_at: string
+          credit_time: number | null
+          dispatch_address_line1: string | null
+          dispatch_address_line2: string | null
+          dispatch_city: string | null
+          dispatch_country: string | null
+          dispatch_pin_code: string | null
+          dispatch_state: string | null
           email: string | null
           gst_number: string | null
           id: string
@@ -1096,6 +1105,8 @@ export type Database = {
           pan_number: string | null
           phone: string | null
           pin_code: string | null
+          place_of_supply: string | null
+          same_as_registered_address: boolean | null
           state: string | null
           updated_at: string
           vendor_registered_address: string | null
@@ -1104,6 +1115,8 @@ export type Database = {
           account_number?: string | null
           account_type?: string | null
           address?: string | null
+          address_line1?: string | null
+          address_line2?: string | null
           bank_address?: string | null
           bank_name?: string | null
           city?: string | null
@@ -1111,6 +1124,13 @@ export type Database = {
           contact_person?: string | null
           country?: string | null
           created_at?: string
+          credit_time?: number | null
+          dispatch_address_line1?: string | null
+          dispatch_address_line2?: string | null
+          dispatch_city?: string | null
+          dispatch_country?: string | null
+          dispatch_pin_code?: string | null
+          dispatch_state?: string | null
           email?: string | null
           gst_number?: string | null
           id?: string
@@ -1120,6 +1140,8 @@ export type Database = {
           pan_number?: string | null
           phone?: string | null
           pin_code?: string | null
+          place_of_supply?: string | null
+          same_as_registered_address?: boolean | null
           state?: string | null
           updated_at?: string
           vendor_registered_address?: string | null
@@ -1128,6 +1150,8 @@ export type Database = {
           account_number?: string | null
           account_type?: string | null
           address?: string | null
+          address_line1?: string | null
+          address_line2?: string | null
           bank_address?: string | null
           bank_name?: string | null
           city?: string | null
@@ -1135,6 +1159,13 @@ export type Database = {
           contact_person?: string | null
           country?: string | null
           created_at?: string
+          credit_time?: number | null
+          dispatch_address_line1?: string | null
+          dispatch_address_line2?: string | null
+          dispatch_city?: string | null
+          dispatch_country?: string | null
+          dispatch_pin_code?: string | null
+          dispatch_state?: string | null
           email?: string | null
           gst_number?: string | null
           id?: string
@@ -1144,6 +1175,8 @@ export type Database = {
           pan_number?: string | null
           phone?: string | null
           pin_code?: string | null
+          place_of_supply?: string | null
+          same_as_registered_address?: boolean | null
           state?: string | null
           updated_at?: string
           vendor_registered_address?: string | null

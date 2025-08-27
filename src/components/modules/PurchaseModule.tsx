@@ -34,18 +34,28 @@ interface Supplier {
   phone: string | null;
   address: string | null;
   contact_person: string | null;
-  vendor_registered_address: string | null;
-  gst_number: string | null;
-  pan_number: string | null;
-  pin_code: string | null;
+  address_line1: string | null;
+  address_line2: string | null;
   city: string | null;
   state: string | null;
   country: string | null;
+  pin_code: string | null;
+  place_of_supply: string | null;
+  credit_time: number | null;
+  gst_number: string | null;
+  pan_number: string | null;
   bank_name: string | null;
   bank_address: string | null;
   ifsc_code: string | null;
   account_number: string | null;
   account_type: string | null;
+  same_as_registered_address: boolean;
+  dispatch_address_line1: string | null;
+  dispatch_address_line2: string | null;
+  dispatch_city: string | null;
+  dispatch_state: string | null;
+  dispatch_country: string | null;
+  dispatch_pin_code: string | null;
   is_active: boolean;
 }
 
@@ -162,24 +172,35 @@ export function PurchaseModule() {
     e.preventDefault();
     
     const formData = new FormData(e.currentTarget);
+    const sameAsRegistered = formData.get('same_as_registered_address') === 'on';
+    
     const supplierData = {
       name: formData.get('name') as string,
       email: formData.get('email') as string || null,
       phone: formData.get('phone') as string || null,
       contact_person: formData.get('contact_person') as string || null,
-      address: formData.get('address') as string || null,
-      vendor_registered_address: formData.get('vendor_registered_address') as string || null,
-      gst_number: formData.get('gst_number') as string || null,
-      pan_number: formData.get('pan_number') as string || null,
-      pin_code: formData.get('pin_code') as string || null,
+      address_line1: formData.get('address_line1') as string || null,
+      address_line2: formData.get('address_line2') as string || null,
       city: formData.get('city') as string || null,
       state: formData.get('state') as string || null,
       country: formData.get('country') as string || null,
+      pin_code: formData.get('pin_code') as string || null,
+      place_of_supply: formData.get('place_of_supply') as string || null,
+      credit_time: formData.get('credit_time') ? parseInt(formData.get('credit_time') as string) : null,
+      gst_number: formData.get('gst_number') as string || null,
+      pan_number: formData.get('pan_number') as string || null,
       bank_name: formData.get('bank_name') as string || null,
       bank_address: formData.get('bank_address') as string || null,
       ifsc_code: formData.get('ifsc_code') as string || null,
       account_number: formData.get('account_number') as string || null,
       account_type: formData.get('account_type') as string || null,
+      same_as_registered_address: sameAsRegistered,
+      dispatch_address_line1: sameAsRegistered ? formData.get('address_line1') as string || null : formData.get('dispatch_address_line1') as string || null,
+      dispatch_address_line2: sameAsRegistered ? formData.get('address_line2') as string || null : formData.get('dispatch_address_line2') as string || null,
+      dispatch_city: sameAsRegistered ? formData.get('city') as string || null : formData.get('dispatch_city') as string || null,
+      dispatch_state: sameAsRegistered ? formData.get('state') as string || null : formData.get('dispatch_state') as string || null,
+      dispatch_country: sameAsRegistered ? formData.get('country') as string || null : formData.get('dispatch_country') as string || null,
+      dispatch_pin_code: sameAsRegistered ? formData.get('pin_code') as string || null : formData.get('dispatch_pin_code') as string || null,
       company_id: profile?.company_id,
     };
 
@@ -309,19 +330,30 @@ export function PurchaseModule() {
                   </div>
                 </div>
 
-                {/* Address Information */}
+                {/* Registered Address Information */}
                 <div className="space-y-4">
-                  <h3 className="text-lg font-medium border-b pb-2">Address Information</h3>
-                  <div>
-                    <Label htmlFor="sup-registered-address">Vendor Registered Address *</Label>
-                    <Textarea 
-                      id="sup-registered-address" 
-                      name="vendor_registered_address" 
-                      required
-                      placeholder="Complete registered address"
-                      maxLength={500}
-                      rows={3}
-                    />
+                  <h3 className="text-lg font-medium border-b pb-2">Registered Address</h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="sup-address-line1">Address Line 1 *</Label>
+                      <Input 
+                        id="sup-address-line1" 
+                        name="address_line1" 
+                        required
+                        placeholder="Building name, street address"
+                        minLength={5}
+                        maxLength={100}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="sup-address-line2">Address Line 2</Label>
+                      <Input 
+                        id="sup-address-line2" 
+                        name="address_line2" 
+                        placeholder="Area, landmark (optional)"
+                        maxLength={100}
+                      />
+                    </div>
                   </div>
                   <div className="grid grid-cols-3 gap-4">
                     <div>
@@ -359,7 +391,7 @@ export function PurchaseModule() {
                       />
                     </div>
                   </div>
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-3 gap-4">
                     <div>
                       <Label htmlFor="sup-pin-code">PIN Code *</Label>
                       <Input 
@@ -377,14 +409,125 @@ export function PurchaseModule() {
                       />
                     </div>
                     <div>
-                      <Label htmlFor="sup-address">Additional Address</Label>
+                      <Label htmlFor="sup-place-of-supply">Place of Supply</Label>
                       <Input 
-                        id="sup-address" 
-                        name="address" 
-                        placeholder="Additional address info (optional)"
-                        maxLength={200}
+                        id="sup-place-of-supply" 
+                        name="place_of_supply" 
+                        placeholder="State/UT where goods/services are supplied"
+                        maxLength={50}
                       />
                     </div>
+                    <div>
+                      <Label htmlFor="sup-credit-time">Credit Time (Days)</Label>
+                      <Input 
+                        id="sup-credit-time" 
+                        name="credit_time" 
+                        type="number"
+                        min="0"
+                        max="365"
+                        placeholder="Payment credit days"
+                        title="Number of days for payment credit"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Dispatch Address */}
+                <div className="space-y-4">
+                  <h3 className="text-lg font-medium border-b pb-2">Dispatch Address</h3>
+                  <div className="flex items-center space-x-2 mb-4">
+                    <input 
+                      type="checkbox" 
+                      id="same-as-registered" 
+                      name="same_as_registered_address"
+                      className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                      onChange={(e) => {
+                        const isChecked = e.target.checked;
+                        const dispatchFields = ['dispatch_address_line1', 'dispatch_address_line2', 'dispatch_city', 'dispatch_state', 'dispatch_country', 'dispatch_pin_code'];
+                        const registeredFields = ['address_line1', 'address_line2', 'city', 'state', 'country', 'pin_code'];
+                        
+                        dispatchFields.forEach((field, index) => {
+                          const dispatchField = document.getElementsByName(field)[0] as HTMLInputElement;
+                          const registeredField = document.getElementsByName(registeredFields[index])[0] as HTMLInputElement;
+                          
+                          if (dispatchField) {
+                            dispatchField.disabled = isChecked;
+                            if (isChecked && registeredField) {
+                              dispatchField.value = registeredField.value;
+                            } else if (!isChecked) {
+                              dispatchField.value = '';
+                            }
+                          }
+                        });
+                      }}
+                    />
+                    <Label htmlFor="same-as-registered" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                      Same as registered address
+                    </Label>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="dispatch-address-line1">Dispatch Address Line 1</Label>
+                      <Input 
+                        id="dispatch-address-line1" 
+                        name="dispatch_address_line1" 
+                        placeholder="Building name, street address"
+                        maxLength={100}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="dispatch-address-line2">Dispatch Address Line 2</Label>
+                      <Input 
+                        id="dispatch-address-line2" 
+                        name="dispatch_address_line2" 
+                        placeholder="Area, landmark (optional)"
+                        maxLength={100}
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-3 gap-4">
+                    <div>
+                      <Label htmlFor="dispatch-city">Dispatch City</Label>
+                      <Input 
+                        id="dispatch-city" 
+                        name="dispatch_city" 
+                        placeholder="City name"
+                        maxLength={50}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="dispatch-state">Dispatch State</Label>
+                      <Input 
+                        id="dispatch-state" 
+                        name="dispatch_state" 
+                        placeholder="State name"
+                        maxLength={50}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="dispatch-country">Dispatch Country</Label>
+                      <Input 
+                        id="dispatch-country" 
+                        name="dispatch_country" 
+                        placeholder="Country name"
+                        maxLength={50}
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <Label htmlFor="dispatch-pin-code">Dispatch PIN Code</Label>
+                    <Input 
+                      id="dispatch-pin-code" 
+                      name="dispatch_pin_code" 
+                      placeholder="6-digit PIN code"
+                      pattern="[0-9]{6}"
+                      title="Enter a valid 6-digit PIN code"
+                      maxLength={6}
+                      onInput={(e) => {
+                        const target = e.target as HTMLInputElement;
+                        target.value = target.value.replace(/[^0-9]/g, '');
+                      }}
+                    />
                   </div>
                 </div>
 
