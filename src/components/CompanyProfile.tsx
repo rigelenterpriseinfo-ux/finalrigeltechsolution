@@ -25,7 +25,12 @@ export function CompanyProfile() {
     name: company?.name || '',
     email: company?.email || '',
     phone: company?.phone || '',
-    address: company?.address || '',
+    addressLine1: '',
+    addressLine2: '',
+    city: '',
+    state: '',
+    country: '',
+    postalCode: '',
     website: company?.website || '',
     status: company?.status || 'active',
     gstn: '',
@@ -33,6 +38,16 @@ export function CompanyProfile() {
     password: '',
     confirmPassword: '',
   });
+
+  // Generate Business ID based on company name and current date
+  const generateBusinessId = (companyName: string) => {
+    if (!companyName) return '';
+    const firstFourLetters = companyName.replace(/[^A-Za-z]/g, '').substring(0, 4).toUpperCase();
+    const currentDate = new Date();
+    const month = String(currentDate.getMonth() + 1).padStart(2, '0');
+    const year = currentDate.getFullYear();
+    return `PRISM-${firstFourLetters}-${month}-${year}`;
+  };
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -133,11 +148,20 @@ export function CompanyProfile() {
       }
 
       // Sanitize form inputs before submission
+      const combinedAddress = [
+        formData.addressLine1,
+        formData.addressLine2,
+        formData.city,
+        formData.state,
+        formData.country,
+        formData.postalCode
+      ].filter(Boolean).join(', ');
+
       const sanitizedData = {
         name: sanitizeHtml(formData.name),
         email: formData.email,
         phone: formData.phone,
-        address: sanitizeHtml(formData.address),
+        address: sanitizeHtml(combinedAddress),
         website: formData.website,
         status: formData.status,
         updated_at: new Date().toISOString(),
@@ -214,12 +238,20 @@ export function CompanyProfile() {
   // Update form data when company data changes
   React.useEffect(() => {
     if (company) {
+      // Parse existing address if available
+      const addressParts = company.address ? company.address.split(', ') : [];
+      
       setFormData(prev => ({
         ...prev,
         name: company.name || '',
         email: company.email || '',
         phone: company.phone || '',
-        address: company.address || '',
+        addressLine1: addressParts[0] || '',
+        addressLine2: addressParts[1] || '',
+        city: addressParts[2] || '',
+        state: addressParts[3] || '',
+        country: addressParts[4] || '',
+        postalCode: addressParts[5] || '',
         website: company.website || '',
         status: company.status || 'active',
       }));
@@ -313,13 +345,13 @@ export function CompanyProfile() {
               </Label>
               <Input
                 id="business-id"
-                value="BUS-20241227-ABC123" // This would be generated from database
-                placeholder="Auto-generated after registration"
+                value={generateBusinessId(formData.name)}
+                placeholder="Auto-generated based on company name and registration date"
                 disabled
                 className="bg-muted"
               />
               <p className="text-sm text-muted-foreground">
-                Unique business reference number generated upon successful registration
+                Format: PRISM-(First 4 letters of company)-(MM)-(YYYY)
               </p>
             </div>
 
@@ -378,19 +410,83 @@ export function CompanyProfile() {
             />
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="company-address" className="flex items-center gap-2">
-              <MapPin className="h-4 w-4" />
-              Company Address
-            </Label>
-            <Textarea
-              id="company-address"
-              value={formData.address}
-              onChange={(e) => handleInputChange('address', e.target.value)}
-              placeholder="123 Business Street, City, State, Country, ZIP"
-              rows={4}
-            />
-          </div>
+            <div className="space-y-4">
+              <Label className="flex items-center gap-2">
+                <MapPin className="h-4 w-4" />
+                Company Address
+              </Label>
+              
+              <div className="grid grid-cols-1 gap-4">
+                <div>
+                  <Label htmlFor="address-line1">Address Line 1 *</Label>
+                  <Input
+                    id="address-line1"
+                    value={formData.addressLine1}
+                    onChange={(e) => handleInputChange('addressLine1', e.target.value)}
+                    placeholder="Street address, building number"
+                    required
+                  />
+                </div>
+                
+                <div>
+                  <Label htmlFor="address-line2">Address Line 2</Label>
+                  <Input
+                    id="address-line2"
+                    value={formData.addressLine2}
+                    onChange={(e) => handleInputChange('addressLine2', e.target.value)}
+                    placeholder="Apartment, suite, floor (optional)"
+                  />
+                </div>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="city">City *</Label>
+                    <Input
+                      id="city"
+                      value={formData.city}
+                      onChange={(e) => handleInputChange('city', e.target.value)}
+                      placeholder="City"
+                      required
+                    />
+                  </div>
+                  
+                  <div>
+                    <Label htmlFor="state">State *</Label>
+                    <Input
+                      id="state"
+                      value={formData.state}
+                      onChange={(e) => handleInputChange('state', e.target.value)}
+                      placeholder="State/Province"
+                      required
+                    />
+                  </div>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="country">Country *</Label>
+                    <Input
+                      id="country"
+                      value={formData.country}
+                      onChange={(e) => handleInputChange('country', e.target.value)}
+                      placeholder="Country"
+                      required
+                    />
+                  </div>
+                  
+                  <div>
+                    <Label htmlFor="postal-code">Postal Code *</Label>
+                    <Input
+                      id="postal-code"
+                      value={formData.postalCode}
+                      onChange={(e) => handleInputChange('postalCode', e.target.value)}
+                      placeholder="Postal/ZIP code"
+                      required
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
 
           <div className="space-y-2">
             <Label htmlFor="company-website" className="flex items-center gap-2">
