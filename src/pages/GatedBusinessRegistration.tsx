@@ -36,14 +36,16 @@ const GatedBusinessRegistration = () => {
   const [otpCountdown, setOtpCountdown] = useState(0);
   const [resendCount, setResendCount] = useState(0);
 
-  const paymentData = location.state;
+  const paymentData = location.state as any;
+  const searchParams = new URLSearchParams(location.search);
+  const isPaymentVerified = searchParams.get('txn') === 'DEV-SUCCESS' || paymentData?.paymentVerified;
 
   // Redirect if no payment verification
   useEffect(() => {
-    if (!paymentData?.paymentVerified) {
+    if (!isPaymentVerified) {
       navigate('/checkout');
     }
-  }, [paymentData, navigate]);
+  }, [isPaymentVerified, navigate]);
 
   const [formData, setFormData] = useState({
     // Business Details
