@@ -1,4 +1,7 @@
 import { useState, useEffect } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -8,10 +11,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Separator } from '@/components/ui/separator';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Search, ShoppingCart, Truck, Edit, Trash2, Eye } from 'lucide-react';
+import { Plus, Search, ShoppingCart, Truck, Edit, Trash2, Eye, Calendar, Package } from 'lucide-react';
 
 interface PurchaseOrder {
   id: string;
@@ -64,7 +69,6 @@ interface Supplier {
 
 interface LineItem {
   id: number;
-  item_code: string;
   sku_number: string;
   item_description: string;
   hsn_sac_code: string;
@@ -87,8 +91,25 @@ interface LineItem {
   igst_amount: number;
   total_gst_amount: number;
   line_total: number;
-  remarks: string;
 }
+
+// Validation schemas
+const lineItemSchema = z.object({
+  item_description: z.string().min(1, "Item description is required"),
+  hsn_sac_code: z.string().optional(),
+  quantity: z.number().min(0.01, "Quantity must be greater than 0"),
+  unit_price: z.number().min(0, "Unit price cannot be negative"),
+  discount_percentage: z.number().min(0).max(100, "Discount percentage must be between 0-100"),
+  gst_rate: z.number().min(0).max(30, "GST rate must be between 0-30%"),
+});
+
+const purchaseOrderSchema = z.object({
+  supplier_id: z.string().min(1, "Please select a supplier"),
+  order_date: z.string().min(1, "Order date is required"),
+  expected_date: z.string().optional(),
+  external_po_ref: z.string().optional(),
+  notes: z.string().optional(),
+});
 
 export function PurchaseModule() {
   const { profile } = useAuth();
@@ -110,7 +131,6 @@ export function PurchaseModule() {
   const [lineItems, setLineItems] = useState<LineItem[]>([
     {
       id: 1,
-      item_code: '',
       sku_number: '',
       item_description: '',
       hsn_sac_code: '',
@@ -133,9 +153,19 @@ export function PurchaseModule() {
       igst_amount: 0,
       total_gst_amount: 0,
       line_total: 0,
-      remarks: ''
     }
   ]);
+
+  const form = useForm<z.infer<typeof purchaseOrderSchema>>({
+    resolver: zodResolver(purchaseOrderSchema),
+    defaultValues: {
+      supplier_id: '',
+      order_date: new Date().toISOString().split('T')[0],
+      expected_date: '',
+      external_po_ref: '',
+      notes: '',
+    },
+  });
 
   useEffect(() => {
     fetchPurchaseOrders();
@@ -229,7 +259,6 @@ export function PurchaseModule() {
     const newId = Math.max(...lineItems.map(item => item.id)) + 1;
     setLineItems([...lineItems, {
       id: newId,
-      item_code: '',
       sku_number: '',
       item_description: '',
       hsn_sac_code: '',
@@ -252,7 +281,6 @@ export function PurchaseModule() {
       igst_amount: 0,
       total_gst_amount: 0,
       line_total: 0,
-      remarks: ''
     }]);
   };
 
@@ -344,9 +372,7 @@ export function PurchaseModule() {
   };
 
   // CREATE - Add Purchase Order
-  const handleAddPurchaseOrder = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    
+  const handleAddPurchaseOrder = async (data: any) => {
     if (!selectedSupplier) {
       toast({
         title: "Error",
@@ -366,7 +392,6 @@ export function PurchaseModule() {
     }
     
     try {
-      const formData = new FormData(e.currentTarget);
       const poNumber = await generatePONumber();
       
       // Calculate totals
@@ -383,10 +408,10 @@ export function PurchaseModule() {
         supplier_contact_email: selectedSupplier.email,
         supplier_contact_phone: selectedSupplier.phone,
         supplier_gstin: selectedSupplier.gst_number,
-        order_date: formData.get('order_date') as string,
-        expected_date: formData.get('expected_date') as string || null,
-        external_po_ref: formData.get('external_po_ref') as string || null,
-        notes: formData.get('notes') as string || null,
+        order_date: data.order_date,
+        expected_date: data.expected_date || null,
+        external_po_ref: data.external_po_ref || null,
+        notes: data.notes || null,
         company_id: profile?.company_id,
         created_by: profile?.id,
         status: 'draft',
@@ -419,7 +444,7 @@ export function PurchaseModule() {
         .map(item => ({
           purchase_order_id: poInsertData.id,
           product_id: null, // Optional - for free text items
-          item_code: item.item_code || null,
+          item_code: null,
           item_description: item.item_description,
           hsn_sac_code: item.hsn_sac_code || null,
           quantity: item.quantity,
@@ -433,7 +458,7 @@ export function PurchaseModule() {
           sgst_amount: item.sgst_amount,
           igst_amount: item.igst_amount,
           total_price: item.line_total,
-          remarks: item.remarks || null,
+          remarks: null,
         }));
 
       if (lineItemsData.length > 0) {
@@ -454,9 +479,9 @@ export function PurchaseModule() {
       // Reset form
       setShowAddPODialog(false);
       setSelectedSupplier(null);
+      form.reset();
       setLineItems([{
         id: 1,
-        item_code: '',
         sku_number: '',
         item_description: '',
         hsn_sac_code: '',
@@ -479,10 +504,8 @@ export function PurchaseModule() {
         igst_amount: 0,
         total_gst_amount: 0,
         line_total: 0,
-        remarks: ''
       }]);
       fetchPurchaseOrders();
-      e.currentTarget.reset();
     } catch (error: any) {
       console.error('Purchase order creation error:', error);
       toast({
@@ -647,13 +670,18 @@ export function PurchaseModule() {
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold">Purchase Management</h1>
-          <p className="text-muted-foreground">Manage purchase orders and suppliers with full CRUD operations</p>
+          <h1 className="text-3xl font-bold bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">
+            Purchase Management
+          </h1>
+          <p className="text-muted-foreground">Manage purchase orders and suppliers with comprehensive features</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-3">
           <Dialog open={showAddSupplierDialog} onOpenChange={setShowAddSupplierDialog}>
             <DialogTrigger asChild>
-              <Button variant="outline">Add Supplier</Button>
+              <Button variant="outline" className="shadow-sm">
+                <Truck className="h-4 w-4 mr-2" />
+                Add Supplier
+              </Button>
             </DialogTrigger>
             <DialogContent>
               <DialogHeader>
@@ -684,314 +712,483 @@ export function PurchaseModule() {
           
           <Dialog open={showAddPODialog} onOpenChange={setShowAddPODialog}>
             <DialogTrigger asChild>
-              <Button>
+              <Button className="shadow-sm bg-gradient-to-r from-primary to-primary/90">
                 <Plus className="h-4 w-4 mr-2" />
                 Create Purchase Order
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-              <DialogHeader>
-                <DialogTitle>Create Purchase Order</DialogTitle>
-                <DialogDescription>Create a new comprehensive purchase order</DialogDescription>
+            <DialogContent className="max-w-6xl max-h-[95vh] overflow-y-auto">
+              <DialogHeader className="border-b pb-4">
+                <DialogTitle className="text-xl text-primary">Create Purchase Order</DialogTitle>
+                <DialogDescription>Create a comprehensive purchase order with line items and GST calculations</DialogDescription>
               </DialogHeader>
-              <form onSubmit={handleAddPurchaseOrder} className="space-y-6">
-                {/* PO Number Display */}
-                <div>
-                  <Label className="text-sm font-medium">PO Number (Auto-generated)</Label>
-                  <div className="mt-2 p-3 bg-primary/5 rounded border text-center text-lg font-mono text-primary">
-                    Will be generated: PO-{companyData?.name ? companyData.name.substring(0, 4).toUpperCase() : 'COMP'}###
-                  </div>
-                </div>
-
-                {/* Basic Details */}
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="order_date">PO Date *</Label>
-                    <Input 
-                      id="order_date" 
-                      name="order_date" 
-                      type="date" 
-                      defaultValue={new Date().toISOString().split('T')[0]}
-                      required 
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="expected_date">Expected Date</Label>
-                    <Input id="expected_date" name="expected_date" type="date" />
-                  </div>
-                </div>
-
-                <div>
-                  <Label htmlFor="external_po_ref">External PO Reference</Label>
-                  <Input id="external_po_ref" name="external_po_ref" placeholder="Customer order/project reference" />
-                </div>
-
-                <div>
-                  <Label htmlFor="supplier_select">Select Supplier *</Label>
-                  <Select 
-                    value={selectedSupplier?.id || ''} 
-                    onValueChange={(value) => {
-                      const supplier = suppliers.find(s => s.id === value);
-                      setSelectedSupplier(supplier || null);
-                    }}
-                    required
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Choose supplier" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {suppliers.map((supplier) => (
-                        <SelectItem key={supplier.id} value={supplier.id}>
-                          {supplier.name} ({supplier.supplier_ref || 'N/A'})
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {/* Line Items Table */}
-                <div className="space-y-4">
-                  <div className="flex justify-between items-center">
-                    <Label className="text-lg font-medium">Line Items</Label>
-                    <Button type="button" onClick={addLineItem} variant="outline" size="sm">
-                      <Plus className="h-4 w-4 mr-2" />
-                      Add Item
-                    </Button>
-                  </div>
+              
+              <Form {...form}>
+                <form onSubmit={form.handleSubmit(handleAddPurchaseOrder)} className="space-y-8">
                   
-                  <div className="overflow-x-auto">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead className="min-w-[100px]">Item Code</TableHead>
-                          <TableHead className="min-w-[100px]">SKU Number</TableHead>
-                          <TableHead className="min-w-[200px]">Description *</TableHead>
-                          <TableHead className="min-w-[100px]">HSN/SAC Code</TableHead>
-                          <TableHead className="min-w-[80px]">Qty *</TableHead>
-                          <TableHead className="min-w-[80px]">UOM</TableHead>
-                          <TableHead className="min-w-[100px]">Rate *</TableHead>
-                          <TableHead className="min-w-[80px]">Disc%</TableHead>
-                          <TableHead className="min-w-[100px]">After Disc</TableHead>
-                          <TableHead className="min-w-[60px]">Taxable</TableHead>
-                          <TableHead className="min-w-[80px]">GST%</TableHead>
-                          <TableHead className="min-w-[120px]">GST Amount</TableHead>
-                          <TableHead className="min-w-[100px]">Line Total</TableHead>
-                          <TableHead className="min-w-[120px]">Remarks</TableHead>
-                          <TableHead className="min-w-[50px]">Action</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {lineItems.map((item) => (
-                          <TableRow key={item.id}>
-                            <TableCell>
-                              <Input
-                                value={item.item_code}
-                                onChange={(e) => updateLineItem(item.id, 'item_code', e.target.value)}
-                                placeholder="Item code"
-                                className="w-full min-w-[80px]"
+                  {/* Header Section */}
+                  <div className="bg-gradient-to-r from-primary/5 to-primary/10 p-6 rounded-xl border border-primary/20">
+                    <div className="flex items-center gap-3 mb-6">
+                      <div className="p-3 bg-primary/10 rounded-xl">
+                        <ShoppingCart className="h-6 w-6 text-primary" />
+                      </div>
+                      <div>
+                        <h3 className="text-xl font-semibold text-primary">Purchase Order Details</h3>
+                        <p className="text-sm text-muted-foreground">Enter the basic purchase order information</p>
+                      </div>
+                    </div>
+                    
+                    <div className="mb-6">
+                      <Label className="text-sm font-medium text-muted-foreground">PO Number (Auto-generated)</Label>
+                      <div className="mt-2 p-4 bg-background rounded-lg border shadow-sm text-center">
+                        <span className="text-2xl font-mono font-bold text-primary">
+                          PO-{companyData?.name ? companyData.name.substring(0, 4).toUpperCase() : 'COMP'}###
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Basic Details Grid */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <FormField
+                        control={form.control}
+                        name="order_date"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="flex items-center gap-2">
+                              <Calendar className="h-4 w-4" />
+                              PO Date *
+                            </FormLabel>
+                            <FormControl>
+                              <Input 
+                                type="date" 
+                                {...field}
+                                className="bg-background border-input focus:border-primary focus:ring-2 focus:ring-primary/20"
                               />
-                            </TableCell>
-                            <TableCell>
-                              <Input
-                                value={item.sku_number}
-                                onChange={(e) => updateLineItem(item.id, 'sku_number', e.target.value)}
-                                placeholder="SKU"
-                                className="w-full min-w-[80px]"
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      
+                      <FormField
+                        control={form.control}
+                        name="expected_date"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="flex items-center gap-2">
+                              <Calendar className="h-4 w-4" />
+                              Expected Date
+                            </FormLabel>
+                            <FormControl>
+                              <Input 
+                                type="date" 
+                                {...field}
+                                className="bg-background border-input focus:border-primary focus:ring-2 focus:ring-primary/20"
                               />
-                            </TableCell>
-                            <TableCell>
-                              <Input
-                                value={item.item_description}
-                                onChange={(e) => updateLineItem(item.id, 'item_description', e.target.value)}
-                                placeholder="Item description"
-                                required
-                                className="w-full min-w-[150px]"
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+                      <FormField
+                        control={form.control}
+                        name="external_po_ref"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>External PO Reference</FormLabel>
+                            <FormControl>
+                              <Input 
+                                placeholder="Customer order/project reference"
+                                {...field}
+                                className="bg-background border-input focus:border-primary focus:ring-2 focus:ring-primary/20"
                               />
-                            </TableCell>
-                            <TableCell>
-                              <Input
-                                value={item.hsn_sac_code}
-                                onChange={(e) => updateLineItem(item.id, 'hsn_sac_code', e.target.value)}
-                                placeholder="HSN/SAC"
-                                className="w-full min-w-[80px]"
-                              />
-                            </TableCell>
-                            <TableCell>
-                              <Input
-                                type="number"
-                                value={item.quantity}
-                                onChange={(e) => updateLineItem(item.id, 'quantity', parseFloat(e.target.value) || 0)}
-                                min="0"
-                                step="0.01"
-                                required
-                                className="w-full min-w-[60px]"
-                              />
-                            </TableCell>
-                            <TableCell>
-                              <Select 
-                                value={item.unit_of_measure} 
-                                onValueChange={(value) => updateLineItem(item.id, 'unit_of_measure', value)}
-                              >
-                                <SelectTrigger className="w-full min-w-[60px]">
-                                  <SelectValue />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      
+                      <FormField
+                        control={form.control}
+                        name="supplier_id"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="flex items-center gap-2">
+                              <Truck className="h-4 w-4" />
+                              Select Supplier *
+                            </FormLabel>
+                            <Select onValueChange={(value) => {
+                              field.onChange(value);
+                              const supplier = suppliers.find(s => s.id === value);
+                              setSelectedSupplier(supplier || null);
+                            }} value={field.value}>
+                              <FormControl>
+                                <SelectTrigger className="bg-background border-input focus:border-primary focus:ring-2 focus:ring-primary/20">
+                                  <SelectValue placeholder="Choose supplier" />
                                 </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="pcs">Pcs</SelectItem>
-                                  <SelectItem value="kg">Kg</SelectItem>
-                                  <SelectItem value="ltr">Ltr</SelectItem>
-                                  <SelectItem value="box">Box</SelectItem>
-                                  <SelectItem value="mtr">Mtr</SelectItem>
-                                  <SelectItem value="sq.ft">Sq.Ft</SelectItem>
-                                  <SelectItem value="set">Set</SelectItem>
-                                </SelectContent>
-                              </Select>
-                            </TableCell>
-                            <TableCell>
-                              <Input
-                                type="number"
-                                value={item.unit_price}
-                                onChange={(e) => updateLineItem(item.id, 'unit_price', parseFloat(e.target.value) || 0)}
-                                min="0"
-                                step="0.01"
-                                required
-                                className="w-full min-w-[80px]"
-                              />
-                            </TableCell>
-                            <TableCell>
-                              <Input
-                                type="number"
-                                value={item.discount_percentage}
-                                onChange={(e) => updateLineItem(item.id, 'discount_percentage', parseFloat(e.target.value) || 0)}
-                                min="0"
-                                max="100"
-                                step="0.01"
-                                className="w-full min-w-[60px]"
-                              />
-                            </TableCell>
-                            <TableCell>
-                              <div className="text-sm font-medium min-w-[80px]">
-                                ₹{item.value_after_discount.toFixed(2)}
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              <input
-                                type="checkbox"
-                                checked={item.is_taxable}
-                                onChange={(e) => updateLineItem(item.id, 'is_taxable', e.target.checked)}
-                                className="w-4 h-4"
-                              />
-                            </TableCell>
-                            <TableCell>
-                              <Input
-                                type="number"
-                                value={item.gst_rate}
-                                onChange={(e) => updateLineItem(item.id, 'gst_rate', parseFloat(e.target.value) || 0)}
-                                min="0"
-                                max="28"
-                                step="0.01"
-                                disabled={!item.is_taxable}
-                                className="w-full min-w-[60px]"
-                              />
-                            </TableCell>
-                            <TableCell>
-                              <div className="text-xs space-y-1 min-w-[100px]">
-                                {companyData?.state !== selectedSupplier?.state ? (
-                                  <div>
-                                    <div>IGST ({item.igst_rate}%): ₹{item.igst_amount.toFixed(2)}</div>
-                                  </div>
-                                ) : (
-                                  <div>
-                                    <div>CGST ({item.cgst_rate}%): ₹{item.cgst_amount.toFixed(2)}</div>
-                                    <div>SGST ({item.sgst_rate}%): ₹{item.sgst_amount.toFixed(2)}</div>
-                                  </div>
-                                )}
-                                <div className="font-medium">Total: ₹{item.total_gst_amount.toFixed(2)}</div>
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              <div className="text-sm font-bold min-w-[80px]">
-                                ₹{item.line_total.toFixed(2)}
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              <Input
-                                value={item.remarks}
-                                onChange={(e) => updateLineItem(item.id, 'remarks', e.target.value)}
-                                placeholder="Remarks"
-                                className="w-full min-w-[100px]"
-                              />
-                            </TableCell>
-                            <TableCell>
-                              {lineItems.length > 1 && (
-                                <Button
-                                  type="button"
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => removeLineItem(item.id)}
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              )}
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
+                              </FormControl>
+                              <SelectContent className="bg-popover border shadow-lg max-h-60">
+                                {suppliers.map((supplier) => (
+                                  <SelectItem key={supplier.id} value={supplier.id} className="hover:bg-muted/50">
+                                    <div className="flex flex-col">
+                                      <span className="font-medium">{supplier.name}</span>
+                                      <span className="text-xs text-muted-foreground">
+                                        {supplier.supplier_ref || 'No reference'} • {supplier.email || 'No email'}
+                                      </span>
+                                    </div>
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
                   </div>
 
-                  {/* Comprehensive Total Summary */}
-                  <div className="bg-muted/30 p-6 rounded-lg space-y-4">
-                    <h4 className="text-lg font-semibold">Purchase Order Summary</h4>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                      <div className="space-y-2">
-                        <div className="font-medium text-primary">Quantity Details</div>
-                        <div>Total Quantity: {lineItems.reduce((sum, item) => sum + (item.quantity || 0), 0).toFixed(2)}</div>
+                  {/* Line Items Section */}
+                  <div className="space-y-6">
+                    <div className="bg-gradient-to-r from-secondary/20 to-secondary/10 p-6 rounded-xl border">
+                      <div className="flex justify-between items-center mb-6">
+                        <div className="flex items-center gap-3">
+                          <div className="p-3 bg-secondary/10 rounded-xl">
+                            <Package className="h-6 w-6 text-secondary-foreground" />
+                          </div>
+                          <div>
+                            <h3 className="text-xl font-semibold">Line Items</h3>
+                            <p className="text-sm text-muted-foreground">Add products/services to your purchase order</p>
+                          </div>
+                        </div>
+                        <Button 
+                          type="button" 
+                          onClick={addLineItem} 
+                          variant="outline" 
+                          size="sm"
+                          className="bg-background hover:bg-muted shadow-sm"
+                        >
+                          <Plus className="h-4 w-4 mr-2" />
+                          Add Item
+                        </Button>
                       </div>
                       
-                      <div className="space-y-2">
-                        <div className="font-medium text-primary">Value Details</div>
-                        <div>Value Before Discount: ₹{lineItems.reduce((sum, item) => sum + (item.value_before_discount || 0), 0).toFixed(2)}</div>
-                        <div>Total Discount: ₹{lineItems.reduce((sum, item) => sum + (item.discount_amount || 0), 0).toFixed(2)}</div>
-                        <div>Value After Discount: ₹{lineItems.reduce((sum, item) => sum + (item.value_after_discount || 0), 0).toFixed(2)}</div>
+                      <div className="overflow-x-auto rounded-lg border bg-background">
+                        <Table>
+                          <TableHeader>
+                            <TableRow className="bg-muted/30">
+                              <TableHead className="min-w-[200px] font-semibold">Description *</TableHead>
+                              <TableHead className="min-w-[100px] font-semibold">HSN/SAC Code</TableHead>
+                              <TableHead className="min-w-[80px] font-semibold">Qty *</TableHead>
+                              <TableHead className="min-w-[80px] font-semibold">UOM</TableHead>
+                              <TableHead className="min-w-[100px] font-semibold">Rate *</TableHead>
+                              <TableHead className="min-w-[80px] font-semibold">Disc%</TableHead>
+                              <TableHead className="min-w-[100px] font-semibold">After Disc</TableHead>
+                              <TableHead className="min-w-[60px] font-semibold">Taxable</TableHead>
+                              <TableHead className="min-w-[80px] font-semibold">GST%</TableHead>
+                              <TableHead className="min-w-[120px] font-semibold">GST Amount</TableHead>
+                              <TableHead className="min-w-[100px] font-semibold">Line Total</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {lineItems.map((item) => (
+                              <TableRow key={item.id} className="hover:bg-muted/20 transition-colors">
+                                <TableCell>
+                                  <Input
+                                    value={item.item_description}
+                                    onChange={(e) => updateLineItem(item.id, 'item_description', e.target.value)}
+                                    placeholder="Item description"
+                                    required
+                                    className="w-full min-w-[200px] border-input bg-background focus:border-primary focus:ring-2 focus:ring-primary/20"
+                                  />
+                                  {!item.item_description.trim() && (
+                                    <div className="text-xs text-destructive mt-1">Required field</div>
+                                  )}
+                                </TableCell>
+                                <TableCell>
+                                  <Input
+                                    value={item.hsn_sac_code}
+                                    onChange={(e) => updateLineItem(item.id, 'hsn_sac_code', e.target.value)}
+                                    placeholder="HSN/SAC code"
+                                    className="w-full min-w-[100px] border-input bg-background focus:border-primary focus:ring-2 focus:ring-primary/20"
+                                  />
+                                </TableCell>
+                                <TableCell>
+                                  <Input
+                                    type="number"
+                                    value={item.quantity}
+                                    onChange={(e) => updateLineItem(item.id, 'quantity', parseFloat(e.target.value) || 0)}
+                                    min="0.01"
+                                    step="0.01"
+                                    required
+                                    className="w-full min-w-[80px] border-input bg-background focus:border-primary focus:ring-2 focus:ring-primary/20"
+                                  />
+                                  {item.quantity <= 0 && (
+                                    <div className="text-xs text-destructive mt-1">Must be &gt; 0</div>
+                                  )}
+                                </TableCell>
+                                <TableCell>
+                                  <Select 
+                                    value={item.unit_of_measure} 
+                                    onValueChange={(value) => updateLineItem(item.id, 'unit_of_measure', value)}
+                                  >
+                                    <SelectTrigger className="w-full min-w-[80px] border-input bg-background focus:border-primary focus:ring-2 focus:ring-primary/20">
+                                      <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent className="bg-popover border shadow-lg">
+                                      <SelectItem value="pcs">Pieces</SelectItem>
+                                      <SelectItem value="kg">Kilogram</SelectItem>
+                                      <SelectItem value="ltr">Liter</SelectItem>
+                                      <SelectItem value="box">Box</SelectItem>
+                                      <SelectItem value="mtr">Meter</SelectItem>
+                                      <SelectItem value="sq.ft">Sq.Ft</SelectItem>
+                                      <SelectItem value="set">Set</SelectItem>
+                                    </SelectContent>
+                                  </Select>
+                                </TableCell>
+                                <TableCell>
+                                  <Input
+                                    type="number"
+                                    value={item.unit_price}
+                                    onChange={(e) => updateLineItem(item.id, 'unit_price', parseFloat(e.target.value) || 0)}
+                                    min="0"
+                                    step="0.01"
+                                    required
+                                    className="w-full min-w-[100px] border-input bg-background focus:border-primary focus:ring-2 focus:ring-primary/20"
+                                  />
+                                  {item.unit_price < 0 && (
+                                    <div className="text-xs text-destructive mt-1">Must be ≥ 0</div>
+                                  )}
+                                </TableCell>
+                                <TableCell>
+                                  <Input
+                                    type="number"
+                                    value={item.discount_percentage}
+                                    onChange={(e) => updateLineItem(item.id, 'discount_percentage', parseFloat(e.target.value) || 0)}
+                                    min="0"
+                                    max="100"
+                                    step="0.01"
+                                    className="w-full min-w-[80px] border-input bg-background focus:border-primary focus:ring-2 focus:ring-primary/20"
+                                  />
+                                  {(item.discount_percentage < 0 || item.discount_percentage > 100) && (
+                                    <div className="text-xs text-destructive mt-1">0-100%</div>
+                                  )}
+                                </TableCell>
+                                <TableCell>
+                                  <div className="text-sm font-medium min-w-[100px] p-2 bg-muted/30 rounded text-center">
+                                    ₹{item.value_after_discount.toFixed(2)}
+                                  </div>
+                                </TableCell>
+                                <TableCell>
+                                  <div className="flex justify-center">
+                                    <input
+                                      type="checkbox"
+                                      checked={item.is_taxable}
+                                      onChange={(e) => updateLineItem(item.id, 'is_taxable', e.target.checked)}
+                                      className="w-5 h-5 accent-primary cursor-pointer"
+                                    />
+                                  </div>
+                                </TableCell>
+                                <TableCell>
+                                  <Input
+                                    type="number"
+                                    value={item.gst_rate}
+                                    onChange={(e) => updateLineItem(item.id, 'gst_rate', parseFloat(e.target.value) || 0)}
+                                    min="0"
+                                    max="28"
+                                    step="0.01"
+                                    disabled={!item.is_taxable}
+                                    className="w-full min-w-[80px] border-input bg-background focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:bg-muted disabled:cursor-not-allowed"
+                                  />
+                                  {item.is_taxable && (item.gst_rate < 0 || item.gst_rate > 28) && (
+                                    <div className="text-xs text-destructive mt-1">0-28%</div>
+                                  )}
+                                </TableCell>
+                                <TableCell>
+                                  <div className="text-xs space-y-1 min-w-[120px] p-2 bg-muted/20 rounded">
+                                    {companyData?.state !== selectedSupplier?.state ? (
+                                      <div className="space-y-1">
+                                        <div className="flex justify-between">
+                                          <span>IGST ({item.igst_rate.toFixed(1)}%):</span>
+                                          <span className="font-medium">₹{item.igst_amount.toFixed(2)}</span>
+                                        </div>
+                                      </div>
+                                    ) : (
+                                      <div className="space-y-1">
+                                        <div className="flex justify-between">
+                                          <span>CGST ({item.cgst_rate.toFixed(1)}%):</span>
+                                          <span className="font-medium">₹{item.cgst_amount.toFixed(2)}</span>
+                                        </div>
+                                        <div className="flex justify-between">
+                                          <span>SGST ({item.sgst_rate.toFixed(1)}%):</span>
+                                          <span className="font-medium">₹{item.sgst_amount.toFixed(2)}</span>
+                                        </div>
+                                      </div>
+                                    )}
+                                    <Separator className="my-1" />
+                                    <div className="flex justify-between font-semibold text-primary">
+                                      <span>Total:</span>
+                                      <span>₹{item.total_gst_amount.toFixed(2)}</span>
+                                    </div>
+                                  </div>
+                                </TableCell>
+                                <TableCell>
+                                  <div className="text-sm font-bold min-w-[100px] p-2 bg-primary/10 text-primary rounded text-center">
+                                    ₹{item.line_total.toFixed(2)}
+                                  </div>
+                                </TableCell>
+                                <TableCell>
+                                  <div className="flex justify-center">
+                                    {lineItems.length > 1 && (
+                                      <Button
+                                        type="button"
+                                        variant="destructive"
+                                        size="sm"
+                                        onClick={() => removeLineItem(item.id)}
+                                        className="h-8 w-8 p-0 hover:bg-destructive/90"
+                                      >
+                                        <Trash2 className="h-4 w-4" />
+                                      </Button>
+                                    )}
+                                  </div>
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
                       </div>
-                      
-                      <div className="space-y-2">
-                        <div className="font-medium text-primary">Tax Breakdown</div>
-                        <div>Taxable Value: ₹{lineItems.reduce((sum, item) => sum + (item.taxable_value || 0), 0).toFixed(2)}</div>
-                        <div>Non-Taxable Value: ₹{lineItems.reduce((sum, item) => sum + (item.non_taxable_value || 0), 0).toFixed(2)}</div>
-                        <div>CGST: ₹{lineItems.reduce((sum, item) => sum + (item.cgst_amount || 0), 0).toFixed(2)}</div>
-                        <div>SGST: ₹{lineItems.reduce((sum, item) => sum + (item.sgst_amount || 0), 0).toFixed(2)}</div>
-                        <div>IGST: ₹{lineItems.reduce((sum, item) => sum + (item.igst_amount || 0), 0).toFixed(2)}</div>
-                        <div className="font-medium">Total GST: ₹{lineItems.reduce((sum, item) => sum + (item.total_gst_amount || 0), 0).toFixed(2)}</div>
-                      </div>
-                      
-                      <div className="space-y-2">
-                        <div className="font-medium text-primary">Final Total</div>
-                        <div className="text-xl font-bold text-primary">
-                          Grand Total: ₹{lineItems.reduce((sum, item) => sum + (item.line_total || 0), 0).toFixed(2)}
+
+                      {/* Enhanced Total Summary with Cards */}
+                      <div className="bg-gradient-to-br from-muted/30 to-muted/50 p-6 rounded-xl border shadow-sm space-y-6 mt-6">
+                        <div className="flex items-center gap-2">
+                          <Package className="h-5 w-5 text-primary" />
+                          <h4 className="text-lg font-semibold text-primary">Purchase Order Summary</h4>
+                        </div>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                          <Card className="p-4 bg-background/80 backdrop-blur-sm">
+                            <div className="space-y-2">
+                              <div className="text-sm font-medium text-muted-foreground">Quantity Details</div>
+                              <div className="text-2xl font-bold text-primary">
+                                {lineItems.reduce((sum, item) => sum + (item.quantity || 0), 0).toFixed(2)}
+                              </div>
+                              <div className="text-xs text-muted-foreground">Total Units</div>
+                            </div>
+                          </Card>
+                          
+                          <Card className="p-4 bg-background/80 backdrop-blur-sm">
+                            <div className="space-y-2">
+                              <div className="text-sm font-medium text-muted-foreground">Value Analysis</div>
+                              <div className="space-y-1 text-xs">
+                                <div className="flex justify-between">
+                                  <span>Before Discount:</span>
+                                  <span className="font-medium">₹{lineItems.reduce((sum, item) => sum + (item.value_before_discount || 0), 0).toFixed(2)}</span>
+                                </div>
+                                <div className="flex justify-between text-destructive">
+                                  <span>Total Discount:</span>
+                                  <span className="font-medium">-₹{lineItems.reduce((sum, item) => sum + (item.discount_amount || 0), 0).toFixed(2)}</span>
+                                </div>
+                                <Separator className="my-1" />
+                                <div className="flex justify-between font-semibold">
+                                  <span>After Discount:</span>
+                                  <span>₹{lineItems.reduce((sum, item) => sum + (item.value_after_discount || 0), 0).toFixed(2)}</span>
+                                </div>
+                              </div>
+                            </div>
+                          </Card>
+                          
+                          <Card className="p-4 bg-background/80 backdrop-blur-sm">
+                            <div className="space-y-2">
+                              <div className="text-sm font-medium text-muted-foreground">Tax Breakdown</div>
+                              <div className="space-y-1 text-xs">
+                                <div className="flex justify-between">
+                                  <span>Taxable Value:</span>
+                                  <span className="font-medium">₹{lineItems.reduce((sum, item) => sum + (item.taxable_value || 0), 0).toFixed(2)}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span>CGST:</span>
+                                  <span className="font-medium">₹{lineItems.reduce((sum, item) => sum + (item.cgst_amount || 0), 0).toFixed(2)}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span>SGST:</span>
+                                  <span className="font-medium">₹{lineItems.reduce((sum, item) => sum + (item.sgst_amount || 0), 0).toFixed(2)}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span>IGST:</span>
+                                  <span className="font-medium">₹{lineItems.reduce((sum, item) => sum + (item.igst_amount || 0), 0).toFixed(2)}</span>
+                                </div>
+                                <Separator className="my-1" />
+                                <div className="flex justify-between font-semibold text-primary">
+                                  <span>Total GST:</span>
+                                  <span>₹{lineItems.reduce((sum, item) => sum + (item.total_gst_amount || 0), 0).toFixed(2)}</span>
+                                </div>
+                              </div>
+                            </div>
+                          </Card>
+                          
+                          <Card className="p-4 bg-gradient-to-br from-primary/10 to-primary/5 border-primary/20">
+                            <div className="space-y-2">
+                              <div className="text-sm font-medium text-primary">Grand Total</div>
+                              <div className="text-3xl font-bold text-primary">
+                                ₹{lineItems.reduce((sum, item) => sum + (item.line_total || 0), 0).toFixed(2)}
+                              </div>
+                              <div className="text-xs text-muted-foreground">Final Amount</div>
+                            </div>
+                          </Card>
                         </div>
                       </div>
                     </div>
                   </div>
-                </div>
 
-                <div>
-                  <Label htmlFor="notes">Notes</Label>
-                  <Textarea 
-                    id="notes" 
-                    name="notes" 
-                    placeholder="Special instructions or notes"
-                    rows={3}
-                  />
-                </div>
+                  {/* Notes Section */}
+                  <div className="bg-muted/20 p-6 rounded-xl border">
+                    <FormField
+                      control={form.control}
+                      name="notes"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-base font-semibold">Additional Notes</FormLabel>
+                          <FormControl>
+                            <Textarea 
+                              placeholder="Special instructions, terms, or additional information..."
+                              rows={4}
+                              {...field}
+                              className="bg-background border-input focus:border-primary focus:ring-2 focus:ring-primary/20 resize-none"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
 
-                <div className="flex gap-4">
-                  <Button type="submit" className="flex-1">Create Purchase Order</Button>
-                  <Button type="button" variant="outline" onClick={() => setShowAddPODialog(false)} className="flex-1">
-                    Cancel
-                  </Button>
-                </div>
-              </form>
+                  {/* Submit Actions */}
+                  <div className="flex gap-4 pt-6 border-t">
+                    <Button 
+                      type="submit" 
+                      className="flex-1 h-12 bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary/80 shadow-lg"
+                      disabled={!selectedSupplier || lineItems.length === 0 || !lineItems.some(item => item.item_description.trim())}
+                    >
+                      <ShoppingCart className="h-4 w-4 mr-2" />
+                      Create Purchase Order
+                    </Button>
+                    <Button 
+                      type="button" 
+                      variant="outline" 
+                      onClick={() => {
+                        setShowAddPODialog(false);
+                        form.reset();
+                        setSelectedSupplier(null);
+                      }} 
+                      className="flex-1 h-12"
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                </form>
+              </Form>
             </DialogContent>
           </Dialog>
         </div>
@@ -999,51 +1196,51 @@ export function PurchaseModule() {
 
       {/* Stats Cards */}
       <div className="grid gap-6 md:grid-cols-4">
-        <Card>
+        <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total POs</CardTitle>
-            <ShoppingCart className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium text-blue-700">Total POs</CardTitle>
+            <ShoppingCart className="h-4 w-4 text-blue-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{purchaseOrders.length}</div>
-            <p className="text-xs text-muted-foreground">All purchase orders</p>
+            <div className="text-2xl font-bold text-blue-800">{purchaseOrders.length}</div>
+            <p className="text-xs text-blue-600">All purchase orders</p>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="bg-gradient-to-br from-amber-50 to-amber-100 border-amber-200">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Pending POs</CardTitle>
-            <ShoppingCart className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium text-amber-700">Pending POs</CardTitle>
+            <ShoppingCart className="h-4 w-4 text-amber-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
+            <div className="text-2xl font-bold text-amber-800">
               {purchaseOrders.filter(po => ['draft', 'sent', 'confirmed'].includes(po.status)).length}
             </div>
-            <p className="text-xs text-muted-foreground">Awaiting completion</p>
+            <p className="text-xs text-amber-600">Awaiting completion</p>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="bg-gradient-to-br from-green-50 to-green-100 border-green-200">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Active Suppliers</CardTitle>
-            <Truck className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium text-green-700">Active Suppliers</CardTitle>
+            <Truck className="h-4 w-4 text-green-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{suppliers.length}</div>
-            <p className="text-xs text-muted-foreground">Registered suppliers</p>
+            <div className="text-2xl font-bold text-green-800">{suppliers.length}</div>
+            <p className="text-xs text-green-600">Registered suppliers</p>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="bg-gradient-to-br from-purple-50 to-purple-100 border-purple-200">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Value</CardTitle>
-            <ShoppingCart className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium text-purple-700">Total Value</CardTitle>
+            <ShoppingCart className="h-4 w-4 text-purple-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
-              ${purchaseOrders.reduce((sum, po) => sum + po.total_amount, 0).toFixed(2)}
+            <div className="text-2xl font-bold text-purple-800">
+              ₹{purchaseOrders.reduce((sum, po) => sum + po.total_amount, 0).toFixed(2)}
             </div>
-            <p className="text-xs text-muted-foreground">All purchase orders</p>
+            <p className="text-xs text-purple-600">All purchase orders</p>
           </CardContent>
         </Card>
       </div>
@@ -1056,81 +1253,49 @@ export function PurchaseModule() {
             placeholder="Search purchase orders..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10"
+            className="pl-10 bg-background border-input focus:border-primary focus:ring-2 focus:ring-primary/20"
           />
         </div>
       </div>
 
       {/* Purchase Orders Table with CRUD Operations */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Purchase Orders</CardTitle>
+      <Card className="bg-background border shadow-sm">
+        <CardHeader className="border-b bg-muted/30">
+          <CardTitle className="text-xl">Purchase Orders</CardTitle>
           <CardDescription>Complete CRUD operations for purchase orders</CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-0">
           <Table>
             <TableHeader>
-              <TableRow>
-                <TableHead>PO Number</TableHead>
-                <TableHead>Supplier</TableHead>
-                <TableHead>Order Date</TableHead>
-                <TableHead>Expected Date</TableHead>
-                <TableHead>Total Amount</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Actions</TableHead>
+              <TableRow className="bg-muted/50">
+                <TableHead className="font-semibold">PO Number</TableHead>
+                <TableHead className="font-semibold">Supplier</TableHead>
+                <TableHead className="font-semibold">Order Date</TableHead>
+                <TableHead className="font-semibold">Expected Date</TableHead>
+                <TableHead className="font-semibold">Total Amount</TableHead>
+                <TableHead className="font-semibold">Status</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filteredPOs.map((po) => (
-                <TableRow key={po.id}>
+                <TableRow key={po.id} className="hover:bg-muted/30 transition-colors">
                   <TableCell className="font-medium">{po.po_number}</TableCell>
                   <TableCell>{po.supplier.name}</TableCell>
                   <TableCell>{new Date(po.order_date).toLocaleDateString()}</TableCell>
                   <TableCell>
                     {po.expected_date ? new Date(po.expected_date).toLocaleDateString() : '-'}
                   </TableCell>
-                  <TableCell>${po.total_amount.toFixed(2)}</TableCell>
+                  <TableCell className="font-medium">₹{po.total_amount.toFixed(2)}</TableCell>
                   <TableCell>
-                    <Badge variant={getStatusColor(po.status)}>
+                    <Badge variant={getStatusColor(po.status)} className="shadow-sm">
                       {po.status.charAt(0).toUpperCase() + po.status.slice(1)}
                     </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          setViewingPO(po);
-                          setShowViewPODialog(true);
-                        }}
-                      >
-                        <Eye className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          setEditingPO(po);
-                          setShowEditPODialog(true);
-                        }}
-                      >
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleDeletePurchaseOrder(po.id)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
                   </TableCell>
                 </TableRow>
               ))}
               {filteredPOs.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center text-muted-foreground">
+                  <TableCell colSpan={6} className="text-center text-muted-foreground">
                     No purchase orders found
                   </TableCell>
                 </TableRow>
@@ -1153,7 +1318,7 @@ export function PurchaseModule() {
               <div><strong>Supplier:</strong> {viewingPO.supplier.name}</div>
               <div><strong>Order Date:</strong> {new Date(viewingPO.order_date).toLocaleDateString()}</div>
               <div><strong>Expected Date:</strong> {viewingPO.expected_date ? new Date(viewingPO.expected_date).toLocaleDateString() : 'Not specified'}</div>
-              <div><strong>Total Amount:</strong> ${viewingPO.total_amount.toFixed(2)}</div>
+              <div><strong>Total Amount:</strong> ₹{viewingPO.total_amount.toFixed(2)}</div>
               <div><strong>Status:</strong> <Badge variant={getStatusColor(viewingPO.status)}>{viewingPO.status}</Badge></div>
               {viewingPO.external_po_ref && <div><strong>External Reference:</strong> {viewingPO.external_po_ref}</div>}
               {viewingPO.notes && <div><strong>Notes:</strong> {viewingPO.notes}</div>}
