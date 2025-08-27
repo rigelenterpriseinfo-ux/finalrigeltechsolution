@@ -11,7 +11,8 @@ import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Search, Package, AlertTriangle, Edit, Trash2 } from 'lucide-react';
+import { Plus, Search, Package, AlertTriangle, Edit, Trash2, Download } from 'lucide-react';
+import * as XLSX from 'xlsx';
 
 interface Product {
   id: string;
@@ -247,6 +248,64 @@ export function InventoryModule() {
   const lowStockProducts = products.filter(product => 
     product.stock_quantity <= product.min_stock_level
   );
+
+  const exportToExcel = () => {
+    try {
+      // Prepare data for export
+      const exportData = filteredProducts.map(product => ({
+        'SKU': product.sku,
+        'Product Name': product.name,
+        'Description': product.description || '',
+        'Unit': product.unit || '',
+        'HSN Code': product.hsn_code || '',
+        'Cost Price (₹)': product.cost_price.toFixed(2),
+        'Selling Price (₹)': product.unit_price.toFixed(2),
+        'GST %': product.gst_percentage,
+        'Current Stock': product.stock_quantity,
+        'Min Stock Level': product.min_stock_level,
+        'Max Stock Level': product.max_stock_level || '',
+        'Weight (kg)': product.weight_kg || '',
+        'Length (cm)': product.length_cm || '',
+        'Width (cm)': product.width_cm || '',
+        'Height (cm)': product.height_cm || '',
+        'Status': product.is_active ? 'Active' : 'Inactive',
+        'Created Date': new Date(product.created_at).toLocaleDateString('en-IN'),
+        'Last Updated': new Date(product.updated_at).toLocaleDateString('en-IN')
+      }));
+
+      // Create workbook and worksheet
+      const workbook = XLSX.utils.book_new();
+      const worksheet = XLSX.utils.json_to_sheet(exportData);
+
+      // Auto-size columns
+      const colWidths = Object.keys(exportData[0] || {}).map(key => ({
+        wch: Math.max(key.length, 15)
+      }));
+      worksheet['!cols'] = colWidths;
+
+      // Add worksheet to workbook
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Products');
+
+      // Generate filename with current date
+      const currentDate = new Date().toISOString().split('T')[0];
+      const filename = `Products_Export_${currentDate}.xlsx`;
+
+      // Save file
+      XLSX.writeFile(workbook, filename);
+
+      toast({
+        title: "Export Successful",
+        description: `${filteredProducts.length} products exported to ${filename}`,
+      });
+    } catch (error) {
+      console.error('Export error:', error);
+      toast({
+        title: "Export Failed",
+        description: "An error occurred while exporting the data",
+        variant: "destructive",
+      });
+    }
+  };
 
   if (loading) {
     return (
@@ -801,8 +860,18 @@ export function InventoryModule() {
         </Card>
       </div>
 
-      {/* Search */}
+      {/* Search and Export */}
       <div className="flex items-center gap-4">
+        <Button
+          onClick={exportToExcel}
+          variant="outline"
+          className="flex items-center gap-2"
+          disabled={filteredProducts.length === 0}
+        >
+          <Download className="h-4 w-4" />
+          Export to Excel
+        </Button>
+        
         <div className="relative flex-1 max-w-sm">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
