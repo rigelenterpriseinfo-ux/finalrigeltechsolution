@@ -11,7 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Search, Package, AlertTriangle } from 'lucide-react';
+import { Plus, Search, Package, AlertTriangle, Edit, Trash2 } from 'lucide-react';
 
 interface Product {
   id: string;
@@ -24,11 +24,16 @@ interface Product {
   hsn_code: string | null;
   gst_percentage: number;
   weight_kg: number | null;
-  dimension_lbh: string | null;
+  length_cm: number | null;
+  width_cm: number | null;
+  height_cm: number | null;
   stock_quantity: number;
   min_stock_level: number;
   max_stock_level: number | null;
   is_active: boolean;
+  company_id: string;
+  created_at: string;
+  updated_at: string;
 }
 
 export function InventoryModule() {
@@ -38,6 +43,8 @@ export function InventoryModule() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [showAddDialog, setShowAddDialog] = useState(false);
+  const [showEditDialog, setShowEditDialog] = useState(false);
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
 
   useEffect(() => {
     fetchProducts();
@@ -66,6 +73,16 @@ export function InventoryModule() {
   const handleAddProduct = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     
+    // Check if user has company_id
+    if (!profile?.company_id) {
+      toast({
+        title: "Error",
+        description: "User profile not found or company not set",
+        variant: "destructive",
+      });
+      return;
+    }
+    
     const formData = new FormData(e.currentTarget);
     const productData = {
       name: formData.get('name') as string,
@@ -73,15 +90,17 @@ export function InventoryModule() {
       unit: formData.get('unit') as string,
       cost_price: parseFloat(formData.get('cost_price') as string),
       unit_price: parseFloat(formData.get('unit_price') as string),
-      hsn_code: formData.get('hsn_code') as string,
-      gst_percentage: parseFloat(formData.get('gst_percentage') as string),
+      hsn_code: formData.get('hsn_code') as string || null,
+      gst_percentage: parseFloat(formData.get('gst_percentage') as string) || 18,
       weight_kg: formData.get('weight_kg') ? parseFloat(formData.get('weight_kg') as string) : null,
-      dimension_lbh: formData.get('dimension_lbh') as string || null,
+      length_cm: formData.get('length_cm') ? parseFloat(formData.get('length_cm') as string) : null,
+      width_cm: formData.get('width_cm') ? parseFloat(formData.get('width_cm') as string) : null,
+      height_cm: formData.get('height_cm') ? parseFloat(formData.get('height_cm') as string) : null,
       description: formData.get('description') as string || null,
       min_stock_level: parseInt(formData.get('min_stock_level') as string),
       max_stock_level: formData.get('max_stock_level') ? parseInt(formData.get('max_stock_level') as string) : null,
       stock_quantity: 0, // Initial stock is 0
-      company_id: profile?.company_id,
+      company_id: profile.company_id,
     };
 
     try {
@@ -90,6 +109,7 @@ export function InventoryModule() {
         .insert([productData]);
 
       if (error) {
+        console.error('Insert error:', error);
         toast({
           title: "Error",
           description: error.message,
@@ -107,9 +127,106 @@ export function InventoryModule() {
       fetchProducts();
       e.currentTarget.reset();
     } catch (error: any) {
+      console.error('Catch error:', error);
       toast({
         title: "Error",
         description: "Failed to add product",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleUpdateProduct = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    
+    if (!editingProduct) return;
+    
+    const formData = new FormData(e.currentTarget);
+    const updateData = {
+      name: formData.get('name') as string,
+      sku: formData.get('sku') as string,
+      unit: formData.get('unit') as string,
+      cost_price: parseFloat(formData.get('cost_price') as string),
+      unit_price: parseFloat(formData.get('unit_price') as string),
+      hsn_code: formData.get('hsn_code') as string || null,
+      gst_percentage: parseFloat(formData.get('gst_percentage') as string) || 18,
+      weight_kg: formData.get('weight_kg') ? parseFloat(formData.get('weight_kg') as string) : null,
+      length_cm: formData.get('length_cm') ? parseFloat(formData.get('length_cm') as string) : null,
+      width_cm: formData.get('width_cm') ? parseFloat(formData.get('width_cm') as string) : null,
+      height_cm: formData.get('height_cm') ? parseFloat(formData.get('height_cm') as string) : null,
+      description: formData.get('description') as string || null,
+      min_stock_level: parseInt(formData.get('min_stock_level') as string),
+      max_stock_level: formData.get('max_stock_level') ? parseInt(formData.get('max_stock_level') as string) : null,
+      stock_quantity: parseInt(formData.get('stock_quantity') as string),
+    };
+
+    try {
+      const { error } = await supabase
+        .from('products')
+        .update(updateData)
+        .eq('id', editingProduct.id);
+
+      if (error) {
+        toast({
+          title: "Error",
+          description: error.message,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      toast({
+        title: "Success",
+        description: "Product updated successfully",
+      });
+
+      setShowEditDialog(false);
+      setEditingProduct(null);
+      fetchProducts();
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: "Failed to update product",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleEditProduct = (product: Product) => {
+    setEditingProduct(product);
+    setShowEditDialog(true);
+  };
+
+  const handleDeleteProduct = async (productId: string) => {
+    if (!window.confirm('Are you sure you want to delete this product?')) {
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('products')
+        .delete()
+        .eq('id', productId);
+
+      if (error) {
+        toast({
+          title: "Error",
+          description: error.message,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      toast({
+        title: "Success",
+        description: "Product deleted successfully",
+      });
+
+      fetchProducts();
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: "Failed to delete product",
         variant: "destructive",
       });
     }
@@ -202,14 +319,22 @@ export function InventoryModule() {
                   <Label htmlFor="description">Item Description</Label>
                   <Textarea id="description" name="description" />
                 </div>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-4 gap-4">
                   <div>
                     <Label htmlFor="weight_kg">Weight (kg)</Label>
                     <Input id="weight_kg" name="weight_kg" type="number" step="0.001" min="0" placeholder="0.000" />
                   </div>
                   <div>
-                    <Label htmlFor="dimension_lbh">Dimension (LBH)(CM)</Label>
-                    <Input id="dimension_lbh" name="dimension_lbh" placeholder="L x B x H" />
+                    <Label htmlFor="length_cm">Length (CM)</Label>
+                    <Input id="length_cm" name="length_cm" type="number" step="0.01" min="0" placeholder="0.00" />
+                  </div>
+                  <div>
+                    <Label htmlFor="width_cm">Width (CM)</Label>
+                    <Input id="width_cm" name="width_cm" type="number" step="0.01" min="0" placeholder="0.00" />
+                  </div>
+                  <div>
+                    <Label htmlFor="height_cm">Height (CM)</Label>
+                    <Input id="height_cm" name="height_cm" type="number" step="0.01" min="0" placeholder="0.00" />
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
@@ -228,6 +353,101 @@ export function InventoryModule() {
           </Dialog>
         </div>
       </div>
+
+      {/* Edit Product Dialog */}
+      <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Edit Product</DialogTitle>
+            <DialogDescription>Update product information</DialogDescription>
+          </DialogHeader>
+          {editingProduct && (
+            <form onSubmit={handleUpdateProduct} className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="edit-name">Item Name</Label>
+                  <Input id="edit-name" name="name" defaultValue={editingProduct.name} required />
+                </div>
+                <div>
+                  <Label htmlFor="edit-sku">SKU Number</Label>
+                  <Input id="edit-sku" name="sku" defaultValue={editingProduct.sku} required />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="edit-unit">Unit</Label>
+                  <Select name="unit" defaultValue={editingProduct.unit || ""}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select unit" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="kg">Kg</SelectItem>
+                      <SelectItem value="gram">Gram</SelectItem>
+                      <SelectItem value="piece">Piece</SelectItem>
+                      <SelectItem value="other">Other</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label htmlFor="edit-hsn_code">HSN Code</Label>
+                  <Input id="edit-hsn_code" name="hsn_code" defaultValue={editingProduct.hsn_code || ""} />
+                </div>
+              </div>
+              <div className="grid grid-cols-3 gap-4">
+                <div>
+                  <Label htmlFor="edit-cost_price">Cost</Label>
+                  <Input id="edit-cost_price" name="cost_price" type="number" step="0.01" defaultValue={editingProduct.cost_price} required />
+                </div>
+                <div>
+                  <Label htmlFor="edit-unit_price">Selling Price</Label>
+                  <Input id="edit-unit_price" name="unit_price" type="number" step="0.01" defaultValue={editingProduct.unit_price} required />
+                </div>
+                <div>
+                  <Label htmlFor="edit-gst_percentage">GST %</Label>
+                  <Input id="edit-gst_percentage" name="gst_percentage" type="number" step="0.01" min="0" max="100" defaultValue={editingProduct.gst_percentage} />
+                </div>
+              </div>
+              <div>
+                <Label htmlFor="edit-description">Item Description</Label>
+                <Textarea id="edit-description" name="description" defaultValue={editingProduct.description || ""} />
+              </div>
+              <div className="grid grid-cols-4 gap-4">
+                <div>
+                  <Label htmlFor="edit-weight_kg">Weight (kg)</Label>
+                  <Input id="edit-weight_kg" name="weight_kg" type="number" step="0.001" min="0" defaultValue={editingProduct.weight_kg || ""} placeholder="0.000" />
+                </div>
+                <div>
+                  <Label htmlFor="edit-length_cm">Length (CM)</Label>
+                  <Input id="edit-length_cm" name="length_cm" type="number" step="0.01" min="0" defaultValue={editingProduct.length_cm || ""} placeholder="0.00" />
+                </div>
+                <div>
+                  <Label htmlFor="edit-width_cm">Width (CM)</Label>
+                  <Input id="edit-width_cm" name="width_cm" type="number" step="0.01" min="0" defaultValue={editingProduct.width_cm || ""} placeholder="0.00" />
+                </div>
+                <div>
+                  <Label htmlFor="edit-height_cm">Height (CM)</Label>
+                  <Input id="edit-height_cm" name="height_cm" type="number" step="0.01" min="0" defaultValue={editingProduct.height_cm || ""} placeholder="0.00" />
+                </div>
+              </div>
+              <div className="grid grid-cols-3 gap-4">
+                <div>
+                  <Label htmlFor="edit-stock_quantity">Current Stock</Label>
+                  <Input id="edit-stock_quantity" name="stock_quantity" type="number" min="0" defaultValue={editingProduct.stock_quantity} required />
+                </div>
+                <div>
+                  <Label htmlFor="edit-min_stock_level">Min Stock Level</Label>
+                  <Input id="edit-min_stock_level" name="min_stock_level" type="number" min="0" defaultValue={editingProduct.min_stock_level} required />
+                </div>
+                <div>
+                  <Label htmlFor="edit-max_stock_level">Max Stock Level</Label>
+                  <Input id="edit-max_stock_level" name="max_stock_level" type="number" min="0" defaultValue={editingProduct.max_stock_level || ""} />
+                </div>
+              </div>
+              <Button type="submit" className="w-full">Update Product</Button>
+            </form>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* Low Stock Alert */}
       {lowStockProducts.length > 0 && (
@@ -325,6 +545,7 @@ export function InventoryModule() {
                 <TableHead>Selling Price</TableHead>
                 <TableHead>GST %</TableHead>
                 <TableHead>Status</TableHead>
+                <TableHead>Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -347,11 +568,29 @@ export function InventoryModule() {
                       {product.is_active ? 'Active' : 'Inactive'}
                     </Badge>
                   </TableCell>
+                  <TableCell>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleEditProduct(product)}
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => handleDeleteProduct(product.id)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </TableCell>
                 </TableRow>
               ))}
               {filteredProducts.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={9} className="text-center text-muted-foreground">
+                  <TableCell colSpan={10} className="text-center text-muted-foreground">
                     No products found
                   </TableCell>
                 </TableRow>

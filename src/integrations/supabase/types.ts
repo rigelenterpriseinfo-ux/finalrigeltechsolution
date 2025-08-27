@@ -549,11 +549,12 @@ export type Database = {
           cost_price: number
           created_at: string
           description: string | null
-          dimension_lbh: string | null
           gst_percentage: number | null
+          height_cm: number | null
           hsn_code: string | null
           id: string
           is_active: boolean
+          length_cm: number | null
           max_stock_level: number | null
           min_stock_level: number
           name: string
@@ -563,6 +564,7 @@ export type Database = {
           unit_price: number
           updated_at: string
           weight_kg: number | null
+          width_cm: number | null
         }
         Insert: {
           category_id?: string | null
@@ -570,11 +572,12 @@ export type Database = {
           cost_price?: number
           created_at?: string
           description?: string | null
-          dimension_lbh?: string | null
           gst_percentage?: number | null
+          height_cm?: number | null
           hsn_code?: string | null
           id?: string
           is_active?: boolean
+          length_cm?: number | null
           max_stock_level?: number | null
           min_stock_level?: number
           name: string
@@ -584,6 +587,7 @@ export type Database = {
           unit_price?: number
           updated_at?: string
           weight_kg?: number | null
+          width_cm?: number | null
         }
         Update: {
           category_id?: string | null
@@ -591,11 +595,12 @@ export type Database = {
           cost_price?: number
           created_at?: string
           description?: string | null
-          dimension_lbh?: string | null
           gst_percentage?: number | null
+          height_cm?: number | null
           hsn_code?: string | null
           id?: string
           is_active?: boolean
+          length_cm?: number | null
           max_stock_level?: number | null
           min_stock_level?: number
           name?: string
@@ -605,6 +610,7 @@ export type Database = {
           unit_price?: number
           updated_at?: string
           weight_kg?: number | null
+          width_cm?: number | null
         }
         Relationships: [
           {
