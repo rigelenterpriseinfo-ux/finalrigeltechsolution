@@ -280,18 +280,36 @@ export function InventoryModule() {
               <form onSubmit={handleAddProduct} className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <Label htmlFor="name">Item Name</Label>
-                    <Input id="name" name="name" required />
+                    <Label htmlFor="name">Item Name *</Label>
+                    <Input 
+                      id="name" 
+                      name="name" 
+                      required 
+                      minLength={2}
+                      maxLength={100}
+                      placeholder="Enter product name"
+                      pattern="[A-Za-z0-9\s\-_]+"
+                      title="Only letters, numbers, spaces, hyphens and underscores allowed"
+                    />
                   </div>
                   <div>
-                    <Label htmlFor="sku">SKU Number</Label>
-                    <Input id="sku" name="sku" required />
+                    <Label htmlFor="sku">SKU Number *</Label>
+                    <Input 
+                      id="sku" 
+                      name="sku" 
+                      required 
+                      minLength={3}
+                      maxLength={50}
+                      placeholder="e.g., PROD-001"
+                      pattern="[A-Za-z0-9\-_]+"
+                      title="Only letters, numbers, hyphens and underscores allowed"
+                    />
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <Label htmlFor="unit">Unit</Label>
-                    <Select name="unit">
+                    <Label htmlFor="unit">Unit *</Label>
+                    <Select name="unit" required>
                       <SelectTrigger>
                         <SelectValue placeholder="Select unit" />
                       </SelectTrigger>
@@ -299,64 +317,176 @@ export function InventoryModule() {
                         <SelectItem value="kg">Kg</SelectItem>
                         <SelectItem value="gram">Gram</SelectItem>
                         <SelectItem value="piece">Piece</SelectItem>
+                        <SelectItem value="liter">Liter</SelectItem>
+                        <SelectItem value="meter">Meter</SelectItem>
                         <SelectItem value="other">Other</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
                   <div>
                     <Label htmlFor="hsn_code">HSN Code</Label>
-                    <Input id="hsn_code" name="hsn_code" />
+                    <Input 
+                      id="hsn_code" 
+                      name="hsn_code" 
+                      placeholder="8-digit numeric code"
+                      pattern="[0-9]{4,8}"
+                      title="HSN code must be 4-8 digits only"
+                      maxLength={8}
+                      onInput={(e) => {
+                        const target = e.target as HTMLInputElement;
+                        target.value = target.value.replace(/[^0-9]/g, '');
+                      }}
+                    />
                   </div>
                 </div>
                 <div className="grid grid-cols-3 gap-4">
                   <div>
-                    <Label htmlFor="cost_price">Cost</Label>
-                    <Input id="cost_price" name="cost_price" type="number" step="0.01" required />
+                    <Label htmlFor="cost_price">Cost Price *</Label>
+                    <Input 
+                      id="cost_price" 
+                      name="cost_price" 
+                      type="number" 
+                      step="0.01" 
+                      min="0.01"
+                      max="999999.99"
+                      required 
+                      placeholder="0.00"
+                    />
                   </div>
                   <div>
-                    <Label htmlFor="unit_price">Selling Price</Label>
-                    <Input id="unit_price" name="unit_price" type="number" step="0.01" required />
+                    <Label htmlFor="unit_price">Selling Price *</Label>
+                    <Input 
+                      id="unit_price" 
+                      name="unit_price" 
+                      type="number" 
+                      step="0.01" 
+                      min="0.01"
+                      max="999999.99"
+                      required 
+                      placeholder="0.00"
+                    />
                   </div>
                   <div>
-                    <Label htmlFor="gst_percentage">GST %</Label>
-                    <Input id="gst_percentage" name="gst_percentage" type="number" step="0.01" min="0" max="100" defaultValue="18" />
+                    <Label htmlFor="gst_percentage">GST % *</Label>
+                    <Input 
+                      id="gst_percentage" 
+                      name="gst_percentage" 
+                      type="number" 
+                      step="0.01" 
+                      min="0" 
+                      max="100" 
+                      defaultValue="18"
+                      required
+                      placeholder="18.00"
+                    />
                   </div>
                 </div>
                 <div>
                   <Label htmlFor="description">Item Description</Label>
-                  <Textarea id="description" name="description" />
+                  <Textarea 
+                    id="description" 
+                    name="description" 
+                    maxLength={500}
+                    placeholder="Enter product description (optional)"
+                    className="resize-none"
+                    rows={3}
+                  />
                 </div>
                 <div className="grid grid-cols-4 gap-4">
                   <div>
                     <Label htmlFor="weight_kg">Weight (kg)</Label>
-                    <Input id="weight_kg" name="weight_kg" type="number" step="0.001" min="0" placeholder="0.000" />
+                    <Input 
+                      id="weight_kg" 
+                      name="weight_kg" 
+                      type="number" 
+                      step="0.001" 
+                      min="0" 
+                      max="99999.999"
+                      placeholder="0.000" 
+                    />
                   </div>
                   <div>
-                    <Label htmlFor="length_cm">Length (CM)</Label>
-                    <Input id="length_cm" name="length_cm" type="number" step="0.01" min="0" placeholder="0.00" />
+                    <Label htmlFor="length_cm">Length (cm)</Label>
+                    <Input 
+                      id="length_cm" 
+                      name="length_cm" 
+                      type="number" 
+                      step="0.1" 
+                      min="0" 
+                      max="99999.9"
+                      placeholder="0.0" 
+                    />
                   </div>
                   <div>
-                    <Label htmlFor="width_cm">Width (CM)</Label>
-                    <Input id="width_cm" name="width_cm" type="number" step="0.01" min="0" placeholder="0.00" />
+                    <Label htmlFor="width_cm">Width (cm)</Label>
+                    <Input 
+                      id="width_cm" 
+                      name="width_cm" 
+                      type="number" 
+                      step="0.1" 
+                      min="0" 
+                      max="99999.9"
+                      placeholder="0.0" 
+                    />
                   </div>
                   <div>
-                    <Label htmlFor="height_cm">Height (CM)</Label>
-                    <Input id="height_cm" name="height_cm" type="number" step="0.01" min="0" placeholder="0.00" />
+                    <Label htmlFor="height_cm">Height (cm)</Label>
+                    <Input 
+                      id="height_cm" 
+                      name="height_cm" 
+                      type="number" 
+                      step="0.1" 
+                      min="0" 
+                      max="99999.9"
+                      placeholder="0.0" 
+                    />
                   </div>
                 </div>
                 <div className="grid grid-cols-3 gap-4">
                   <div>
-                    <Label htmlFor="stock_on_hand">Stock on Hand</Label>
-                    <Input id="stock_on_hand" name="stock_on_hand" type="number" min="0" required />
+                    <Label htmlFor="stock_on_hand">Stock on Hand *</Label>
+                    <Input 
+                      id="stock_on_hand" 
+                      name="stock_on_hand" 
+                      type="number" 
+                      min="0" 
+                      max="999999"
+                      required 
+                      placeholder="0"
+                    />
                   </div>
                   <div>
-                    <Label htmlFor="min_stock_level">Min Stock Level</Label>
-                    <Input id="min_stock_level" name="min_stock_level" type="number" min="0" required />
+                    <Label htmlFor="min_stock_level">Min Stock Level *</Label>
+                    <Input 
+                      id="min_stock_level" 
+                      name="min_stock_level" 
+                      type="number" 
+                      min="0" 
+                      max="999999"
+                      required 
+                      placeholder="1"
+                    />
                   </div>
                   <div>
                     <Label htmlFor="max_stock_level">Max Stock Level</Label>
-                    <Input id="max_stock_level" name="max_stock_level" type="number" min="0" />
+                    <Input 
+                      id="max_stock_level" 
+                      name="max_stock_level" 
+                      type="number" 
+                      min="1" 
+                      max="999999"
+                      placeholder="Optional"
+                    />
                   </div>
+                </div>
+                <div className="text-sm text-muted-foreground bg-muted/50 p-3 rounded-lg">
+                  <p className="font-medium mb-1">Field Guidelines:</p>
+                  <ul className="space-y-1 text-xs">
+                    <li>• HSN Code: Only numeric values (4-8 digits)</li>
+                    <li>• SKU: Alphanumeric with hyphens/underscores only</li>
+                    <li>• Prices: Must be positive values with up to 2 decimal places</li>
+                    <li>• Stock levels: Whole numbers only</li>
+                  </ul>
                 </div>
                 <Button type="submit" className="w-full">Add Product</Button>
               </form>
@@ -376,18 +506,36 @@ export function InventoryModule() {
             <form onSubmit={handleUpdateProduct} className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="edit-name">Item Name</Label>
-                  <Input id="edit-name" name="name" defaultValue={editingProduct.name} required />
+                  <Label htmlFor="edit-name">Item Name *</Label>
+                  <Input 
+                    id="edit-name" 
+                    name="name" 
+                    defaultValue={editingProduct.name} 
+                    required 
+                    minLength={2}
+                    maxLength={100}
+                    pattern="[A-Za-z0-9\s\-_]+"
+                    title="Only letters, numbers, spaces, hyphens and underscores allowed"
+                  />
                 </div>
                 <div>
-                  <Label htmlFor="edit-sku">SKU Number</Label>
-                  <Input id="edit-sku" name="sku" defaultValue={editingProduct.sku} required />
+                  <Label htmlFor="edit-sku">SKU Number *</Label>
+                  <Input 
+                    id="edit-sku" 
+                    name="sku" 
+                    defaultValue={editingProduct.sku} 
+                    required 
+                    minLength={3}
+                    maxLength={50}
+                    pattern="[A-Za-z0-9\-_]+"
+                    title="Only letters, numbers, hyphens and underscores allowed"
+                  />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="edit-unit">Unit</Label>
-                  <Select name="unit" defaultValue={editingProduct.unit || ""}>
+                  <Label htmlFor="edit-unit">Unit *</Label>
+                  <Select name="unit" defaultValue={editingProduct.unit || ""} required>
                     <SelectTrigger>
                       <SelectValue placeholder="Select unit" />
                     </SelectTrigger>
@@ -395,64 +543,180 @@ export function InventoryModule() {
                       <SelectItem value="kg">Kg</SelectItem>
                       <SelectItem value="gram">Gram</SelectItem>
                       <SelectItem value="piece">Piece</SelectItem>
+                      <SelectItem value="liter">Liter</SelectItem>
+                      <SelectItem value="meter">Meter</SelectItem>
                       <SelectItem value="other">Other</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
                 <div>
                   <Label htmlFor="edit-hsn_code">HSN Code</Label>
-                  <Input id="edit-hsn_code" name="hsn_code" defaultValue={editingProduct.hsn_code || ""} />
+                  <Input 
+                    id="edit-hsn_code" 
+                    name="hsn_code" 
+                    defaultValue={editingProduct.hsn_code || ""} 
+                    placeholder="8-digit numeric code"
+                    pattern="[0-9]{4,8}"
+                    title="HSN code must be 4-8 digits only"
+                    maxLength={8}
+                    onInput={(e) => {
+                      const target = e.target as HTMLInputElement;
+                      target.value = target.value.replace(/[^0-9]/g, '');
+                    }}
+                  />
                 </div>
               </div>
               <div className="grid grid-cols-3 gap-4">
                 <div>
-                  <Label htmlFor="edit-cost_price">Cost</Label>
-                  <Input id="edit-cost_price" name="cost_price" type="number" step="0.01" defaultValue={editingProduct.cost_price} required />
+                  <Label htmlFor="edit-cost_price">Cost Price *</Label>
+                  <Input 
+                    id="edit-cost_price" 
+                    name="cost_price" 
+                    type="number" 
+                    step="0.01" 
+                    min="0.01"
+                    max="999999.99"
+                    defaultValue={editingProduct.cost_price} 
+                    required 
+                  />
                 </div>
                 <div>
-                  <Label htmlFor="edit-unit_price">Selling Price</Label>
-                  <Input id="edit-unit_price" name="unit_price" type="number" step="0.01" defaultValue={editingProduct.unit_price} required />
+                  <Label htmlFor="edit-unit_price">Selling Price *</Label>
+                  <Input 
+                    id="edit-unit_price" 
+                    name="unit_price" 
+                    type="number" 
+                    step="0.01" 
+                    min="0.01"
+                    max="999999.99"
+                    defaultValue={editingProduct.unit_price} 
+                    required 
+                  />
                 </div>
                 <div>
-                  <Label htmlFor="edit-gst_percentage">GST %</Label>
-                  <Input id="edit-gst_percentage" name="gst_percentage" type="number" step="0.01" min="0" max="100" defaultValue={editingProduct.gst_percentage} />
+                  <Label htmlFor="edit-gst_percentage">GST % *</Label>
+                  <Input 
+                    id="edit-gst_percentage" 
+                    name="gst_percentage" 
+                    type="number" 
+                    step="0.01" 
+                    min="0" 
+                    max="100" 
+                    defaultValue={editingProduct.gst_percentage}
+                    required
+                  />
                 </div>
               </div>
               <div>
                 <Label htmlFor="edit-description">Item Description</Label>
-                <Textarea id="edit-description" name="description" defaultValue={editingProduct.description || ""} />
+                <Textarea 
+                  id="edit-description" 
+                  name="description" 
+                  defaultValue={editingProduct.description || ""} 
+                  maxLength={500}
+                  className="resize-none"
+                  rows={3}
+                />
               </div>
               <div className="grid grid-cols-4 gap-4">
                 <div>
                   <Label htmlFor="edit-weight_kg">Weight (kg)</Label>
-                  <Input id="edit-weight_kg" name="weight_kg" type="number" step="0.001" min="0" defaultValue={editingProduct.weight_kg || ""} placeholder="0.000" />
+                  <Input 
+                    id="edit-weight_kg" 
+                    name="weight_kg" 
+                    type="number" 
+                    step="0.001" 
+                    min="0" 
+                    max="99999.999"
+                    defaultValue={editingProduct.weight_kg || ""} 
+                    placeholder="0.000" 
+                  />
                 </div>
                 <div>
-                  <Label htmlFor="edit-length_cm">Length (CM)</Label>
-                  <Input id="edit-length_cm" name="length_cm" type="number" step="0.01" min="0" defaultValue={editingProduct.length_cm || ""} placeholder="0.00" />
+                  <Label htmlFor="edit-length_cm">Length (cm)</Label>
+                  <Input 
+                    id="edit-length_cm" 
+                    name="length_cm" 
+                    type="number" 
+                    step="0.1" 
+                    min="0" 
+                    max="99999.9"
+                    defaultValue={editingProduct.length_cm || ""} 
+                    placeholder="0.0" 
+                  />
                 </div>
                 <div>
-                  <Label htmlFor="edit-width_cm">Width (CM)</Label>
-                  <Input id="edit-width_cm" name="width_cm" type="number" step="0.01" min="0" defaultValue={editingProduct.width_cm || ""} placeholder="0.00" />
+                  <Label htmlFor="edit-width_cm">Width (cm)</Label>
+                  <Input 
+                    id="edit-width_cm" 
+                    name="width_cm" 
+                    type="number" 
+                    step="0.1" 
+                    min="0" 
+                    max="99999.9"
+                    defaultValue={editingProduct.width_cm || ""} 
+                    placeholder="0.0" 
+                  />
                 </div>
                 <div>
-                  <Label htmlFor="edit-height_cm">Height (CM)</Label>
-                  <Input id="edit-height_cm" name="height_cm" type="number" step="0.01" min="0" defaultValue={editingProduct.height_cm || ""} placeholder="0.00" />
+                  <Label htmlFor="edit-height_cm">Height (cm)</Label>
+                  <Input 
+                    id="edit-height_cm" 
+                    name="height_cm" 
+                    type="number" 
+                    step="0.1" 
+                    min="0" 
+                    max="99999.9"
+                    defaultValue={editingProduct.height_cm || ""} 
+                    placeholder="0.0" 
+                  />
                 </div>
               </div>
               <div className="grid grid-cols-3 gap-4">
                 <div>
-                  <Label htmlFor="edit-stock_quantity">Current Stock</Label>
-                  <Input id="edit-stock_quantity" name="stock_quantity" type="number" min="0" defaultValue={editingProduct.stock_quantity} required />
+                  <Label htmlFor="edit-stock_quantity">Current Stock *</Label>
+                  <Input 
+                    id="edit-stock_quantity" 
+                    name="stock_quantity" 
+                    type="number" 
+                    min="0" 
+                    max="999999"
+                    defaultValue={editingProduct.stock_quantity} 
+                    required 
+                  />
                 </div>
                 <div>
-                  <Label htmlFor="edit-min_stock_level">Min Stock Level</Label>
-                  <Input id="edit-min_stock_level" name="min_stock_level" type="number" min="0" defaultValue={editingProduct.min_stock_level} required />
+                  <Label htmlFor="edit-min_stock_level">Min Stock Level *</Label>
+                  <Input 
+                    id="edit-min_stock_level" 
+                    name="min_stock_level" 
+                    type="number" 
+                    min="0" 
+                    max="999999"
+                    defaultValue={editingProduct.min_stock_level} 
+                    required 
+                  />
                 </div>
                 <div>
                   <Label htmlFor="edit-max_stock_level">Max Stock Level</Label>
-                  <Input id="edit-max_stock_level" name="max_stock_level" type="number" min="0" defaultValue={editingProduct.max_stock_level || ""} />
+                  <Input 
+                    id="edit-max_stock_level" 
+                    name="max_stock_level" 
+                    type="number" 
+                    min="1" 
+                    max="999999"
+                    defaultValue={editingProduct.max_stock_level || ""} 
+                  />
                 </div>
+              </div>
+              <div className="text-sm text-muted-foreground bg-muted/50 p-3 rounded-lg">
+                <p className="font-medium mb-1">Field Guidelines:</p>
+                <ul className="space-y-1 text-xs">
+                  <li>• HSN Code: Only numeric values (4-8 digits)</li>
+                  <li>• SKU: Alphanumeric with hyphens/underscores only</li>
+                  <li>• Prices: Must be positive values with up to 2 decimal places</li>
+                  <li>• Stock levels: Whole numbers only</li>
+                </ul>
               </div>
               <Button type="submit" className="w-full">Update Product</Button>
             </form>
