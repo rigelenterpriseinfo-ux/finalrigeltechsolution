@@ -104,9 +104,9 @@ serve(async (req) => {
     // Send OTP via email
     try {
       const emailResult = await resend.emails.send({
-        from: "Business Registration <noreply@yourdomain.com>",
+        from: "Verification <onboarding@resend.dev>",
         to: [email],
-        subject: "Your OTP for Business Registration",
+        subject: "Your verification code (expires in 3 minutes)",
         html: `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
             <h2 style="color: #333;">Business Registration OTP</h2>
