@@ -71,11 +71,74 @@ export function PurchaseModule() {
   const [showAddSupplierDialog, setShowAddSupplierDialog] = useState(false);
   const [showEditSupplierDialog, setShowEditSupplierDialog] = useState(false);
   const [editingSupplier, setEditingSupplier] = useState<Supplier | null>(null);
+  const [products, setProducts] = useState<any[]>([]);
+  const [selectedSupplier, setSelectedSupplier] = useState<Supplier | null>(null);
+  const [companyData, setCompanyData] = useState<any>(null);
+  const [lineItems, setLineItems] = useState<any[]>([
+    {
+      id: 1,
+      item_code: '',
+      item_description: '',
+      hsn_sac_code: '',
+      quantity: 1,
+      unit_of_measure: 'pcs',
+      unit_price: 0,
+      discount_percentage: 0,
+      discount_amount: 0,
+      taxable_value: 0,
+      gst_rate: 18,
+      cgst_amount: 0,
+      sgst_amount: 0,
+      igst_amount: 0,
+      line_total: 0,
+      remarks: ''
+    }
+  ]);
 
   useEffect(() => {
     fetchPurchaseOrders();
     fetchSuppliers();
+    fetchProducts();
+    fetchCompanyData();
   }, []);
+
+  const fetchProducts = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('products')
+        .select('*')
+        .eq('is_active', true)
+        .order('name');
+
+      if (error) {
+        console.error('Error fetching products:', error);
+        return;
+      }
+
+      setProducts(data || []);
+    } catch (error) {
+      console.error('Error fetching products:', error);
+    }
+  };
+
+  const fetchCompanyData = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('companies')
+        .select('*')
+        .eq('id', profile?.company_id)
+        .single();
+
+      if (error) {
+        console.error('Error fetching company data:', error);
+        return;
+      }
+
+      setCompanyData(data);
+    } catch (error) {
+      console.error('Error fetching company data:', error);
+    }
+  };
 
   const fetchPurchaseOrders = async () => {
     try {
@@ -119,50 +182,231 @@ export function PurchaseModule() {
     }
   };
 
-  const generatePONumber = () => {
-    const timestamp = Date.now().toString().slice(-6);
-    return `PO-${timestamp}`;
+  // Line Items Management Functions
+  const addLineItem = () => {
+    const newId = Math.max(...lineItems.map(item => item.id)) + 1;
+    setLineItems([...lineItems, {
+      id: newId,
+      item_code: '',
+      item_description: '',
+      hsn_sac_code: '',
+      quantity: 1,
+      unit_of_measure: 'pcs',
+      unit_price: 0,
+      discount_percentage: 0,
+      discount_amount: 0,
+      taxable_value: 0,
+      gst_rate: 18,
+      cgst_amount: 0,
+      sgst_amount: 0,
+      igst_amount: 0,
+      line_total: 0,
+      remarks: ''
+    }]);
+  };
+
+  const removeLineItem = (id: number) => {
+    if (lineItems.length > 1) {
+      setLineItems(lineItems.filter(item => item.id !== id));
+    }
+  };
+
+  const updateLineItem = (id: number, field: string, value: any) => {
+    setLineItems(lineItems.map(item => {
+      if (item.id === id) {
+        const updatedItem = { ...item, [field]: value };
+        
+        // Calculate line totals when relevant fields change
+        if (['quantity', 'unit_price', 'discount_percentage', 'discount_amount', 'gst_rate'].includes(field)) {
+          const quantity = parseFloat(updatedItem.quantity) || 0;
+          const unitPrice = parseFloat(updatedItem.unit_price) || 0;
+          const discountPercentage = parseFloat(updatedItem.discount_percentage) || 0;
+          const discountAmount = parseFloat(updatedItem.discount_amount) || 0;
+          
+          const subtotal = quantity * unitPrice;
+          const calculatedDiscountAmount = discountPercentage > 0 ? (subtotal * discountPercentage / 100) : discountAmount;
+          const taxableValue = subtotal - calculatedDiscountAmount;
+          const gstRate = parseFloat(updatedItem.gst_rate) || 0;
+          
+          // Determine if inter-state or intra-state based on company and supplier place of supply
+          const isInterState = companyData?.state !== selectedSupplier?.state;
+          
+          if (isInterState) {
+            // Inter-state: IGST
+            updatedItem.igst_amount = (taxableValue * gstRate) / 100;
+            updatedItem.cgst_amount = 0;
+            updatedItem.sgst_amount = 0;
+          } else {
+            // Intra-state: CGST + SGST
+            updatedItem.cgst_amount = (taxableValue * gstRate) / 200; // Half of GST rate
+            updatedItem.sgst_amount = (taxableValue * gstRate) / 200; // Half of GST rate
+            updatedItem.igst_amount = 0;
+          }
+          
+          updatedItem.discount_amount = calculatedDiscountAmount;
+          updatedItem.taxable_value = taxableValue;
+          updatedItem.line_total = taxableValue + updatedItem.cgst_amount + updatedItem.sgst_amount + updatedItem.igst_amount;
+        }
+        
+        return updatedItem;
+      }
+      return item;
+    }));
+  };
+
+  const generatePONumber = async () => {
+    try {
+      const { data, error } = await supabase.rpc('generate_po_number', {
+        comp_id: profile?.company_id
+      });
+      
+      if (error) {
+        console.error('Error generating PO number:', error);
+        const timestamp = Date.now().toString().slice(-6);
+        return `PO-${timestamp}`;
+      }
+      
+      return data;
+    } catch (error) {
+      console.error('Error generating PO number:', error);
+      const timestamp = Date.now().toString().slice(-6);
+      return `PO-${timestamp}`;
+    }
   };
 
   const handleAddPurchaseOrder = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     
-    const formData = new FormData(e.currentTarget);
-    const poData = {
-      po_number: generatePONumber(),
-      supplier_id: formData.get('supplier_id') as string,
-      order_date: formData.get('order_date') as string,
-      expected_date: formData.get('expected_date') as string || null,
-      notes: formData.get('notes') as string || null,
-      company_id: profile?.company_id,
-      created_by: profile?.id,
-      status: 'draft',
-      total_amount: 0,
-    };
+    if (!selectedSupplier) {
+      toast({
+        title: "Error",
+        description: "Please select a supplier",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    if (lineItems.length === 0 || !lineItems.some(item => item.item_description.trim())) {
+      toast({
+        title: "Error", 
+        description: "Please add at least one line item",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    try {
+      const formData = new FormData(e.currentTarget);
+      const poNumber = await generatePONumber();
+      
+      // Calculate totals
+      const subtotalAmount = lineItems.reduce((sum, item) => sum + (item.taxable_value || 0), 0);
+      const totalDiscountAmount = lineItems.reduce((sum, item) => sum + (item.discount_amount || 0), 0);
+      const totalTaxAmount = lineItems.reduce((sum, item) => sum + (item.cgst_amount || 0) + (item.sgst_amount || 0) + (item.igst_amount || 0), 0);
+      const totalAmount = lineItems.reduce((sum, item) => sum + (item.line_total || 0), 0);
+      
+      const poData = {
+        po_number: poNumber,
+        supplier_id: selectedSupplier.id,
+        supplier_code: selectedSupplier.supplier_ref,
+        supplier_contact_person: selectedSupplier.contact_person,
+        supplier_contact_email: selectedSupplier.email,
+        supplier_contact_phone: selectedSupplier.phone,
+        supplier_gstin: selectedSupplier.gst_number,
+        order_date: formData.get('order_date') as string,
+        expected_date: formData.get('expected_date') as string || null,
+        external_po_ref: formData.get('external_po_ref') as string || null,
+        notes: formData.get('notes') as string || null,
+        company_id: profile?.company_id,
+        created_by: profile?.id,
+        status: 'draft',
+        subtotal_amount: subtotalAmount,
+        total_discount_amount: totalDiscountAmount,
+        total_tax_amount: totalTaxAmount,
+        total_amount: totalAmount,
+        company_place_of_supply: companyData?.state || null,
+      };
 
     try {
-      const { error } = await supabase
+      // Insert purchase order
+      const { data: poInsertData, error: poError } = await supabase
         .from('purchase_orders')
-        .insert([poData]);
+        .insert([poData])
+        .select()
+        .single();
 
-      if (error) {
+      if (poError) {
         toast({
           title: "Error",
-          description: error.message,
+          description: poError.message,
           variant: "destructive",
         });
         return;
       }
 
+      // Insert line items
+      const lineItemsData = lineItems
+        .filter(item => item.item_description.trim())
+        .map(item => ({
+          purchase_order_id: poInsertData.id,
+          item_code: item.item_code || null,
+          item_description: item.item_description,
+          hsn_sac_code: item.hsn_sac_code || null,
+          quantity: item.quantity,
+          unit_of_measure: item.unit_of_measure,
+          unit_price: item.unit_price,
+          discount_percentage: item.discount_percentage,
+          discount_amount: item.discount_amount,
+          taxable_value: item.taxable_value,
+          gst_rate: item.gst_rate,
+          cgst_amount: item.cgst_amount,
+          sgst_amount: item.sgst_amount,
+          igst_amount: item.igst_amount,
+          total_price: item.line_total,
+          remarks: item.remarks || null,
+        }));
+
+      if (lineItemsData.length > 0) {
+        const { error: itemsError } = await supabase
+          .from('purchase_order_items')
+          .insert(lineItemsData);
+
+        if (itemsError) {
+          console.error('Error inserting line items:', itemsError);
+          // Don't fail the whole operation, just log the error
+        }
+      }
+
       toast({
         title: "Success",
-        description: "Purchase order created successfully",
+        description: `Purchase order ${poNumber} created successfully`,
       });
 
+      // Reset form
       setShowAddPODialog(false);
+      setSelectedSupplier(null);
+      setLineItems([{
+        id: 1,
+        item_code: '',
+        item_description: '',
+        hsn_sac_code: '',
+        quantity: 1,
+        unit_of_measure: 'pcs',
+        unit_price: 0,
+        discount_percentage: 0,
+        discount_amount: 0,
+        taxable_value: 0,
+        gst_rate: 18,
+        cgst_amount: 0,
+        sgst_amount: 0,
+        igst_amount: 0,
+        line_total: 0,
+        remarks: ''
+      }]);
       fetchPurchaseOrders();
       e.currentTarget.reset();
     } catch (error: any) {
+      console.error('Purchase order creation error:', error);
       toast({
         title: "Error",
         description: "Failed to create purchase order",
@@ -790,19 +1034,26 @@ export function PurchaseModule() {
             <DialogContent>
               <DialogHeader>
                 <DialogTitle>Create Purchase Order</DialogTitle>
-                <DialogDescription>Create a new purchase order</DialogDescription>
+                <DialogDescription>Create a comprehensive purchase order with line items</DialogDescription>
               </DialogHeader>
               <form onSubmit={handleAddPurchaseOrder} className="space-y-4">
                 <div>
-                  <Label htmlFor="supplier_id">Supplier</Label>
-                  <Select name="supplier_id" required>
+                  <Label htmlFor="supplier_id">Supplier *</Label>
+                  <Select 
+                    value={selectedSupplier?.id || ''} 
+                    onValueChange={(value) => {
+                      const supplier = suppliers.find(s => s.id === value);
+                      setSelectedSupplier(supplier || null);
+                    }}
+                    required
+                  >
                     <SelectTrigger>
                       <SelectValue placeholder="Select supplier" />
                     </SelectTrigger>
                     <SelectContent>
                       {suppliers.map((supplier) => (
                         <SelectItem key={supplier.id} value={supplier.id}>
-                          {supplier.name}
+                          {supplier.name} ({supplier.supplier_ref})
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -823,6 +1074,10 @@ export function PurchaseModule() {
                     <Label htmlFor="expected_date">Expected Date</Label>
                     <Input id="expected_date" name="expected_date" type="date" />
                   </div>
+                </div>
+                <div>
+                  <Label htmlFor="external_po_ref">External PO Reference</Label>
+                  <Input id="external_po_ref" name="external_po_ref" placeholder="Customer order/project reference" />
                 </div>
                 <div>
                   <Label htmlFor="notes">Notes</Label>

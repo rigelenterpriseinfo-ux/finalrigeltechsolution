@@ -758,33 +758,69 @@ export type Database = {
       }
       purchase_order_items: {
         Row: {
+          cgst_amount: number | null
           created_at: string
+          discount_amount: number | null
+          discount_percentage: number | null
+          gst_rate: number | null
+          hsn_sac_code: string | null
           id: string
+          igst_amount: number | null
+          item_code: string | null
+          item_description: string
           product_id: string
           purchase_order_id: string
           quantity: number
           received_quantity: number
+          remarks: string | null
+          sgst_amount: number | null
+          taxable_value: number | null
           total_price: number
+          unit_of_measure: string
           unit_price: number
         }
         Insert: {
+          cgst_amount?: number | null
           created_at?: string
+          discount_amount?: number | null
+          discount_percentage?: number | null
+          gst_rate?: number | null
+          hsn_sac_code?: string | null
           id?: string
+          igst_amount?: number | null
+          item_code?: string | null
+          item_description?: string
           product_id: string
           purchase_order_id: string
           quantity: number
           received_quantity?: number
+          remarks?: string | null
+          sgst_amount?: number | null
+          taxable_value?: number | null
           total_price: number
+          unit_of_measure?: string
           unit_price: number
         }
         Update: {
+          cgst_amount?: number | null
           created_at?: string
+          discount_amount?: number | null
+          discount_percentage?: number | null
+          gst_rate?: number | null
+          hsn_sac_code?: string | null
           id?: string
+          igst_amount?: number | null
+          item_code?: string | null
+          item_description?: string
           product_id?: string
           purchase_order_id?: string
           quantity?: number
           received_quantity?: number
+          remarks?: string | null
+          sgst_amount?: number | null
+          taxable_value?: number | null
           total_price?: number
+          unit_of_measure?: string
           unit_price?: number
         }
         Relationships: [
@@ -807,44 +843,74 @@ export type Database = {
       purchase_orders: {
         Row: {
           company_id: string
+          company_place_of_supply: string | null
           created_at: string
           created_by: string
           expected_date: string | null
+          external_po_ref: string | null
           id: string
           notes: string | null
           order_date: string
           po_number: string
           status: string
+          subtotal_amount: number | null
+          supplier_code: string | null
+          supplier_contact_email: string | null
+          supplier_contact_person: string | null
+          supplier_contact_phone: string | null
+          supplier_gstin: string | null
           supplier_id: string
           total_amount: number
+          total_discount_amount: number | null
+          total_tax_amount: number | null
           updated_at: string
         }
         Insert: {
           company_id: string
+          company_place_of_supply?: string | null
           created_at?: string
           created_by: string
           expected_date?: string | null
+          external_po_ref?: string | null
           id?: string
           notes?: string | null
           order_date?: string
           po_number: string
           status?: string
+          subtotal_amount?: number | null
+          supplier_code?: string | null
+          supplier_contact_email?: string | null
+          supplier_contact_person?: string | null
+          supplier_contact_phone?: string | null
+          supplier_gstin?: string | null
           supplier_id: string
           total_amount?: number
+          total_discount_amount?: number | null
+          total_tax_amount?: number | null
           updated_at?: string
         }
         Update: {
           company_id?: string
+          company_place_of_supply?: string | null
           created_at?: string
           created_by?: string
           expected_date?: string | null
+          external_po_ref?: string | null
           id?: string
           notes?: string | null
           order_date?: string
           po_number?: string
           status?: string
+          subtotal_amount?: number | null
+          supplier_code?: string | null
+          supplier_contact_email?: string | null
+          supplier_contact_person?: string | null
+          supplier_contact_phone?: string | null
+          supplier_gstin?: string | null
           supplier_id?: string
           total_amount?: number
+          total_discount_amount?: number | null
+          total_tax_amount?: number | null
           updated_at?: string
         }
         Relationships: [
@@ -1217,6 +1283,10 @@ export type Database = {
       }
       generate_gated_business_ref_no: {
         Args: Record<PropertyKey, never>
+        Returns: string
+      }
+      generate_po_number: {
+        Args: { comp_id: string }
         Returns: string
       }
       generate_supplier_ref: {
