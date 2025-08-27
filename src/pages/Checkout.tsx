@@ -31,36 +31,23 @@ const Checkout = () => {
     setIsProcessing(true);
     
     try {
-      // Simulate payment processing (3 seconds)
-      await new Promise(resolve => setTimeout(resolve, 3000));
+      // Simulate payment processing (2 seconds)
+      await new Promise(resolve => setTimeout(resolve, 2000));
       
-      // Simulate successful payment
-      const paymentSuccess = Math.random() > 0.1; // 90% success rate for demo
+      toast({
+        title: "Payment Successful!",
+        description: "Redirecting to business registration...",
+      });
       
-      if (paymentSuccess) {
-        toast({
-          title: "Payment Successful!",
-          description: "Your payment has been processed. Redirecting to business registration...",
-        });
-        
-        // Redirect to business registration after 1 second
-        setTimeout(() => {
-          navigate('/register/business', {
-            state: {
-              paymentVerified: true,
-              paymentId: `PAY_${Date.now()}`,
-              planType: 'business',
-              amount: 2999
-            }
-          });
-        }, 1000);
-      } else {
-        throw new Error("Payment failed. Please try again.");
-      }
+      // Direct client-side navigation
+      setTimeout(() => {
+        navigate('/register/business?txn=DEV-SUCCESS');
+      }, 1000);
+      
     } catch (error) {
       toast({
         title: "Payment Failed",
-        description: error instanceof Error ? error.message : "Please try again.",
+        description: "Payment simulation failed. Please try again.",
         variant: "destructive"
       });
     } finally {
