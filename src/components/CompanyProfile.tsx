@@ -148,22 +148,28 @@ export function CompanyProfile() {
       }
 
       // Sanitize form inputs before submission
-      const combinedAddress = [
-        formData.addressLine1,
-        formData.addressLine2,
-        formData.city,
-        formData.state,
-        formData.country,
-        formData.postalCode
-      ].filter(Boolean).join(', ');
-
       const sanitizedData = {
         name: sanitizeHtml(formData.name),
         email: formData.email,
         phone: formData.phone,
-        address: sanitizeHtml(combinedAddress),
+        address: [
+          formData.addressLine1,
+          formData.addressLine2,
+          formData.city,
+          formData.state,
+          formData.country,
+          formData.postalCode
+        ].filter(Boolean).join(', '),
+        address_line1: sanitizeHtml(formData.addressLine1),
+        address_line2: sanitizeHtml(formData.addressLine2),
+        city: sanitizeHtml(formData.city),
+        state: sanitizeHtml(formData.state),
+        country: sanitizeHtml(formData.country),
+        postal_code: formData.postalCode,
         website: formData.website,
         status: formData.status,
+        gstn: formData.gstn,
+        business_ref_no: generateBusinessId(formData.name),
         updated_at: new Date().toISOString(),
       };
 
@@ -200,22 +206,69 @@ export function CompanyProfile() {
           .from('profiles')
           .update({ company_id: targetCompanyId })
           .eq('user_id', user.id);
-      } else {
-        const { error } = await supabase
-          .from('companies')
-          .update(sanitizedData)
-          .eq('id', targetCompanyId);
+        } else {
+          const { error } = await supabase
+            .from('companies')
+            .update(sanitizedData)
+            .eq('id', targetCompanyId);
 
-        if (error) {
-          toast({
-            title: "Update failed",
-            description: error.message,
-            variant: "destructive",
-          });
-          setIsLoading(false);
-          return;
+          if (error) {
+            toast({
+              title: "Update failed",
+              description: error.message,
+              variant: "destructive",
+            });
+            setIsLoading(false);
+            return;
+          }
         }
-      }
+
+        // Handle authentication credentials if provided
+        if (formData.username && formData.password && passwordValidation.isValid && passwordsMatch) {
+          try {
+            // Hash password before storing
+            const encoder = new TextEncoder();
+            const data = encoder.encode(formData.password);
+            const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+            const hashArray = Array.from(new Uint8Array(hashBuffer));
+            const passwordHash = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+
+            // Check if credentials already exist
+            const { data: existingCreds } = await supabase
+              .from('business_credentials')
+              .select('id')
+              .eq('company_id', targetCompanyId)
+              .single();
+
+            if (existingCreds) {
+              // Update existing credentials
+              await supabase
+                .from('business_credentials')
+                .update({
+                  username: formData.username,
+                  password_hash: passwordHash,
+                  updated_at: new Date().toISOString(),
+                })
+                .eq('company_id', targetCompanyId);
+            } else {
+              // Insert new credentials
+              await supabase
+                .from('business_credentials')
+                .insert({
+                  company_id: targetCompanyId,
+                  username: formData.username,
+                  password_hash: passwordHash,
+                });
+            }
+          } catch (credError: any) {
+            console.error('Credential save error:', credError);
+            toast({
+              title: "Credentials not saved",
+              description: "Company details saved but credentials could not be updated",
+              variant: "destructive",
+            });
+          }
+        }
 
       toast({
         title: "Company saved",
@@ -238,22 +291,20 @@ export function CompanyProfile() {
   // Update form data when company data changes
   React.useEffect(() => {
     if (company) {
-      // Parse existing address if available
-      const addressParts = company.address ? company.address.split(', ') : [];
-      
       setFormData(prev => ({
         ...prev,
         name: company.name || '',
         email: company.email || '',
         phone: company.phone || '',
-        addressLine1: addressParts[0] || '',
-        addressLine2: addressParts[1] || '',
-        city: addressParts[2] || '',
-        state: addressParts[3] || '',
-        country: addressParts[4] || '',
-        postalCode: addressParts[5] || '',
+        addressLine1: (company as any).address_line1 || '',
+        addressLine2: (company as any).address_line2 || '',
+        city: (company as any).city || '',
+        state: (company as any).state || '',
+        country: (company as any).country || '',
+        postalCode: (company as any).postal_code || '',
         website: company.website || '',
         status: company.status || 'active',
+        gstn: (company as any).gstn || '',
       }));
     }
   }, [company]);
@@ -345,7 +396,7 @@ export function CompanyProfile() {
               </Label>
               <Input
                 id="business-id"
-                value={generateBusinessId(formData.name)}
+                value={company ? ((company as any).business_ref_no || generateBusinessId(formData.name)) : generateBusinessId(formData.name)}
                 placeholder="Auto-generated based on company name and registration date"
                 disabled
                 className="bg-muted"

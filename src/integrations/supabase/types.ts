@@ -44,6 +44,41 @@ export type Database = {
         }
         Relationships: []
       }
+      business_credentials: {
+        Row: {
+          company_id: string
+          created_at: string
+          id: string
+          password_hash: string
+          updated_at: string
+          username: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          id?: string
+          password_hash: string
+          updated_at?: string
+          username: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          id?: string
+          password_hash?: string
+          updated_at?: string
+          username?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "business_credentials_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       business_users: {
         Row: {
           access_sections: Json | null
@@ -154,33 +189,57 @@ export type Database = {
       companies: {
         Row: {
           address: string | null
+          address_line1: string | null
+          address_line2: string | null
+          business_ref_no: string | null
+          city: string | null
+          country: string | null
           created_at: string
           email: string | null
+          gstn: string | null
           id: string
           name: string
           phone: string | null
+          postal_code: string | null
+          state: string | null
           status: Database["public"]["Enums"]["company_status"]
           updated_at: string
           website: string | null
         }
         Insert: {
           address?: string | null
+          address_line1?: string | null
+          address_line2?: string | null
+          business_ref_no?: string | null
+          city?: string | null
+          country?: string | null
           created_at?: string
           email?: string | null
+          gstn?: string | null
           id?: string
           name: string
           phone?: string | null
+          postal_code?: string | null
+          state?: string | null
           status?: Database["public"]["Enums"]["company_status"]
           updated_at?: string
           website?: string | null
         }
         Update: {
           address?: string | null
+          address_line1?: string | null
+          address_line2?: string | null
+          business_ref_no?: string | null
+          city?: string | null
+          country?: string | null
           created_at?: string
           email?: string | null
+          gstn?: string | null
           id?: string
           name?: string
           phone?: string | null
+          postal_code?: string | null
+          state?: string | null
           status?: Database["public"]["Enums"]["company_status"]
           updated_at?: string
           website?: string | null
@@ -1078,6 +1137,10 @@ export type Database = {
       }
       generate_business_ref: {
         Args: Record<PropertyKey, never>
+        Returns: string
+      }
+      generate_business_ref_no: {
+        Args: { company_name: string }
         Returns: string
       }
       generate_gated_business_ref_no: {
