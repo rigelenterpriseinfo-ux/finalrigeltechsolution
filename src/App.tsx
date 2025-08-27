@@ -10,6 +10,11 @@ import EnhancedAuth from "@/pages/EnhancedAuth";
 import Index from "@/pages/Index";
 import Subscribe from "@/pages/Subscribe";
 import BusinessRegistration from "@/pages/BusinessRegistration";
+import Checkout from "@/pages/Checkout";
+import GatedBusinessRegistration from "@/pages/GatedBusinessRegistration";
+import GatedSignin from "@/pages/GatedSignin";
+import GatedForgotPassword from "@/pages/GatedForgotPassword";
+import GatedResetPassword from "@/pages/GatedResetPassword";
 import UserManagement from "@/pages/UserManagement";
 import EmailVerification from "@/pages/EmailVerification";
 import PasswordReset from "@/pages/PasswordReset";
@@ -33,6 +38,11 @@ const App = () => (
             <Route path="/user-management" element={<UserManagement />} />
             <Route path="/email-verification" element={<EmailVerification />} />
             <Route path="/password-reset" element={<PasswordReset />} />
+            <Route path="/checkout" element={<Checkout />} />
+            <Route path="/register/business" element={<GatedBusinessRegistration />} />
+            <Route path="/gated-signin" element={<GatedSignin />} />
+            <Route path="/gated-forgot-password" element={<GatedForgotPassword />} />
+            <Route path="/gated-reset-password" element={<GatedResetPassword />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
