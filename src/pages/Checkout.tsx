@@ -30,29 +30,23 @@ const Checkout = () => {
   const handlePayment = async () => {
     setIsProcessing(true);
     
-    try {
-      // Simulate payment processing (2 seconds)
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      toast({
-        title: "Payment Successful!",
-        description: "Redirecting to business registration...",
-      });
-      
-      // Direct client-side navigation
-      setTimeout(() => {
-        navigate('/register/business?txn=DEV-SUCCESS');
-      }, 1000);
-      
-    } catch (error) {
-      toast({
-        title: "Payment Failed",
-        description: "Payment simulation failed. Please try again.",
-        variant: "destructive"
-      });
-    } finally {
-      setIsProcessing(false);
-    }
+    // Simulate payment processing (2 seconds)
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    
+    // Always simulate success
+    const paymentStatus = "SUCCESS";
+    
+    toast({
+      title: "✅ Payment successful!",
+      description: "Please complete your Business Registration.",
+    });
+    
+    // Direct client-side navigation
+    setTimeout(() => {
+      navigate('/register/business?txn=DEV-SUCCESS');
+    }, 1000);
+    
+    setIsProcessing(false);
   };
 
   return (
