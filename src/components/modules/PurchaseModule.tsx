@@ -145,9 +145,9 @@ export function PurchaseModule() {
       non_taxable_value: 0,
       is_taxable: true,
       gst_rate: 18,
-      cgst_rate: 9,
-      sgst_rate: 9,
-      igst_rate: 18,
+      cgst_rate: 0,
+      sgst_rate: 0,
+      igst_rate: 0,
       cgst_amount: 0,
       sgst_amount: 0,
       igst_amount: 0,
@@ -273,9 +273,9 @@ export function PurchaseModule() {
       non_taxable_value: 0,
       is_taxable: true,
       gst_rate: 18,
-      cgst_rate: 9,
-      sgst_rate: 9,
-      igst_rate: 18,
+      cgst_rate: 0,
+      sgst_rate: 0,
+      igst_rate: 0,
       cgst_amount: 0,
       sgst_amount: 0,
       igst_amount: 0,
@@ -296,12 +296,14 @@ export function PurchaseModule() {
         const updatedItem = { ...item, [field]: value };
         
         // Calculate line totals when relevant fields change
-        if (['quantity', 'unit_price', 'discount_percentage', 'discount_amount', 'gst_rate', 'is_taxable'].includes(field)) {
+        if (['quantity', 'unit_price', 'discount_percentage', 'discount_amount', 'cgst_rate', 'sgst_rate', 'igst_rate', 'is_taxable'].includes(field)) {
           const quantity = parseFloat(updatedItem.quantity.toString()) || 0;
           const unitPrice = parseFloat(updatedItem.unit_price.toString()) || 0;
           const discountPercentage = parseFloat(updatedItem.discount_percentage.toString()) || 0;
           const discountAmount = parseFloat(updatedItem.discount_amount.toString()) || 0;
-          const gstRate = parseFloat(updatedItem.gst_rate.toString()) || 0;
+          const cgstRate = parseFloat(updatedItem.cgst_rate.toString()) || 0;
+          const sgstRate = parseFloat(updatedItem.sgst_rate.toString()) || 0;
+          const igstRate = parseFloat(updatedItem.igst_rate.toString()) || 0;
           
           // Calculate value before discount
           updatedItem.value_before_discount = quantity * unitPrice;
@@ -326,40 +328,22 @@ export function PurchaseModule() {
             updatedItem.non_taxable_value = updatedItem.value_after_discount;
           }
           
-          // Calculate GST only on taxable items
-          if (updatedItem.is_taxable && gstRate > 0) {
-            // Determine if inter-state or intra-state based on company and supplier place of supply
-            const isInterState = companyData?.state !== selectedSupplier?.state;
-            
-            if (isInterState) {
-              // Inter-state: IGST only
-              updatedItem.igst_rate = gstRate;
-              updatedItem.igst_amount = (updatedItem.taxable_value * gstRate) / 100;
-              updatedItem.cgst_rate = 0;
-              updatedItem.cgst_amount = 0;
-              updatedItem.sgst_rate = 0;
-              updatedItem.sgst_amount = 0;
-            } else {
-              // Intra-state: CGST + SGST (split equally)
-              updatedItem.cgst_rate = gstRate / 2;
-              updatedItem.cgst_amount = (updatedItem.taxable_value * gstRate) / 200;
-              updatedItem.sgst_rate = gstRate / 2;
-              updatedItem.sgst_amount = (updatedItem.taxable_value * gstRate) / 200;
-              updatedItem.igst_rate = 0;
-              updatedItem.igst_amount = 0;
-            }
+          // Calculate GST amounts based on manually entered rates
+          if (updatedItem.is_taxable) {
+            updatedItem.cgst_amount = (updatedItem.taxable_value * cgstRate) / 100;
+            updatedItem.sgst_amount = (updatedItem.taxable_value * sgstRate) / 100;
+            updatedItem.igst_amount = (updatedItem.taxable_value * igstRate) / 100;
           } else {
-            // No GST for non-taxable items
-            updatedItem.cgst_rate = 0;
             updatedItem.cgst_amount = 0;
-            updatedItem.sgst_rate = 0;
             updatedItem.sgst_amount = 0;
-            updatedItem.igst_rate = 0;
             updatedItem.igst_amount = 0;
           }
           
           // Calculate total GST amount
           updatedItem.total_gst_amount = updatedItem.cgst_amount + updatedItem.sgst_amount + updatedItem.igst_amount;
+          
+          // Calculate total GST rate for display
+          updatedItem.gst_rate = cgstRate + sgstRate + igstRate;
           
           // Calculate final line total
           updatedItem.line_total = updatedItem.value_after_discount + updatedItem.total_gst_amount;
@@ -496,9 +480,9 @@ export function PurchaseModule() {
         non_taxable_value: 0,
         is_taxable: true,
         gst_rate: 18,
-        cgst_rate: 9,
-        sgst_rate: 9,
-        igst_rate: 18,
+        cgst_rate: 0,
+        sgst_rate: 0,
+        igst_rate: 0,
         cgst_amount: 0,
         sgst_amount: 0,
         igst_amount: 0,
@@ -1009,21 +993,57 @@ export function PurchaseModule() {
                                   )}
                                 </TableCell>
                                 <TableCell>
-                                  <div className="min-w-[80px] text-sm text-center">
-                                    <div className="text-primary font-medium">{item.cgst_rate.toFixed(1)}%</div>
-                                    <div className="text-muted-foreground">₹{item.cgst_amount.toFixed(2)}</div>
+                                  <div className="min-w-[80px] space-y-1">
+                                    <Input
+                                      type="number"
+                                      value={item.cgst_rate}
+                                      onChange={(e) => updateLineItem(item.id, 'cgst_rate', parseFloat(e.target.value) || 0)}
+                                      placeholder="0"
+                                      className="text-center h-8"
+                                      min="0"
+                                      max="30"
+                                      step="0.01"
+                                      disabled={!item.is_taxable}
+                                    />
+                                    <div className="text-xs text-muted-foreground text-center">
+                                      ₹{item.cgst_amount.toFixed(2)}
+                                    </div>
                                   </div>
                                 </TableCell>
                                 <TableCell>
-                                  <div className="min-w-[80px] text-sm text-center">
-                                    <div className="text-primary font-medium">{item.sgst_rate.toFixed(1)}%</div>
-                                    <div className="text-muted-foreground">₹{item.sgst_amount.toFixed(2)}</div>
+                                  <div className="min-w-[80px] space-y-1">
+                                    <Input
+                                      type="number"
+                                      value={item.sgst_rate}
+                                      onChange={(e) => updateLineItem(item.id, 'sgst_rate', parseFloat(e.target.value) || 0)}
+                                      placeholder="0"
+                                      className="text-center h-8"
+                                      min="0"
+                                      max="30"
+                                      step="0.01"
+                                      disabled={!item.is_taxable}
+                                    />
+                                    <div className="text-xs text-muted-foreground text-center">
+                                      ₹{item.sgst_amount.toFixed(2)}
+                                    </div>
                                   </div>
                                 </TableCell>
                                 <TableCell>
-                                  <div className="min-w-[80px] text-sm text-center">
-                                    <div className="text-primary font-medium">{item.igst_rate.toFixed(1)}%</div>
-                                    <div className="text-muted-foreground">₹{item.igst_amount.toFixed(2)}</div>
+                                  <div className="min-w-[80px] space-y-1">
+                                    <Input
+                                      type="number"
+                                      value={item.igst_rate}
+                                      onChange={(e) => updateLineItem(item.id, 'igst_rate', parseFloat(e.target.value) || 0)}
+                                      placeholder="0"
+                                      className="text-center h-8"
+                                      min="0"
+                                      max="30"
+                                      step="0.01"
+                                      disabled={!item.is_taxable}
+                                    />
+                                    <div className="text-xs text-muted-foreground text-center">
+                                      ₹{item.igst_amount.toFixed(2)}
+                                    </div>
                                   </div>
                                 </TableCell>
                                 <TableCell>

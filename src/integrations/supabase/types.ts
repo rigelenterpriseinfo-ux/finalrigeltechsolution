@@ -768,7 +768,7 @@ export type Database = {
           igst_amount: number | null
           item_code: string | null
           item_description: string
-          product_id: string
+          product_id: string | null
           purchase_order_id: string
           quantity: number
           received_quantity: number
@@ -790,7 +790,7 @@ export type Database = {
           igst_amount?: number | null
           item_code?: string | null
           item_description?: string
-          product_id: string
+          product_id?: string | null
           purchase_order_id: string
           quantity: number
           received_quantity?: number
@@ -812,7 +812,7 @@ export type Database = {
           igst_amount?: number | null
           item_code?: string | null
           item_description?: string
-          product_id?: string
+          product_id?: string | null
           purchase_order_id?: string
           quantity?: number
           received_quantity?: number
