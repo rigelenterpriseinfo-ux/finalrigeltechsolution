@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { sanitizeHtml } from '@/lib/security';
 import { Loader2, Building2, Save, Phone, Mail, Globe, MapPin } from 'lucide-react';
 
 export function CompanyProfile() {
@@ -45,17 +46,20 @@ export function CompanyProfile() {
         }
       }
 
+      // Sanitize form inputs before submission
+      const sanitizedData = {
+        name: sanitizeHtml(formData.name),
+        email: formData.email,
+        phone: formData.phone,
+        address: sanitizeHtml(formData.address),
+        website: formData.website,
+        status: formData.status,
+        updated_at: new Date().toISOString(),
+      };
+
       const { error } = await supabase
         .from('companies')
-        .update({
-          name: formData.name,
-          email: formData.email,
-          phone: formData.phone,
-          address: formData.address,
-          website: formData.website,
-          status: formData.status,
-          updated_at: new Date().toISOString(),
-        })
+        .update(sanitizedData)
         .eq('id', company?.id);
 
       if (error) {
