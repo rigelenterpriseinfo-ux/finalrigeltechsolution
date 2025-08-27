@@ -46,7 +46,7 @@ import { TrackingModule } from '@/components/modules/TrackingModule';
 import { AIAssistant } from '@/components/modules/AIAssistant';
 import { CompanyProfile } from '@/components/CompanyProfile';
 
-const menuItems: Array<{ id: ActiveModule; icon: any; label: string; description: string }> = [
+const menuItems: Array<{ id: ActiveModule; icon: any; label: string; description: string; restricted?: boolean }> = [
   { id: 'dashboard', icon: BarChart3, label: 'Dashboard', description: 'Overview & Analytics' },
   { id: 'inventory', icon: Package, label: 'Inventory', description: 'Manage Products & Stock' },
   { id: 'purchase', icon: ShoppingCart, label: 'Purchase', description: 'Purchase Orders & Suppliers' },
@@ -55,10 +55,11 @@ const menuItems: Array<{ id: ActiveModule; icon: any; label: string; description
   { id: 'reports', icon: BarChart3, label: 'Reports', description: 'Analytics & Reports' },
   { id: 'tracking', icon: MapPin, label: 'Track & Trace', description: 'Order Tracking' },
   { id: 'ai', icon: Bot, label: 'AI Assistant', description: 'Business Insights' },
+  { id: 'users', icon: Users, label: 'Team Management', description: 'Manage Users & Access', restricted: true },
   { id: 'profile', icon: Building2, label: 'Company Profile', description: 'Edit Company Details' },
 ];
 
-type ActiveModule = 'dashboard' | 'inventory' | 'purchase' | 'sales' | 'payments' | 'reports' | 'tracking' | 'ai' | 'profile';
+type ActiveModule = 'dashboard' | 'inventory' | 'purchase' | 'sales' | 'payments' | 'reports' | 'tracking' | 'ai' | 'users' | 'profile';
 
 export default function Dashboard() {
   const { user, profile, company, signOut, loading } = useAuth();
@@ -182,6 +183,10 @@ export default function Dashboard() {
             <AIAssistant />
           </DashboardLayout>
         );
+      case 'users':
+        // Navigate to User Management page instead of rendering inline
+        window.location.href = '/user-management';
+        return null;
       case 'profile':
         return (
           <DashboardLayout
@@ -397,32 +402,40 @@ export default function Dashboard() {
                     <div className="text-white/70 text-xs">Business Management</div>
                   </div>
                 </SidebarGroupLabel>
-                <SidebarGroupContent>
-                  <SidebarMenu>
-                    {menuItems.map((item) => (
-                      <SidebarMenuItem key={item.id}>
-                        <SidebarMenuButton
-                          onClick={() => {
-                            console.log('Menu item clicked:', item.id);
-                            setActiveModule(item.id);
-                          }}
-                          isActive={activeModule === item.id}
-                          className={`w-full justify-start p-3 rounded-xl mx-2 my-1 transition-all duration-200 hover:shadow-md ${
-                            activeModule === item.id 
-                              ? 'bg-primary text-primary-foreground shadow-md' 
-                              : 'hover:bg-muted'
-                          }`}
-                        >
-                          <item.icon className="h-5 w-5" />
-                          <div className="flex-1 text-left">
-                            <div className="font-medium">{item.label}</div>
-                            <div className="text-xs opacity-70">{item.description}</div>
-                          </div>
-                        </SidebarMenuButton>
-                      </SidebarMenuItem>
-                    ))}
-                  </SidebarMenu>
-                </SidebarGroupContent>
+                 <SidebarGroupContent>
+                   <SidebarMenu>
+                     {menuItems
+                       .filter(item => {
+                         // Hide restricted items from non-admin users  
+                         if (item.restricted) {
+                           return profile?.role === 'owner' || profile?.role === 'admin';
+                         }
+                         return true;
+                       })
+                       .map((item) => (
+                       <SidebarMenuItem key={item.id}>
+                         <SidebarMenuButton
+                           onClick={() => {
+                             console.log('Menu item clicked:', item.id);
+                             setActiveModule(item.id);
+                           }}
+                           isActive={activeModule === item.id}
+                           className={`w-full justify-start p-3 rounded-xl mx-2 my-1 transition-all duration-200 hover:shadow-md ${
+                             activeModule === item.id 
+                               ? 'bg-primary text-primary-foreground shadow-md' 
+                               : 'hover:bg-muted'
+                           }`}
+                         >
+                           <item.icon className="h-5 w-5" />
+                           <div className="flex-1 text-left">
+                             <div className="font-medium">{item.label}</div>
+                             <div className="text-xs opacity-70">{item.description}</div>
+                           </div>
+                         </SidebarMenuButton>
+                       </SidebarMenuItem>
+                     ))}
+                   </SidebarMenu>
+                 </SidebarGroupContent>
               </SidebarGroup>
 
               <SidebarGroup className="mt-auto">
