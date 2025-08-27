@@ -92,33 +92,87 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                 .from('profiles')
                 .select('*')
                 .eq('user_id', session.user.id)
-                .single();
+                .maybeSingle();
 
-              if (profileError) {
+              let effectiveProfile = profileData;
+
+              if (profileError && (profileError as any).code !== 'PGRST116') {
                 console.error('Error fetching profile:', profileError);
-                setLoading(false);
-                return;
               }
 
-              console.log('Profile fetched:', profileData);
-              setProfile(profileData);
+              // If no profile exists, create one on the fly using auth metadata
+              if (!effectiveProfile) {
+                try {
+                  const userEmail = session.user.email || null;
+                  // Try to find existing company by email, else create one
+                  let companyId: string | null = null;
+                  if (userEmail) {
+                    const { data: existingCompany } = await supabase
+                      .from('companies')
+                      .select('*')
+                      .eq('email', userEmail)
+                      .maybeSingle();
+                    if (existingCompany) companyId = (existingCompany as any).id;
+                  }
 
-              if (profileData?.company_id) {
+                  if (!companyId) {
+                    const { data: createdCompany } = await supabase
+                      .from('companies')
+                      .insert([
+                        {
+                          name: (session.user.user_metadata as any)?.company_name || 'My Company',
+                          email: userEmail,
+                          status: 'active',
+                        },
+                      ])
+                      .select('*')
+                      .single();
+                    companyId = (createdCompany as any)?.id || null;
+                  }
+
+                  const { data: insertedProfile } = await supabase
+                    .from('profiles')
+                    .insert([
+                      {
+                        user_id: session.user.id,
+                        company_id: companyId,
+                        first_name: (session.user.user_metadata as any)?.first_name || null,
+                        last_name: (session.user.user_metadata as any)?.last_name || null,
+                        phone: (session.user.user_metadata as any)?.phone || null,
+                        city: (session.user.user_metadata as any)?.city || null,
+                        state: (session.user.user_metadata as any)?.state || null,
+                        country: (session.user.user_metadata as any)?.country || null,
+                        role: 'owner',
+                      },
+                    ])
+                    .select('*')
+                    .single();
+
+                  effectiveProfile = insertedProfile as any;
+                } catch (createErr) {
+                  console.error('Error creating missing profile/company:', createErr);
+                }
+              }
+
+              console.log('Profile resolved:', effectiveProfile);
+              setProfile(effectiveProfile as any);
+
+              if (effectiveProfile?.company_id) {
                 console.log('Fetching company data...');
                 const { data: companyData, error: companyError } = await supabase
                   .from('companies')
                   .select('*')
-                  .eq('id', profileData.company_id)
-                  .single();
+                  .eq('id', effectiveProfile.company_id)
+                  .maybeSingle();
 
-                if (companyError) {
+                if (companyError && (companyError as any).code !== 'PGRST116') {
                   console.error('Error fetching company:', companyError);
-                  setLoading(false);
-                  return;
                 }
 
-                console.log('Company fetched:', companyData);
-                setCompany(companyData);
+                if (companyData) {
+                  console.log('Company fetched:', companyData);
+                  setCompany(companyData as any);
+                }
               }
             } catch (error) {
               console.error('Error in auth state change:', error);

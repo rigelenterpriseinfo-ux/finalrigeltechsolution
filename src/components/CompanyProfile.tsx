@@ -57,29 +57,63 @@ export function CompanyProfile() {
         updated_at: new Date().toISOString(),
       };
 
-      const { error } = await supabase
-        .from('companies')
-        .update(sanitizedData)
-        .eq('id', company?.id);
-
-      if (error) {
+      if (!profile || !user) {
         toast({
-          title: "Update failed",
-          description: error.message,
+          title: "Not ready",
+          description: "Please sign in again.",
           variant: "destructive",
         });
+        setIsLoading(false);
         return;
       }
 
+      let targetCompanyId = company?.id;
+
+      // If no company exists yet, create one and link it to the profile
+      if (!targetCompanyId) {
+        const { data: created, error: insertErr } = await supabase
+          .from('companies')
+          .insert([{ ...sanitizedData }])
+          .select('*')
+          .single();
+
+        if (insertErr) {
+          toast({ title: 'Create failed', description: insertErr.message, variant: 'destructive' });
+          setIsLoading(false);
+          return;
+        }
+
+        targetCompanyId = created.id;
+
+        // Link to user profile
+        await supabase
+          .from('profiles')
+          .update({ company_id: targetCompanyId })
+          .eq('user_id', user.id);
+      } else {
+        const { error } = await supabase
+          .from('companies')
+          .update(sanitizedData)
+          .eq('id', targetCompanyId);
+
+        if (error) {
+          toast({
+            title: "Update failed",
+            description: error.message,
+            variant: "destructive",
+          });
+          setIsLoading(false);
+          return;
+        }
+      }
+
       toast({
-        title: "Company updated",
-        description: "Your company details have been updated successfully.",
+        title: "Company saved",
+        description: "Your company details have been saved successfully.",
       });
 
-      // Refresh auth context instead of page reload
-      setTimeout(() => {
-        window.location.reload();
-      }, 1000);
+      // Refresh the page to reload context
+      setTimeout(() => window.location.reload(), 800);
     } catch (error: any) {
       toast({
         title: "Update failed",
