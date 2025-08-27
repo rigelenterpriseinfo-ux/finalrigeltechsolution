@@ -237,6 +237,172 @@ export type Database = {
           },
         ]
       }
+      email_otps: {
+        Row: {
+          attempt_count: number | null
+          consumed_at: string | null
+          created_at: string | null
+          email: string
+          expires_at: string
+          id: string
+          otp_hash: string
+        }
+        Insert: {
+          attempt_count?: number | null
+          consumed_at?: string | null
+          created_at?: string | null
+          email: string
+          expires_at: string
+          id?: string
+          otp_hash: string
+        }
+        Update: {
+          attempt_count?: number | null
+          consumed_at?: string | null
+          created_at?: string | null
+          email?: string
+          expires_at?: string
+          id?: string
+          otp_hash?: string
+        }
+        Relationships: []
+      }
+      gated_business_users: {
+        Row: {
+          access_type: string | null
+          business_id: string
+          created_at: string | null
+          email: string
+          id: string
+          password_hash: string
+          status: string | null
+          updated_at: string | null
+          username: string
+        }
+        Insert: {
+          access_type?: string | null
+          business_id: string
+          created_at?: string | null
+          email: string
+          id?: string
+          password_hash: string
+          status?: string | null
+          updated_at?: string | null
+          username: string
+        }
+        Update: {
+          access_type?: string | null
+          business_id?: string
+          created_at?: string | null
+          email?: string
+          id?: string
+          password_hash?: string
+          status?: string | null
+          updated_at?: string | null
+          username?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gated_business_users_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "gated_businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      gated_businesses: {
+        Row: {
+          addr_line1: string
+          addr_line2: string | null
+          business_ref_no: string
+          business_type: string
+          country: string
+          created_at: string | null
+          email: string
+          gstin: string | null
+          id: string
+          industry_type: string
+          name: string
+          payment_status: string | null
+          phone: string
+          pin_code: string
+          state: string
+          updated_at: string | null
+        }
+        Insert: {
+          addr_line1: string
+          addr_line2?: string | null
+          business_ref_no: string
+          business_type: string
+          country: string
+          created_at?: string | null
+          email: string
+          gstin?: string | null
+          id?: string
+          industry_type: string
+          name: string
+          payment_status?: string | null
+          phone: string
+          pin_code: string
+          state: string
+          updated_at?: string | null
+        }
+        Update: {
+          addr_line1?: string
+          addr_line2?: string | null
+          business_ref_no?: string
+          business_type?: string
+          country?: string
+          created_at?: string | null
+          email?: string
+          gstin?: string | null
+          id?: string
+          industry_type?: string
+          name?: string
+          payment_status?: string | null
+          phone?: string
+          pin_code?: string
+          state?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      password_resets: {
+        Row: {
+          created_at: string | null
+          expires_at: string
+          id: string
+          token_hash: string
+          used_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          expires_at: string
+          id?: string
+          token_hash: string
+          used_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          expires_at?: string
+          id?: string
+          token_hash?: string
+          used_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "password_resets_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "gated_business_users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       payments: {
         Row: {
           amount: number
@@ -860,6 +1026,10 @@ export type Database = {
         Returns: undefined
       }
       generate_business_ref: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
+      generate_gated_business_ref_no: {
         Args: Record<PropertyKey, never>
         Returns: string
       }
