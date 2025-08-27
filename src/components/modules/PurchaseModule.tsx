@@ -65,6 +65,7 @@ interface Supplier {
 interface LineItem {
   id: number;
   item_code: string;
+  sku_number: string;
   item_description: string;
   hsn_sac_code: string;
   quantity: number;
@@ -72,11 +73,19 @@ interface LineItem {
   unit_price: number;
   discount_percentage: number;
   discount_amount: number;
+  value_before_discount: number;
+  value_after_discount: number;
   taxable_value: number;
+  non_taxable_value: number;
+  is_taxable: boolean;
   gst_rate: number;
+  cgst_rate: number;
+  sgst_rate: number;
+  igst_rate: number;
   cgst_amount: number;
   sgst_amount: number;
   igst_amount: number;
+  total_gst_amount: number;
   line_total: number;
   remarks: string;
 }
@@ -102,6 +111,7 @@ export function PurchaseModule() {
     {
       id: 1,
       item_code: '',
+      sku_number: '',
       item_description: '',
       hsn_sac_code: '',
       quantity: 1,
@@ -109,11 +119,19 @@ export function PurchaseModule() {
       unit_price: 0,
       discount_percentage: 0,
       discount_amount: 0,
+      value_before_discount: 0,
+      value_after_discount: 0,
       taxable_value: 0,
+      non_taxable_value: 0,
+      is_taxable: true,
       gst_rate: 18,
+      cgst_rate: 9,
+      sgst_rate: 9,
+      igst_rate: 18,
       cgst_amount: 0,
       sgst_amount: 0,
       igst_amount: 0,
+      total_gst_amount: 0,
       line_total: 0,
       remarks: ''
     }
@@ -212,6 +230,7 @@ export function PurchaseModule() {
     setLineItems([...lineItems, {
       id: newId,
       item_code: '',
+      sku_number: '',
       item_description: '',
       hsn_sac_code: '',
       quantity: 1,
@@ -219,11 +238,19 @@ export function PurchaseModule() {
       unit_price: 0,
       discount_percentage: 0,
       discount_amount: 0,
+      value_before_discount: 0,
+      value_after_discount: 0,
       taxable_value: 0,
+      non_taxable_value: 0,
+      is_taxable: true,
       gst_rate: 18,
+      cgst_rate: 9,
+      sgst_rate: 9,
+      igst_rate: 18,
       cgst_amount: 0,
       sgst_amount: 0,
       igst_amount: 0,
+      total_gst_amount: 0,
       line_total: 0,
       remarks: ''
     }]);
@@ -241,35 +268,73 @@ export function PurchaseModule() {
         const updatedItem = { ...item, [field]: value };
         
         // Calculate line totals when relevant fields change
-        if (['quantity', 'unit_price', 'discount_percentage', 'discount_amount', 'gst_rate'].includes(field)) {
+        if (['quantity', 'unit_price', 'discount_percentage', 'discount_amount', 'gst_rate', 'is_taxable'].includes(field)) {
           const quantity = parseFloat(updatedItem.quantity.toString()) || 0;
           const unitPrice = parseFloat(updatedItem.unit_price.toString()) || 0;
           const discountPercentage = parseFloat(updatedItem.discount_percentage.toString()) || 0;
           const discountAmount = parseFloat(updatedItem.discount_amount.toString()) || 0;
-          
-          const subtotal = quantity * unitPrice;
-          const calculatedDiscountAmount = discountPercentage > 0 ? (subtotal * discountPercentage / 100) : discountAmount;
-          const taxableValue = subtotal - calculatedDiscountAmount;
           const gstRate = parseFloat(updatedItem.gst_rate.toString()) || 0;
           
-          // Determine if inter-state or intra-state based on company and supplier place of supply
-          const isInterState = companyData?.state !== selectedSupplier?.state;
+          // Calculate value before discount
+          updatedItem.value_before_discount = quantity * unitPrice;
           
-          if (isInterState) {
-            // Inter-state: IGST
-            updatedItem.igst_amount = (taxableValue * gstRate) / 100;
-            updatedItem.cgst_amount = 0;
-            updatedItem.sgst_amount = 0;
+          // Calculate discount amount (use percentage if provided, otherwise use flat amount)
+          const calculatedDiscountAmount = discountPercentage > 0 
+            ? (updatedItem.value_before_discount * discountPercentage / 100) 
+            : discountAmount;
+          
+          // Calculate value after discount
+          updatedItem.value_after_discount = updatedItem.value_before_discount - calculatedDiscountAmount;
+          
+          // Set discount amount
+          updatedItem.discount_amount = calculatedDiscountAmount;
+          
+          // Determine taxable vs non-taxable values
+          if (updatedItem.is_taxable) {
+            updatedItem.taxable_value = updatedItem.value_after_discount;
+            updatedItem.non_taxable_value = 0;
           } else {
-            // Intra-state: CGST + SGST
-            updatedItem.cgst_amount = (taxableValue * gstRate) / 200; // Half of GST rate
-            updatedItem.sgst_amount = (taxableValue * gstRate) / 200; // Half of GST rate
+            updatedItem.taxable_value = 0;
+            updatedItem.non_taxable_value = updatedItem.value_after_discount;
+          }
+          
+          // Calculate GST only on taxable items
+          if (updatedItem.is_taxable && gstRate > 0) {
+            // Determine if inter-state or intra-state based on company and supplier place of supply
+            const isInterState = companyData?.state !== selectedSupplier?.state;
+            
+            if (isInterState) {
+              // Inter-state: IGST only
+              updatedItem.igst_rate = gstRate;
+              updatedItem.igst_amount = (updatedItem.taxable_value * gstRate) / 100;
+              updatedItem.cgst_rate = 0;
+              updatedItem.cgst_amount = 0;
+              updatedItem.sgst_rate = 0;
+              updatedItem.sgst_amount = 0;
+            } else {
+              // Intra-state: CGST + SGST (split equally)
+              updatedItem.cgst_rate = gstRate / 2;
+              updatedItem.cgst_amount = (updatedItem.taxable_value * gstRate) / 200;
+              updatedItem.sgst_rate = gstRate / 2;
+              updatedItem.sgst_amount = (updatedItem.taxable_value * gstRate) / 200;
+              updatedItem.igst_rate = 0;
+              updatedItem.igst_amount = 0;
+            }
+          } else {
+            // No GST for non-taxable items
+            updatedItem.cgst_rate = 0;
+            updatedItem.cgst_amount = 0;
+            updatedItem.sgst_rate = 0;
+            updatedItem.sgst_amount = 0;
+            updatedItem.igst_rate = 0;
             updatedItem.igst_amount = 0;
           }
           
-          updatedItem.discount_amount = calculatedDiscountAmount;
-          updatedItem.taxable_value = taxableValue;
-          updatedItem.line_total = taxableValue + updatedItem.cgst_amount + updatedItem.sgst_amount + updatedItem.igst_amount;
+          // Calculate total GST amount
+          updatedItem.total_gst_amount = updatedItem.cgst_amount + updatedItem.sgst_amount + updatedItem.igst_amount;
+          
+          // Calculate final line total
+          updatedItem.line_total = updatedItem.value_after_discount + updatedItem.total_gst_amount;
         }
         
         return updatedItem;
@@ -392,6 +457,7 @@ export function PurchaseModule() {
       setLineItems([{
         id: 1,
         item_code: '',
+        sku_number: '',
         item_description: '',
         hsn_sac_code: '',
         quantity: 1,
@@ -399,11 +465,19 @@ export function PurchaseModule() {
         unit_price: 0,
         discount_percentage: 0,
         discount_amount: 0,
+        value_before_discount: 0,
+        value_after_discount: 0,
         taxable_value: 0,
+        non_taxable_value: 0,
+        is_taxable: true,
         gst_rate: 18,
+        cgst_rate: 9,
+        sgst_rate: 9,
+        igst_rate: 18,
         cgst_amount: 0,
         sgst_amount: 0,
         igst_amount: 0,
+        total_gst_amount: 0,
         line_total: 0,
         remarks: ''
       }]);
@@ -689,11 +763,21 @@ export function PurchaseModule() {
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead>Description *</TableHead>
-                          <TableHead>Qty</TableHead>
-                          <TableHead>Rate</TableHead>
-                          <TableHead>Total</TableHead>
-                          <TableHead>Action</TableHead>
+                          <TableHead className="min-w-[100px]">Item Code</TableHead>
+                          <TableHead className="min-w-[100px]">SKU Number</TableHead>
+                          <TableHead className="min-w-[200px]">Description *</TableHead>
+                          <TableHead className="min-w-[100px]">HSN/SAC Code</TableHead>
+                          <TableHead className="min-w-[80px]">Qty *</TableHead>
+                          <TableHead className="min-w-[80px]">UOM</TableHead>
+                          <TableHead className="min-w-[100px]">Rate *</TableHead>
+                          <TableHead className="min-w-[80px]">Disc%</TableHead>
+                          <TableHead className="min-w-[100px]">After Disc</TableHead>
+                          <TableHead className="min-w-[60px]">Taxable</TableHead>
+                          <TableHead className="min-w-[80px]">GST%</TableHead>
+                          <TableHead className="min-w-[120px]">GST Amount</TableHead>
+                          <TableHead className="min-w-[100px]">Line Total</TableHead>
+                          <TableHead className="min-w-[120px]">Remarks</TableHead>
+                          <TableHead className="min-w-[50px]">Action</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -701,10 +785,35 @@ export function PurchaseModule() {
                           <TableRow key={item.id}>
                             <TableCell>
                               <Input
+                                value={item.item_code}
+                                onChange={(e) => updateLineItem(item.id, 'item_code', e.target.value)}
+                                placeholder="Item code"
+                                className="w-full min-w-[80px]"
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <Input
+                                value={item.sku_number}
+                                onChange={(e) => updateLineItem(item.id, 'sku_number', e.target.value)}
+                                placeholder="SKU"
+                                className="w-full min-w-[80px]"
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <Input
                                 value={item.item_description}
                                 onChange={(e) => updateLineItem(item.id, 'item_description', e.target.value)}
                                 placeholder="Item description"
                                 required
+                                className="w-full min-w-[150px]"
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <Input
+                                value={item.hsn_sac_code}
+                                onChange={(e) => updateLineItem(item.id, 'hsn_sac_code', e.target.value)}
+                                placeholder="HSN/SAC"
+                                className="w-full min-w-[80px]"
                               />
                             </TableCell>
                             <TableCell>
@@ -715,7 +824,27 @@ export function PurchaseModule() {
                                 min="0"
                                 step="0.01"
                                 required
+                                className="w-full min-w-[60px]"
                               />
+                            </TableCell>
+                            <TableCell>
+                              <Select 
+                                value={item.unit_of_measure} 
+                                onValueChange={(value) => updateLineItem(item.id, 'unit_of_measure', value)}
+                              >
+                                <SelectTrigger className="w-full min-w-[60px]">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="pcs">Pcs</SelectItem>
+                                  <SelectItem value="kg">Kg</SelectItem>
+                                  <SelectItem value="ltr">Ltr</SelectItem>
+                                  <SelectItem value="box">Box</SelectItem>
+                                  <SelectItem value="mtr">Mtr</SelectItem>
+                                  <SelectItem value="sq.ft">Sq.Ft</SelectItem>
+                                  <SelectItem value="set">Set</SelectItem>
+                                </SelectContent>
+                              </Select>
                             </TableCell>
                             <TableCell>
                               <Input
@@ -725,12 +854,72 @@ export function PurchaseModule() {
                                 min="0"
                                 step="0.01"
                                 required
+                                className="w-full min-w-[80px]"
                               />
                             </TableCell>
                             <TableCell>
-                              <div className="font-medium">
-                                ₹{(item.quantity * item.unit_price).toFixed(2)}
+                              <Input
+                                type="number"
+                                value={item.discount_percentage}
+                                onChange={(e) => updateLineItem(item.id, 'discount_percentage', parseFloat(e.target.value) || 0)}
+                                min="0"
+                                max="100"
+                                step="0.01"
+                                className="w-full min-w-[60px]"
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <div className="text-sm font-medium min-w-[80px]">
+                                ₹{item.value_after_discount.toFixed(2)}
                               </div>
+                            </TableCell>
+                            <TableCell>
+                              <input
+                                type="checkbox"
+                                checked={item.is_taxable}
+                                onChange={(e) => updateLineItem(item.id, 'is_taxable', e.target.checked)}
+                                className="w-4 h-4"
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <Input
+                                type="number"
+                                value={item.gst_rate}
+                                onChange={(e) => updateLineItem(item.id, 'gst_rate', parseFloat(e.target.value) || 0)}
+                                min="0"
+                                max="28"
+                                step="0.01"
+                                disabled={!item.is_taxable}
+                                className="w-full min-w-[60px]"
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <div className="text-xs space-y-1 min-w-[100px]">
+                                {companyData?.state !== selectedSupplier?.state ? (
+                                  <div>
+                                    <div>IGST ({item.igst_rate}%): ₹{item.igst_amount.toFixed(2)}</div>
+                                  </div>
+                                ) : (
+                                  <div>
+                                    <div>CGST ({item.cgst_rate}%): ₹{item.cgst_amount.toFixed(2)}</div>
+                                    <div>SGST ({item.sgst_rate}%): ₹{item.sgst_amount.toFixed(2)}</div>
+                                  </div>
+                                )}
+                                <div className="font-medium">Total: ₹{item.total_gst_amount.toFixed(2)}</div>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <div className="text-sm font-bold min-w-[80px]">
+                                ₹{item.line_total.toFixed(2)}
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <Input
+                                value={item.remarks}
+                                onChange={(e) => updateLineItem(item.id, 'remarks', e.target.value)}
+                                placeholder="Remarks"
+                                className="w-full min-w-[100px]"
+                              />
                             </TableCell>
                             <TableCell>
                               {lineItems.length > 1 && (
@@ -750,11 +939,37 @@ export function PurchaseModule() {
                     </Table>
                   </div>
 
-                  {/* Total Summary */}
-                  <div className="bg-muted/30 p-4 rounded-lg">
-                    <div className="text-right">
-                      <div className="text-lg font-bold">
-                        Total: ₹{lineItems.reduce((sum, item) => sum + (item.quantity * item.unit_price), 0).toFixed(2)}
+                  {/* Comprehensive Total Summary */}
+                  <div className="bg-muted/30 p-6 rounded-lg space-y-4">
+                    <h4 className="text-lg font-semibold">Purchase Order Summary</h4>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                      <div className="space-y-2">
+                        <div className="font-medium text-primary">Quantity Details</div>
+                        <div>Total Quantity: {lineItems.reduce((sum, item) => sum + (item.quantity || 0), 0).toFixed(2)}</div>
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <div className="font-medium text-primary">Value Details</div>
+                        <div>Value Before Discount: ₹{lineItems.reduce((sum, item) => sum + (item.value_before_discount || 0), 0).toFixed(2)}</div>
+                        <div>Total Discount: ₹{lineItems.reduce((sum, item) => sum + (item.discount_amount || 0), 0).toFixed(2)}</div>
+                        <div>Value After Discount: ₹{lineItems.reduce((sum, item) => sum + (item.value_after_discount || 0), 0).toFixed(2)}</div>
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <div className="font-medium text-primary">Tax Breakdown</div>
+                        <div>Taxable Value: ₹{lineItems.reduce((sum, item) => sum + (item.taxable_value || 0), 0).toFixed(2)}</div>
+                        <div>Non-Taxable Value: ₹{lineItems.reduce((sum, item) => sum + (item.non_taxable_value || 0), 0).toFixed(2)}</div>
+                        <div>CGST: ₹{lineItems.reduce((sum, item) => sum + (item.cgst_amount || 0), 0).toFixed(2)}</div>
+                        <div>SGST: ₹{lineItems.reduce((sum, item) => sum + (item.sgst_amount || 0), 0).toFixed(2)}</div>
+                        <div>IGST: ₹{lineItems.reduce((sum, item) => sum + (item.igst_amount || 0), 0).toFixed(2)}</div>
+                        <div className="font-medium">Total GST: ₹{lineItems.reduce((sum, item) => sum + (item.total_gst_amount || 0), 0).toFixed(2)}</div>
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <div className="font-medium text-primary">Final Total</div>
+                        <div className="text-xl font-bold text-primary">
+                          Grand Total: ₹{lineItems.reduce((sum, item) => sum + (item.line_total || 0), 0).toFixed(2)}
+                        </div>
                       </div>
                     </div>
                   </div>
