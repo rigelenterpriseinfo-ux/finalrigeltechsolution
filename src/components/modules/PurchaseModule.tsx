@@ -34,6 +34,18 @@ interface Supplier {
   phone: string | null;
   address: string | null;
   contact_person: string | null;
+  vendor_registered_address: string | null;
+  gst_number: string | null;
+  pan_number: string | null;
+  pin_code: string | null;
+  city: string | null;
+  state: string | null;
+  country: string | null;
+  bank_name: string | null;
+  bank_address: string | null;
+  ifsc_code: string | null;
+  account_number: string | null;
+  account_type: string | null;
   is_active: boolean;
 }
 
@@ -154,8 +166,20 @@ export function PurchaseModule() {
       name: formData.get('name') as string,
       email: formData.get('email') as string || null,
       phone: formData.get('phone') as string || null,
-      address: formData.get('address') as string || null,
       contact_person: formData.get('contact_person') as string || null,
+      address: formData.get('address') as string || null,
+      vendor_registered_address: formData.get('vendor_registered_address') as string || null,
+      gst_number: formData.get('gst_number') as string || null,
+      pan_number: formData.get('pan_number') as string || null,
+      pin_code: formData.get('pin_code') as string || null,
+      city: formData.get('city') as string || null,
+      state: formData.get('state') as string || null,
+      country: formData.get('country') as string || null,
+      bank_name: formData.get('bank_name') as string || null,
+      bank_address: formData.get('bank_address') as string || null,
+      ifsc_code: formData.get('ifsc_code') as string || null,
+      account_number: formData.get('account_number') as string || null,
+      account_type: formData.get('account_type') as string || null,
       company_id: profile?.company_id,
     };
 
@@ -227,32 +251,263 @@ export function PurchaseModule() {
             <DialogTrigger asChild>
               <Button variant="outline">Add Supplier</Button>
             </DialogTrigger>
-            <DialogContent>
+            <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>Add New Supplier</DialogTitle>
-                <DialogDescription>Add a new supplier to your database</DialogDescription>
+                <DialogDescription>Complete supplier information including contact details, tax info, and banking details</DialogDescription>
               </DialogHeader>
-              <form onSubmit={handleAddSupplier} className="space-y-4">
-                <div>
-                  <Label htmlFor="sup-name">Supplier Name</Label>
-                  <Input id="sup-name" name="name" required />
+              <form onSubmit={handleAddSupplier} className="space-y-6">
+                {/* Basic Information */}
+                <div className="space-y-4">
+                  <h3 className="text-lg font-medium border-b pb-2">Basic Information</h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="sup-name">Vendor Name *</Label>
+                      <Input 
+                        id="sup-name" 
+                        name="name" 
+                        required 
+                        placeholder="Enter vendor/supplier name"
+                        minLength={2}
+                        maxLength={100}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="sup-contact">Contact Person *</Label>
+                      <Input 
+                        id="sup-contact" 
+                        name="contact_person" 
+                        required
+                        placeholder="Primary contact person"
+                        minLength={2}
+                        maxLength={50}
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="sup-email">Email ID *</Label>
+                      <Input 
+                        id="sup-email" 
+                        name="email" 
+                        type="email" 
+                        required
+                        placeholder="contact@vendor.com"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="sup-phone">Phone Number *</Label>
+                      <Input 
+                        id="sup-phone" 
+                        name="phone" 
+                        required
+                        placeholder="+91 XXXXX XXXXX"
+                        pattern="[\+\d\s\-\(\)]+"
+                        title="Enter a valid phone number"
+                      />
+                    </div>
+                  </div>
                 </div>
-                <div>
-                  <Label htmlFor="sup-email">Email</Label>
-                  <Input id="sup-email" name="email" type="email" />
+
+                {/* Address Information */}
+                <div className="space-y-4">
+                  <h3 className="text-lg font-medium border-b pb-2">Address Information</h3>
+                  <div>
+                    <Label htmlFor="sup-registered-address">Vendor Registered Address *</Label>
+                    <Textarea 
+                      id="sup-registered-address" 
+                      name="vendor_registered_address" 
+                      required
+                      placeholder="Complete registered address"
+                      maxLength={500}
+                      rows={3}
+                    />
+                  </div>
+                  <div className="grid grid-cols-3 gap-4">
+                    <div>
+                      <Label htmlFor="sup-city">City *</Label>
+                      <Input 
+                        id="sup-city" 
+                        name="city" 
+                        required
+                        placeholder="City name"
+                        minLength={2}
+                        maxLength={50}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="sup-state">State *</Label>
+                      <Input 
+                        id="sup-state" 
+                        name="state" 
+                        required
+                        placeholder="State name"
+                        minLength={2}
+                        maxLength={50}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="sup-country">Country *</Label>
+                      <Input 
+                        id="sup-country" 
+                        name="country" 
+                        required
+                        placeholder="Country name"
+                        defaultValue="India"
+                        minLength={2}
+                        maxLength={50}
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="sup-pin-code">PIN Code *</Label>
+                      <Input 
+                        id="sup-pin-code" 
+                        name="pin_code" 
+                        required
+                        placeholder="6-digit PIN code"
+                        pattern="[0-9]{6}"
+                        title="Enter a valid 6-digit PIN code"
+                        maxLength={6}
+                        onInput={(e) => {
+                          const target = e.target as HTMLInputElement;
+                          target.value = target.value.replace(/[^0-9]/g, '');
+                        }}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="sup-address">Additional Address</Label>
+                      <Input 
+                        id="sup-address" 
+                        name="address" 
+                        placeholder="Additional address info (optional)"
+                        maxLength={200}
+                      />
+                    </div>
+                  </div>
                 </div>
-                <div>
-                  <Label htmlFor="sup-phone">Phone</Label>
-                  <Input id="sup-phone" name="phone" />
+
+                {/* Tax Information */}
+                <div className="space-y-4">
+                  <h3 className="text-lg font-medium border-b pb-2">Tax Information</h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="sup-gst">GST Number</Label>
+                      <Input 
+                        id="sup-gst" 
+                        name="gst_number" 
+                        placeholder="15-digit GST number"
+                        pattern="[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}[Z]{1}[0-9A-Z]{1}"
+                        title="Enter a valid GST number (15 characters)"
+                        maxLength={15}
+                        onInput={(e) => {
+                          const target = e.target as HTMLInputElement;
+                          target.value = target.value.toUpperCase();
+                        }}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="sup-pan">PAN Number</Label>
+                      <Input 
+                        id="sup-pan" 
+                        name="pan_number" 
+                        placeholder="10-digit PAN number"
+                        pattern="[A-Z]{5}[0-9]{4}[A-Z]{1}"
+                        title="Enter a valid PAN number"
+                        maxLength={10}
+                        onInput={(e) => {
+                          const target = e.target as HTMLInputElement;
+                          target.value = target.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+                        }}
+                      />
+                    </div>
+                  </div>
                 </div>
-                <div>
-                  <Label htmlFor="sup-contact">Contact Person</Label>
-                  <Input id="sup-contact" name="contact_person" />
+
+                {/* Banking Information */}
+                <div className="space-y-4">
+                  <h3 className="text-lg font-medium border-b pb-2">Payment Details</h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="sup-bank-name">Bank Name</Label>
+                      <Input 
+                        id="sup-bank-name" 
+                        name="bank_name" 
+                        placeholder="Bank name"
+                        maxLength={100}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="sup-account-type">Account Type</Label>
+                      <Select name="account_type">
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select account type" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="saving">Saving</SelectItem>
+                          <SelectItem value="current">Current</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  <div>
+                    <Label htmlFor="sup-bank-address">Bank Address</Label>
+                    <Textarea 
+                      id="sup-bank-address" 
+                      name="bank_address" 
+                      placeholder="Bank branch address"
+                      maxLength={300}
+                      rows={2}
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="sup-ifsc">IFSC Code</Label>
+                      <Input 
+                        id="sup-ifsc" 
+                        name="ifsc_code" 
+                        placeholder="11-character IFSC code"
+                        pattern="[A-Z]{4}0[A-Z0-9]{6}"
+                        title="Enter a valid IFSC code"
+                        maxLength={11}
+                        onInput={(e) => {
+                          const target = e.target as HTMLInputElement;
+                          target.value = target.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+                        }}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="sup-account-no">Account Number</Label>
+                      <Input 
+                        id="sup-account-no" 
+                        name="account_number" 
+                        placeholder="Bank account number"
+                        pattern="[0-9]+"
+                        title="Enter a valid account number (numbers only)"
+                        maxLength={20}
+                        onInput={(e) => {
+                          const target = e.target as HTMLInputElement;
+                          target.value = target.value.replace(/[^0-9]/g, '');
+                        }}
+                      />
+                    </div>
+                  </div>
                 </div>
-                <div>
-                  <Label htmlFor="sup-address">Address</Label>
-                  <Textarea id="sup-address" name="address" />
+
+                {/* Validation Guidelines */}
+                <div className="text-sm text-muted-foreground bg-muted/50 p-4 rounded-lg">
+                  <p className="font-medium mb-2">Validation Guidelines:</p>
+                  <ul className="space-y-1 text-xs grid grid-cols-2 gap-2">
+                    <li>• GST: 15 characters (format: NNAAAANNNNANN)</li>
+                    <li>• PAN: 10 characters (format: AAAAANNNNNA)</li>
+                    <li>• PIN Code: 6-digit number only</li>
+                    <li>• IFSC: 11 characters (format: AAAA0NNNNNN)</li>
+                    <li>• Phone: Include country code if international</li>
+                    <li>• Account Number: Numbers only</li>
+                  </ul>
                 </div>
+
                 <Button type="submit" className="w-full">Add Supplier</Button>
               </form>
             </DialogContent>

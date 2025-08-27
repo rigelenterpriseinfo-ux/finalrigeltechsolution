@@ -1077,40 +1077,76 @@ export type Database = {
       }
       suppliers: {
         Row: {
+          account_number: string | null
+          account_type: string | null
           address: string | null
+          bank_address: string | null
+          bank_name: string | null
+          city: string | null
           company_id: string
           contact_person: string | null
+          country: string | null
           created_at: string
           email: string | null
+          gst_number: string | null
           id: string
+          ifsc_code: string | null
           is_active: boolean
           name: string
+          pan_number: string | null
           phone: string | null
+          pin_code: string | null
+          state: string | null
           updated_at: string
+          vendor_registered_address: string | null
         }
         Insert: {
+          account_number?: string | null
+          account_type?: string | null
           address?: string | null
+          bank_address?: string | null
+          bank_name?: string | null
+          city?: string | null
           company_id: string
           contact_person?: string | null
+          country?: string | null
           created_at?: string
           email?: string | null
+          gst_number?: string | null
           id?: string
+          ifsc_code?: string | null
           is_active?: boolean
           name: string
+          pan_number?: string | null
           phone?: string | null
+          pin_code?: string | null
+          state?: string | null
           updated_at?: string
+          vendor_registered_address?: string | null
         }
         Update: {
+          account_number?: string | null
+          account_type?: string | null
           address?: string | null
+          bank_address?: string | null
+          bank_name?: string | null
+          city?: string | null
           company_id?: string
           contact_person?: string | null
+          country?: string | null
           created_at?: string
           email?: string | null
+          gst_number?: string | null
           id?: string
+          ifsc_code?: string | null
           is_active?: boolean
           name?: string
+          pan_number?: string | null
           phone?: string | null
+          pin_code?: string | null
+          state?: string | null
           updated_at?: string
+          vendor_registered_address?: string | null
         }
         Relationships: [
           {
