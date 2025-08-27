@@ -44,6 +44,107 @@ export type Database = {
         }
         Relationships: []
       }
+      business_users: {
+        Row: {
+          access_sections: Json | null
+          business_id: string | null
+          created_at: string
+          email: string | null
+          id: string
+          is_active: boolean | null
+          name: string
+          role: Database["public"]["Enums"]["user_role"] | null
+          updated_at: string
+          user_ref: string
+        }
+        Insert: {
+          access_sections?: Json | null
+          business_id?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+          role?: Database["public"]["Enums"]["user_role"] | null
+          updated_at?: string
+          user_ref: string
+        }
+        Update: {
+          access_sections?: Json | null
+          business_id?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          role?: Database["public"]["Enums"]["user_role"] | null
+          updated_at?: string
+          user_ref?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "business_users_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      businesses: {
+        Row: {
+          business_name: string
+          business_ref: string
+          created_at: string
+          email: string | null
+          id: string
+          industry_type: string | null
+          owner_name: string | null
+          phone: string | null
+          subscription_plan:
+            | Database["public"]["Enums"]["subscription_plan"]
+            | null
+          subscription_status:
+            | Database["public"]["Enums"]["business_status"]
+            | null
+          updated_at: string
+        }
+        Insert: {
+          business_name: string
+          business_ref: string
+          created_at?: string
+          email?: string | null
+          id?: string
+          industry_type?: string | null
+          owner_name?: string | null
+          phone?: string | null
+          subscription_plan?:
+            | Database["public"]["Enums"]["subscription_plan"]
+            | null
+          subscription_status?:
+            | Database["public"]["Enums"]["business_status"]
+            | null
+          updated_at?: string
+        }
+        Update: {
+          business_name?: string
+          business_ref?: string
+          created_at?: string
+          email?: string | null
+          id?: string
+          industry_type?: string | null
+          owner_name?: string | null
+          phone?: string | null
+          subscription_plan?:
+            | Database["public"]["Enums"]["subscription_plan"]
+            | null
+          subscription_status?:
+            | Database["public"]["Enums"]["business_status"]
+            | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       companies: {
         Row: {
           address: string | null
@@ -639,6 +740,59 @@ export type Database = {
         }
         Relationships: []
       }
+      subscriptions: {
+        Row: {
+          amount: number | null
+          business_id: string | null
+          created_at: string
+          currency: string | null
+          end_date: string | null
+          id: string
+          payment_status: Database["public"]["Enums"]["payment_status"] | null
+          plan_type: Database["public"]["Enums"]["subscription_plan"] | null
+          start_date: string | null
+          stripe_session_id: string | null
+          stripe_subscription_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          amount?: number | null
+          business_id?: string | null
+          created_at?: string
+          currency?: string | null
+          end_date?: string | null
+          id?: string
+          payment_status?: Database["public"]["Enums"]["payment_status"] | null
+          plan_type?: Database["public"]["Enums"]["subscription_plan"] | null
+          start_date?: string | null
+          stripe_session_id?: string | null
+          stripe_subscription_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          amount?: number | null
+          business_id?: string | null
+          created_at?: string
+          currency?: string | null
+          end_date?: string | null
+          id?: string
+          payment_status?: Database["public"]["Enums"]["payment_status"] | null
+          plan_type?: Database["public"]["Enums"]["subscription_plan"] | null
+          start_date?: string | null
+          stripe_session_id?: string | null
+          stripe_subscription_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "subscriptions_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       suppliers: {
         Row: {
           address: string | null
@@ -699,6 +853,14 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: undefined
       }
+      generate_business_ref: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
+      generate_user_ref: {
+        Args: { bus_id: string }
+        Returns: string
+      }
       get_current_user_role: {
         Args: Record<PropertyKey, never>
         Returns: Database["public"]["Enums"]["app_role"]
@@ -718,7 +880,11 @@ export type Database = {
     }
     Enums: {
       app_role: "owner" | "admin" | "manager" | "staff"
+      business_status: "active" | "inactive" | "suspended"
       company_status: "active" | "inactive" | "suspended"
+      payment_status: "pending" | "paid" | "failed" | "refunded"
+      subscription_plan: "monthly" | "yearly"
+      user_role: "Admin" | "User" | "ViewOnly"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -847,7 +1013,11 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["owner", "admin", "manager", "staff"],
+      business_status: ["active", "inactive", "suspended"],
       company_status: ["active", "inactive", "suspended"],
+      payment_status: ["pending", "paid", "failed", "refunded"],
+      subscription_plan: ["monthly", "yearly"],
+      user_role: ["Admin", "User", "ViewOnly"],
     },
   },
 } as const
