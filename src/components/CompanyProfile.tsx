@@ -8,12 +8,19 @@ import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { sanitizeHtml } from '@/lib/security';
-import { Loader2, Building2, Save, Phone, Mail, Globe, MapPin } from 'lucide-react';
+import { Separator } from '@/components/ui/separator';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Loader2, Building2, Save, Phone, Mail, Globe, MapPin, User, Lock, Eye, EyeOff, LogIn, AlertCircle, CheckCircle, IdCard } from 'lucide-react';
 
 export function CompanyProfile() {
   const { company, profile, user } = useAuth();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [showSignIn, setShowSignIn] = useState(false);
+  const [signInData, setSignInData] = useState({ username: '', password: '' });
+  const [isSigningIn, setIsSigningIn] = useState(false);
   const [formData, setFormData] = useState({
     name: company?.name || '',
     email: company?.email || '',
@@ -21,10 +28,68 @@ export function CompanyProfile() {
     address: company?.address || '',
     website: company?.website || '',
     status: company?.status || 'active',
+    gstn: '',
+    username: '',
+    password: '',
+    confirmPassword: '',
   });
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
+  };
+
+  const validatePassword = (password: string) => {
+    const minLength = 8;
+    const hasUpperCase = /[A-Z]/.test(password);
+    const hasLowerCase = /[a-z]/.test(password);
+    const hasNumbers = /\d/.test(password);
+    const hasSpecialChar = /[!@#$%^&*(),.?":{}|<>]/.test(password);
+    
+    return {
+      isValid: password.length >= minLength && hasUpperCase && hasLowerCase && hasNumbers && hasSpecialChar,
+      minLength: password.length >= minLength,
+      hasUpperCase,
+      hasLowerCase,
+      hasNumbers,
+      hasSpecialChar
+    };
+  };
+
+  const passwordValidation = validatePassword(formData.password);
+  const passwordsMatch = formData.password === formData.confirmPassword;
+
+  const handleSignIn = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSigningIn(true);
+    
+    try {
+      // Here you would implement sign-in logic with business credentials
+      // This is a placeholder for the actual implementation
+      await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate API call
+      
+      toast({
+        title: "Sign in successful",
+        description: "Welcome back!",
+      });
+      
+      setShowSignIn(false);
+      setSignInData({ username: '', password: '' });
+    } catch (error) {
+      toast({
+        title: "Sign in failed",
+        description: "Invalid credentials. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSigningIn(false);
+    }
+  };
+
+  const handleForgotPassword = () => {
+    toast({
+      title: "Password reset",
+      description: "Password reset instructions will be sent to your registered email.",
+    });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -44,6 +109,27 @@ export function CompanyProfile() {
           setIsLoading(false);
           return;
         }
+      }
+
+      // Validate password if provided
+      if (formData.password && !passwordValidation.isValid) {
+        toast({
+          title: "Invalid password",
+          description: "Password must meet all security requirements",
+          variant: "destructive",
+        });
+        setIsLoading(false);
+        return;
+      }
+
+      if (formData.password && !passwordsMatch) {
+        toast({
+          title: "Passwords don't match",
+          description: "Please ensure both password fields match",
+          variant: "destructive",
+        });
+        setIsLoading(false);
+        return;
       }
 
       // Sanitize form inputs before submission
@@ -128,44 +214,138 @@ export function CompanyProfile() {
   // Update form data when company data changes
   React.useEffect(() => {
     if (company) {
-      setFormData({
+      setFormData(prev => ({
+        ...prev,
         name: company.name || '',
         email: company.email || '',
         phone: company.phone || '',
         address: company.address || '',
         website: company.website || '',
         status: company.status || 'active',
-      });
+      }));
     }
   }, [company]);
 
   return (
-    <Card className="max-w-2xl mx-auto">
-      <CardHeader>
-        <div className="flex items-center gap-3">
-          <div className="p-3 rounded-xl bg-primary/10 text-primary">
-            <Building2 className="h-6 w-6" />
+    <div className="max-w-2xl mx-auto space-y-6">
+      {/* Sign In Section */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="p-3 rounded-xl bg-primary/10 text-primary">
+                <LogIn className="h-6 w-6" />
+              </div>
+              <div>
+                <CardTitle>Sign In</CardTitle>
+                <CardDescription>Access with your business credentials</CardDescription>
+              </div>
+            </div>
+            <Button 
+              variant="outline" 
+              onClick={() => setShowSignIn(!showSignIn)}
+            >
+              {showSignIn ? 'Cancel' : 'Sign In'}
+            </Button>
           </div>
-          <div>
-            <CardTitle>Company Profile</CardTitle>
-            <CardDescription>
-              Update your company information and business details
-            </CardDescription>
+        </CardHeader>
+        {showSignIn && (
+          <CardContent>
+            <form onSubmit={handleSignIn} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="signin-username">Username</Label>
+                <Input
+                  id="signin-username"
+                  value={signInData.username}
+                  onChange={(e) => setSignInData(prev => ({ ...prev, username: e.target.value }))}
+                  placeholder="Enter your username"
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="signin-password">Password</Label>
+                <Input
+                  id="signin-password"
+                  type="password"
+                  value={signInData.password}
+                  onChange={(e) => setSignInData(prev => ({ ...prev, password: e.target.value }))}
+                  placeholder="Enter your password"
+                  required
+                />
+              </div>
+              <Button type="submit" className="w-full" disabled={isSigningIn}>
+                {isSigningIn ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Signing In...
+                  </>
+                ) : (
+                  'Sign In'
+                )}
+              </Button>
+            </form>
+          </CardContent>
+        )}
+      </Card>
+
+      {/* Company Profile Section */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center gap-3">
+            <div className="p-3 rounded-xl bg-primary/10 text-primary">
+              <Building2 className="h-6 w-6" />
+            </div>
+            <div>
+              <CardTitle>Company Profile</CardTitle>
+              <CardDescription>
+                Update your company information and business details
+              </CardDescription>
+            </div>
           </div>
-        </div>
-      </CardHeader>
-      <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="space-y-2">
-            <Label htmlFor="company-name">Company Name *</Label>
-            <Input
-              id="company-name"
-              value={formData.name}
-              onChange={(e) => handleInputChange('name', e.target.value)}
-              placeholder="Your Company Ltd."
-              required
-            />
-          </div>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Business ID Field */}
+            <div className="space-y-2">
+              <Label htmlFor="business-id" className="flex items-center gap-2">
+                <IdCard className="h-4 w-4" />
+                Business ID
+              </Label>
+              <Input
+                id="business-id"
+                value="BUS-20241227-ABC123" // This would be generated from database
+                placeholder="Auto-generated after registration"
+                disabled
+                className="bg-muted"
+              />
+              <p className="text-sm text-muted-foreground">
+                Unique business reference number generated upon successful registration
+              </p>
+            </div>
+
+            <Separator />
+
+            <div className="space-y-2">
+              <Label htmlFor="company-name">Company Name *</Label>
+              <Input
+                id="company-name"
+                value={formData.name}
+                onChange={(e) => handleInputChange('name', e.target.value)}
+                placeholder="Your Company Ltd."
+                required
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="gstn">GSTN</Label>
+              <Input
+                id="gstn"
+                value={formData.gstn}
+                onChange={(e) => handleInputChange('gstn', e.target.value)}
+                placeholder="22AAAAA0000A1Z5"
+                maxLength={15}
+              />
+            </div>
 
           <div className="space-y-2">
             <Label htmlFor="company-email" className="flex items-center gap-2">
@@ -226,34 +406,168 @@ export function CompanyProfile() {
             />
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="company-status">Company Status</Label>
-            <select
-              id="company-status"
-              value={formData.status}
-              onChange={(e) => handleInputChange('status', e.target.value)}
-              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              <option value="active">Active</option>
-              <option value="inactive">Inactive</option>
-            </select>
-          </div>
+            <div className="space-y-2">
+              <Label htmlFor="company-status">Company Status</Label>
+              <select
+                id="company-status"
+                value={formData.status}
+                onChange={(e) => handleInputChange('status', e.target.value)}
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <option value="active">Active</option>
+                <option value="inactive">Inactive</option>
+              </select>
+            </div>
 
-          <Button type="submit" className="w-full" disabled={isLoading}>
-            {isLoading ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Updating...
-              </>
-            ) : (
-              <>
-                <Save className="mr-2 h-4 w-4" />
-                Update Company Profile
-              </>
-            )}
+            <Separator />
+
+            {/* Authentication Section */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-medium">Authentication Details</h3>
+              
+              <div className="space-y-2">
+                <Label htmlFor="username" className="flex items-center gap-2">
+                  <User className="h-4 w-4" />
+                  Username *
+                </Label>
+                <Input
+                  id="username"
+                  value={formData.username}
+                  onChange={(e) => handleInputChange('username', e.target.value)}
+                  placeholder="Enter username"
+                  required
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="password" className="flex items-center gap-2">
+                  <Lock className="h-4 w-4" />
+                  Password *
+                </Label>
+                <div className="relative">
+                  <Input
+                    id="password"
+                    type={showPassword ? "text" : "password"}
+                    value={formData.password}
+                    onChange={(e) => handleInputChange('password', e.target.value)}
+                    placeholder="Enter password"
+                    required
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="absolute right-2 top-1/2 -translate-y-1/2 h-auto p-1"
+                    onClick={() => setShowPassword(!showPassword)}
+                  >
+                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </Button>
+                </div>
+                
+                {formData.password && (
+                  <div className="space-y-2 p-3 bg-muted rounded-md">
+                    <p className="text-sm font-medium">Password Requirements:</p>
+                    <div className="space-y-1 text-sm">
+                      <div className={`flex items-center gap-2 ${passwordValidation.minLength ? 'text-green-600' : 'text-red-600'}`}>
+                        {passwordValidation.minLength ? <CheckCircle className="h-3 w-3" /> : <AlertCircle className="h-3 w-3" />}
+                        At least 8 characters
+                      </div>
+                      <div className={`flex items-center gap-2 ${passwordValidation.hasUpperCase ? 'text-green-600' : 'text-red-600'}`}>
+                        {passwordValidation.hasUpperCase ? <CheckCircle className="h-3 w-3" /> : <AlertCircle className="h-3 w-3" />}
+                        One uppercase letter
+                      </div>
+                      <div className={`flex items-center gap-2 ${passwordValidation.hasLowerCase ? 'text-green-600' : 'text-red-600'}`}>
+                        {passwordValidation.hasLowerCase ? <CheckCircle className="h-3 w-3" /> : <AlertCircle className="h-3 w-3" />}
+                        One lowercase letter
+                      </div>
+                      <div className={`flex items-center gap-2 ${passwordValidation.hasNumbers ? 'text-green-600' : 'text-red-600'}`}>
+                        {passwordValidation.hasNumbers ? <CheckCircle className="h-3 w-3" /> : <AlertCircle className="h-3 w-3" />}
+                        One number
+                      </div>
+                      <div className={`flex items-center gap-2 ${passwordValidation.hasSpecialChar ? 'text-green-600' : 'text-red-600'}`}>
+                        {passwordValidation.hasSpecialChar ? <CheckCircle className="h-3 w-3" /> : <AlertCircle className="h-3 w-3" />}
+                        One special character
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="confirm-password">Reconfirm Password *</Label>
+                <div className="relative">
+                  <Input
+                    id="confirm-password"
+                    type={showConfirmPassword ? "text" : "password"}
+                    value={formData.confirmPassword}
+                    onChange={(e) => handleInputChange('confirmPassword', e.target.value)}
+                    placeholder="Reconfirm password"
+                    required
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="absolute right-2 top-1/2 -translate-y-1/2 h-auto p-1"
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  >
+                    {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </Button>
+                </div>
+                
+                {formData.confirmPassword && (
+                  <Alert className={passwordsMatch ? "border-green-500" : "border-red-500"}>
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription className={passwordsMatch ? "text-green-600" : "text-red-600"}>
+                      {passwordsMatch ? (
+                        <span className="flex items-center gap-2">
+                          <CheckCircle className="h-3 w-3" />
+                          Passwords match
+                        </span>
+                      ) : (
+                        "Passwords do not match"
+                      )}
+                    </AlertDescription>
+                  </Alert>
+                )}
+              </div>
+            </div>
+
+            <Button type="submit" className="w-full" disabled={isLoading}>
+              {isLoading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Updating...
+                </>
+              ) : (
+                <>
+                  <Save className="mr-2 h-4 w-4" />
+                  Update Company Profile
+                </>
+              )}
+            </Button>
+          </form>
+        </CardContent>
+      </Card>
+
+      {/* Forgot Password Section */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">Forgot Password?</CardTitle>
+          <CardDescription>
+            Reset your password if you've forgotten it
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Button 
+            variant="outline" 
+            onClick={handleForgotPassword}
+            className="w-full"
+          >
+            Send Password Reset Instructions
           </Button>
-        </form>
-      </CardContent>
-    </Card>
+        </CardContent>
+      </Card>
+    </div>
   );
 }
