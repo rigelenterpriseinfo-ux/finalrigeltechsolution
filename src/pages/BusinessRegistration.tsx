@@ -142,9 +142,10 @@ const BusinessRegistration = () => {
   const handleContinue = () => {
     navigate('/auth', { 
       state: { 
-        businessRef,
-        message: 'Please create your admin account to access your business dashboard.' 
-      }
+        message: 'Business registration successful! Please sign in to continue.',
+        businessRef: businessRef,
+        tab: 'signin'
+      } 
     });
   };
 
