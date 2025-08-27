@@ -28,6 +28,7 @@ interface Company {
   address: string | null;
   website: string | null;
   status: 'active' | 'inactive' | 'suspended';
+  business_ref_no: string | null;
 }
 
 interface AuthContextType {

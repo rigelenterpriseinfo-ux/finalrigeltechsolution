@@ -453,10 +453,30 @@ export default function Dashboard() {
 
           <main className="flex-1 flex flex-col">
             <header className="bg-card border-b border-border/50 shadow-sm">
-              <div className="px-6 py-4">
-                <SidebarTrigger className="p-2 rounded-lg hover:bg-muted transition-colors mb-4">
+              <div className="px-6 py-4 flex items-center justify-between">
+                <SidebarTrigger className="p-2 rounded-lg hover:bg-muted transition-colors">
                   <Menu className="h-5 w-5" />
                 </SidebarTrigger>
+                
+                {/* Right side - Sign Out and Company ID */}
+                <div className="flex flex-col items-end gap-2">
+                  <Button 
+                    onClick={signOut}
+                    variant="outline"
+                    size="sm"
+                    className="text-destructive hover:bg-destructive/10 border-destructive/20"
+                  >
+                    <LogOut className="h-4 w-4 mr-2" />
+                    Sign Out
+                  </Button>
+                  
+                  {/* Company Business ID */}
+                  {company?.business_ref_no && (
+                    <div className="text-xs text-muted-foreground">
+                      Company ID: <span className="font-mono text-primary">{company.business_ref_no}</span>
+                    </div>
+                  )}
+                </div>
               </div>
             </header>
 
