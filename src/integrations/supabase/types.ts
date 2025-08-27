@@ -549,6 +549,8 @@ export type Database = {
           cost_price: number
           created_at: string
           description: string | null
+          gst_percentage: number | null
+          hsn_code: string | null
           id: string
           is_active: boolean
           max_stock_level: number | null
@@ -556,6 +558,7 @@ export type Database = {
           name: string
           sku: string
           stock_quantity: number
+          unit: string | null
           unit_price: number
           updated_at: string
         }
@@ -565,6 +568,8 @@ export type Database = {
           cost_price?: number
           created_at?: string
           description?: string | null
+          gst_percentage?: number | null
+          hsn_code?: string | null
           id?: string
           is_active?: boolean
           max_stock_level?: number | null
@@ -572,6 +577,7 @@ export type Database = {
           name: string
           sku: string
           stock_quantity?: number
+          unit?: string | null
           unit_price?: number
           updated_at?: string
         }
@@ -581,6 +587,8 @@ export type Database = {
           cost_price?: number
           created_at?: string
           description?: string | null
+          gst_percentage?: number | null
+          hsn_code?: string | null
           id?: string
           is_active?: boolean
           max_stock_level?: number | null
@@ -588,6 +596,7 @@ export type Database = {
           name?: string
           sku?: string
           stock_quantity?: number
+          unit?: string | null
           unit_price?: number
           updated_at?: string
         }
