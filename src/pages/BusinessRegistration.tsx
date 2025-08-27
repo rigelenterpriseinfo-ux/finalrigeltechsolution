@@ -6,7 +6,8 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Building2, User, Mail, Phone, Briefcase, CheckCircle } from 'lucide-react';
+import { Textarea } from '@/components/ui/textarea';
+import { Loader2, Building2, User, Mail, Phone, Briefcase, CheckCircle, MapPin, FileText } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -26,7 +27,9 @@ const BusinessRegistration = () => {
     ownerName: '',
     email: '',
     phone: '',
-    industryType: ''
+    industryType: '',
+    fullAddress: '',
+    gstnNumber: ''
   });
 
   const industries = [
@@ -48,7 +51,7 @@ const BusinessRegistration = () => {
   };
 
   const validateForm = () => {
-    const { businessName, ownerName, email, phone, industryType } = formData;
+    const { businessName, ownerName, email, phone, industryType, fullAddress, gstnNumber } = formData;
     
     if (!businessName.trim()) {
       toast({ title: "Business name is required", variant: "destructive" });
@@ -75,6 +78,16 @@ const BusinessRegistration = () => {
       return false;
     }
     
+    if (!fullAddress.trim()) {
+      toast({ title: "Full address is required", variant: "destructive" });
+      return false;
+    }
+    
+    if (gstnNumber && !/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}[Z]{1}[0-9A-Z]{1}$/.test(gstnNumber)) {
+      toast({ title: "Please enter a valid GSTN number", variant: "destructive" });
+      return false;
+    }
+    
     return true;
   };
 
@@ -96,6 +109,8 @@ const BusinessRegistration = () => {
           email: formData.email,
           phone: formData.phone,
           industry_type: formData.industryType,
+          full_address: formData.fullAddress,
+          gstn_number: formData.gstnNumber || null,
           subscription_plan: planType as 'monthly' | 'yearly',
           subscription_status: 'active' as const
         })
@@ -273,6 +288,39 @@ const BusinessRegistration = () => {
                       ))}
                     </SelectContent>
                   </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="fullAddress" className="flex items-center gap-2">
+                    <MapPin className="h-4 w-4" />
+                    Full Address
+                  </Label>
+                  <Textarea
+                    id="fullAddress"
+                    value={formData.fullAddress}
+                    onChange={(e) => handleInputChange('fullAddress', e.target.value)}
+                    placeholder="Enter complete business address including city, state, and pincode"
+                    rows={3}
+                    required
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="gstnNumber" className="flex items-center gap-2">
+                    <FileText className="h-4 w-4" />
+                    GSTN Number
+                    <span className="text-sm text-muted-foreground">(Optional)</span>
+                  </Label>
+                  <Input
+                    id="gstnNumber"
+                    value={formData.gstnNumber}
+                    onChange={(e) => handleInputChange('gstnNumber', e.target.value.toUpperCase())}
+                    placeholder="22AAAAA0000A1Z5"
+                    maxLength={15}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Enter 15-digit GSTN number if your business is GST registered
+                  </p>
                 </div>
 
                 <Button 

@@ -97,6 +97,8 @@ export type Database = {
           business_ref: string
           created_at: string
           email: string | null
+          full_address: string | null
+          gstn_number: string | null
           id: string
           industry_type: string | null
           owner_name: string | null
@@ -114,6 +116,8 @@ export type Database = {
           business_ref: string
           created_at?: string
           email?: string | null
+          full_address?: string | null
+          gstn_number?: string | null
           id?: string
           industry_type?: string | null
           owner_name?: string | null
@@ -131,6 +135,8 @@ export type Database = {
           business_ref?: string
           created_at?: string
           email?: string | null
+          full_address?: string | null
+          gstn_number?: string | null
           id?: string
           industry_type?: string | null
           owner_name?: string | null
