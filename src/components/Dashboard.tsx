@@ -391,80 +391,63 @@ export default function Dashboard() {
   if (activeModule === 'dashboard') {
     return (
       <SidebarProvider>
-        <div className="min-h-screen flex w-full bg-gradient-subtle">
-          <Sidebar className="border-0 shadow-elevated">
-            <SidebarContent>
-              <SidebarGroup>
-                <SidebarGroupLabel className="flex items-center gap-3 px-4 py-3 bg-gradient-primary text-white rounded-xl mx-2 my-2">
-                  <Building2 className="h-5 w-5" />
-                  <div className="flex-1 text-left">
-                    <div className="font-medium text-sm">PrismERP</div>
-                    <div className="text-white/70 text-xs">Business Management</div>
-                  </div>
-                </SidebarGroupLabel>
-                 <SidebarGroupContent>
-                   <SidebarMenu>
-                     {menuItems
-                       .filter(item => {
-                         // Hide restricted items from non-admin users  
-                         if (item.restricted) {
-                           return profile?.role === 'owner' || profile?.role === 'admin';
-                         }
-                         return true;
-                       })
-                       .map((item) => (
-                       <SidebarMenuItem key={item.id}>
-                         <SidebarMenuButton
-                           onClick={() => {
-                             console.log('Menu item clicked:', item.id);
-                             setActiveModule(item.id);
-                           }}
-                           isActive={activeModule === item.id}
-                           className={`w-full justify-start p-3 rounded-xl mx-2 my-1 transition-all duration-200 hover:shadow-md ${
-                             activeModule === item.id 
-                               ? 'bg-primary text-primary-foreground shadow-md' 
-                               : 'hover:bg-muted'
-                           }`}
-                         >
-                           <item.icon className="h-5 w-5" />
-                           <div className="flex-1 text-left">
-                             <div className="font-medium">{item.label}</div>
-                             <div className="text-xs opacity-70">{item.description}</div>
-                           </div>
-                         </SidebarMenuButton>
-                       </SidebarMenuItem>
-                     ))}
-                   </SidebarMenu>
-                 </SidebarGroupContent>
-              </SidebarGroup>
+        <div className="min-h-screen flex w-full">
+          <Sidebar className="w-64">
+            <SidebarContent className="p-4">
+              {/* Brand Header */}
+              <div className="flex items-center gap-3 p-4 mb-6 bg-gradient-primary text-white rounded-lg">
+                <Building2 className="h-6 w-6" />
+                <div>
+                  <h2 className="font-semibold">PrismERP</h2>
+                  <p className="text-xs text-white/80">{company?.name || 'Business Suite'}</p>
+                </div>
+              </div>
 
-              <SidebarGroup className="mt-auto">
-                <SidebarGroupContent>
-                  <SidebarMenu>
-                    <SidebarMenuItem>
-                      <SidebarMenuButton 
-                        onClick={() => setActiveModule('profile')}
-                        className="w-full justify-start p-3 rounded-xl mx-2 my-1 hover:bg-muted transition-colors"
+              {/* Navigation Menu */}
+              <SidebarMenu className="space-y-2">
+                {menuItems
+                  .filter(item => {
+                    if (item.restricted) {
+                      return profile?.role === 'owner' || profile?.role === 'admin';
+                    }
+                    return true;
+                  })
+                  .map((item) => (
+                    <SidebarMenuItem key={item.id}>
+                      <SidebarMenuButton
+                        onClick={() => setActiveModule(item.id)}
+                        isActive={activeModule === item.id}
+                        className={`w-full justify-start p-3 rounded-lg transition-colors ${
+                          activeModule === item.id 
+                            ? 'bg-primary text-primary-foreground' 
+                            : 'hover:bg-muted'
+                        }`}
                       >
-                        <User className="h-5 w-5" />
-                        <div className="flex-1 text-left">
-                          <div className="font-medium">{profile?.first_name} {profile?.last_name}</div>
-                          <div className="text-xs opacity-70">Click to edit profile</div>
-                        </div>
+                        <item.icon className="h-5 w-5 mr-3" />
+                        <span className="font-medium">{item.label}</span>
                       </SidebarMenuButton>
                     </SidebarMenuItem>
-                    <SidebarMenuItem>
-                      <SidebarMenuButton 
-                        onClick={signOut}
-                        className="w-full justify-start p-3 rounded-xl mx-2 my-1 text-destructive hover:text-destructive hover:bg-destructive/10"
-                      >
-                        <LogOut className="h-5 w-5" />
-                        <span>Sign Out</span>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  </SidebarMenu>
-                </SidebarGroupContent>
-              </SidebarGroup>
+                  ))}
+              </SidebarMenu>
+
+              {/* User Section */}
+              <div className="mt-auto pt-6 space-y-2">
+                <SidebarMenuButton 
+                  onClick={() => setActiveModule('profile')}
+                  className="w-full justify-start p-3 rounded-lg hover:bg-muted"
+                >
+                  <User className="h-5 w-5 mr-3" />
+                  <span>{profile?.first_name} {profile?.last_name}</span>
+                </SidebarMenuButton>
+                
+                <SidebarMenuButton 
+                  onClick={signOut}
+                  className="w-full justify-start p-3 rounded-lg text-destructive hover:bg-destructive/10"
+                >
+                  <LogOut className="h-5 w-5 mr-3" />
+                  <span>Sign Out</span>
+                </SidebarMenuButton>
+              </div>
             </SidebarContent>
           </Sidebar>
 
