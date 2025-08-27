@@ -1108,6 +1108,7 @@ export type Database = {
           place_of_supply: string | null
           same_as_registered_address: boolean | null
           state: string | null
+          supplier_ref: string | null
           updated_at: string
           vendor_registered_address: string | null
         }
@@ -1143,6 +1144,7 @@ export type Database = {
           place_of_supply?: string | null
           same_as_registered_address?: boolean | null
           state?: string | null
+          supplier_ref?: string | null
           updated_at?: string
           vendor_registered_address?: string | null
         }
@@ -1178,6 +1180,7 @@ export type Database = {
           place_of_supply?: string | null
           same_as_registered_address?: boolean | null
           state?: string | null
+          supplier_ref?: string | null
           updated_at?: string
           vendor_registered_address?: string | null
         }
@@ -1214,6 +1217,10 @@ export type Database = {
       }
       generate_gated_business_ref_no: {
         Args: Record<PropertyKey, never>
+        Returns: string
+      }
+      generate_supplier_ref: {
+        Args: { company_name: string }
         Returns: string
       }
       generate_user_ref: {
