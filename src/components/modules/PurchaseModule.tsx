@@ -174,65 +174,73 @@ export function PurchaseModule() {
   const handleAddSupplier = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     
-    const formData = new FormData(e.currentTarget);
-    const sameAsRegistered = formData.get('same_as_registered_address') === 'on';
-    
-    const supplierData = {
-      name: formData.get('name') as string,
-      email: formData.get('email') as string || null,
-      phone: formData.get('phone') as string || null,
-      contact_person: formData.get('contact_person') as string || null,
-      address_line1: formData.get('address_line1') as string || null,
-      address_line2: formData.get('address_line2') as string || null,
-      city: formData.get('city') as string || null,
-      state: formData.get('state') as string || null,
-      country: formData.get('country') as string || null,
-      pin_code: formData.get('pin_code') as string || null,
-      place_of_supply: formData.get('place_of_supply') as string || null,
-      credit_time: formData.get('credit_time') ? parseInt(formData.get('credit_time') as string) : null,
-      gst_number: formData.get('gst_number') as string || null,
-      pan_number: formData.get('pan_number') as string || null,
-      bank_name: formData.get('bank_name') as string || null,
-      bank_address: formData.get('bank_address') as string || null,
-      ifsc_code: formData.get('ifsc_code') as string || null,
-      account_number: formData.get('account_number') as string || null,
-      account_type: formData.get('account_type') as string || null,
-      same_as_registered_address: sameAsRegistered,
-      dispatch_address_line1: sameAsRegistered ? formData.get('address_line1') as string || null : formData.get('dispatch_address_line1') as string || null,
-      dispatch_address_line2: sameAsRegistered ? formData.get('address_line2') as string || null : formData.get('dispatch_address_line2') as string || null,
-      dispatch_city: sameAsRegistered ? formData.get('city') as string || null : formData.get('dispatch_city') as string || null,
-      dispatch_state: sameAsRegistered ? formData.get('state') as string || null : formData.get('dispatch_state') as string || null,
-      dispatch_country: sameAsRegistered ? formData.get('country') as string || null : formData.get('dispatch_country') as string || null,
-      dispatch_pin_code: sameAsRegistered ? formData.get('pin_code') as string || null : formData.get('dispatch_pin_code') as string || null,
-      company_id: profile?.company_id,
-    };
-
     try {
-      const { error } = await supabase
+      const formData = new FormData(e.currentTarget);
+      const sameAsRegistered = formData.get('same_as_registered_address') === 'on';
+      
+      const supplierData = {
+        name: formData.get('name') as string,
+        email: formData.get('email') as string || null,
+        phone: formData.get('phone') as string || null,
+        contact_person: formData.get('contact_person') as string || null,
+        address_line1: formData.get('address_line1') as string || null,
+        address_line2: formData.get('address_line2') as string || null,
+        city: formData.get('city') as string || null,
+        state: formData.get('state') as string || null,
+        country: formData.get('country') as string || null,
+        pin_code: formData.get('pin_code') as string || null,
+        place_of_supply: formData.get('place_of_supply') as string || null,
+        credit_time: formData.get('credit_time') ? parseInt(formData.get('credit_time') as string) : null,
+        gst_number: formData.get('gst_number') as string || null,
+        pan_number: formData.get('pan_number') as string || null,
+        bank_name: formData.get('bank_name') as string || null,
+        bank_address: formData.get('bank_address') as string || null,
+        ifsc_code: formData.get('ifsc_code') as string || null,
+        account_number: formData.get('account_number') as string || null,
+        account_type: formData.get('account_type') as string || null,
+        same_as_registered_address: sameAsRegistered,
+        dispatch_address_line1: sameAsRegistered ? formData.get('address_line1') as string || null : formData.get('dispatch_address_line1') as string || null,
+        dispatch_address_line2: sameAsRegistered ? formData.get('address_line2') as string || null : formData.get('dispatch_address_line2') as string || null,
+        dispatch_city: sameAsRegistered ? formData.get('city') as string || null : formData.get('dispatch_city') as string || null,
+        dispatch_state: sameAsRegistered ? formData.get('state') as string || null : formData.get('dispatch_state') as string || null,
+        dispatch_country: sameAsRegistered ? formData.get('country') as string || null : formData.get('dispatch_country') as string || null,
+        dispatch_pin_code: sameAsRegistered ? formData.get('pin_code') as string || null : formData.get('dispatch_pin_code') as string || null,
+        company_id: profile?.company_id,
+      };
+
+      const { data, error } = await supabase
         .from('suppliers')
-        .insert([supplierData]);
+        .insert([supplierData])
+        .select();
 
       if (error) {
+        console.error('Supplier creation error:', error);
         toast({
           title: "Error",
-          description: error.message,
+          description: error.message || "Failed to add supplier",
           variant: "destructive",
         });
         return;
       }
 
-      toast({
-        title: "Success",
-        description: "Supplier added successfully",
-      });
+      if (data && data.length > 0) {
+        toast({
+          title: "Success",
+          description: `Supplier "${supplierData.name}" added successfully with reference ${data[0].supplier_ref || 'pending'}`,
+        });
 
-      setShowAddSupplierDialog(false);
-      fetchSuppliers();
-      e.currentTarget.reset();
+        // Reset form and close dialog
+        e.currentTarget.reset();
+        setShowAddSupplierDialog(false);
+        
+        // Refresh suppliers list
+        await fetchSuppliers();
+      }
     } catch (error: any) {
+      console.error('Unexpected error:', error);
       toast({
         title: "Error",
-        description: "Failed to add supplier",
+        description: "An unexpected error occurred while adding the supplier",
         variant: "destructive",
       });
     }
