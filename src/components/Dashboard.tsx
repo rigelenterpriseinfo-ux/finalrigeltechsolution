@@ -457,22 +457,6 @@ export default function Dashboard() {
                 <SidebarTrigger className="p-2 rounded-lg hover:bg-muted transition-colors mb-4">
                   <Menu className="h-5 w-5" />
                 </SidebarTrigger>
-                
-                {/* Company Info Card */}
-                <div className="bg-gradient-primary rounded-xl p-4 text-white shadow-elevated">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 rounded-lg bg-white/20">
-                      <Building2 className="h-6 w-6" />
-                    </div>
-                    <div className="flex-1">
-                      <h2 className="font-semibold text-lg">{company?.name || 'Your Company'}</h2>
-                      <p className="text-white/80 text-sm">Welcome back, {profile?.first_name}!</p>
-                    </div>
-                    <Badge variant="secondary" className="bg-white/20 text-white border-white/30">
-                      Active
-                    </Badge>
-                  </div>
-                </div>
               </div>
             </header>
 
