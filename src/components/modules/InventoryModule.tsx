@@ -102,7 +102,7 @@ export function InventoryModule() {
       description: formData.get('description') as string || null,
       min_stock_level: parseInt(formData.get('min_stock_level') as string),
       max_stock_level: formData.get('max_stock_level') ? parseInt(formData.get('max_stock_level') as string) : null,
-      stock_quantity: 0, // Initial stock is 0
+      stock_quantity: parseInt(formData.get('stock_on_hand') as string) || 0,
       company_id: profile.company_id,
     };
 
@@ -344,7 +344,11 @@ export function InventoryModule() {
                     <Input id="height_cm" name="height_cm" type="number" step="0.01" min="0" placeholder="0.00" />
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-3 gap-4">
+                  <div>
+                    <Label htmlFor="stock_on_hand">Stock on Hand</Label>
+                    <Input id="stock_on_hand" name="stock_on_hand" type="number" min="0" required />
+                  </div>
                   <div>
                     <Label htmlFor="min_stock_level">Min Stock Level</Label>
                     <Input id="min_stock_level" name="min_stock_level" type="number" min="0" required />
