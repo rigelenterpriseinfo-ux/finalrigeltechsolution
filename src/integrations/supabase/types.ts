@@ -549,6 +549,7 @@ export type Database = {
           cost_price: number
           created_at: string
           description: string | null
+          dimension_lbh: string | null
           gst_percentage: number | null
           hsn_code: string | null
           id: string
@@ -561,6 +562,7 @@ export type Database = {
           unit: string | null
           unit_price: number
           updated_at: string
+          weight_kg: number | null
         }
         Insert: {
           category_id?: string | null
@@ -568,6 +570,7 @@ export type Database = {
           cost_price?: number
           created_at?: string
           description?: string | null
+          dimension_lbh?: string | null
           gst_percentage?: number | null
           hsn_code?: string | null
           id?: string
@@ -580,6 +583,7 @@ export type Database = {
           unit?: string | null
           unit_price?: number
           updated_at?: string
+          weight_kg?: number | null
         }
         Update: {
           category_id?: string | null
@@ -587,6 +591,7 @@ export type Database = {
           cost_price?: number
           created_at?: string
           description?: string | null
+          dimension_lbh?: string | null
           gst_percentage?: number | null
           hsn_code?: string | null
           id?: string
@@ -599,6 +604,7 @@ export type Database = {
           unit?: string | null
           unit_price?: number
           updated_at?: string
+          weight_kg?: number | null
         }
         Relationships: [
           {

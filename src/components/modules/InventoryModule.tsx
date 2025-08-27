@@ -23,6 +23,8 @@ interface Product {
   unit_price: number;
   hsn_code: string | null;
   gst_percentage: number;
+  weight_kg: number | null;
+  dimension_lbh: string | null;
   stock_quantity: number;
   min_stock_level: number;
   max_stock_level: number | null;
@@ -73,6 +75,8 @@ export function InventoryModule() {
       unit_price: parseFloat(formData.get('unit_price') as string),
       hsn_code: formData.get('hsn_code') as string,
       gst_percentage: parseFloat(formData.get('gst_percentage') as string),
+      weight_kg: formData.get('weight_kg') ? parseFloat(formData.get('weight_kg') as string) : null,
+      dimension_lbh: formData.get('dimension_lbh') as string || null,
       description: formData.get('description') as string || null,
       min_stock_level: parseInt(formData.get('min_stock_level') as string),
       max_stock_level: formData.get('max_stock_level') ? parseInt(formData.get('max_stock_level') as string) : null,
@@ -197,6 +201,16 @@ export function InventoryModule() {
                 <div>
                   <Label htmlFor="description">Item Description</Label>
                   <Textarea id="description" name="description" />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="weight_kg">Weight (kg)</Label>
+                    <Input id="weight_kg" name="weight_kg" type="number" step="0.001" min="0" placeholder="0.000" />
+                  </div>
+                  <div>
+                    <Label htmlFor="dimension_lbh">Dimension (LBH)(CM)</Label>
+                    <Input id="dimension_lbh" name="dimension_lbh" placeholder="L x B x H" />
+                  </div>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
