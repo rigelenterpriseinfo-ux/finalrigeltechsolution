@@ -888,7 +888,9 @@ export function PurchaseModule() {
                               <TableHead className="min-w-[100px] font-semibold">After Disc</TableHead>
                               <TableHead className="min-w-[60px] font-semibold">Taxable</TableHead>
                               <TableHead className="min-w-[80px] font-semibold">GST%</TableHead>
-                              <TableHead className="min-w-[120px] font-semibold">GST Amount</TableHead>
+                                <TableHead className="min-w-[80px] font-semibold">CGST</TableHead>
+                                <TableHead className="min-w-[80px] font-semibold">SGST</TableHead>
+                                <TableHead className="min-w-[80px] font-semibold">IGST</TableHead>
                               <TableHead className="min-w-[100px] font-semibold">Line Total</TableHead>
                             </TableRow>
                           </TableHeader>
@@ -1007,31 +1009,21 @@ export function PurchaseModule() {
                                   )}
                                 </TableCell>
                                 <TableCell>
-                                  <div className="text-xs space-y-1 min-w-[120px] p-2 bg-muted/20 rounded">
-                                    {companyData?.state !== selectedSupplier?.state ? (
-                                      <div className="space-y-1">
-                                        <div className="flex justify-between">
-                                          <span>IGST ({item.igst_rate.toFixed(1)}%):</span>
-                                          <span className="font-medium">₹{item.igst_amount.toFixed(2)}</span>
-                                        </div>
-                                      </div>
-                                    ) : (
-                                      <div className="space-y-1">
-                                        <div className="flex justify-between">
-                                          <span>CGST ({item.cgst_rate.toFixed(1)}%):</span>
-                                          <span className="font-medium">₹{item.cgst_amount.toFixed(2)}</span>
-                                        </div>
-                                        <div className="flex justify-between">
-                                          <span>SGST ({item.sgst_rate.toFixed(1)}%):</span>
-                                          <span className="font-medium">₹{item.sgst_amount.toFixed(2)}</span>
-                                        </div>
-                                      </div>
-                                    )}
-                                    <Separator className="my-1" />
-                                    <div className="flex justify-between font-semibold text-primary">
-                                      <span>Total:</span>
-                                      <span>₹{item.total_gst_amount.toFixed(2)}</span>
-                                    </div>
+                                  <div className="min-w-[80px] text-sm text-center">
+                                    <div className="text-primary font-medium">{item.cgst_rate.toFixed(1)}%</div>
+                                    <div className="text-muted-foreground">₹{item.cgst_amount.toFixed(2)}</div>
+                                  </div>
+                                </TableCell>
+                                <TableCell>
+                                  <div className="min-w-[80px] text-sm text-center">
+                                    <div className="text-primary font-medium">{item.sgst_rate.toFixed(1)}%</div>
+                                    <div className="text-muted-foreground">₹{item.sgst_amount.toFixed(2)}</div>
+                                  </div>
+                                </TableCell>
+                                <TableCell>
+                                  <div className="min-w-[80px] text-sm text-center">
+                                    <div className="text-primary font-medium">{item.igst_rate.toFixed(1)}%</div>
+                                    <div className="text-muted-foreground">₹{item.igst_amount.toFixed(2)}</div>
                                   </div>
                                 </TableCell>
                                 <TableCell>
