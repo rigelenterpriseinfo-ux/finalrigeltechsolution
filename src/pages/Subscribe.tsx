@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Loader2, ArrowLeft, Check, CreditCard } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { supabase } from '@/integrations/supabase/client';
+
 
 const Subscribe = () => {
   const { planType } = useParams<{ planType: string }>();
@@ -39,56 +39,24 @@ const Subscribe = () => {
 
   const handlePayment = async () => {
     setIsLoading(true);
-    try {
-      // For demo purposes, we'll simulate a successful payment
-      // In production, integrate with Stripe/Razorpay here
-      
-      // Simulate API call delay
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      // Create subscription record
-      const { error } = await supabase
-        .from('subscriptions')
-        .insert({
-          plan_type: planType as 'monthly' | 'yearly',
-          amount: currentPlan.amount,
-          payment_status: 'paid' as const,
-          start_date: new Date().toISOString().split('T')[0],
-          end_date: planType === 'yearly' 
-            ? new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
-            : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
-        });
 
-      if (error) throw error;
+    // Simulate payment processing (2 seconds)
+    await new Promise((resolve) => setTimeout(resolve, 2000));
 
-      toast({
-        title: "Payment Successful!",
-        description: "Redirecting to business registration...",
-      });
+    // Always simulate success
+    const paymentStatus = "SUCCESS";
 
-      // Redirect to business registration
-      setTimeout(() => {
-        navigate('/business-registration', { 
-          state: { 
-            planType,
-            subscriptionData: {
-              plan: currentPlan.name,
-              amount: currentPlan.amount
-            }
-          }
-        });
-      }, 1500);
+    toast({
+      title: "✅ Payment successful!",
+      description: "Please complete your Business Registration.",
+    });
 
-    } catch (error) {
-      console.error('Payment error:', error);
-      toast({
-        title: "Payment Failed",
-        description: "Please try again or contact support.",
-        variant: "destructive"
-      });
-    } finally {
-      setIsLoading(false);
-    }
+    // Redirect to business registration
+    setTimeout(() => {
+      navigate('/register/business?txn=DEV-SUCCESS');
+    }, 1000);
+
+    setIsLoading(false);
   };
 
   return (
