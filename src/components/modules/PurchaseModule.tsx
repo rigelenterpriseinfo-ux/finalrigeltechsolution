@@ -11,7 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Search, ShoppingCart, Truck } from 'lucide-react';
+import { Plus, Search, ShoppingCart, Truck, Edit, Trash2 } from 'lucide-react';
 
 interface PurchaseOrder {
   id: string;
@@ -29,6 +29,7 @@ interface PurchaseOrder {
 
 interface Supplier {
   id: string;
+  supplier_ref: string | null;
   name: string;
   email: string | null;
   phone: string | null;
@@ -68,6 +69,8 @@ export function PurchaseModule() {
   const [searchTerm, setSearchTerm] = useState('');
   const [showAddPODialog, setShowAddPODialog] = useState(false);
   const [showAddSupplierDialog, setShowAddSupplierDialog] = useState(false);
+  const [showEditSupplierDialog, setShowEditSupplierDialog] = useState(false);
+  const [editingSupplier, setEditingSupplier] = useState<Supplier | null>(null);
 
   useEffect(() => {
     fetchPurchaseOrders();
@@ -235,6 +238,108 @@ export function PurchaseModule() {
     }
   };
 
+  const handleEditSupplier = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    
+    if (!editingSupplier) return;
+    
+    const formData = new FormData(e.currentTarget);
+    const sameAsRegistered = formData.get('same_as_registered_address') === 'on';
+    
+    const supplierData = {
+      name: formData.get('name') as string,
+      email: formData.get('email') as string || null,
+      phone: formData.get('phone') as string || null,
+      contact_person: formData.get('contact_person') as string || null,
+      address_line1: formData.get('address_line1') as string || null,
+      address_line2: formData.get('address_line2') as string || null,
+      city: formData.get('city') as string || null,
+      state: formData.get('state') as string || null,
+      country: formData.get('country') as string || null,
+      pin_code: formData.get('pin_code') as string || null,
+      place_of_supply: formData.get('place_of_supply') as string || null,
+      credit_time: formData.get('credit_time') ? parseInt(formData.get('credit_time') as string) : null,
+      gst_number: formData.get('gst_number') as string || null,
+      pan_number: formData.get('pan_number') as string || null,
+      bank_name: formData.get('bank_name') as string || null,
+      bank_address: formData.get('bank_address') as string || null,
+      ifsc_code: formData.get('ifsc_code') as string || null,
+      account_number: formData.get('account_number') as string || null,
+      account_type: formData.get('account_type') as string || null,
+      same_as_registered_address: sameAsRegistered,
+      dispatch_address_line1: sameAsRegistered ? formData.get('address_line1') as string || null : formData.get('dispatch_address_line1') as string || null,
+      dispatch_address_line2: sameAsRegistered ? formData.get('address_line2') as string || null : formData.get('dispatch_address_line2') as string || null,
+      dispatch_city: sameAsRegistered ? formData.get('city') as string || null : formData.get('dispatch_city') as string || null,
+      dispatch_state: sameAsRegistered ? formData.get('state') as string || null : formData.get('dispatch_state') as string || null,
+      dispatch_country: sameAsRegistered ? formData.get('country') as string || null : formData.get('dispatch_country') as string || null,
+      dispatch_pin_code: sameAsRegistered ? formData.get('pin_code') as string || null : formData.get('dispatch_pin_code') as string || null,
+    };
+
+    try {
+      const { error } = await supabase
+        .from('suppliers')
+        .update(supplierData)
+        .eq('id', editingSupplier.id);
+
+      if (error) {
+        toast({
+          title: "Error",
+          description: error.message,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      toast({
+        title: "Success",
+        description: "Supplier updated successfully",
+      });
+
+      setShowEditSupplierDialog(false);
+      setEditingSupplier(null);
+      fetchSuppliers();
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: "Failed to update supplier",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleDeleteSupplier = async (supplierId: string) => {
+    if (!confirm('Are you sure you want to delete this supplier?')) return;
+
+    try {
+      const { error } = await supabase
+        .from('suppliers')
+        .update({ is_active: false })
+        .eq('id', supplierId);
+
+      if (error) {
+        toast({
+          title: "Error",
+          description: error.message,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      toast({
+        title: "Success",
+        description: "Supplier deactivated successfully",
+      });
+
+      fetchSuppliers();
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: "Failed to deactivate supplier",
+        variant: "destructive",
+      });
+    }
+  };
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'draft': return 'secondary';
@@ -278,6 +383,17 @@ export function PurchaseModule() {
                 <DialogDescription>Complete supplier information including contact details, tax info, and banking details</DialogDescription>
               </DialogHeader>
               <form onSubmit={handleAddSupplier} className="space-y-6">
+                {/* Supplier Reference (Auto-generated) */}
+                <div className="bg-primary/5 p-4 rounded-lg border">
+                  <Label className="text-sm font-medium text-primary">Supplier Reference Number</Label>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Auto-generated format: First 4 letters of vendor name + MMYYYY (e.g., ABCD-082025)
+                  </p>
+                  <div className="mt-2 p-2 bg-background rounded border text-center text-lg font-mono text-primary">
+                    Will be generated automatically upon creation
+                  </div>
+                </div>
+
                 {/* Basic Information */}
                 <div className="space-y-4">
                   <h3 className="text-lg font-medium border-b pb-2">Basic Information</h3>
@@ -821,6 +937,261 @@ export function PurchaseModule() {
           </Table>
         </CardContent>
       </Card>
+
+      {/* Suppliers Table */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Suppliers Management</CardTitle>
+          <CardDescription>View and manage your supplier database</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Supplier Ref</TableHead>
+                <TableHead>Name</TableHead>
+                <TableHead>Contact Person</TableHead>
+                <TableHead>Email</TableHead>
+                <TableHead>Phone</TableHead>
+                <TableHead>GST Number</TableHead>
+                <TableHead>Credit Days</TableHead>
+                <TableHead>Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {suppliers.map((supplier) => (
+                <TableRow key={supplier.id}>
+                  <TableCell className="font-medium text-primary">
+                    {supplier.supplier_ref || 'N/A'}
+                  </TableCell>
+                  <TableCell className="font-medium">{supplier.name}</TableCell>
+                  <TableCell>{supplier.contact_person || '-'}</TableCell>
+                  <TableCell>{supplier.email || '-'}</TableCell>
+                  <TableCell>{supplier.phone || '-'}</TableCell>
+                  <TableCell>{supplier.gst_number || '-'}</TableCell>
+                  <TableCell>{supplier.credit_time ? `${supplier.credit_time} days` : '-'}</TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setEditingSupplier(supplier);
+                          setShowEditSupplierDialog(true);
+                        }}
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleDeleteSupplier(supplier.id)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+              {suppliers.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={8} className="text-center text-muted-foreground">
+                    No suppliers found. Add your first supplier to get started.
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+
+      {/* Edit Supplier Dialog */}
+      <Dialog open={showEditSupplierDialog} onOpenChange={setShowEditSupplierDialog}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Edit Supplier</DialogTitle>
+            <DialogDescription>Update supplier information</DialogDescription>
+          </DialogHeader>
+          {editingSupplier && (
+            <form onSubmit={handleEditSupplier} className="space-y-6">
+              {/* Supplier Reference (Read-only) */}
+              <div className="bg-primary/5 p-4 rounded-lg border">
+                <Label className="text-sm font-medium text-primary">Supplier Reference Number</Label>
+                <div className="mt-2 p-2 bg-background rounded border text-center text-lg font-mono text-primary">
+                  {editingSupplier.supplier_ref || 'Not assigned'}
+                </div>
+              </div>
+
+              {/* Basic Information */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-medium border-b pb-2">Basic Information</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="edit-sup-name">Vendor Name *</Label>
+                    <Input 
+                      id="edit-sup-name" 
+                      name="name" 
+                      required 
+                      placeholder="Enter vendor/supplier name"
+                      defaultValue={editingSupplier.name}
+                      minLength={2}
+                      maxLength={100}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="edit-sup-contact">Contact Person *</Label>
+                    <Input 
+                      id="edit-sup-contact" 
+                      name="contact_person" 
+                      required
+                      placeholder="Primary contact person"
+                      defaultValue={editingSupplier.contact_person || ''}
+                      minLength={2}
+                      maxLength={50}
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="edit-sup-email">Email ID *</Label>
+                    <Input 
+                      id="edit-sup-email" 
+                      name="email" 
+                      type="email" 
+                      required
+                      placeholder="contact@vendor.com"
+                      defaultValue={editingSupplier.email || ''}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="edit-sup-phone">Phone Number *</Label>
+                    <Input 
+                      id="edit-sup-phone" 
+                      name="phone" 
+                      required
+                      placeholder="+91 XXXXX XXXXX"
+                      defaultValue={editingSupplier.phone || ''}
+                      pattern="[\+\d\s\-\(\)]+"
+                      title="Enter a valid phone number"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Address Information - keeping the same structure as Add form */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-medium border-b pb-2">Registered Address</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="edit-sup-address-line1">Address Line 1 *</Label>
+                    <Input 
+                      id="edit-sup-address-line1" 
+                      name="address_line1" 
+                      required
+                      placeholder="Building name, street address"
+                      defaultValue={editingSupplier.address_line1 || ''}
+                      minLength={5}
+                      maxLength={100}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="edit-sup-address-line2">Address Line 2</Label>
+                    <Input 
+                      id="edit-sup-address-line2" 
+                      name="address_line2" 
+                      placeholder="Area, landmark (optional)"
+                      defaultValue={editingSupplier.address_line2 || ''}
+                      maxLength={100}
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-3 gap-4">
+                  <div>
+                    <Label htmlFor="edit-sup-city">City *</Label>
+                    <Input 
+                      id="edit-sup-city" 
+                      name="city" 
+                      required
+                      placeholder="City name"
+                      defaultValue={editingSupplier.city || ''}
+                      minLength={2}
+                      maxLength={50}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="edit-sup-state">State *</Label>
+                    <Input 
+                      id="edit-sup-state" 
+                      name="state" 
+                      required
+                      placeholder="State name"
+                      defaultValue={editingSupplier.state || ''}
+                      minLength={2}
+                      maxLength={50}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="edit-sup-country">Country *</Label>
+                    <Input 
+                      id="edit-sup-country" 
+                      name="country" 
+                      required
+                      placeholder="Country name"
+                      defaultValue={editingSupplier.country || 'India'}
+                      minLength={2}
+                      maxLength={50}
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-3 gap-4">
+                  <div>
+                    <Label htmlFor="edit-sup-pin-code">PIN Code *</Label>
+                    <Input 
+                      id="edit-sup-pin-code" 
+                      name="pin_code" 
+                      required
+                      placeholder="6-digit PIN code"
+                      defaultValue={editingSupplier.pin_code || ''}
+                      pattern="[0-9]{6}"
+                      title="Enter a valid 6-digit PIN code"
+                      maxLength={6}
+                      onInput={(e) => {
+                        const target = e.target as HTMLInputElement;
+                        target.value = target.value.replace(/[^0-9]/g, '');
+                      }}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="edit-sup-place-of-supply">Place of Supply</Label>
+                    <Input 
+                      id="edit-sup-place-of-supply" 
+                      name="place_of_supply" 
+                      placeholder="State/UT where goods/services are supplied"
+                      defaultValue={editingSupplier.place_of_supply || ''}
+                      maxLength={50}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="edit-sup-credit-time">Credit Time (Days)</Label>
+                    <Input 
+                      id="edit-sup-credit-time" 
+                      name="credit_time" 
+                      type="number"
+                      min="0"
+                      max="365"
+                      placeholder="Payment credit days"
+                      defaultValue={editingSupplier.credit_time || ''}
+                      title="Number of days for payment credit"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <Button type="submit" className="w-full">Update Supplier</Button>
+            </form>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
