@@ -83,7 +83,10 @@ export function InventoryModule() {
       return;
     }
     
-    const formData = new FormData(e.currentTarget);
+    // Store form reference before async operations
+    const form = e.currentTarget;
+    
+    const formData = new FormData(form);
     const productData = {
       name: formData.get('name') as string,
       sku: formData.get('sku') as string,
@@ -125,7 +128,11 @@ export function InventoryModule() {
 
       setShowAddDialog(false);
       fetchProducts();
-      e.currentTarget.reset();
+      
+      // Reset form safely
+      if (form) {
+        form.reset();
+      }
     } catch (error: any) {
       console.error('Catch error:', error);
       toast({
