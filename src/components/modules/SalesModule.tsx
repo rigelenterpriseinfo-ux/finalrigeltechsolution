@@ -426,27 +426,44 @@ const [performaInvoiceForm, setPerformaInvoiceForm] = useState<PerformaInvoiceFo
 
   const handleProductSelection = (index: number, productId: string) => {
     const product = products.find(p => p.id === productId);
-    if (product) {
-      updateLineItem(index, 'product_id', productId);
-      updateLineItem(index, 'item_description', product.name); // Use product name for Item Name field
-      updateLineItem(index, 'hsn_sac_code', product.hsn_code || '');
-      updateLineItem(index, 'unit_price', product.unit_price);
-      updateLineItem(index, 'unit_of_measure', product.unit || 'pcs');
-      
-      // Set default tax rates (can be manually edited)
-      const gstRate = product.gst_percentage || 18;
-      updateLineItem(index, 'cgst_rate', gstRate / 2);
-      updateLineItem(index, 'sgst_rate', gstRate / 2);
-      updateLineItem(index, 'igst_rate', 0); // Default to intrastate
-      
-      // Clear search term for this index
-      setProductSearchTerms(prev => ({
-        ...prev,
-        [index]: ''
-      }));
-    }
-  };
+    if (!product) return;
 
+    // Batch all updates in a single state update to avoid stale overwrites
+    setOrderItems((prev) => {
+      const updated = [...prev];
+      const current = { ...updated[index] } as SalesOrderItem;
+
+      const gstRate = product.gst_percentage || 18;
+      const nextItem: SalesOrderItem = {
+        ...current,
+        product_id: productId,
+        item_description: product.name,
+        hsn_sac_code: product.hsn_code || '',
+        unit_price: product.unit_price,
+        unit_of_measure: product.unit || 'pcs',
+        // Default tax split (intra-state by default)
+        cgst_rate: gstRate / 2,
+        sgst_rate: gstRate / 2,
+        igst_rate: 0,
+      };
+
+      // Recalculate amounts
+      const subtotal = nextItem.quantity * nextItem.unit_price;
+      nextItem.discount_amount = (subtotal * nextItem.discount_percentage) / 100;
+      const taxableAmount = subtotal - nextItem.discount_amount;
+      nextItem.cgst_amount = (taxableAmount * nextItem.cgst_rate) / 100;
+      nextItem.sgst_amount = (taxableAmount * nextItem.sgst_rate) / 100;
+      nextItem.igst_amount = (taxableAmount * nextItem.igst_rate) / 100;
+      nextItem.tax_percentage = nextItem.cgst_rate + nextItem.sgst_rate + nextItem.igst_rate;
+      nextItem.line_total = taxableAmount + nextItem.cgst_amount + nextItem.sgst_amount + nextItem.igst_amount;
+
+      updated[index] = nextItem;
+      return updated;
+    });
+
+    // Clear search term for this index and close popover
+    setProductSearchTerms(prev => ({ ...prev, [index]: '' }));
+  };
   const handleAddSalesOrder = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     
