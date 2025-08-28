@@ -85,7 +85,7 @@ export default function InvoiceTable({ invoices, onEdit, onDelete }: InvoiceTabl
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
           <Input
-            placeholder="Search invoices..."
+            placeholder="Search sales invoices..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="pl-10"
@@ -95,7 +95,7 @@ export default function InvoiceTable({ invoices, onEdit, onDelete }: InvoiceTabl
 
       {filteredAndSortedInvoices.length === 0 ? (
         <div className="text-center py-8 text-gray-500">
-          {searchTerm ? 'No invoices found matching your search.' : 'No invoices found. Create your first invoice to get started.'}
+          {searchTerm ? 'No sales invoices found matching your search.' : 'No sales invoices found. Create your first sales invoice to get started.'}
         </div>
       ) : (
         <div className="rounded-md border">

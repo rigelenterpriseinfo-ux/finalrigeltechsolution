@@ -656,7 +656,7 @@ export default function InvoiceForm({ invoice, onSubmit, onCancel }: InvoiceForm
           Save as Draft
         </Button>
         <Button onClick={() => handleSubmit('invoice')}>
-          Generate Invoice
+          Generate Sales Invoice
         </Button>
       </div>
     </div>
