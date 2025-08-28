@@ -27,6 +27,7 @@ interface PurchaseOrder {
   total_amount: number;
   notes: string | null;
   external_po_ref: string | null;
+  same_as_registered_address?: boolean | null;
   delivery_address_line1?: string | null;
   delivery_address_line2?: string | null;
   delivery_city?: string | null;
@@ -124,6 +125,7 @@ const purchaseOrderSchema = z.object({
   expected_date: z.string().optional(),
   external_po_ref: z.string().optional(),
   notes: z.string().optional(),
+  same_as_registered_address: z.boolean().optional(),
   delivery_address_line1: z.string().optional(),
   delivery_address_line2: z.string().optional(),
   delivery_city: z.string().optional(),
@@ -446,6 +448,7 @@ export function PurchaseModule() {
         expected_date: data.expected_date || null,
         external_po_ref: data.external_po_ref || null,
         notes: data.notes || null,
+        same_as_registered_address: data.same_as_registered_address || false,
         delivery_address_line1: data.delivery_address_line1 || null,
         delivery_address_line2: data.delivery_address_line2 || null,
         delivery_city: data.delivery_city || null,
@@ -1186,6 +1189,51 @@ export function PurchaseModule() {
                       </div>
                     </div>
                     
+                    {/* Same as Registered Address Checkbox */}
+                    <FormField
+                      control={form.control}
+                      name="same_as_registered_address"
+                      render={({ field }) => (
+                        <FormItem className="flex flex-row items-start space-x-3 space-y-0 mb-6">
+                          <FormControl>
+                            <input
+                              type="checkbox"
+                              checked={field.value || false}
+                              onChange={(e) => {
+                                field.onChange(e.target.checked);
+                                if (e.target.checked && companyData) {
+                                  // Auto-populate with company address
+                                  form.setValue('delivery_address_line1', companyData.address_line1 || '');
+                                  form.setValue('delivery_address_line2', companyData.address_line2 || '');
+                                  form.setValue('delivery_city', companyData.city || '');
+                                  form.setValue('delivery_state', companyData.state || '');
+                                  form.setValue('delivery_country', companyData.country || '');
+                                  form.setValue('delivery_postal_code', companyData.postal_code || '');
+                                } else if (!e.target.checked) {
+                                  // Clear fields when unchecked
+                                  form.setValue('delivery_address_line1', '');
+                                  form.setValue('delivery_address_line2', '');
+                                  form.setValue('delivery_city', '');
+                                  form.setValue('delivery_state', '');
+                                  form.setValue('delivery_country', '');
+                                  form.setValue('delivery_postal_code', '');
+                                }
+                              }}
+                              className="w-5 h-5 accent-primary cursor-pointer"
+                            />
+                          </FormControl>
+                          <div className="space-y-1 leading-none">
+                            <FormLabel className="text-sm font-medium cursor-pointer">
+                              Same as Registered Address
+                            </FormLabel>
+                            <p className="text-xs text-muted-foreground">
+                              Use company's registered address for delivery
+                            </p>
+                          </div>
+                        </FormItem>
+                      )}
+                    />
+                    
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <FormField
                         control={form.control}
@@ -1196,8 +1244,9 @@ export function PurchaseModule() {
                             <FormControl>
                               <Input 
                                 placeholder="Street address, building number"
+                                disabled={form.watch('same_as_registered_address')}
                                 {...field}
-                                className="bg-background border-input focus:border-primary focus:ring-2 focus:ring-primary/20"
+                                className="bg-background border-input focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:bg-muted disabled:cursor-not-allowed"
                               />
                             </FormControl>
                             <FormMessage />
@@ -1214,8 +1263,9 @@ export function PurchaseModule() {
                             <FormControl>
                               <Input 
                                 placeholder="Apartment, suite, unit, etc. (optional)"
+                                disabled={form.watch('same_as_registered_address')}
                                 {...field}
-                                className="bg-background border-input focus:border-primary focus:ring-2 focus:ring-primary/20"
+                                className="bg-background border-input focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:bg-muted disabled:cursor-not-allowed"
                               />
                             </FormControl>
                             <FormMessage />
@@ -1234,8 +1284,9 @@ export function PurchaseModule() {
                             <FormControl>
                               <Input 
                                 placeholder="City"
+                                disabled={form.watch('same_as_registered_address')}
                                 {...field}
-                                className="bg-background border-input focus:border-primary focus:ring-2 focus:ring-primary/20"
+                                className="bg-background border-input focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:bg-muted disabled:cursor-not-allowed"
                               />
                             </FormControl>
                             <FormMessage />
@@ -1252,8 +1303,9 @@ export function PurchaseModule() {
                             <FormControl>
                               <Input 
                                 placeholder="State/Province"
+                                disabled={form.watch('same_as_registered_address')}
                                 {...field}
-                                className="bg-background border-input focus:border-primary focus:ring-2 focus:ring-primary/20"
+                                className="bg-background border-input focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:bg-muted disabled:cursor-not-allowed"
                               />
                             </FormControl>
                             <FormMessage />
@@ -1270,8 +1322,9 @@ export function PurchaseModule() {
                             <FormControl>
                               <Input 
                                 placeholder="Postal/ZIP code"
+                                disabled={form.watch('same_as_registered_address')}
                                 {...field}
-                                className="bg-background border-input focus:border-primary focus:ring-2 focus:ring-primary/20"
+                                className="bg-background border-input focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:bg-muted disabled:cursor-not-allowed"
                               />
                             </FormControl>
                             <FormMessage />
@@ -1290,8 +1343,9 @@ export function PurchaseModule() {
                             <FormControl>
                               <Input 
                                 placeholder="Country"
+                                disabled={form.watch('same_as_registered_address')}
                                 {...field}
-                                className="bg-background border-input focus:border-primary focus:ring-2 focus:ring-primary/20"
+                                className="bg-background border-input focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:bg-muted disabled:cursor-not-allowed"
                               />
                             </FormControl>
                             <FormMessage />

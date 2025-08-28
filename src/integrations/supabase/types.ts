@@ -870,6 +870,7 @@ export type Database = {
           notes: string | null
           order_date: string
           po_number: string
+          same_as_registered_address: boolean | null
           status: string
           subtotal_amount: number | null
           supplier_code: string | null
@@ -900,6 +901,7 @@ export type Database = {
           notes?: string | null
           order_date?: string
           po_number: string
+          same_as_registered_address?: boolean | null
           status?: string
           subtotal_amount?: number | null
           supplier_code?: string | null
@@ -930,6 +932,7 @@ export type Database = {
           notes?: string | null
           order_date?: string
           po_number?: string
+          same_as_registered_address?: boolean | null
           status?: string
           subtotal_amount?: number | null
           supplier_code?: string | null
