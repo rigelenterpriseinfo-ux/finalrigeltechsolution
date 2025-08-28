@@ -698,7 +698,7 @@ export function PurchaseModule() {
       // Insert invoice items
       const itemsToInsert = invoiceItems.map(item => ({
         purchase_invoice_id: invoiceData.id,
-        product_id: item.product_id,
+        product_id: item.product_id === 'manual' ? null : item.product_id,
         item_description: item.item_description,
         hsn_sac_code: item.hsn_sac_code,
         unit_of_measure: item.unit_of_measure,
@@ -2868,14 +2868,14 @@ export function PurchaseModule() {
                           <div>
                             <Label className="text-purple-700">Product/Item *</Label>
                             <Select 
-                              value={item.product_id || ''}
+                              value={item.product_id || 'manual'}
                               onValueChange={(value) => handleInvoiceItemChange(index, 'product_id', value)}
                             >
                               <SelectTrigger className="border-purple-200">
                                 <SelectValue placeholder="Select product or manual entry" />
                               </SelectTrigger>
                               <SelectContent>
-                                <SelectItem value="">Manual Entry</SelectItem>
+                                <SelectItem value="manual">Manual Entry</SelectItem>
                                 {products.map((product) => (
                                   <SelectItem key={product.id} value={product.id}>
                                     {product.name} ({product.sku})
