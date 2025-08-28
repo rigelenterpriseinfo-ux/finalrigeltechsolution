@@ -2703,7 +2703,8 @@ export function PurchaseModule() {
           </Dialog>
 
           {/* Purchase Invoice Dialog */}
-          <DialogContent className="max-w-6xl max-h-[95vh] overflow-y-auto">
+          <Dialog open={showAddPIDialog} onOpenChange={setShowAddPIDialog}>
+            <DialogContent className="max-w-6xl max-h-[95vh] overflow-y-auto">
             <DialogHeader className="border-b pb-4">
               <DialogTitle className="text-xl text-green-700">Purchase Invoice Entry</DialogTitle>
               <DialogDescription>Create a purchase invoice with multiple items and automatic inventory updates</DialogDescription>
@@ -3128,6 +3129,7 @@ export function PurchaseModule() {
               </form>
             </Form>
           </DialogContent>
+          </Dialog>
         </div>
       </div>
 
