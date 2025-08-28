@@ -875,224 +875,253 @@ export function SalesModule() {
                     <Separator />
 
                     {/* Order Line Items */}
-                    <div className="space-y-4">
-                      <div className="flex items-center justify-between">
-                        <h3 className="text-lg font-semibold">3. Order Line Items</h3>
-                        <Button type="button" onClick={addLineItem} variant="outline" size="sm">
+                    <div className="space-y-6">
+                      <div className="flex items-center justify-between mb-4">
+                        <div>
+                          <h3 className="text-lg font-semibold text-foreground">3. Order Line Items</h3>
+                          <p className="text-sm text-muted-foreground">Add products to your sales order</p>
+                        </div>
+                        <Button type="button" onClick={addLineItem} variant="outline" size="sm" className="shadow-sm">
                           <Plus className="h-4 w-4 mr-2" />
                           Add Item
                         </Button>
                       </div>
                       
                       {orderItems.length > 0 && (
-                        <div className="space-y-4">
-                          <div className="border rounded-lg overflow-hidden">
-                            <Table>
-                              <TableHeader>
-                                <TableRow className="bg-muted/50">
-                                  <TableHead className="w-48">Product</TableHead>
-                                  <TableHead className="w-40">Description</TableHead>
-                                  <TableHead className="w-24">HSN/SAC</TableHead>
-                                  <TableHead className="w-20">Qty</TableHead>
-                                  <TableHead className="w-20">UOM</TableHead>
-                                  <TableHead className="w-24">Unit Price</TableHead>
-                                  <TableHead className="w-20">Disc %</TableHead>
-                                  <TableHead className="w-20">CGST %</TableHead>
-                                  <TableHead className="w-20">SGST %</TableHead>
-                                  <TableHead className="w-20">IGST %</TableHead>
-                                  <TableHead className="w-24">Line Total</TableHead>
-                                  <TableHead className="w-12"></TableHead>
-                                </TableRow>
-                              </TableHeader>
-                              <TableBody>
-                                {orderItems.map((item, index) => (
-                                  <TableRow key={index}>
-                                    <TableCell className="w-48">
-                                      <div className="space-y-2">
-                                        <div className="relative">
-                                          <Select
-                                            value={item.product_id || ''}
-                                            onValueChange={(value) => handleProductSelection(index, value)}
-                                          >
-                                            <SelectTrigger className="w-full">
-                                              <span className="truncate">
-                                                {item.product_id ? (products.find(p => p.id === item.product_id)?.sku || 'SKU') : 'Select SKU'}
-                                              </span>
-                                            </SelectTrigger>
-                                            <SelectContent className="max-h-60 z-[100]">
-                                              {products
-                                                .filter(product => {
-                                                  const term = (productSearchTerms[index] || '').toLowerCase();
-                                                  return term === '' ||
-                                                         product.name.toLowerCase().includes(term) ||
-                                                         product.sku.toLowerCase().includes(term) ||
-                                                         (product.description && product.description.toLowerCase().includes(term));
-                                                })
-                                                .map((product) => (
-                                                <SelectItem key={product.id} value={product.id}>
-                                                  {product.sku}
-                                                </SelectItem>
-                                              ))}
-                                            </SelectContent>
-                                          </Select>
-                                          <Input
-                                            placeholder="Search products..."
-                                            className="mt-1 text-xs"
-                                            value={productSearchTerms[index] || ''}
-                                            onChange={(e) => {
-                                              setProductSearchTerms(prev => ({
-                                                ...prev,
-                                                [index]: e.target.value
-                                              }));
-                                            }}
-                                          />
-                                        </div>
-                                        {item.product_id && (
-                                          <div className="text-xs text-muted-foreground">
-                                            SKU: {products.find(p => p.id === item.product_id)?.sku}
+                        <div className="space-y-6">
+                          <div className="bg-card border border-border rounded-xl shadow-sm overflow-hidden">
+                            <div className="bg-muted/30 px-6 py-4 border-b border-border">
+                              <div className="grid grid-cols-12 gap-4 text-sm font-medium text-muted-foreground uppercase tracking-wide">
+                                <div className="col-span-2">SKU</div>
+                                <div className="col-span-3">Item Name</div>
+                                <div className="col-span-1">HSN/SAC</div>
+                                <div className="col-span-1">Qty</div>
+                                <div className="col-span-1">UOM</div>
+                                <div className="col-span-1">Price</div>
+                                <div className="col-span-1">Disc %</div>
+                                <div className="col-span-1">Tax %</div>
+                                <div className="col-span-1">Total</div>
+                              </div>
+                            </div>
+                            <div className="divide-y divide-border">
+                              {orderItems.map((item, index) => (
+                                <div key={index} className="p-6 hover:bg-muted/20 transition-colors">
+                                  <div className="grid grid-cols-12 gap-4 items-start">
+                                    {/* SKU Selection */}
+                                    <div className="col-span-2">
+                                      <Label className="text-xs font-medium text-muted-foreground mb-2 block">SKU</Label>
+                                      <Select
+                                        value={item.product_id || ''}
+                                        onValueChange={(value) => handleProductSelection(index, value)}
+                                      >
+                                        <SelectTrigger className="h-9 bg-background border-input">
+                                          <span className="truncate text-sm">
+                                            {item.product_id ? (products.find(p => p.id === item.product_id)?.sku || 'Select SKU') : 'Select SKU'}
+                                          </span>
+                                        </SelectTrigger>
+                                        <SelectContent className="max-h-60 z-[100] bg-popover border shadow-lg">
+                                          <div className="p-2 border-b border-border">
+                                            <Input
+                                              placeholder="Search SKU..."
+                                              className="h-8 text-xs"
+                                              value={productSearchTerms[index] || ''}
+                                              onChange={(e) => {
+                                                setProductSearchTerms(prev => ({
+                                                  ...prev,
+                                                  [index]: e.target.value
+                                                }));
+                                              }}
+                                            />
                                           </div>
-                                        )}
-                                      </div>
-                                    </TableCell>
-                                      <TableCell className="w-40">
-                                        <div className="space-y-2">
-                                          <Select
-                                            value={item.product_id || ''}
-                                            onValueChange={(value) => handleProductSelection(index, value)}
-                                          >
-                                            <SelectTrigger className="w-full">
-                                              <span className="truncate">
-                                                {item.product_id ? (products.find(p => p.id === item.product_id)?.sku || 'SKU') : 'Search by description'}
-                                              </span>
-                                            </SelectTrigger>
-                                            <SelectContent className="max-h-60 z-[100]">
+                                          <div className="max-h-48 overflow-y-auto">
+                                            {products
+                                              .filter(product => {
+                                                const term = (productSearchTerms[index] || '').toLowerCase();
+                                                return term === '' ||
+                                                       product.sku.toLowerCase().includes(term) ||
+                                                       product.name.toLowerCase().includes(term);
+                                              })
+                                              .map((product) => (
+                                              <SelectItem key={product.id} value={product.id} className="text-sm">
+                                                <div className="flex flex-col">
+                                                  <span className="font-medium">{product.sku}</span>
+                                                  <span className="text-xs text-muted-foreground">{product.name}</span>
+                                                </div>
+                                              </SelectItem>
+                                            ))}
+                                          </div>
+                                        </SelectContent>
+                                      </Select>
+                                    </div>
+
+                                    {/* Item Name Selection */}
+                                    <div className="col-span-3">
+                                      <Label className="text-xs font-medium text-muted-foreground mb-2 block">Item Name</Label>
+                                      <div className="space-y-2">
+                                        <Select
+                                          value={item.product_id || ''}
+                                          onValueChange={(value) => handleProductSelection(index, value)}
+                                        >
+                                          <SelectTrigger className="h-9 bg-background border-input">
+                                            <span className="truncate text-sm">
+                                              {item.product_id ? (products.find(p => p.id === item.product_id)?.name || 'Select Item') : 'Search by name'}
+                                            </span>
+                                          </SelectTrigger>
+                                          <SelectContent className="max-h-60 z-[100] bg-popover border shadow-lg">
+                                            <div className="p-2 border-b border-border">
+                                              <Input
+                                                placeholder="Search item name..."
+                                                className="h-8 text-xs"
+                                                value={productSearchTerms[index] || ''}
+                                                onChange={(e) => {
+                                                  setProductSearchTerms(prev => ({
+                                                    ...prev,
+                                                    [index]: e.target.value
+                                                  }));
+                                                }}
+                                              />
+                                            </div>
+                                            <div className="max-h-48 overflow-y-auto">
                                               {products
                                                 .filter(product => {
                                                   const term = (productSearchTerms[index] || '').toLowerCase();
                                                   return term === '' ||
-                                                         (product.description && product.description.toLowerCase().includes(term)) ||
                                                          product.name.toLowerCase().includes(term) ||
+                                                         (product.description && product.description.toLowerCase().includes(term)) ||
                                                          product.sku.toLowerCase().includes(term);
                                                 })
                                                 .map((product) => (
-                                                <SelectItem key={product.id} value={product.id}>
-                                                  {product.name}{product.description ? ` — ${product.description}` : ''}
+                                                <SelectItem key={product.id} value={product.id} className="text-sm">
+                                                  <div className="flex flex-col">
+                                                    <span className="font-medium">{product.name}</span>
+                                                    <span className="text-xs text-muted-foreground">{product.sku} • ₹{product.unit_price}</span>
+                                                  </div>
                                                 </SelectItem>
                                               ))}
-                                            </SelectContent>
-                                          </Select>
-                                          <Input
-                                            placeholder="Search in description..."
-                                            className="text-xs"
-                                            value={productSearchTerms[index] || ''}
-                                            onChange={(e) => {
-                                              setProductSearchTerms(prev => ({
-                                                ...prev,
-                                                [index]: e.target.value
-                                              }));
-                                            }}
-                                          />
-                                          <Textarea
-                                            value={item.item_description}
-                                            onChange={(e) => updateLineItem(index, 'item_description', e.target.value)}
-                                            placeholder="Description"
-                                            className="text-xs min-h-[60px] resize-none"
-                                          />
-                                        </div>
-                                      </TableCell>
-                                    <TableCell className="w-24">
+                                            </div>
+                                          </SelectContent>
+                                        </Select>
+                                        <Textarea
+                                          value={item.item_description}
+                                          onChange={(e) => updateLineItem(index, 'item_description', e.target.value)}
+                                          placeholder="Item description..."
+                                          className="min-h-[60px] text-xs resize-none bg-background"
+                                        />
+                                      </div>
+                                    </div>
+
+                                    {/* HSN/SAC Code */}
+                                    <div className="col-span-1">
+                                      <Label className="text-xs font-medium text-muted-foreground mb-2 block">HSN/SAC</Label>
                                       <Input
                                         value={item.hsn_sac_code}
                                         onChange={(e) => updateLineItem(index, 'hsn_sac_code', e.target.value)}
                                         placeholder="HSN"
-                                        className="text-xs"
+                                        className="h-9 text-xs bg-background"
                                       />
-                                    </TableCell>
-                                    <TableCell className="w-20">
+                                    </div>
+
+                                    {/* Quantity */}
+                                    <div className="col-span-1">
+                                      <Label className="text-xs font-medium text-muted-foreground mb-2 block">Qty</Label>
                                       <Input
                                         type="number"
                                         value={item.quantity}
                                         onChange={(e) => updateLineItem(index, 'quantity', parseInt(e.target.value) || 0)}
-                                        className="text-xs"
+                                        className="h-9 text-xs bg-background"
                                         min="1"
                                       />
-                                    </TableCell>
-                                    <TableCell className="w-20">
-                                      <Input
+                                    </div>
+
+                                    {/* Unit of Measure */}
+                                    <div className="col-span-1">
+                                      <Label className="text-xs font-medium text-muted-foreground mb-2 block">UOM</Label>
+                                      <Select
                                         value={item.unit_of_measure}
-                                        onChange={(e) => updateLineItem(index, 'unit_of_measure', e.target.value)}
-                                        className="text-xs"
-                                        placeholder="pcs"
-                                      />
-                                    </TableCell>
-                                    <TableCell className="w-24">
+                                        onValueChange={(value) => updateLineItem(index, 'unit_of_measure', value)}
+                                      >
+                                        <SelectTrigger className="h-9 bg-background">
+                                          <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent className="z-[100]">
+                                          <SelectItem value="pcs">Pcs</SelectItem>
+                                          <SelectItem value="kg">Kg</SelectItem>
+                                          <SelectItem value="liter">Liter</SelectItem>
+                                          <SelectItem value="meter">Meter</SelectItem>
+                                          <SelectItem value="box">Box</SelectItem>
+                                        </SelectContent>
+                                      </Select>
+                                    </div>
+
+                                    {/* Unit Price */}
+                                    <div className="col-span-1">
+                                      <Label className="text-xs font-medium text-muted-foreground mb-2 block">Price</Label>
                                       <Input
                                         type="number"
                                         value={item.unit_price}
                                         onChange={(e) => updateLineItem(index, 'unit_price', parseFloat(e.target.value) || 0)}
-                                        className="text-xs"
+                                        className="h-9 text-xs bg-background"
                                         step="0.01"
-                                        placeholder="0.00"
                                       />
-                                    </TableCell>
-                                    <TableCell className="w-20">
+                                    </div>
+
+                                    {/* Discount Percentage */}
+                                    <div className="col-span-1">
+                                      <Label className="text-xs font-medium text-muted-foreground mb-2 block">Disc %</Label>
                                       <Input
                                         type="number"
                                         value={item.discount_percentage}
                                         onChange={(e) => updateLineItem(index, 'discount_percentage', parseFloat(e.target.value) || 0)}
-                                        className="text-xs"
-                                        step="0.1"
+                                        className="h-9 text-xs bg-background"
+                                        min="0"
                                         max="100"
-                                        placeholder="0"
+                                        step="0.01"
                                       />
-                                    </TableCell>
-                                    <TableCell className="w-20">
+                                    </div>
+
+                                    {/* Tax Percentage */}
+                                    <div className="col-span-1">
+                                      <Label className="text-xs font-medium text-muted-foreground mb-2 block">Tax %</Label>
                                       <Input
                                         type="number"
-                                        value={item.cgst_rate}
-                                        onChange={(e) => updateLineItem(index, 'cgst_rate', parseFloat(e.target.value) || 0)}
-                                        className="text-xs"
-                                        step="0.1"
-                                        placeholder="9"
+                                        value={item.tax_percentage}
+                                        onChange={(e) => {
+                                          const newTaxRate = parseFloat(e.target.value) || 0;
+                                          updateLineItem(index, 'tax_percentage', newTaxRate);
+                                          updateLineItem(index, 'cgst_rate', newTaxRate / 2);
+                                          updateLineItem(index, 'sgst_rate', newTaxRate / 2);
+                                          updateLineItem(index, 'igst_rate', 0);
+                                        }}
+                                        className="h-9 text-xs bg-background"
+                                        step="0.01"
                                       />
-                                    </TableCell>
-                                    <TableCell className="w-20">
-                                      <Input
-                                        type="number"
-                                        value={item.sgst_rate}
-                                        onChange={(e) => updateLineItem(index, 'sgst_rate', parseFloat(e.target.value) || 0)}
-                                        className="text-xs"
-                                        step="0.1"
-                                        placeholder="9"
-                                      />
-                                    </TableCell>
-                                    <TableCell className="w-20">
-                                      <Input
-                                        type="number"
-                                        value={item.igst_rate}
-                                        onChange={(e) => updateLineItem(index, 'igst_rate', parseFloat(e.target.value) || 0)}
-                                        className="text-xs"
-                                        step="0.1"
-                                        placeholder="18"
-                                      />
-                                    </TableCell>
-                                    <TableCell className="w-24 font-medium">
-                                      ₹{item.line_total.toFixed(2)}
-                                    </TableCell>
-                                    <TableCell className="w-12">
-                                      <Button
-                                        type="button"
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={() => removeLineItem(index)}
-                                      >
-                                        <Trash2 className="h-4 w-4" />
-                                      </Button>
-                                    </TableCell>
-                                  </TableRow>
-                                ))}
-                              </TableBody>
-                            </Table>
+                                    </div>
+
+                                    {/* Line Total */}
+                                    <div className="col-span-1">
+                                      <Label className="text-xs font-medium text-muted-foreground mb-2 block">Total</Label>
+                                      <div className="h-9 px-3 py-2 bg-muted/50 border border-input rounded-md flex items-center">
+                                        <span className="text-xs font-medium">₹{item.line_total.toFixed(2)}</span>
+                                      </div>
+                                    </div>
+                                  </div>
+
+                                  {/* Remove Item Button */}
+                                  <div className="flex justify-end mt-4">
+                                    <Button
+                                      type="button"
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => removeLineItem(index)}
+                                      className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                                    >
+                                      <Trash2 className="h-4 w-4 mr-1" />
+                                      Remove
+                                    </Button>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
                           </div>
 
                           {/* Tax Breakdown and Totals */}
