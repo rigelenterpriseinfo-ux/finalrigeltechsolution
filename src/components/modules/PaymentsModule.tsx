@@ -193,6 +193,7 @@ export function PaymentsModule() {
     }
   };
 
+  // Calculate payment statistics
   const totalReceived = payments
     .filter(p => p.sales_order_id)
     .reduce((sum, p) => sum + p.amount, 0);
@@ -201,7 +202,23 @@ export function PaymentsModule() {
     .filter(p => p.purchase_order_id)
     .reduce((sum, p) => sum + p.amount, 0);
 
-  const netFlow = totalReceived - totalPaid;
+  // Calculate pending amounts (this would need order total amounts - placeholder for now)
+  const pendingAP = 50000; // Placeholder - would calculate from unpaid purchase orders
+  const pendingAR = 35000; // Placeholder - would calculate from unpaid sales orders
+
+  // Calculate payments in time ranges
+  const now = new Date();
+  const fifteenDaysAgo = new Date(now.getTime() - 15 * 24 * 60 * 60 * 1000);
+  const fifteenDaysFromNow = new Date(now.getTime() + 15 * 24 * 60 * 60 * 1000);
+  const thirtyDaysFromNow = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+
+  const paymentsLast15Days = payments
+    .filter(p => p.sales_order_id && new Date(p.payment_date) >= fifteenDaysAgo)
+    .reduce((sum, p) => sum + p.amount, 0);
+
+  // For future payments, we'd need due dates from orders - using placeholder
+  const paymentsDueNext15Days = 25000; // Placeholder
+  const paymentsDueNext30Days = 45000; // Placeholder
 
   const filteredPayments = payments.filter(payment =>
     payment.reference_number?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -323,49 +340,45 @@ export function PaymentsModule() {
       <div className="grid gap-6 md:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Received</CardTitle>
-            <TrendingUp className="h-4 w-4 text-green-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-green-600">${totalReceived.toFixed(2)}</div>
-            <p className="text-xs text-muted-foreground">From sales orders</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Paid</CardTitle>
+            <CardTitle className="text-sm font-medium">Total Pending AP</CardTitle>
             <TrendingDown className="h-4 w-4 text-red-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-red-600">${totalPaid.toFixed(2)}</div>
-            <p className="text-xs text-muted-foreground">For purchase orders</p>
+            <div className="text-2xl font-bold text-red-600">₹{pendingAP.toLocaleString()}</div>
+            <p className="text-xs text-muted-foreground">Accounts Payable</p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Net Cash Flow</CardTitle>
-            <CreditCard className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium">Total Pending AR</CardTitle>
+            <TrendingUp className="h-4 w-4 text-green-600" />
           </CardHeader>
           <CardContent>
-            <div className={`text-2xl font-bold ${netFlow >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-              ${netFlow.toFixed(2)}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              {netFlow >= 0 ? 'Positive flow' : 'Negative flow'}
-            </p>
+            <div className="text-2xl font-bold text-green-600">₹{pendingAR.toLocaleString()}</div>
+            <p className="text-xs text-muted-foreground">Accounts Receivable</p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Transactions</CardTitle>
-            <CreditCard className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium">Received (Last 15 Days)</CardTitle>
+            <TrendingUp className="h-4 w-4 text-green-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{payments.length}</div>
-            <p className="text-xs text-muted-foreground">Payment records</p>
+            <div className="text-2xl font-bold text-green-600">₹{paymentsLast15Days.toLocaleString()}</div>
+            <p className="text-xs text-muted-foreground">Recent receipts</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Due Next 15-30 Days</CardTitle>
+            <CreditCard className="h-4 w-4 text-orange-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-orange-600">₹{paymentsDueNext30Days.toLocaleString()}</div>
+            <p className="text-xs text-muted-foreground">Upcoming payments</p>
           </CardContent>
         </Card>
       </div>
