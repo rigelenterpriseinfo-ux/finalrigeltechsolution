@@ -16,7 +16,7 @@ import { Separator } from '@/components/ui/separator';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Search, ShoppingCart, Truck, Edit, Trash2, Eye, Calendar, Package } from 'lucide-react';
+import { Plus, Search, ShoppingCart, Truck, Edit, Trash2, Eye, Calendar, Package, FileDown } from 'lucide-react';
 
 interface PurchaseOrder {
   id: string;
@@ -733,6 +733,185 @@ export function PurchaseModule() {
     });
   };
 
+  // Generate PDF for Purchase Order
+  const generatePOPDF = async (po: PurchaseOrder) => {
+    try {
+      const jsPDF = (await import('jspdf')).default;
+      const doc = new jsPDF();
+      
+      // Get items for this PO
+      const items = purchaseOrderItems.filter(item => item.purchase_order_id === po.id);
+      
+      // Colors and styling
+      const primaryColor = [59, 130, 246] as [number, number, number]; // Blue
+      const secondaryColor = [107, 114, 128] as [number, number, number]; // Gray
+      const textColor = [17, 24, 39] as [number, number, number]; // Dark gray
+      
+      // Header - Company Information
+      doc.setFontSize(20);
+      doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+      doc.text('PURCHASE ORDER', 20, 25);
+      
+      // Company details (if available)
+      if (companyData) {
+        doc.setFontSize(12);
+        doc.setTextColor(textColor[0], textColor[1], textColor[2]);
+        doc.text(companyData.name, 20, 40);
+        if (companyData.address_line1) {
+          doc.text(`${companyData.address_line1}, ${companyData.city}`, 20, 48);
+        }
+        if (companyData.state && companyData.postal_code) {
+          doc.text(`${companyData.state} - ${companyData.postal_code}`, 20, 56);
+        }
+        if (companyData.phone) {
+          doc.text(`Phone: ${companyData.phone}`, 20, 64);
+        }
+        if (companyData.email) {
+          doc.text(`Email: ${companyData.email}`, 20, 72);
+        }
+        if (companyData.gstn) {
+          doc.text(`GSTN: ${companyData.gstn}`, 20, 80);
+        }
+      }
+      
+      // PO Details Box
+      doc.setFillColor(245, 247, 250);
+      doc.rect(120, 35, 70, 45, 'F');
+      doc.setFontSize(10);
+      doc.setTextColor(secondaryColor[0], secondaryColor[1], secondaryColor[2]);
+      doc.text('PO Number:', 125, 45);
+      doc.text('Order Date:', 125, 53);
+      doc.text('Expected Date:', 125, 61);
+      doc.text('Status:', 125, 69);
+      
+      doc.setTextColor(textColor[0], textColor[1], textColor[2]);
+      doc.setFontSize(10);
+      doc.text(po.po_number, 155, 45);
+      doc.text(new Date(po.order_date).toLocaleDateString(), 155, 53);
+      doc.text(po.expected_date ? new Date(po.expected_date).toLocaleDateString() : 'Not specified', 155, 61);
+      doc.text(po.status.toUpperCase(), 155, 69);
+      
+      // Supplier Information
+      let yPosition = 95;
+      doc.setFontSize(14);
+      doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+      doc.text('SUPPLIER INFORMATION', 20, yPosition);
+      
+      yPosition += 10;
+      doc.setFontSize(11);
+      doc.setTextColor(textColor[0], textColor[1], textColor[2]);
+      doc.text(`Name: ${po.supplier.name}`, 20, yPosition);
+      
+      if (po.supplier.email) {
+        yPosition += 8;
+        doc.text(`Email: ${po.supplier.email}`, 20, yPosition);
+      }
+      
+      // Line Items Table
+      yPosition += 20;
+      doc.setFontSize(14);
+      doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+      doc.text('LINE ITEMS', 20, yPosition);
+      
+      // Table headers
+      yPosition += 15;
+      doc.setFillColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+      doc.rect(20, yPosition - 5, 170, 8, 'F');
+      
+      doc.setFontSize(9);
+      doc.setTextColor(255, 255, 255);
+      doc.text('S.No', 25, yPosition);
+      doc.text('Description', 40, yPosition);
+      doc.text('HSN/SAC', 100, yPosition);
+      doc.text('Qty', 125, yPosition);
+      doc.text('UOM', 140, yPosition);
+      doc.text('Rate', 155, yPosition);
+      doc.text('Amount', 175, yPosition);
+      
+      // Table data
+      let totalAmount = 0;
+      let totalQuantity = 0;
+      
+      items.forEach((item, index) => {
+        yPosition += 10;
+        if (yPosition > 250) {
+          doc.addPage();
+          yPosition = 30;
+        }
+        
+        const lineTotal = (item.quantity || 0) * (item.unit_price || 0);
+        totalAmount += lineTotal;
+        totalQuantity += item.quantity || 0;
+        
+        doc.setTextColor(textColor[0], textColor[1], textColor[2]);
+        doc.setFontSize(8);
+        doc.text((index + 1).toString(), 25, yPosition);
+        doc.text(item.item_description || '', 40, yPosition, { maxWidth: 55 });
+        doc.text(item.hsn_sac_code || '', 100, yPosition);
+        doc.text((item.quantity || 0).toString(), 125, yPosition);
+        doc.text(item.unit_of_measure || 'pcs', 140, yPosition);
+        doc.text(`₹${(item.unit_price || 0).toFixed(2)}`, 155, yPosition);
+        doc.text(`₹${lineTotal.toFixed(2)}`, 175, yPosition);
+      });
+      
+      // Summary Section
+      yPosition += 20;
+      doc.setFillColor(248, 250, 252);
+      doc.rect(120, yPosition, 70, 30, 'F');
+      
+      doc.setFontSize(10);
+      doc.setTextColor(secondaryColor[0], secondaryColor[1], secondaryColor[2]);
+      doc.text('Total Quantity:', 125, yPosition + 8);
+      doc.text('Subtotal:', 125, yPosition + 16);
+      doc.text('Total Amount:', 125, yPosition + 24);
+      
+      doc.setTextColor(textColor[0], textColor[1], textColor[2]);
+      doc.text(totalQuantity.toString(), 165, yPosition + 8);
+      doc.text(`₹${po.total_amount.toFixed(2)}`, 165, yPosition + 16);
+      doc.setFontSize(11);
+      doc.setFont(undefined, 'bold');
+      doc.text(`₹${po.total_amount.toFixed(2)}`, 165, yPosition + 24);
+      
+      // Notes section
+      if (po.notes) {
+        yPosition += 40;
+        doc.setFont(undefined, 'normal');
+        doc.setFontSize(12);
+        doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+        doc.text('NOTES', 20, yPosition);
+        
+        yPosition += 10;
+        doc.setFontSize(10);
+        doc.setTextColor(textColor[0], textColor[1], textColor[2]);
+        doc.text(po.notes, 20, yPosition, { maxWidth: 170 });
+      }
+      
+      // Footer
+      const pageHeight = doc.internal.pageSize.height;
+      doc.setFontSize(8);
+      doc.setTextColor(secondaryColor[0], secondaryColor[1], secondaryColor[2]);
+      doc.text(`Generated on: ${new Date().toLocaleDateString()} at ${new Date().toLocaleTimeString()}`, 20, pageHeight - 20);
+      doc.text('This is a computer generated document.', 20, pageHeight - 15);
+      
+      // Save the PDF
+      const fileName = `PO_${po.po_number}_${new Date().toISOString().split('T')[0]}.pdf`;
+      doc.save(fileName);
+      
+      toast({
+        title: "Success",
+        description: `Purchase Order ${po.po_number} downloaded successfully`,
+      });
+      
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      toast({
+        title: "Error",
+        description: "Failed to generate PDF",
+        variant: "destructive",
+      });
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-48">
@@ -1446,6 +1625,7 @@ export function PurchaseModule() {
                           setShowEditPODialog(true);
                         }}
                         className="h-8 w-8 p-0 hover:bg-blue-50 hover:border-blue-200"
+                        title="Edit Purchase Order"
                       >
                         <Edit className="h-4 w-4 text-blue-600" />
                       </Button>
@@ -1457,14 +1637,25 @@ export function PurchaseModule() {
                           setShowViewPODialog(true);
                         }}
                         className="h-8 w-8 p-0 hover:bg-green-50 hover:border-green-200"
+                        title="View Purchase Order"
                       >
                         <Eye className="h-4 w-4 text-green-600" />
                       </Button>
                       <Button
                         variant="outline"
                         size="sm"
+                        onClick={() => generatePOPDF(po)}
+                        className="h-8 w-8 p-0 hover:bg-purple-50 hover:border-purple-200"
+                        title="Download PDF"
+                      >
+                        <FileDown className="h-4 w-4 text-purple-600" />
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
                         onClick={() => handleDeletePurchaseOrder(po.id)}
                         className="h-8 w-8 p-0 hover:bg-red-50 hover:border-red-200"
+                        title="Delete Purchase Order"
                       >
                         <Trash2 className="h-4 w-4 text-red-600" />
                       </Button>
