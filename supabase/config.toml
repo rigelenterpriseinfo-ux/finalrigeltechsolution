@@ -5,3 +5,6 @@ verify_jwt = false
 
 [functions.verify-email-confirmation]
 verify_jwt = false
+
+[functions.gemini-business-assistant]
+verify_jwt = false
