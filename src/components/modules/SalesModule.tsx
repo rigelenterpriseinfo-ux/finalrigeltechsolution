@@ -759,6 +759,39 @@ export function SalesModule() {
     }
   };
 
+  const handleDeleteCustomer = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this customer?')) return;
+    try {
+      const { error } = await supabase
+        .from('customers')
+        .delete()
+        .eq('id', id);
+
+      if (error) {
+        // 23503 = foreign key violation
+        if ((error as any).code === '23503') {
+          toast({
+            title: 'Unable to delete',
+            description: 'This customer has related orders or invoices. Please remove those first.',
+            variant: 'destructive',
+          });
+        } else {
+          toast({
+            title: 'Error',
+            description: 'Failed to delete customer',
+            variant: 'destructive',
+          });
+        }
+        return;
+      }
+
+      toast({ title: 'Deleted', description: 'Customer deleted successfully' });
+      fetchCustomers();
+    } catch (e) {
+      toast({ title: 'Error', description: 'Unexpected error deleting customer', variant: 'destructive' });
+    }
+  };
+
   const paginatedCustomers = sortedCustomers.slice(
     (currentPage - 1) * itemsPerPage,
     currentPage * itemsPerPage
@@ -1246,6 +1279,7 @@ export function SalesModule() {
                                 <Button 
                                   variant="ghost" 
                                   size="sm"
+                                  onClick={() => handleDeleteCustomer(customer.id)}
                                   className="h-8 w-8 p-0 hover:bg-destructive/10 hover:text-destructive"
                                 >
                                   <Trash2 className="h-3 w-3" />
@@ -1735,29 +1769,62 @@ export function SalesModule() {
                 pin_code: formData.get('pin_code') as string,
                 gstin: formData.get('gstin') as string,
                 credit_limit: parseFloat(formData.get('credit_limit') as string) || 0,
-                payment_terms: formData.get('payment_terms') as string,
+                payment_terms: (formData.get('payment_terms') as string) || null,
+                preferred_currency: (formData.get('preferred_currency') as string) || 'INR',
+                // Delivery address
+                shipping_address_line1: formData.get('shipping_address_line1') as string,
+                shipping_address_line2: formData.get('shipping_address_line2') as string,
+                shipping_city: formData.get('shipping_city') as string,
+                shipping_state: formData.get('shipping_state') as string,
+                shipping_pin_code: formData.get('shipping_pin_code') as string,
+                shipping_country: formData.get('shipping_country') as string,
+                same_as_registered_address: Boolean(formData.get('same_as_registered_address')),
+                // Payment details
+                bank_name: formData.get('bank_name') as string,
+                branch_name: formData.get('branch_name') as string,
+                account_number: formData.get('account_number') as string,
+                account_type: formData.get('account_type') as string,
+                ifsc_code: formData.get('ifsc_code') as string,
+                swift_code: formData.get('swift_code') as string,
                 company_id: profile?.company_id
-              };
+              } as any;
 
-              supabase
-                .from('customers')
-                .insert([customerData])
-                .then(({ error }) => {
-                  if (error) {
-                    toast({
-                      title: "Error",
-                      description: "Failed to create customer",
-                      variant: "destructive",
-                    });
-                  } else {
-                    toast({
-                      title: "Success",
-                      description: "Customer created successfully",
-                    });
-                    setShowAddCustomerDialog(false);
-                    fetchCustomers();
-                  }
-                });
+              if (editingCustomer) {
+                supabase
+                  .from('customers')
+                  .update(customerData)
+                  .eq('id', editingCustomer.id)
+                  .then(({ error }) => {
+                    if (error) {
+                      toast({
+                        title: 'Error',
+                        description: 'Failed to update customer',
+                        variant: 'destructive',
+                      });
+                    } else {
+                      toast({ title: 'Success', description: 'Customer updated successfully' });
+                      setShowAddCustomerDialog(false);
+                      fetchCustomers();
+                    }
+                  });
+              } else {
+                supabase
+                  .from('customers')
+                  .insert([customerData])
+                  .then(({ error }) => {
+                    if (error) {
+                      toast({
+                        title: 'Error',
+                        description: 'Failed to create customer',
+                        variant: 'destructive',
+                      });
+                    } else {
+                      toast({ title: 'Success', description: 'Customer created successfully' });
+                      setShowAddCustomerDialog(false);
+                      fetchCustomers();
+                    }
+                  });
+              }
             }} className="space-y-6">
               {/* Basic Information */}
               <div className="space-y-4">
