@@ -17,7 +17,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Search, FileText, Users, Edit, Trash2, ChevronUp, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Plus, Search, FileText, Users, Edit, Trash2, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, Download, Check, ChevronsUpDown, Edit2 } from 'lucide-react';
+import { format } from 'date-fns';
+import { cn } from "@/lib/utils";
+import * as XLSX from 'xlsx';
 
 interface SalesOrderItem {
   id?: string;
@@ -162,11 +165,92 @@ const [productSearchTerms, setProductSearchTerms] = useState<{[key: number]: str
 const [openSkuIndex, setOpenSkuIndex] = useState<number | null>(null);
 const itemsPerPage = 5;
 
+// Performa Invoice State
+const [performaInvoices, setPerformaInvoices] = useState<any[]>([]);
+const [showPerformaInvoiceForm, setShowPerformaInvoiceForm] = useState(false);
+const [editingPerformaInvoice, setEditingPerformaInvoice] = useState<any>(null);
+const [performaInvoiceSearchTerm, setPerformaInvoiceSearchTerm] = useState('');
+const [performaCurrentPage, setPerformaCurrentPage] = useState(1);
+const [salesOrderSelectOpen, setSalesOrderSelectOpen] = useState(false);
+const [performaSortConfig, setPerformaSortConfig] = useState<{key: string, direction: 'asc' | 'desc'}>({
+  key: 'performa_invoice_date',
+  direction: 'desc'
+});
+
+interface PerformaInvoiceItem {
+  id?: string;
+  product_id: string;
+  item_description: string;
+  hsn_sac_code: string;
+  unit_of_measure: string;
+  quantity: number;
+  unit_price: number;
+  discount_percentage: number;
+  discount_amount: number;
+  tax_percentage: number;
+  cgst_rate: number;
+  sgst_rate: number;
+  igst_rate: number;
+  cgst_amount: number;
+  sgst_amount: number;
+  igst_amount: number;
+  total_price: number;
+}
+
+interface PerformaInvoiceForm {
+  performa_invoice_date: string;
+  performa_invoice_number: string;
+  sales_order_id: string;
+  customer_id: string;
+  customer_name: string;
+  subtotal_amount: number;
+  tax_amount: number;
+  discount_amount: number;
+  total_amount: number;
+  notes: string;
+  status: string;
+  items: PerformaInvoiceItem[];
+}
+
+const [performaInvoiceForm, setPerformaInvoiceForm] = useState<PerformaInvoiceForm>({
+  performa_invoice_date: new Date().toISOString().split('T')[0],
+  performa_invoice_number: '',
+  sales_order_id: '',
+  customer_id: '',
+  customer_name: '',
+  subtotal_amount: 0,
+  tax_amount: 0,
+  discount_amount: 0,
+  total_amount: 0,
+  notes: '',
+  status: 'draft',
+  items: []
+});
+
   useEffect(() => {
     fetchSalesOrders();
     fetchCustomers();
     fetchProducts();
+    fetchPerformaInvoices();
   }, []);
+
+  const fetchPerformaInvoices = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('performa_invoices')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Error fetching performa invoices:', error);
+        return;
+      }
+
+      setPerformaInvoices(data || []);
+    } catch (error) {
+      console.error('Error fetching performa invoices:', error);
+    }
+  };
 
   const fetchSalesOrders = async () => {
     try {
@@ -750,6 +834,292 @@ const itemsPerPage = 5;
       setSoSortField(field);
       setSoSortDirection('asc');
     }
+  };
+
+  // Performa Invoice Functions
+  const filteredPerformaInvoices = performaInvoices.filter(invoice => {
+    if (!performaInvoiceSearchTerm) return true;
+    const searchLower = performaInvoiceSearchTerm.toLowerCase();
+    return (
+      invoice.performa_invoice_number?.toLowerCase().includes(searchLower) ||
+      invoice.customer_name?.toLowerCase().includes(searchLower) ||
+      invoice.notes?.toLowerCase().includes(searchLower)
+    );
+  }).sort((a, b) => {
+    const { key, direction } = performaSortConfig;
+    const multiplier = direction === 'asc' ? 1 : -1;
+    
+    if (key === 'performa_invoice_date') {
+      return multiplier * new Date(a[key]).getTime() - new Date(b[key]).getTime();
+    }
+    return multiplier * String(a[key] || '').localeCompare(String(b[key] || ''));
+  });
+
+  const performaTotalPages = Math.ceil(filteredPerformaInvoices.length / itemsPerPage);
+  const paginatedPerformaInvoices = filteredPerformaInvoices.slice(
+    (performaCurrentPage - 1) * itemsPerPage,
+    performaCurrentPage * itemsPerPage
+  );
+
+  const handlePerformaSortChange = (key: string) => {
+    setPerformaSortConfig(prev => ({
+      key,
+      direction: prev.key === key && prev.direction === 'asc' ? 'desc' : 'asc'
+    }));
+  };
+
+  const handleSalesOrderSelection = async (salesOrder: SalesOrder) => {
+    try {
+      // Fetch sales order items
+      const { data: items, error } = await supabase
+        .from('sales_order_items')
+        .select('*')
+        .eq('sales_order_id', salesOrder.id);
+
+      if (error) {
+        console.error('Error fetching sales order items:', error);
+        toast({
+          title: "Error",
+          description: "Failed to fetch sales order items",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Convert sales order items to performa invoice items
+      const performaItems: PerformaInvoiceItem[] = items.map(item => ({
+        product_id: item.product_id,
+        item_description: item.item_description,
+        hsn_sac_code: item.hsn_sac_code || '',
+        unit_of_measure: item.unit_of_measure,
+        quantity: item.quantity,
+        unit_price: item.unit_price,
+        discount_percentage: item.discount_percentage || 0,
+        discount_amount: item.discount_amount,
+        tax_percentage: item.tax_percentage || 0,
+        cgst_rate: item.cgst_rate || 0,
+        sgst_rate: item.sgst_rate || 0,
+        igst_rate: item.igst_rate || 0,
+        cgst_amount: item.cgst_amount || 0,
+        sgst_amount: item.sgst_amount || 0,
+        igst_amount: item.igst_amount || 0,
+        total_price: item.total_price
+      }));
+
+      // Get customer information from the sales order
+      const customer = salesOrders.find(so => so.id === salesOrder.id)?.customer;
+
+      setPerformaInvoiceForm({
+        performa_invoice_date: new Date().toISOString().split('T')[0],
+        performa_invoice_number: '',
+        sales_order_id: salesOrder.id,
+        customer_id: customer?.id || '',
+        customer_name: customer?.name || '',
+        subtotal_amount: salesOrder.subtotal_amount || 0,
+        tax_amount: salesOrder.tax_amount,
+        discount_amount: salesOrder.discount_amount,
+        total_amount: salesOrder.total_amount,
+        notes: '',
+        status: 'draft',
+        items: performaItems
+      });
+
+      setSalesOrderSelectOpen(false);
+    } catch (error) {
+      console.error('Error selecting sales order:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load sales order details",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const resetPerformaInvoiceForm = () => {
+    setPerformaInvoiceForm({
+      performa_invoice_date: new Date().toISOString().split('T')[0],
+      performa_invoice_number: '',
+      sales_order_id: '',
+      customer_id: '',
+      customer_name: '',
+      subtotal_amount: 0,
+      tax_amount: 0,
+      discount_amount: 0,
+      total_amount: 0,
+      notes: '',
+      status: 'draft',
+      items: []
+    });
+  };
+
+  const savePerformaInvoice = async () => {
+    try {
+      if (!profile?.company_id) {
+        toast({
+          title: "Error",
+          description: "Company information not found",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      if (!performaInvoiceForm.sales_order_id) {
+        toast({
+          title: "Error",
+          description: "Please select a sales order",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const performaInvoiceData = {
+        company_id: profile.company_id,
+        sales_order_id: performaInvoiceForm.sales_order_id,
+        customer_id: performaInvoiceForm.customer_id,
+        customer_name: performaInvoiceForm.customer_name,
+        performa_invoice_date: performaInvoiceForm.performa_invoice_date,
+        performa_invoice_number: '', // Will be auto-generated by trigger
+        subtotal_amount: performaInvoiceForm.subtotal_amount,
+        tax_amount: performaInvoiceForm.tax_amount,
+        discount_amount: performaInvoiceForm.discount_amount,
+        total_amount: performaInvoiceForm.total_amount,
+        notes: performaInvoiceForm.notes,
+        status: performaInvoiceForm.status,
+        created_by: profile.user_id
+      };
+
+      let performaInvoiceId: string;
+
+      if (editingPerformaInvoice) {
+        // Update existing performa invoice
+        const { error } = await supabase
+          .from('performa_invoices')
+          .update(performaInvoiceData)
+          .eq('id', editingPerformaInvoice.id);
+
+        if (error) throw error;
+        performaInvoiceId = editingPerformaInvoice.id;
+      } else {
+        // Create new performa invoice
+        const { data, error } = await supabase
+          .from('performa_invoices')
+          .insert(performaInvoiceData)
+          .select()
+          .single();
+
+        if (error) throw error;
+        performaInvoiceId = data.id;
+      }
+
+      // Save performa invoice items
+      if (performaInvoiceForm.items.length > 0) {
+        // Delete existing items if editing
+        if (editingPerformaInvoice) {
+          await supabase
+            .from('performa_invoice_items')
+            .delete()
+            .eq('performa_invoice_id', performaInvoiceId);
+        }
+
+        // Insert new items
+        const itemsData = performaInvoiceForm.items.map(item => ({
+          performa_invoice_id: performaInvoiceId,
+          product_id: item.product_id,
+          item_description: item.item_description,
+          hsn_sac_code: item.hsn_sac_code,
+          unit_of_measure: item.unit_of_measure,
+          quantity: item.quantity,
+          unit_price: item.unit_price,
+          discount_percentage: item.discount_percentage,
+          discount_amount: item.discount_amount,
+          tax_percentage: item.tax_percentage,
+          cgst_rate: item.cgst_rate,
+          sgst_rate: item.sgst_rate,
+          igst_rate: item.igst_rate,
+          cgst_amount: item.cgst_amount,
+          sgst_amount: item.sgst_amount,
+          igst_amount: item.igst_amount,
+          total_price: item.total_price
+        }));
+
+        const { error: itemsError } = await supabase
+          .from('performa_invoice_items')
+          .insert(itemsData);
+
+        if (itemsError) throw itemsError;
+      }
+
+      toast({
+        title: "Success",
+        description: `Performa invoice ${editingPerformaInvoice ? 'updated' : 'created'} successfully`,
+      });
+
+      setShowPerformaInvoiceForm(false);
+      setEditingPerformaInvoice(null);
+      resetPerformaInvoiceForm();
+      fetchPerformaInvoices();
+    } catch (error) {
+      console.error('Error saving performa invoice:', error);
+      toast({
+        title: "Error",
+        description: "Failed to save performa invoice",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const deletePerformaInvoice = async (id: string) => {
+    try {
+      // Delete performa invoice items first
+      await supabase
+        .from('performa_invoice_items')
+        .delete()
+        .eq('performa_invoice_id', id);
+
+      // Delete performa invoice
+      const { error } = await supabase
+        .from('performa_invoices')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: "Performa invoice deleted successfully",
+      });
+
+      fetchPerformaInvoices();
+    } catch (error) {
+      console.error('Error deleting performa invoice:', error);
+      toast({
+        title: "Error",
+        description: "Failed to delete performa invoice",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const exportPerformaInvoicesToExcel = () => {
+    const exportData = filteredPerformaInvoices.map(invoice => ({
+      'Invoice No': invoice.performa_invoice_number,
+      'Date': format(new Date(invoice.performa_invoice_date), 'MMM dd, yyyy'),
+      'Customer': invoice.customer_name,
+      'Sales Order': salesOrders.find(so => so.id === invoice.sales_order_id)?.order_number || 'N/A',
+      'Total Amount': invoice.total_amount,
+      'Status': invoice.status,
+      'Notes': invoice.notes || ''
+    }));
+
+    const worksheet = XLSX.utils.json_to_sheet(exportData);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Performa Invoices');
+    XLSX.writeFile(workbook, 'performa_invoices.xlsx');
+
+    toast({
+      title: "Success",
+      description: "Performa invoices exported to Excel successfully",
+    });
   };
 
   if (loading) {
@@ -1908,21 +2278,340 @@ const itemsPerPage = 5;
                     Create and manage performa invoices for customers
                   </CardDescription>
                 </div>
-                <Button onClick={() => {}}>
+                <Button onClick={() => setShowPerformaInvoiceForm(true)}>
                   <Plus className="h-4 w-4 mr-2" />
                   New Performa Invoice
                 </Button>
               </div>
             </CardHeader>
             <CardContent>
-              <div className="text-center py-12 text-muted-foreground">
-                <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                <h3 className="text-lg font-medium mb-2">Performa Invoice Management</h3>
-                <p>This section will contain performa invoice functionality.</p>
-                <p className="text-sm mt-2">Coming soon...</p>
+              {/* Search and Export Section */}
+              <div className="flex items-center justify-between mb-4 gap-4">
+                <div className="flex items-center gap-2 flex-1">
+                  <Search className="h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search by customer, invoice no, customer name, item name..."
+                    value={performaInvoiceSearchTerm}
+                    onChange={(e) => setPerformaInvoiceSearchTerm(e.target.value)}
+                    className="max-w-md"
+                  />
+                </div>
+                <Button
+                  variant="outline"
+                  onClick={exportPerformaInvoicesToExcel}
+                  className="flex items-center gap-2"
+                >
+                  <Download className="h-4 w-4" />
+                  Export to Excel
+                </Button>
+              </div>
+
+              {/* Performa Invoices Table */}
+              <div className="rounded-md border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead 
+                        className="cursor-pointer hover:bg-muted"
+                        onClick={() => handlePerformaSortChange('performa_invoice_number')}
+                      >
+                        Invoice No
+                        {performaSortConfig.key === 'performa_invoice_number' && (
+                          performaSortConfig.direction === 'asc' ? 
+                          <ChevronUp className="inline h-4 w-4 ml-1" /> : 
+                          <ChevronDown className="inline h-4 w-4 ml-1" />
+                        )}
+                      </TableHead>
+                      <TableHead 
+                        className="cursor-pointer hover:bg-muted"
+                        onClick={() => handlePerformaSortChange('performa_invoice_date')}
+                      >
+                        Date
+                        {performaSortConfig.key === 'performa_invoice_date' && (
+                          performaSortConfig.direction === 'asc' ? 
+                          <ChevronUp className="inline h-4 w-4 ml-1" /> : 
+                          <ChevronDown className="inline h-4 w-4 ml-1" />
+                        )}
+                      </TableHead>
+                      <TableHead 
+                        className="cursor-pointer hover:bg-muted"
+                        onClick={() => handlePerformaSortChange('customer_name')}
+                      >
+                        Customer
+                        {performaSortConfig.key === 'customer_name' && (
+                          performaSortConfig.direction === 'asc' ? 
+                          <ChevronUp className="inline h-4 w-4 ml-1" /> : 
+                          <ChevronDown className="inline h-4 w-4 ml-1" />
+                        )}
+                      </TableHead>
+                      <TableHead>Sales Order</TableHead>
+                      <TableHead>Total Amount</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {paginatedPerformaInvoices.map((invoice) => (
+                      <TableRow key={invoice.id}>
+                        <TableCell className="font-medium">{invoice.performa_invoice_number}</TableCell>
+                        <TableCell>{format(new Date(invoice.performa_invoice_date), 'MMM dd, yyyy')}</TableCell>
+                        <TableCell>{invoice.customer_name}</TableCell>
+                        <TableCell>
+                          {salesOrders.find(so => so.id === invoice.sales_order_id)?.order_number || 'N/A'}
+                        </TableCell>
+                        <TableCell>₹{invoice.total_amount?.toFixed(2) || '0.00'}</TableCell>
+                        <TableCell>
+                          <Badge variant={invoice.status === 'draft' ? 'secondary' : 'default'}>
+                            {invoice.status}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                setEditingPerformaInvoice(invoice);
+                                setShowPerformaInvoiceForm(true);
+                              }}
+                            >
+                              <Edit2 className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => deletePerformaInvoice(invoice.id)}
+                              className="text-destructive hover:text-destructive"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+
+              {/* Pagination */}
+              <div className="flex items-center justify-between space-x-2 py-4">
+                <div className="text-sm text-muted-foreground">
+                  Showing {((performaCurrentPage - 1) * itemsPerPage) + 1} to {Math.min(performaCurrentPage * itemsPerPage, filteredPerformaInvoices.length)} of {filteredPerformaInvoices.length} entries
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setPerformaCurrentPage(prev => Math.max(prev - 1, 1))}
+                    disabled={performaCurrentPage === 1}
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                    Previous
+                  </Button>
+                  <div className="flex items-center gap-1">
+                    {Array.from({ length: performaTotalPages }, (_, i) => i + 1).map((page) => (
+                      <Button
+                        key={page}
+                        variant={performaCurrentPage === page ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => setPerformaCurrentPage(page)}
+                        className="w-8 h-8"
+                      >
+                        {page}
+                      </Button>
+                    ))}
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setPerformaCurrentPage(prev => Math.min(prev + 1, performaTotalPages))}
+                    disabled={performaCurrentPage === performaTotalPages}
+                  >
+                    Next
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
               </div>
             </CardContent>
           </Card>
+
+          {/* Performa Invoice Form Dialog */}
+          <Dialog open={showPerformaInvoiceForm} onOpenChange={setShowPerformaInvoiceForm}>
+            <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>
+                  {editingPerformaInvoice ? 'Edit Performa Invoice' : 'Create New Performa Invoice'}
+                </DialogTitle>
+              </DialogHeader>
+              
+              <div className="space-y-6">
+                {/* Header Information */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="performa-invoice-date">Performa Invoice Date</Label>
+                    <Input
+                      id="performa-invoice-date"
+                      type="date"
+                      value={performaInvoiceForm.performa_invoice_date}
+                      onChange={(e) => setPerformaInvoiceForm(prev => ({
+                        ...prev,
+                        performa_invoice_date: e.target.value
+                      }))}
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="performa-invoice-number">Performa Invoice Number</Label>
+                    <Input
+                      id="performa-invoice-number"
+                      value={performaInvoiceForm.performa_invoice_number}
+                      placeholder="Auto-generated (P + MMDDYYYY)"
+                      disabled
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="sales-order-select">Sales Order</Label>
+                    <Popover open={salesOrderSelectOpen} onOpenChange={setSalesOrderSelectOpen}>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          role="combobox"
+                          aria-expanded={salesOrderSelectOpen}
+                          className="w-full justify-between"
+                        >
+                          {performaInvoiceForm.sales_order_id
+                            ? salesOrders.find((so) => so.id === performaInvoiceForm.sales_order_id)?.order_number
+                            : "Select sales order..."}
+                          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-full p-0 pointer-events-auto">
+                        <Command>
+                          <CommandInput placeholder="Search sales orders..." />
+                          <CommandEmpty>No sales order found.</CommandEmpty>
+                          <CommandGroup>
+                            {salesOrders.map((salesOrder) => (
+                              <CommandItem
+                                key={salesOrder.id}
+                                value={salesOrder.order_number}
+                                onSelect={() => handleSalesOrderSelection(salesOrder)}
+                              >
+                                <Check
+                                  className={cn(
+                                    "mr-2 h-4 w-4",
+                                    performaInvoiceForm.sales_order_id === salesOrder.id ? "opacity-100" : "opacity-0"
+                                  )}
+                                />
+                                {salesOrder.order_number} - {salesOrder.customer?.name}
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </Command>
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                </div>
+
+                {/* Customer Information */}
+                <div className="space-y-2">
+                  <Label htmlFor="customer-name">Customer Name</Label>
+                  <Input
+                    id="customer-name"
+                    value={performaInvoiceForm.customer_name}
+                    disabled
+                    placeholder="Will be populated from selected sales order"
+                  />
+                </div>
+
+                {/* Items Section */}
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-lg font-medium">Items</h3>
+                  </div>
+                  
+                  <div className="rounded-md border">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Item Description</TableHead>
+                          <TableHead>HSN/SAC</TableHead>
+                          <TableHead>Qty</TableHead>
+                          <TableHead>Unit Price</TableHead>
+                          <TableHead>Total</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {performaInvoiceForm.items.map((item, index) => (
+                          <TableRow key={index}>
+                            <TableCell>{item.item_description}</TableCell>
+                            <TableCell>{item.hsn_sac_code}</TableCell>
+                            <TableCell>{item.quantity}</TableCell>
+                            <TableCell>₹{item.unit_price?.toFixed(2)}</TableCell>
+                            <TableCell>₹{item.total_price?.toFixed(2)}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </div>
+
+                {/* Totals Section */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="notes">Notes</Label>
+                    <Textarea
+                      id="notes"
+                      value={performaInvoiceForm.notes}
+                      onChange={(e) => setPerformaInvoiceForm(prev => ({
+                        ...prev,
+                        notes: e.target.value
+                      }))}
+                      placeholder="Additional notes..."
+                      rows={4}
+                    />
+                  </div>
+                  
+                  <div className="space-y-3">
+                    <div className="flex justify-between">
+                      <span>Subtotal:</span>
+                      <span>₹{performaInvoiceForm.subtotal_amount?.toFixed(2) || '0.00'}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Tax Amount:</span>
+                      <span>₹{performaInvoiceForm.tax_amount?.toFixed(2) || '0.00'}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Discount:</span>
+                      <span>₹{performaInvoiceForm.discount_amount?.toFixed(2) || '0.00'}</span>
+                    </div>
+                    <Separator />
+                    <div className="flex justify-between font-bold">
+                      <span>Total Amount:</span>
+                      <span>₹{performaInvoiceForm.total_amount?.toFixed(2) || '0.00'}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Action Buttons */}
+                <div className="flex justify-end space-x-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setShowPerformaInvoiceForm(false);
+                      setEditingPerformaInvoice(null);
+                      resetPerformaInvoiceForm();
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                  <Button onClick={savePerformaInvoice}>
+                    {editingPerformaInvoice ? 'Update' : 'Create'} Performa Invoice
+                  </Button>
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
         </TabsContent>
 
         <TabsContent value="sale-invoice" className="space-y-4">

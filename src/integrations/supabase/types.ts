@@ -662,6 +662,129 @@ export type Database = {
           },
         ]
       }
+      performa_invoice_items: {
+        Row: {
+          cgst_amount: number | null
+          cgst_rate: number | null
+          created_at: string
+          discount_amount: number
+          discount_percentage: number | null
+          hsn_sac_code: string | null
+          id: string
+          igst_amount: number | null
+          igst_rate: number | null
+          item_description: string
+          performa_invoice_id: string
+          product_id: string
+          quantity: number
+          sgst_amount: number | null
+          sgst_rate: number | null
+          tax_percentage: number | null
+          total_price: number
+          unit_of_measure: string
+          unit_price: number
+        }
+        Insert: {
+          cgst_amount?: number | null
+          cgst_rate?: number | null
+          created_at?: string
+          discount_amount?: number
+          discount_percentage?: number | null
+          hsn_sac_code?: string | null
+          id?: string
+          igst_amount?: number | null
+          igst_rate?: number | null
+          item_description?: string
+          performa_invoice_id: string
+          product_id: string
+          quantity: number
+          sgst_amount?: number | null
+          sgst_rate?: number | null
+          tax_percentage?: number | null
+          total_price: number
+          unit_of_measure?: string
+          unit_price: number
+        }
+        Update: {
+          cgst_amount?: number | null
+          cgst_rate?: number | null
+          created_at?: string
+          discount_amount?: number
+          discount_percentage?: number | null
+          hsn_sac_code?: string | null
+          id?: string
+          igst_amount?: number | null
+          igst_rate?: number | null
+          item_description?: string
+          performa_invoice_id?: string
+          product_id?: string
+          quantity?: number
+          sgst_amount?: number | null
+          sgst_rate?: number | null
+          tax_percentage?: number | null
+          total_price?: number
+          unit_of_measure?: string
+          unit_price?: number
+        }
+        Relationships: []
+      }
+      performa_invoices: {
+        Row: {
+          company_id: string
+          created_at: string
+          created_by: string
+          customer_id: string
+          customer_name: string
+          discount_amount: number
+          id: string
+          notes: string | null
+          performa_invoice_date: string
+          performa_invoice_number: string
+          sales_order_id: string
+          status: string
+          subtotal_amount: number
+          tax_amount: number
+          total_amount: number
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          created_by: string
+          customer_id: string
+          customer_name: string
+          discount_amount?: number
+          id?: string
+          notes?: string | null
+          performa_invoice_date?: string
+          performa_invoice_number: string
+          sales_order_id: string
+          status?: string
+          subtotal_amount?: number
+          tax_amount?: number
+          total_amount?: number
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          created_by?: string
+          customer_id?: string
+          customer_name?: string
+          discount_amount?: number
+          id?: string
+          notes?: string | null
+          performa_invoice_date?: string
+          performa_invoice_number?: string
+          sales_order_id?: string
+          status?: string
+          subtotal_amount?: number
+          tax_amount?: number
+          total_amount?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       product_categories: {
         Row: {
           company_id: string
@@ -1493,6 +1616,10 @@ export type Database = {
         Returns: string
       }
       generate_gated_business_ref_no: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
+      generate_performa_invoice_number: {
         Args: Record<PropertyKey, never>
         Returns: string
       }
