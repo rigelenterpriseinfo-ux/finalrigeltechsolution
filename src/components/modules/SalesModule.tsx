@@ -915,14 +915,7 @@ export function SalesModule() {
                                             onValueChange={(value) => handleProductSelection(index, value)}
                                           >
                                             <SelectTrigger className="w-full">
-                                              <SelectValue 
-                                                placeholder="Select product" 
-                                              >
-                                                {item.product_id ? 
-                                                  products.find(p => p.id === item.product_id)?.name 
-                                                  : "Select product"
-                                                }
-                                              </SelectValue>
+                                              <SelectValue placeholder="Select product" />
                                             </SelectTrigger>
                                             <SelectContent className="max-h-60">
                                               {products
@@ -935,12 +928,7 @@ export function SalesModule() {
                                                 })
                                                 .map((product) => (
                                                 <SelectItem key={product.id} value={product.id}>
-                                                  <div className="flex flex-col">
-                                                    <span className="font-medium">{product.name}</span>
-                                                    <span className="text-xs text-muted-foreground">
-                                                      SKU: {product.sku} | ₹{product.unit_price} | {product.unit || 'pcs'}
-                                                    </span>
-                                                  </div>
+                                                  {`${product.sku} — ${product.name} — ₹${product.unit_price} — ${product.unit || 'pcs'}`}
                                                 </SelectItem>
                                               ))}
                                             </SelectContent>
