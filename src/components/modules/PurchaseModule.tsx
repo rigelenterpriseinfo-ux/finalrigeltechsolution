@@ -205,6 +205,15 @@ export function PurchaseModule() {
   const [currentPOPage, setCurrentPOPage] = useState(1);
   const [currentSupplierPage, setCurrentSupplierPage] = useState(1);
   const itemsPerPage = 5;
+  
+  // Purchase Invoice states
+  const [invoiceSearchTerm, setInvoiceSearchTerm] = useState('');
+  const [invoiceSortConfig, setInvoiceSortConfig] = useState<{
+    key: string;
+    direction: 'asc' | 'desc';
+  } | null>(null);
+  const [currentInvoicePage, setCurrentInvoicePage] = useState(1);
+  const invoiceItemsPerPage = 5;
   const [showAddPODialog, setShowAddPODialog] = useState(false);
   const [showAddSupplierDialog, setShowAddSupplierDialog] = useState(false);
   const [showEditSupplierDialog, setShowEditSupplierDialog] = useState(false);
@@ -297,6 +306,7 @@ export function PurchaseModule() {
     fetchSuppliers();
     fetchCompanyData();
     fetchPurchaseOrderItems();
+    fetchPurchaseInvoicesData();
   }, []);
 
   // Sort function
@@ -336,6 +346,43 @@ export function PurchaseModule() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const fetchPurchaseInvoicesData = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('purchase_invoices')
+        .select(`
+          *,
+          supplier:suppliers(id, name, email, supplier_ref),
+          purchase_invoice_items(
+            id,
+            item_description,
+            quantity,
+            unit_price,
+            total_price
+          )
+        `)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Error fetching purchase invoices:', error);
+        return;
+      }
+
+      setPurchaseInvoices(data || []);
+    } catch (error) {
+      console.error('Error fetching purchase invoices:', error);
+    }
+  };
+
+  // Invoice sort function
+  const handleInvoiceSort = (key: string) => {
+    let direction: 'asc' | 'desc' = 'asc';
+    if (invoiceSortConfig && invoiceSortConfig.key === key && invoiceSortConfig.direction === 'asc') {
+      direction = 'desc';
+    }
+    setInvoiceSortConfig({ key, direction });
   };
 
   const fetchSuppliers = async () => {
@@ -1238,6 +1285,72 @@ export function PurchaseModule() {
   const startPOIndex = (currentPOPage - 1) * itemsPerPage;
   const endPOIndex = startPOIndex + itemsPerPage;
   const currentPOs = filteredPOs.slice(startPOIndex, endPOIndex);
+
+  // Purchase Invoices Filtering and Sorting
+  const filteredInvoices = useMemo(() => {
+    let filtered = purchaseInvoices.filter(invoice => {
+      const supplierName = invoice.supplier?.name?.toLowerCase() || '';
+      const invoiceNumber = invoice.purchase_invoice_number?.toLowerCase() || '';
+      const items = invoice.purchase_invoice_items || [];
+      const itemDescriptions = items.map(item => item.item_description?.toLowerCase() || '').join(' ');
+      
+      const searchTermLower = invoiceSearchTerm.toLowerCase();
+      
+      return (
+        supplierName.includes(searchTermLower) ||
+        invoiceNumber.includes(searchTermLower) ||
+        itemDescriptions.includes(searchTermLower)
+      );
+    });
+
+    // Apply sorting
+    if (invoiceSortConfig) {
+      filtered.sort((a, b) => {
+        let aValue = '';
+        let bValue = '';
+        
+        switch (invoiceSortConfig.key) {
+          case 'invoice_number':
+            aValue = a.purchase_invoice_number || '';
+            bValue = b.purchase_invoice_number || '';
+            break;
+          case 'supplier':
+            aValue = a.supplier?.name || '';
+            bValue = b.supplier?.name || '';
+            break;
+          case 'date':
+            aValue = a.purchase_invoice_date || '';
+            bValue = b.purchase_invoice_date || '';
+            break;
+          case 'amount':
+            return invoiceSortConfig.direction === 'asc' 
+              ? a.total_amount - b.total_amount 
+              : b.total_amount - a.total_amount;
+          default:
+            return 0;
+        }
+        
+        if (invoiceSortConfig.direction === 'asc') {
+          return aValue.localeCompare(bValue);
+        } else {
+          return bValue.localeCompare(aValue);
+        }
+      });
+    }
+
+    return filtered;
+  }, [purchaseInvoices, invoiceSearchTerm, invoiceSortConfig]);
+
+  // Reset to first page when search or sort changes for Purchase Invoices
+  useEffect(() => {
+    setCurrentInvoicePage(1);
+  }, [invoiceSearchTerm, invoiceSortConfig]);
+
+  // Purchase Invoices Pagination
+  const totalInvoicePages = Math.ceil(filteredInvoices.length / invoiceItemsPerPage);
+  const startInvoiceIndex = (currentInvoicePage - 1) * invoiceItemsPerPage;
+  const endInvoiceIndex = startInvoiceIndex + invoiceItemsPerPage;
+  const currentInvoices = filteredInvoices.slice(startInvoiceIndex, endInvoiceIndex);
 
   // Suppliers Pagination (for the suppliers we need to filter them too)
   const filteredSuppliers = suppliers.filter(supplier =>
@@ -3178,7 +3291,224 @@ export function PurchaseModule() {
         </Card>
       </div>
 
-      {/* Enhanced Search with Export */}
+      {/* Purchase Invoices Section */}
+      <div className="space-y-4">
+        {/* Search for Purchase Invoices */}
+        <div className="flex items-center gap-4">
+          <div className="relative flex-1 max-w-md">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              placeholder="Search by invoice number, supplier, item..."
+              value={invoiceSearchTerm}
+              onChange={(e) => setInvoiceSearchTerm(e.target.value)}
+              className="pl-10 bg-background border-input focus:border-primary focus:ring-2 focus:ring-primary/20"
+            />
+          </div>
+        </div>
+
+        {/* Purchase Invoices Table */}
+        <Card className="bg-background border shadow-sm">
+          <CardHeader className="border-b bg-muted/30">
+            <CardTitle className="text-xl">Purchase Invoices</CardTitle>
+            <CardDescription>Latest purchase invoice entries with search and sorting</CardDescription>
+          </CardHeader>
+          <CardContent className="p-0">
+            <Table>
+              <TableHeader>
+                <TableRow className="bg-muted/50">
+                  <TableHead className="font-semibold">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-auto p-0 font-semibold hover:bg-transparent"
+                      onClick={() => handleInvoiceSort('invoice_number')}
+                    >
+                      Invoice Number
+                      {invoiceSortConfig?.key === 'invoice_number' ? (
+                        invoiceSortConfig.direction === 'asc' ? (
+                          <ArrowUp className="ml-1 h-3 w-3" />
+                        ) : (
+                          <ArrowDown className="ml-1 h-3 w-3" />
+                        )
+                      ) : (
+                        <ArrowUpDown className="ml-1 h-3 w-3 opacity-50" />
+                      )}
+                    </Button>
+                  </TableHead>
+                  <TableHead className="font-semibold">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-auto p-0 font-semibold hover:bg-transparent"
+                      onClick={() => handleInvoiceSort('supplier')}
+                    >
+                      Supplier
+                      {invoiceSortConfig?.key === 'supplier' ? (
+                        invoiceSortConfig.direction === 'asc' ? (
+                          <ArrowUp className="ml-1 h-3 w-3" />
+                        ) : (
+                          <ArrowDown className="ml-1 h-3 w-3" />
+                        )
+                      ) : (
+                        <ArrowUpDown className="ml-1 h-3 w-3 opacity-50" />
+                      )}
+                    </Button>
+                  </TableHead>
+                  <TableHead className="font-semibold">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-auto p-0 font-semibold hover:bg-transparent"
+                      onClick={() => handleInvoiceSort('date')}
+                    >
+                      Date
+                      {invoiceSortConfig?.key === 'date' ? (
+                        invoiceSortConfig.direction === 'asc' ? (
+                          <ArrowUp className="ml-1 h-3 w-3" />
+                        ) : (
+                          <ArrowDown className="ml-1 h-3 w-3" />
+                        )
+                      ) : (
+                        <ArrowUpDown className="ml-1 h-3 w-3 opacity-50" />
+                      )}
+                    </Button>
+                  </TableHead>
+                  <TableHead className="font-semibold">Items</TableHead>
+                  <TableHead className="font-semibold">Status</TableHead>
+                  <TableHead className="font-semibold">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-auto p-0 font-semibold hover:bg-transparent"
+                      onClick={() => handleInvoiceSort('amount')}
+                    >
+                      Amount
+                      {invoiceSortConfig?.key === 'amount' ? (
+                        invoiceSortConfig.direction === 'asc' ? (
+                          <ArrowUp className="ml-1 h-3 w-3" />
+                        ) : (
+                          <ArrowDown className="ml-1 h-3 w-3" />
+                        )
+                      ) : (
+                        <ArrowUpDown className="ml-1 h-3 w-3 opacity-50" />
+                      )}
+                    </Button>
+                  </TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredInvoices.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                      {invoiceSearchTerm ? 'No invoices found matching your search.' : 'No purchase invoices available.'}
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  currentInvoices.map((invoice) => {
+                    const items = invoice.purchase_invoice_items || [];
+                    const totalQuantity = items.reduce((sum, item) => sum + (item.quantity || 0), 0);
+                    
+                    // Get item descriptions - ensure we have valid strings
+                    const validDescriptions = items
+                      .map(item => item.item_description)
+                      .filter(desc => desc && desc.trim().length > 0);
+                    
+                    const itemDescDisplay = validDescriptions.length > 0 
+                      ? validDescriptions.slice(0, 2).join(', ') + (validDescriptions.length > 2 ? ' + more...' : '')
+                      : 'No items found';
+
+                    return (
+                      <TableRow key={invoice.id} className="hover:bg-muted/30 transition-colors">
+                        <TableCell className="font-medium">{invoice.purchase_invoice_number}</TableCell>
+                        <TableCell>{invoice.supplier?.name || 'Unknown'}</TableCell>
+                        <TableCell>{new Date(invoice.purchase_invoice_date).toLocaleDateString()}</TableCell>
+                        <TableCell className="max-w-xs">
+                          <div className="truncate" title={itemDescDisplay}>
+                            {itemDescDisplay}
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            {totalQuantity} items
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Badge 
+                            variant={
+                              invoice.status === 'received' ? 'default' :
+                              invoice.status === 'pending' ? 'secondary' :
+                              'outline'
+                            }
+                            className="capitalize"
+                          >
+                            {invoice.status}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-right font-medium">
+                          ₹{invoice.total_amount?.toLocaleString() || '0'}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })
+                )}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+
+        {/* Purchase Invoices Pagination */}
+        {filteredInvoices.length > invoiceItemsPerPage && (
+          <div className="flex items-center justify-between">
+            <div className="text-sm text-muted-foreground">
+              Showing {startInvoiceIndex + 1} to {Math.min(endInvoiceIndex, filteredInvoices.length)} of {filteredInvoices.length} invoices
+            </div>
+            <div className="flex items-center space-x-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentInvoicePage(currentInvoicePage - 1)}
+                disabled={currentInvoicePage === 1}
+                className="h-8 px-3"
+              >
+                <ChevronLeft className="h-4 w-4" />
+                Previous
+              </Button>
+              <div className="flex items-center space-x-1">
+                {Array.from({ length: totalInvoicePages }, (_, i) => i + 1)
+                  .filter(page => {
+                    const distance = Math.abs(page - currentInvoicePage);
+                    return distance === 0 || distance === 1 || page === 1 || page === totalInvoicePages;
+                  })
+                  .map((page, index, array) => (
+                    <div key={page} className="flex items-center">
+                      {index > 0 && array[index - 1] !== page - 1 && (
+                        <span className="px-2 text-muted-foreground">...</span>
+                      )}
+                      <Button
+                        variant={currentInvoicePage === page ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => setCurrentInvoicePage(page)}
+                        className="h-8 w-8 p-0"
+                      >
+                        {page}
+                      </Button>
+                    </div>
+                  ))}
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentInvoicePage(currentInvoicePage + 1)}
+                disabled={currentInvoicePage === totalInvoicePages}
+                className="h-8 px-3"
+              >
+                Next
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Enhanced Search with Export for Purchase Orders */}
       <div className="flex items-center gap-4">
         <div className="relative flex-1 max-w-md">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
