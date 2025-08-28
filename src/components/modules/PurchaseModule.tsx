@@ -72,6 +72,7 @@ interface PurchaseInvoice {
 
 interface PurchaseInvoiceItem {
   id: string;
+  sku: string | null;
   product_id: string | null;
   item_code: string | null;
   item_description: string;
@@ -246,6 +247,7 @@ export function PurchaseModule() {
   const [invoiceItems, setInvoiceItems] = useState<PurchaseInvoiceItem[]>([
     {
       id: 'temp-1',
+      sku: null,
       product_id: null,
       item_code: '',
       item_description: '',
@@ -743,6 +745,7 @@ export function PurchaseModule() {
   const addInvoiceItem = () => {
     setInvoiceItems([...invoiceItems, {
       id: `temp-${Date.now()}`,
+      sku: null,
       product_id: null,
       item_code: '',
       item_description: '',
@@ -2866,27 +2869,17 @@ export function PurchaseModule() {
                       <Card key={item.id} className="p-4 bg-white/80 border-purple-200">
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                           <div>
-                            <Label className="text-purple-700">Product/Item *</Label>
-                            <Select 
-                              value={item.product_id || 'manual'}
-                              onValueChange={(value) => handleInvoiceItemChange(index, 'product_id', value)}
-                            >
-                              <SelectTrigger className="border-purple-200">
-                                <SelectValue placeholder="Select product or manual entry" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="manual">Manual Entry</SelectItem>
-                                {products.map((product) => (
-                                  <SelectItem key={product.id} value={product.id}>
-                                    {product.name} ({product.sku})
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
+                            <Label className="text-purple-700">SKU</Label>
+                            <Input
+                              value={item.sku || ''}
+                              onChange={(e) => handleInvoiceItemChange(index, 'sku', e.target.value)}
+                              placeholder="Enter SKU"
+                              className="border-purple-200"
+                            />
                           </div>
 
                           <div>
-                            <Label className="text-purple-700">Item Description *</Label>
+                            <Label className="text-purple-700">Description *</Label>
                             <Input
                               value={item.item_description}
                               onChange={(e) => handleInvoiceItemChange(index, 'item_description', e.target.value)}
@@ -2896,17 +2889,17 @@ export function PurchaseModule() {
                           </div>
 
                           <div>
-                            <Label className="text-purple-700">HSN/SAC Code</Label>
+                            <Label className="text-purple-700">HSN Code</Label>
                             <Input
                               value={item.hsn_sac_code || ''}
                               onChange={(e) => handleInvoiceItemChange(index, 'hsn_sac_code', e.target.value)}
-                              placeholder="HSN/SAC code"
+                              placeholder="HSN code"
                               className="border-purple-200"
                             />
                           </div>
 
                           <div>
-                            <Label className="text-purple-700">Unit of Measure</Label>
+                            <Label className="text-purple-700">Unit</Label>
                             <Select 
                               value={item.unit_of_measure}
                               onValueChange={(value) => handleInvoiceItemChange(index, 'unit_of_measure', value)}
@@ -3099,6 +3092,7 @@ export function PurchaseModule() {
                       setSelectedSupplier(null);
                       setInvoiceItems([{
                         id: 'temp-1',
+                        sku: null,
                         product_id: null,
                         item_code: '',
                         item_description: '',
