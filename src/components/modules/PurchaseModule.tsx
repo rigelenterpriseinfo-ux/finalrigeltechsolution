@@ -753,6 +753,15 @@ export function PurchaseModule() {
   const handleAddSupplier = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     
+    if (!profile?.company_id) {
+      toast({
+        title: "Error",
+        description: "Company information not found. Please refresh the page and try again.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
     try {
       const formData = new FormData(e.currentTarget);
       const supplierData = {
@@ -782,14 +791,16 @@ export function PurchaseModule() {
         dispatch_state: formData.get('dispatch_state') as string || null,
         dispatch_country: formData.get('dispatch_country') as string || null,
         dispatch_pin_code: formData.get('dispatch_pin_code') as string || null,
-        company_id: profile?.company_id,
+        company_id: profile.company_id,
       };
 
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('suppliers')
-        .insert([supplierData]);
+        .insert([supplierData])
+        .select();
 
       if (error) {
+        console.error('Supplier insert error:', error);
         toast({
           title: "Error",
           description: error.message,
@@ -804,12 +815,20 @@ export function PurchaseModule() {
       });
 
       setShowAddSupplierDialog(false);
-      fetchSuppliers();
-      e.currentTarget.reset();
+      await fetchSuppliers(); // Wait for suppliers to be fetched
+      
+      // Reset form safely
+      try {
+        e.currentTarget.reset();
+      } catch (formResetError) {
+        console.warn('Form reset error:', formResetError);
+      }
+      
     } catch (error: any) {
+      console.error('Unexpected error in handleAddSupplier:', error);
       toast({
         title: "Error",
-        description: "Failed to add supplier",
+        description: error.message || "Failed to add supplier",
         variant: "destructive",
       });
     }
