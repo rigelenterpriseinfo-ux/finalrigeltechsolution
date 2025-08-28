@@ -146,7 +146,7 @@ export const SalesModule = () => {
 
       const { data: profile } = await supabase
         .from('profiles')
-        .select('company_id')
+        .select('id, company_id')
         .eq('user_id', user.id)
         .single();
 
@@ -155,7 +155,7 @@ export const SalesModule = () => {
       const orderWithCompany = {
         ...orderData,
         company_id: profile.company_id,
-        created_by: user.id
+        created_by: profile.id
       };
 
       let salesOrderResult;
