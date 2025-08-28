@@ -248,43 +248,139 @@ export type Database = {
       }
       customers: {
         Row: {
+          account_number: string | null
+          account_type: string | null
           address: string | null
+          address_line1: string | null
+          address_line2: string | null
+          alternate_email: string | null
+          bank_name: string | null
+          billing_cycle: string | null
+          branch_name: string | null
+          business_registration_no: string | null
+          city: string | null
           company_id: string
           contact_person: string | null
+          country: string | null
           created_at: string
           credit_limit: number | null
+          customer_ref: string | null
+          customer_type: string | null
           email: string | null
+          gstin: string | null
           id: string
+          ifsc_code: string | null
           is_active: boolean
+          landline_number: string | null
+          msme_registration_no: string | null
           name: string
+          pan_number: string | null
+          payment_terms: string | null
           phone: string | null
+          pin_code: string | null
+          preferred_currency: string | null
+          same_as_registered_address: boolean | null
+          shipping_address_line1: string | null
+          shipping_address_line2: string | null
+          shipping_city: string | null
+          shipping_country: string | null
+          shipping_pin_code: string | null
+          shipping_state: string | null
+          state: string | null
+          swift_code: string | null
           updated_at: string
+          upi_id: string | null
+          website: string | null
         }
         Insert: {
+          account_number?: string | null
+          account_type?: string | null
           address?: string | null
+          address_line1?: string | null
+          address_line2?: string | null
+          alternate_email?: string | null
+          bank_name?: string | null
+          billing_cycle?: string | null
+          branch_name?: string | null
+          business_registration_no?: string | null
+          city?: string | null
           company_id: string
           contact_person?: string | null
+          country?: string | null
           created_at?: string
           credit_limit?: number | null
+          customer_ref?: string | null
+          customer_type?: string | null
           email?: string | null
+          gstin?: string | null
           id?: string
+          ifsc_code?: string | null
           is_active?: boolean
+          landline_number?: string | null
+          msme_registration_no?: string | null
           name: string
+          pan_number?: string | null
+          payment_terms?: string | null
           phone?: string | null
+          pin_code?: string | null
+          preferred_currency?: string | null
+          same_as_registered_address?: boolean | null
+          shipping_address_line1?: string | null
+          shipping_address_line2?: string | null
+          shipping_city?: string | null
+          shipping_country?: string | null
+          shipping_pin_code?: string | null
+          shipping_state?: string | null
+          state?: string | null
+          swift_code?: string | null
           updated_at?: string
+          upi_id?: string | null
+          website?: string | null
         }
         Update: {
+          account_number?: string | null
+          account_type?: string | null
           address?: string | null
+          address_line1?: string | null
+          address_line2?: string | null
+          alternate_email?: string | null
+          bank_name?: string | null
+          billing_cycle?: string | null
+          branch_name?: string | null
+          business_registration_no?: string | null
+          city?: string | null
           company_id?: string
           contact_person?: string | null
+          country?: string | null
           created_at?: string
           credit_limit?: number | null
+          customer_ref?: string | null
+          customer_type?: string | null
           email?: string | null
+          gstin?: string | null
           id?: string
+          ifsc_code?: string | null
           is_active?: boolean
+          landline_number?: string | null
+          msme_registration_no?: string | null
           name?: string
+          pan_number?: string | null
+          payment_terms?: string | null
           phone?: string | null
+          pin_code?: string | null
+          preferred_currency?: string | null
+          same_as_registered_address?: boolean | null
+          shipping_address_line1?: string | null
+          shipping_address_line2?: string | null
+          shipping_city?: string | null
+          shipping_country?: string | null
+          shipping_pin_code?: string | null
+          shipping_state?: string | null
+          state?: string | null
+          swift_code?: string | null
           updated_at?: string
+          upi_id?: string | null
+          website?: string | null
         }
         Relationships: [
           {
@@ -1312,6 +1408,10 @@ export type Database = {
       }
       generate_business_ref_no: {
         Args: { company_name: string }
+        Returns: string
+      }
+      generate_customer_ref: {
+        Args: { customer_name: string }
         Returns: string
       }
       generate_gated_business_ref_no: {
