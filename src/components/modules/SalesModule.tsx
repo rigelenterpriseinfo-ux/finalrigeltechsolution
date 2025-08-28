@@ -874,259 +874,263 @@ export function SalesModule() {
 
                     <Separator />
 
-                    {/* Order Line Items */}
-                    <div className="space-y-6">
-                      <div className="flex items-center justify-between mb-4">
-                        <div>
-                          <h3 className="text-lg font-semibold text-foreground">3. Order Line Items</h3>
-                          <p className="text-sm text-muted-foreground">Add products to your sales order</p>
-                        </div>
-                        <Button type="button" onClick={addLineItem} variant="outline" size="sm" className="shadow-sm">
-                          <Plus className="h-4 w-4 mr-2" />
-                          Add Item
-                        </Button>
-                      </div>
-                      
-                      {orderItems.length > 0 && (
-                        <div className="space-y-6">
-                          <div className="bg-card border border-border rounded-xl shadow-sm overflow-hidden">
-                            <div className="bg-muted/30 px-6 py-4 border-b border-border">
-                              <div className="grid grid-cols-12 gap-4 text-sm font-medium text-muted-foreground uppercase tracking-wide">
-                                <div className="col-span-2">SKU</div>
-                                <div className="col-span-3">Name</div>
-                                <div className="col-span-1">HSN/SAC</div>
-                                <div className="col-span-1">Qty</div>
-                                <div className="col-span-1">UOM</div>
-                                <div className="col-span-1">Price</div>
-                                <div className="col-span-1">Disc %</div>
-                                <div className="col-span-1">Tax %</div>
-                                <div className="col-span-1">Total</div>
-                              </div>
-                            </div>
-                            <div className="divide-y divide-border">
-                              {orderItems.map((item, index) => (
-                                <div key={index} className="p-6 hover:bg-muted/20 transition-colors">
-                                  <div className="grid grid-cols-12 gap-4 items-start">
-                                    {/* SKU Field */}
-                                    <div className="col-span-2">
-                                      <Input
-                                        value={item.product_id ? (products.find(p => p.id === item.product_id)?.sku || '') : ''}
-                                        readOnly
-                                        placeholder="SKU"
-                                        className="h-9 text-xs bg-muted/50"
-                                      />
-                                    </div>
+                     {/* Order Line Items */}
+                     <div className="space-y-6">
+                       <div className="flex items-center justify-between mb-4">
+                         <div>
+                           <h3 className="text-lg font-semibold text-foreground">3. Order Line Items</h3>
+                           <p className="text-sm text-muted-foreground">Add products to your sales order</p>
+                         </div>
+                         <Button type="button" onClick={addLineItem} variant="outline" size="sm" className="shadow-sm">
+                           <Plus className="h-4 w-4 mr-2" />
+                           Add Item
+                         </Button>
+                       </div>
+                       
+                       {orderItems.length > 0 && (
+                         <div className="space-y-6">
+                           <div className="bg-card border border-border rounded-xl shadow-sm overflow-hidden">
+                             {/* Table Header */}
+                             <div className="bg-muted/30 px-6 py-4 border-b border-border">
+                               <div className="grid grid-cols-12 gap-4 text-sm font-medium text-muted-foreground uppercase tracking-wide">
+                                 <div className="col-span-2">SKU</div>
+                                 <div className="col-span-2">Name</div>
+                                 <div className="col-span-1">HSN/SAC</div>
+                                 <div className="col-span-1">Qty</div>
+                                 <div className="col-span-1">UOM</div>
+                                 <div className="col-span-1">Price</div>
+                                 <div className="col-span-1">Disc %</div>
+                                 <div className="col-span-1">Tax %</div>
+                                 <div className="col-span-1">Total</div>
+                                 <div className="col-span-1">Action</div>
+                               </div>
+                             </div>
+                             
+                             {/* Table Body */}
+                             <div className="divide-y divide-border">
+                               {orderItems.map((item, index) => (
+                                 <div key={index} className="p-6 hover:bg-muted/20 transition-colors">
+                                   <div className="grid grid-cols-12 gap-4 items-center">
+                                     
+                                     {/* SKU Selection - Main Product Selector */}
+                                     <div className="col-span-2">
+                                       <Select
+                                         value={item.product_id || ''}
+                                         onValueChange={(value) => handleProductSelection(index, value)}
+                                       >
+                                         <SelectTrigger className="h-10 bg-background border-input">
+                                           <span className="truncate text-sm">
+                                             {item.product_id 
+                                               ? (products.find(p => p.id === item.product_id)?.sku || 'Select SKU') 
+                                               : 'Select SKU'
+                                             }
+                                           </span>
+                                         </SelectTrigger>
+                                         <SelectContent className="max-h-60 z-[100] bg-popover border shadow-lg">
+                                           <div className="p-2 border-b border-border">
+                                             <Input
+                                               placeholder="Search by SKU..."
+                                               className="h-8 text-xs"
+                                               value={productSearchTerms[index] || ''}
+                                               onChange={(e) => {
+                                                 setProductSearchTerms(prev => ({
+                                                   ...prev,
+                                                   [index]: e.target.value
+                                                 }));
+                                               }}
+                                             />
+                                           </div>
+                                           <div className="max-h-48 overflow-y-auto">
+                                             {products
+                                               .filter(product => {
+                                                 const term = (productSearchTerms[index] || '').toLowerCase();
+                                                 return term === '' ||
+                                                        product.sku.toLowerCase().includes(term) ||
+                                                        product.name.toLowerCase().includes(term);
+                                               })
+                                               .map((product) => (
+                                                 <SelectItem key={product.id} value={product.id} className="text-sm">
+                                                   <div className="flex flex-col">
+                                                     <span className="font-medium">{product.sku}</span>
+                                                     <span className="text-xs text-muted-foreground">{product.name}</span>
+                                                   </div>
+                                                 </SelectItem>
+                                               ))}
+                                           </div>
+                                         </SelectContent>
+                                       </Select>
+                                     </div>
 
-                                    {/* Name Selection */}
-                                    <div className="col-span-3">
-                                      <Select
-                                        value={item.product_id || ''}
-                                        onValueChange={(value) => handleProductSelection(index, value)}
-                                      >
-                                        <SelectTrigger className="h-9 bg-background border-input">
-                                          <span className="truncate text-sm">
-                                            {item.product_id ? (products.find(p => p.id === item.product_id)?.name || 'Select Item') : 'Search by name'}
-                                          </span>
-                                        </SelectTrigger>
-                                        <SelectContent className="max-h-60 z-[100] bg-popover border shadow-lg">
-                                          <div className="p-2 border-b border-border">
-                                            <Input
-                                              placeholder="Search item name..."
-                                              className="h-8 text-xs"
-                                              value={productSearchTerms[index] || ''}
-                                              onChange={(e) => {
-                                                setProductSearchTerms(prev => ({
-                                                  ...prev,
-                                                  [index]: e.target.value
-                                                }));
-                                              }}
-                                            />
-                                          </div>
-                                          <div className="max-h-48 overflow-y-auto">
-                                            {products
-                                              .filter(product => {
-                                                const term = (productSearchTerms[index] || '').toLowerCase();
-                                                return term === '' ||
-                                                       product.name.toLowerCase().includes(term);
-                                              })
-                                              .map((product) => (
-                                              <SelectItem key={product.id} value={product.id} className="text-sm">
-                                                <span className="font-medium">{product.name}</span>
-                                              </SelectItem>
-                                            ))}
-                                          </div>
-                                        </SelectContent>
-                                      </Select>
-                                    </div>
+                                     {/* Product Name - Display Only */}
+                                     <div className="col-span-2">
+                                       <Input
+                                         value={item.product_id ? (products.find(p => p.id === item.product_id)?.name || '') : ''}
+                                         readOnly
+                                         placeholder="Product Name"
+                                         className="h-10 text-sm bg-muted/50 cursor-not-allowed"
+                                       />
+                                     </div>
 
-                                    {/* HSN/SAC Code */}
-                                    <div className="col-span-1">
-                                      <Label className="text-xs font-medium text-muted-foreground mb-2 block">HSN/SAC</Label>
-                                      <Input
-                                        value={item.hsn_sac_code}
-                                        onChange={(e) => updateLineItem(index, 'hsn_sac_code', e.target.value)}
-                                        placeholder="HSN"
-                                        className="h-9 text-xs bg-background"
-                                      />
-                                    </div>
+                                     {/* HSN/SAC Code */}
+                                     <div className="col-span-1">
+                                       <Input
+                                         value={item.hsn_sac_code}
+                                         onChange={(e) => updateLineItem(index, 'hsn_sac_code', e.target.value)}
+                                         placeholder="HSN"
+                                         className="h-10 text-sm bg-background"
+                                       />
+                                     </div>
 
-                                    {/* Quantity */}
-                                    <div className="col-span-1">
-                                      <Label className="text-xs font-medium text-muted-foreground mb-2 block">Qty</Label>
-                                      <Input
-                                        type="number"
-                                        value={item.quantity}
-                                        onChange={(e) => updateLineItem(index, 'quantity', parseInt(e.target.value) || 0)}
-                                        className="h-9 text-xs bg-background"
-                                        min="1"
-                                      />
-                                    </div>
+                                     {/* Quantity */}
+                                     <div className="col-span-1">
+                                       <Input
+                                         type="number"
+                                         value={item.quantity}
+                                         onChange={(e) => updateLineItem(index, 'quantity', parseInt(e.target.value) || 0)}
+                                         className="h-10 text-sm bg-background"
+                                         min="1"
+                                       />
+                                     </div>
 
-                                    {/* Unit of Measure */}
-                                    <div className="col-span-1">
-                                      <Label className="text-xs font-medium text-muted-foreground mb-2 block">UOM</Label>
-                                      <Select
-                                        value={item.unit_of_measure}
-                                        onValueChange={(value) => updateLineItem(index, 'unit_of_measure', value)}
-                                      >
-                                        <SelectTrigger className="h-9 bg-background">
-                                          <SelectValue />
-                                        </SelectTrigger>
-                                        <SelectContent className="z-[100]">
-                                          <SelectItem value="pcs">Pcs</SelectItem>
-                                          <SelectItem value="kg">Kg</SelectItem>
-                                          <SelectItem value="liter">Liter</SelectItem>
-                                          <SelectItem value="meter">Meter</SelectItem>
-                                          <SelectItem value="box">Box</SelectItem>
-                                        </SelectContent>
-                                      </Select>
-                                    </div>
+                                     {/* Unit of Measure */}
+                                     <div className="col-span-1">
+                                       <Select
+                                         value={item.unit_of_measure}
+                                         onValueChange={(value) => updateLineItem(index, 'unit_of_measure', value)}
+                                       >
+                                         <SelectTrigger className="h-10 bg-background">
+                                           <SelectValue />
+                                         </SelectTrigger>
+                                         <SelectContent className="z-[100]">
+                                           <SelectItem value="pcs">Pcs</SelectItem>
+                                           <SelectItem value="kg">Kg</SelectItem>
+                                           <SelectItem value="liter">Liter</SelectItem>
+                                           <SelectItem value="meter">Meter</SelectItem>
+                                           <SelectItem value="box">Box</SelectItem>
+                                         </SelectContent>
+                                       </Select>
+                                     </div>
 
-                                    {/* Unit Price */}
-                                    <div className="col-span-1">
-                                      <Label className="text-xs font-medium text-muted-foreground mb-2 block">Price</Label>
-                                      <Input
-                                        type="number"
-                                        value={item.unit_price}
-                                        onChange={(e) => updateLineItem(index, 'unit_price', parseFloat(e.target.value) || 0)}
-                                        className="h-9 text-xs bg-background"
-                                        step="0.01"
-                                      />
-                                    </div>
+                                     {/* Unit Price */}
+                                     <div className="col-span-1">
+                                       <Input
+                                         type="number"
+                                         value={item.unit_price}
+                                         onChange={(e) => updateLineItem(index, 'unit_price', parseFloat(e.target.value) || 0)}
+                                         className="h-10 text-sm bg-background"
+                                         step="0.01"
+                                       />
+                                     </div>
 
-                                    {/* Discount Percentage */}
-                                    <div className="col-span-1">
-                                      <Label className="text-xs font-medium text-muted-foreground mb-2 block">Disc %</Label>
-                                      <Input
-                                        type="number"
-                                        value={item.discount_percentage}
-                                        onChange={(e) => updateLineItem(index, 'discount_percentage', parseFloat(e.target.value) || 0)}
-                                        className="h-9 text-xs bg-background"
-                                        min="0"
-                                        max="100"
-                                        step="0.01"
-                                      />
-                                    </div>
+                                     {/* Discount Percentage */}
+                                     <div className="col-span-1">
+                                       <Input
+                                         type="number"
+                                         value={item.discount_percentage}
+                                         onChange={(e) => updateLineItem(index, 'discount_percentage', parseFloat(e.target.value) || 0)}
+                                         className="h-10 text-sm bg-background"
+                                         min="0"
+                                         max="100"
+                                         step="0.01"
+                                       />
+                                     </div>
 
-                                    {/* Tax Percentage */}
-                                    <div className="col-span-1">
-                                      <Label className="text-xs font-medium text-muted-foreground mb-2 block">Tax %</Label>
-                                      <Input
-                                        type="number"
-                                        value={item.tax_percentage}
-                                        onChange={(e) => {
-                                          const newTaxRate = parseFloat(e.target.value) || 0;
-                                          updateLineItem(index, 'tax_percentage', newTaxRate);
-                                          updateLineItem(index, 'cgst_rate', newTaxRate / 2);
-                                          updateLineItem(index, 'sgst_rate', newTaxRate / 2);
-                                          updateLineItem(index, 'igst_rate', 0);
-                                        }}
-                                        className="h-9 text-xs bg-background"
-                                        step="0.01"
-                                      />
-                                    </div>
+                                     {/* Tax Percentage */}
+                                     <div className="col-span-1">
+                                       <Input
+                                         type="number"
+                                         value={item.tax_percentage}
+                                         onChange={(e) => {
+                                           const newTaxRate = parseFloat(e.target.value) || 0;
+                                           updateLineItem(index, 'tax_percentage', newTaxRate);
+                                           updateLineItem(index, 'cgst_rate', newTaxRate / 2);
+                                           updateLineItem(index, 'sgst_rate', newTaxRate / 2);
+                                           updateLineItem(index, 'igst_rate', 0);
+                                         }}
+                                         className="h-10 text-sm bg-background"
+                                         step="0.01"
+                                       />
+                                     </div>
 
-                                    {/* Line Total */}
-                                    <div className="col-span-1">
-                                      <Label className="text-xs font-medium text-muted-foreground mb-2 block">Total</Label>
-                                      <div className="h-9 px-3 py-2 bg-muted/50 border border-input rounded-md flex items-center">
-                                        <span className="text-xs font-medium">₹{item.line_total.toFixed(2)}</span>
-                                      </div>
-                                    </div>
-                                  </div>
+                                     {/* Line Total */}
+                                     <div className="col-span-1">
+                                       <div className="h-10 px-3 py-2 bg-muted/50 border border-input rounded-md flex items-center">
+                                         <span className="text-sm font-medium">₹{item.line_total.toFixed(2)}</span>
+                                       </div>
+                                     </div>
 
-                                  {/* Remove Item Button */}
-                                  <div className="flex justify-end mt-4">
-                                    <Button
-                                      type="button"
-                                      variant="ghost"
-                                      size="sm"
-                                      onClick={() => removeLineItem(index)}
-                                      className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                                    >
-                                      <Trash2 className="h-4 w-4 mr-1" />
-                                      Remove
-                                    </Button>
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
+                                     {/* Remove Button */}
+                                     <div className="col-span-1">
+                                       <Button
+                                         type="button"
+                                         variant="ghost"
+                                         size="sm"
+                                         onClick={() => removeLineItem(index)}
+                                         className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                                       >
+                                         <Trash2 className="h-4 w-4" />
+                                       </Button>
+                                     </div>
+                                   </div>
+                                 </div>
+                               ))}
+                             </div>
+                           </div>
 
-                          {/* Tax Breakdown and Totals */}
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div className="bg-muted/50 p-4 rounded-lg">
-                              <h4 className="font-medium mb-3">Tax Breakdown</h4>
-                              <div className="space-y-2 text-sm">
-                                {orderItems.map((item, index) => (
-                                  item.line_total > 0 && (
-                                    <div key={index} className="border-b pb-2">
-                                      <p className="font-medium">{item.item_description || `Item ${index + 1}`}</p>
-                                      <div className="grid grid-cols-3 gap-2 text-xs text-muted-foreground">
-                                        <div>CGST ({item.cgst_rate}%): ₹{item.cgst_amount.toFixed(2)}</div>
-                                        <div>SGST ({item.sgst_rate}%): ₹{item.sgst_amount.toFixed(2)}</div>
-                                        <div>IGST ({item.igst_rate}%): ₹{item.igst_amount.toFixed(2)}</div>
-                                      </div>
-                                    </div>
-                                  )
-                                ))}
-                              </div>
-                            </div>
-                            
-                            <div className="bg-primary/5 p-4 rounded-lg">
-                              <h4 className="font-medium mb-3">Order Summary</h4>
-                              <div className="space-y-2">
-                                <div className="flex justify-between">
-                                  <span>Subtotal:</span>
-                                  <span>₹{calculateOrderTotals().subtotal.toFixed(2)}</span>
-                                </div>
-                                <div className="flex justify-between">
-                                  <span>Discount:</span>
-                                  <span>-₹{calculateOrderTotals().totalDiscount.toFixed(2)}</span>
-                                </div>
-                                <div className="flex justify-between">
-                                  <span>Tax:</span>
-                                  <span>₹{calculateOrderTotals().totalTax.toFixed(2)}</span>
-                                </div>
-                                <Separator />
-                                <div className="flex justify-between font-bold text-lg">
-                                  <span>Total:</span>
-                                  <span>₹{calculateOrderTotals().total.toFixed(2)}</span>
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      )}
+                           {/* Tax Breakdown and Totals */}
+                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                             <div className="bg-muted/50 p-4 rounded-lg">
+                               <h4 className="font-medium mb-3">Tax Breakdown</h4>
+                               <div className="space-y-2 text-sm">
+                                 {orderItems.map((item, index) => (
+                                   item.line_total > 0 && (
+                                     <div key={index} className="border-b pb-2">
+                                       <p className="font-medium">{item.product_id ? products.find(p => p.id === item.product_id)?.name || `Item ${index + 1}` : `Item ${index + 1}`}</p>
+                                       <div className="grid grid-cols-3 gap-2 text-xs text-muted-foreground">
+                                         <div>CGST ({item.cgst_rate}%): ₹{item.cgst_amount.toFixed(2)}</div>
+                                         <div>SGST ({item.sgst_rate}%): ₹{item.sgst_amount.toFixed(2)}</div>
+                                         <div>IGST ({item.igst_rate}%): ₹{item.igst_amount.toFixed(2)}</div>
+                                       </div>
+                                     </div>
+                                   )
+                                 ))}
+                               </div>
+                             </div>
+                             
+                             <div className="bg-primary/5 p-4 rounded-lg">
+                               <h4 className="font-medium mb-3">Order Summary</h4>
+                               <div className="space-y-2">
+                                 <div className="flex justify-between">
+                                   <span>Subtotal:</span>
+                                   <span>₹{calculateOrderTotals().subtotal.toFixed(2)}</span>
+                                 </div>
+                                 <div className="flex justify-between">
+                                   <span>Discount:</span>
+                                   <span>-₹{calculateOrderTotals().totalDiscount.toFixed(2)}</span>
+                                 </div>
+                                 <div className="flex justify-between">
+                                   <span>Tax:</span>
+                                   <span>₹{calculateOrderTotals().totalTax.toFixed(2)}</span>
+                                 </div>
+                                 <Separator />
+                                 <div className="flex justify-between font-bold text-lg">
+                                   <span>Total:</span>
+                                   <span>₹{calculateOrderTotals().total.toFixed(2)}</span>
+                                 </div>
+                               </div>
+                             </div>
+                           </div>
+                         </div>
+                       )}
 
-                      {orderItems.length === 0 && (
-                        <div className="text-center py-8 text-muted-foreground">
-                          <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                          <p>No line items added yet</p>
-                          <p className="text-sm">Click "Add Item" to start adding products to this order</p>
-                        </div>
-                      )}
-                    </div>
+                       {orderItems.length === 0 && (
+                         <div className="text-center py-8 text-muted-foreground">
+                           <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                           <p>No line items added yet</p>
+                           <p className="text-sm">Click "Add Item" to start adding products to this order</p>
+                         </div>
+                       )}
+                     </div>
 
                     <Separator />
 
