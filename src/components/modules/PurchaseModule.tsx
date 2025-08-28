@@ -1396,14 +1396,23 @@ export function PurchaseModule() {
             </TableHeader>
             <TableBody>
               {filteredPOs.map((po) => {
-                // Calculate total quantity from all items
-                const totalQuantity = po.purchase_order_items?.reduce((sum, item) => sum + (item.quantity || 0), 0) || 0;
+                // Force recalculation and debugging
+                const items = po.purchase_order_items || [];
                 
-                // Get item descriptions (first 3 items)
-                const itemDescriptions = po.purchase_order_items?.slice(0, 3).map(item => item.item_description).filter(Boolean) || [];
-                const itemDescDisplay = itemDescriptions.length > 0 
-                  ? itemDescriptions.join(', ') + (po.purchase_order_items && po.purchase_order_items.length > 3 ? '...' : '')
-                  : 'No items';
+                // Calculate total quantity - ensure we have valid numbers
+                const totalQuantity = items.reduce((sum, item) => {
+                  const qty = Number(item.quantity) || 0;
+                  return sum + qty;
+                }, 0);
+                
+                // Get item descriptions - ensure we have valid strings
+                const validDescriptions = items
+                  .map(item => item.item_description)
+                  .filter(desc => desc && desc.trim().length > 0);
+                
+                const itemDescDisplay = validDescriptions.length > 0 
+                  ? validDescriptions.slice(0, 3).join(', ') + (validDescriptions.length > 3 ? ' + more...' : '')
+                  : 'No items found';
 
                 return (
                   <TableRow key={po.id} className="hover:bg-muted/30 transition-colors">
@@ -1411,7 +1420,7 @@ export function PurchaseModule() {
                     <TableCell>{po.supplier.name}</TableCell>
                     <TableCell className="font-medium text-center">
                       <Badge variant="outline" className="font-mono">
-                        {totalQuantity.toFixed(0)}
+                        {totalQuantity}
                       </Badge>
                     </TableCell>
                     <TableCell className="max-w-xs">
