@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -16,7 +16,7 @@ import { Separator } from '@/components/ui/separator';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Search, ShoppingCart, Truck, Edit, Trash2, Eye, Calendar, Package, FileDown, MapPin, Save, X } from 'lucide-react';
+import { Plus, Search, ShoppingCart, Truck, Edit, Trash2, Eye, Calendar, Package, FileDown, MapPin, Save, X, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
 
 interface PurchaseOrder {
   id: string;
@@ -142,6 +142,10 @@ export function PurchaseModule() {
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [sortConfig, setSortConfig] = useState<{
+    key: string;
+    direction: 'asc' | 'desc';
+  } | null>(null);
   const [showAddPODialog, setShowAddPODialog] = useState(false);
   const [showAddSupplierDialog, setShowAddSupplierDialog] = useState(false);
   const [showEditSupplierDialog, setShowEditSupplierDialog] = useState(false);
@@ -197,6 +201,15 @@ export function PurchaseModule() {
     fetchCompanyData();
     fetchPurchaseOrderItems();
   }, []);
+
+  // Sort function
+  const handleSort = (key: string) => {
+    let direction: 'asc' | 'desc' = 'asc';
+    if (sortConfig && sortConfig.key === key && sortConfig.direction === 'asc') {
+      direction = 'desc';
+    }
+    setSortConfig({ key, direction });
+  };
 
   const fetchPurchaseOrders = async () => {
     try {
@@ -908,24 +921,79 @@ export function PurchaseModule() {
     }
   };
 
-  const filteredPOs = purchaseOrders.filter(po => {
-    const searchLower = searchTerm.toLowerCase();
-    
-    // Search in basic PO fields
-    const basicMatch = po.po_number.toLowerCase().includes(searchLower) ||
-                      po.supplier.name.toLowerCase().includes(searchLower) ||
-                      (po.external_po_ref && po.external_po_ref.toLowerCase().includes(searchLower));
-    
-    // Search in purchase order items
-    const poItems = purchaseOrderItems.filter(item => item.purchase_order_id === po.id);
-    const itemsMatch = poItems.some(item => (
-      (item.item_description && item.item_description.toLowerCase().includes(searchLower)) ||
-      (item.item_code && item.item_code.toLowerCase().includes(searchLower)) ||
-      (item.hsn_sac_code && item.hsn_sac_code.toLowerCase().includes(searchLower))
-    ));
-    
-    return basicMatch || itemsMatch;
-  });
+  const filteredPOs = useMemo(() => {
+    let filtered = purchaseOrders.filter(po => {
+      const searchLower = searchTerm.toLowerCase();
+      
+      // Search in basic PO fields
+      const basicMatch = po.po_number.toLowerCase().includes(searchLower) ||
+                        po.supplier.name.toLowerCase().includes(searchLower) ||
+                        (po.external_po_ref && po.external_po_ref.toLowerCase().includes(searchLower));
+      
+      // Search in purchase order items
+      const poItems = purchaseOrderItems.filter(item => item.purchase_order_id === po.id);
+      const itemsMatch = poItems.some(item => (
+        (item.item_description && item.item_description.toLowerCase().includes(searchLower)) ||
+        (item.item_code && item.item_code.toLowerCase().includes(searchLower)) ||
+        (item.hsn_sac_code && item.hsn_sac_code.toLowerCase().includes(searchLower))
+      ));
+      
+      return basicMatch || itemsMatch;
+    });
+
+    // Apply sorting
+    if (sortConfig) {
+      filtered.sort((a, b) => {
+        let aValue: any;
+        let bValue: any;
+
+        switch (sortConfig.key) {
+          case 'po_number':
+            aValue = a.po_number;
+            bValue = b.po_number;
+            break;
+          case 'supplier':
+            aValue = a.supplier?.name || '';
+            bValue = b.supplier?.name || '';
+            break;
+          case 'order_date':
+            aValue = new Date(a.order_date);
+            bValue = new Date(b.order_date);
+            break;
+          case 'expected_date':
+            aValue = a.expected_date ? new Date(a.expected_date) : new Date(0);
+            bValue = b.expected_date ? new Date(b.expected_date) : new Date(0);
+            break;
+          case 'total_amount':
+            aValue = a.total_amount;
+            bValue = b.total_amount;
+            break;
+          case 'status':
+            aValue = a.status;
+            bValue = b.status;
+            break;
+          case 'quantity':
+            const aItems = purchaseOrderItems.filter(it => it.purchase_order_id === a.id);
+            const bItems = purchaseOrderItems.filter(it => it.purchase_order_id === b.id);
+            aValue = aItems.reduce((sum, item) => sum + (Number(item.quantity) || 0), 0);
+            bValue = bItems.reduce((sum, item) => sum + (Number(item.quantity) || 0), 0);
+            break;
+          default:
+            return 0;
+        }
+
+        if (aValue < bValue) {
+          return sortConfig.direction === 'asc' ? -1 : 1;
+        }
+        if (aValue > bValue) {
+          return sortConfig.direction === 'asc' ? 1 : -1;
+        }
+        return 0;
+      });
+    }
+
+    return filtered;
+  }, [purchaseOrders, purchaseOrderItems, searchTerm, sortConfig]);
 
   // Export to Excel function
   const exportToExcel = () => {
@@ -2396,14 +2464,140 @@ export function PurchaseModule() {
           <Table>
             <TableHeader>
               <TableRow className="bg-muted/50">
-                <TableHead className="font-semibold">PO Number</TableHead>
-                <TableHead className="font-semibold">Supplier</TableHead>
-                <TableHead className="font-semibold">quantity</TableHead>
-                <TableHead className="font-semibold">item_description</TableHead>
-                <TableHead className="font-semibold">Order Date</TableHead>
-                <TableHead className="font-semibold">Expected Date</TableHead>
-                <TableHead className="font-semibold">Total Amount</TableHead>
-                <TableHead className="font-semibold">Status</TableHead>
+                <TableHead className="font-semibold">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-auto p-0 font-semibold hover:bg-transparent"
+                    onClick={() => handleSort('po_number')}
+                  >
+                    PO Number
+                    {sortConfig?.key === 'po_number' ? (
+                      sortConfig.direction === 'asc' ? (
+                        <ArrowUp className="ml-1 h-3 w-3" />
+                      ) : (
+                        <ArrowDown className="ml-1 h-3 w-3" />
+                      )
+                    ) : (
+                      <ArrowUpDown className="ml-1 h-3 w-3 opacity-50" />
+                    )}
+                  </Button>
+                </TableHead>
+                <TableHead className="font-semibold">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-auto p-0 font-semibold hover:bg-transparent"
+                    onClick={() => handleSort('supplier')}
+                  >
+                    Supplier
+                    {sortConfig?.key === 'supplier' ? (
+                      sortConfig.direction === 'asc' ? (
+                        <ArrowUp className="ml-1 h-3 w-3" />
+                      ) : (
+                        <ArrowDown className="ml-1 h-3 w-3" />
+                      )
+                    ) : (
+                      <ArrowUpDown className="ml-1 h-3 w-3 opacity-50" />
+                    )}
+                  </Button>
+                </TableHead>
+                <TableHead className="font-semibold">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-auto p-0 font-semibold hover:bg-transparent"
+                    onClick={() => handleSort('quantity')}
+                  >
+                    Quantity
+                    {sortConfig?.key === 'quantity' ? (
+                      sortConfig.direction === 'asc' ? (
+                        <ArrowUp className="ml-1 h-3 w-3" />
+                      ) : (
+                        <ArrowDown className="ml-1 h-3 w-3" />
+                      )
+                    ) : (
+                      <ArrowUpDown className="ml-1 h-3 w-3 opacity-50" />
+                    )}
+                  </Button>
+                </TableHead>
+                <TableHead className="font-semibold">Item Description</TableHead>
+                <TableHead className="font-semibold">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-auto p-0 font-semibold hover:bg-transparent"
+                    onClick={() => handleSort('order_date')}
+                  >
+                    Order Date
+                    {sortConfig?.key === 'order_date' ? (
+                      sortConfig.direction === 'asc' ? (
+                        <ArrowUp className="ml-1 h-3 w-3" />
+                      ) : (
+                        <ArrowDown className="ml-1 h-3 w-3" />
+                      )
+                    ) : (
+                      <ArrowUpDown className="ml-1 h-3 w-3 opacity-50" />
+                    )}
+                  </Button>
+                </TableHead>
+                <TableHead className="font-semibold">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-auto p-0 font-semibold hover:bg-transparent"
+                    onClick={() => handleSort('expected_date')}
+                  >
+                    Expected Date
+                    {sortConfig?.key === 'expected_date' ? (
+                      sortConfig.direction === 'asc' ? (
+                        <ArrowUp className="ml-1 h-3 w-3" />
+                      ) : (
+                        <ArrowDown className="ml-1 h-3 w-3" />
+                      )
+                    ) : (
+                      <ArrowUpDown className="ml-1 h-3 w-3 opacity-50" />
+                    )}
+                  </Button>
+                </TableHead>
+                <TableHead className="font-semibold">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-auto p-0 font-semibold hover:bg-transparent"
+                    onClick={() => handleSort('total_amount')}
+                  >
+                    Total Amount
+                    {sortConfig?.key === 'total_amount' ? (
+                      sortConfig.direction === 'asc' ? (
+                        <ArrowUp className="ml-1 h-3 w-3" />
+                      ) : (
+                        <ArrowDown className="ml-1 h-3 w-3" />
+                      )
+                    ) : (
+                      <ArrowUpDown className="ml-1 h-3 w-3 opacity-50" />
+                    )}
+                  </Button>
+                </TableHead>
+                <TableHead className="font-semibold">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-auto p-0 font-semibold hover:bg-transparent"
+                    onClick={() => handleSort('status')}
+                  >
+                    Status
+                    {sortConfig?.key === 'status' ? (
+                      sortConfig.direction === 'asc' ? (
+                        <ArrowUp className="ml-1 h-3 w-3" />
+                      ) : (
+                        <ArrowDown className="ml-1 h-3 w-3" />
+                      )
+                    ) : (
+                      <ArrowUpDown className="ml-1 h-3 w-3 opacity-50" />
+                    )}
+                  </Button>
+                </TableHead>
                 <TableHead className="font-semibold text-center">Actions</TableHead>
               </TableRow>
             </TableHeader>
