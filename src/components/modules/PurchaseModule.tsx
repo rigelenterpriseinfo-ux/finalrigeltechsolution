@@ -361,7 +361,6 @@ export function PurchaseModule() {
         .from('purchase_invoices')
         .select(`
           *,
-          supplier:suppliers(id, name, email, supplier_ref),
           purchase_invoice_items(
             id,
             item_description,
@@ -1305,10 +1304,19 @@ export function PurchaseModule() {
   const endPOIndex = startPOIndex + itemsPerPage;
   const currentPOs = filteredPOs.slice(startPOIndex, endPOIndex);
 
+  // Map of supplier id to name for quick lookup
+  const supplierNameById = useMemo(() => {
+    const map: Record<string, string> = {};
+    suppliers.forEach((s) => {
+      if (s.id) map[s.id] = s.name;
+    });
+    return map;
+  }, [suppliers]);
+
   // Purchase Invoices Filtering and Sorting
   const filteredInvoices = useMemo(() => {
     let filtered = purchaseInvoices.filter(invoice => {
-      const supplierName = invoice.supplier?.name?.toLowerCase() || '';
+      const supplierName = supplierNameById[invoice.supplier_id]?.toLowerCase() || '';
       const invoiceNumber = invoice.purchase_invoice_number?.toLowerCase() || '';
       const items = invoice.purchase_invoice_items || [];
       const itemDescriptions = items.map(item => item.item_description?.toLowerCase() || '').join(' ');
@@ -1334,8 +1342,8 @@ export function PurchaseModule() {
             bValue = b.purchase_invoice_number || '';
             break;
           case 'supplier':
-            aValue = a.supplier?.name || '';
-            bValue = b.supplier?.name || '';
+            aValue = supplierNameById[a.supplier_id] || '';
+            bValue = supplierNameById[b.supplier_id] || '';
             break;
           case 'date':
             aValue = a.purchase_invoice_date || '';
@@ -1358,7 +1366,7 @@ export function PurchaseModule() {
     }
 
     return filtered;
-  }, [purchaseInvoices, invoiceSearchTerm, invoiceSortConfig]);
+  }, [purchaseInvoices, invoiceSearchTerm, invoiceSortConfig, supplierNameById]);
 
   // Reset to first page when search or sort changes for Purchase Invoices
   useEffect(() => {
@@ -3439,7 +3447,7 @@ export function PurchaseModule() {
                     return (
                       <TableRow key={invoice.id} className="hover:bg-muted/30 transition-colors">
                         <TableCell className="font-medium">{invoice.purchase_invoice_number}</TableCell>
-                        <TableCell>{invoice.supplier?.name || 'Unknown'}</TableCell>
+                        <TableCell>{supplierNameById[invoice.supplier_id] || 'Unknown'}</TableCell>
                         <TableCell>{new Date(invoice.purchase_invoice_date).toLocaleDateString()}</TableCell>
                         <TableCell className="max-w-xs">
                           <div className="truncate" title={itemDescDisplay}>
