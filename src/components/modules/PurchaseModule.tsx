@@ -903,339 +903,429 @@ export function PurchaseModule() {
         return;
       }
       
-      // Colors and styling
-      const primaryColor = [34, 139, 34] as [number, number, number]; // Forest Green
-      const secondaryColor = [70, 130, 180] as [number, number, number]; // Steel Blue
-      const textColor = [33, 37, 41] as [number, number, number]; // Dark gray
-      const lightGray = [248, 249, 250] as [number, number, number]; // Light background
+      console.log('Fetched items for PO:', items); // Debug log
+      console.log('PO data:', po); // Debug log
       
-      // Add border around the entire document
-      doc.setDrawColor(200, 200, 200);
-      doc.setLineWidth(0.5);
-      doc.rect(10, 10, 190, 277);
+      // Professional color scheme
+      const brandPrimary = [41, 128, 185] as [number, number, number]; // Professional Blue
+      const brandSecondary = [52, 152, 219] as [number, number, number]; // Light Blue  
+      const accentGreen = [39, 174, 96] as [number, number, number]; // Success Green
+      const darkText = [44, 62, 80] as [number, number, number]; // Dark Blue-Gray
+      const lightBg = [236, 240, 241] as [number, number, number]; // Light Gray
+      const warningOrange = [230, 126, 34] as [number, number, number]; // Orange
       
-      // Header Section with Company Logo Area
-      doc.setFillColor(primaryColor[0], primaryColor[1], primaryColor[2]);
-      doc.rect(15, 15, 180, 25, 'F');
+      // Document border
+      doc.setDrawColor(189, 195, 199);
+      doc.setLineWidth(1);
+      doc.rect(8, 8, 194, 281);
       
-      doc.setFontSize(24);
+      // Header with gradient-like effect using multiple rectangles
+      doc.setFillColor(brandPrimary[0], brandPrimary[1], brandPrimary[2]);
+      doc.rect(12, 12, 188, 28, 'F');
+      doc.setFillColor(brandSecondary[0], brandSecondary[1], brandSecondary[2]);
+      doc.rect(12, 12, 188, 4, 'F');
+      
+      // Company Logo placeholder and header text
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(26);
       doc.setFont(undefined, 'bold');
-      doc.setTextColor(255, 255, 255);
-      doc.text('PURCHASE ORDER', 20, 32);
+      doc.text('PURCHASE ORDER', 16, 30);
       
-      // PO Number in header
+      // PO Number badge
+      doc.setFillColor(accentGreen[0], accentGreen[1], accentGreen[2]);
+      doc.rect(140, 16, 55, 20, 'F');
       doc.setFontSize(14);
-      doc.setTextColor(255, 255, 255);
-      doc.text(`PO #: ${po.po_number}`, 140, 32);
+      doc.setFont(undefined, 'bold');
+      doc.text(`PO #: ${po.po_number}`, 143, 28);
       
-      // Company Information Section
+      // Company Information Card
       let yPos = 50;
-      doc.setFillColor(lightGray[0], lightGray[1], lightGray[2]);
-      doc.rect(15, yPos, 85, 45, 'F');
+      
+      // Buyer section
+      doc.setFillColor(lightBg[0], lightBg[1], lightBg[2]);
+      doc.rect(12, yPos, 88, 55, 'F');
+      doc.setDrawColor(brandPrimary[0], brandPrimary[1], brandPrimary[2]);
+      doc.setLineWidth(0.5);
+      doc.rect(12, yPos, 88, 55);
       
       doc.setFontSize(12);
       doc.setFont(undefined, 'bold');
-      doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
-      doc.text('FROM (BUYER):', 20, yPos + 8);
+      doc.setTextColor(brandPrimary[0], brandPrimary[1], brandPrimary[2]);
+      doc.text('FROM (BUYER)', 16, yPos + 8);
       
       doc.setFontSize(10);
-      doc.setFont(undefined, 'normal');
-      doc.setTextColor(textColor[0], textColor[1], textColor[2]);
+      doc.setTextColor(darkText[0], darkText[1], darkText[2]);
+      let buyerY = yPos + 16;
       
       if (companyData) {
         doc.setFont(undefined, 'bold');
-        doc.text(companyData.name || 'Company Name', 20, yPos + 16);
+        doc.text(companyData.name || 'Company Name', 16, buyerY);
         doc.setFont(undefined, 'normal');
+        buyerY += 8;
         
-        let companyY = yPos + 24;
         if (companyData.address_line1) {
-          doc.text(companyData.address_line1, 20, companyY);
-          companyY += 6;
+          doc.text(companyData.address_line1, 16, buyerY);
+          buyerY += 6;
         }
         if (companyData.address_line2) {
-          doc.text(companyData.address_line2, 20, companyY);
-          companyY += 6;
+          doc.text(companyData.address_line2, 16, buyerY);
+          buyerY += 6;
         }
-        if (companyData.city || companyData.state || companyData.postal_code) {
-          const cityLine = [companyData.city, companyData.state, companyData.postal_code].filter(Boolean).join(', ');
-          doc.text(cityLine, 20, companyY);
-          companyY += 6;
+        
+        const cityStatePin = [companyData.city, companyData.state, companyData.postal_code]
+          .filter(Boolean).join(', ');
+        if (cityStatePin) {
+          doc.text(cityStatePin, 16, buyerY);
+          buyerY += 6;
         }
+        
         if (companyData.phone) {
-          doc.text(`Phone: ${companyData.phone}`, 20, companyY);
-          companyY += 6;
+          doc.text(`Phone: ${companyData.phone}`, 16, buyerY);
+          buyerY += 6;
         }
         if (companyData.email) {
-          doc.text(`Email: ${companyData.email}`, 20, companyY);
-          companyY += 6;
+          doc.text(`Email: ${companyData.email}`, 16, buyerY);
+          buyerY += 6;
         }
         if (companyData.gstn) {
-          doc.text(`GSTIN: ${companyData.gstn}`, 20, yPos + 82);
+          doc.setFont(undefined, 'bold');
+          doc.text(`GSTIN: ${companyData.gstn}`, 16, buyerY);
         }
       }
       
-      // PO Details Box
-      doc.setFillColor(secondaryColor[0], secondaryColor[1], secondaryColor[2]);
-      doc.rect(110, yPos, 85, 45, 'F');
-      
-      doc.setFontSize(10);
-      doc.setTextColor(255, 255, 255);
-      doc.setFont(undefined, 'bold');
-      doc.text('ORDER DETAILS:', 115, yPos + 8);
-      
-      doc.setFont(undefined, 'normal');
-      doc.text(`Order Date: ${new Date(po.order_date).toLocaleDateString()}`, 115, yPos + 18);
-      doc.text(`Expected Date: ${po.expected_date ? new Date(po.expected_date).toLocaleDateString() : 'Not specified'}`, 115, yPos + 26);
-      doc.text(`Status: ${po.status.toUpperCase()}`, 115, yPos + 34);
-      if (po.external_po_ref) {
-        doc.text(`Ref: ${po.external_po_ref}`, 115, yPos + 42);
-      }
-      
-      // Get detailed supplier information
-      const supplierDetails = suppliers.find(s => s.name === po.supplier.name) || selectedSupplier;
-      
-      // Supplier Information Section
-      yPos = 105;
-      doc.setFillColor(lightGray[0], lightGray[1], lightGray[2]);
-      doc.rect(15, yPos, 85, 60, 'F');
+      // Order Details Card
+      doc.setFillColor(brandSecondary[0], brandSecondary[1], brandSecondary[2]);
+      doc.rect(112, yPos, 88, 55, 'F');
       
       doc.setFontSize(12);
       doc.setFont(undefined, 'bold');
-      doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
-      doc.text('TO (SUPPLIER):', 20, yPos + 8);
+      doc.setTextColor(255, 255, 255);
+      doc.text('ORDER DETAILS', 116, yPos + 8);
       
       doc.setFontSize(10);
-      doc.setFont(undefined, 'bold');
-      doc.setTextColor(textColor[0], textColor[1], textColor[2]);
-      doc.text(po.supplier.name, 20, yPos + 16);
-      
       doc.setFont(undefined, 'normal');
-      let supplierY = yPos + 24;
+      let orderY = yPos + 18;
       
-      if (supplierDetails?.contact_person) {
-        doc.text(`Contact: ${supplierDetails.contact_person}`, 20, supplierY);
+      doc.text(`Order Date: ${new Date(po.order_date).toLocaleDateString()}`, 116, orderY);
+      orderY += 7;
+      doc.text(`Expected Date: ${po.expected_date ? new Date(po.expected_date).toLocaleDateString() : 'Not specified'}`, 116, orderY);
+      orderY += 7;
+      doc.text(`Status: ${po.status.toUpperCase()}`, 116, orderY);
+      orderY += 7;
+      if (po.external_po_ref) {
+        doc.text(`Reference: ${po.external_po_ref}`, 116, orderY);
+        orderY += 7;
+      }
+      // Place of supply info if available
+      doc.text('Place of Supply: India', 116, orderY);
+      
+      // Get supplier details with all info
+      const supplierDetails = suppliers.find(s => s.name === po.supplier?.name);
+      
+      // Supplier Information Card
+      yPos = 115;
+      doc.setFillColor(lightBg[0], lightBg[1], lightBg[2]);
+      doc.rect(12, yPos, 88, 65, 'F');
+      doc.setDrawColor(brandPrimary[0], brandPrimary[1], brandPrimary[2]);
+      doc.rect(12, yPos, 88, 65);
+      
+      doc.setFontSize(12);
+      doc.setFont(undefined, 'bold');
+      doc.setTextColor(brandPrimary[0], brandPrimary[1], brandPrimary[2]);
+      doc.text('TO (SUPPLIER)', 16, yPos + 8);
+      
+      doc.setFontSize(10);
+      doc.setTextColor(darkText[0], darkText[1], darkText[2]);
+      let supplierY = yPos + 16;
+      
+      // Use data from PO first, then supplement with supplier details
+      const supplierName = po.supplier?.name || supplierDetails?.name || 'Unknown Supplier';
+      const contactPerson = supplierDetails?.contact_person;
+      const phone = supplierDetails?.phone;
+      const email = po.supplier?.email || supplierDetails?.email;
+      const gstin = supplierDetails?.gst_number;
+      
+      doc.setFont(undefined, 'bold');
+      doc.text(supplierName, 16, supplierY);
+      doc.setFont(undefined, 'normal');
+      supplierY += 8;
+      
+      if (contactPerson) {
+        doc.text(`Contact: ${contactPerson}`, 16, supplierY);
         supplierY += 6;
       }
-      
-      if (supplierDetails?.phone) {
-        doc.text(`Phone: ${supplierDetails.phone}`, 20, supplierY);
+      if (phone) {
+        doc.text(`Phone: ${phone}`, 16, supplierY);
         supplierY += 6;
       }
-      
-      if (po.supplier.email || supplierDetails?.email) {
-        doc.text(`Email: ${po.supplier.email || supplierDetails?.email}`, 20, supplierY);
+      if (email) {
+        doc.text(`Email: ${email}`, 16, supplierY);
         supplierY += 6;
       }
       
       // Supplier Address
-      if (supplierDetails?.address_line1) {
-        doc.text(supplierDetails.address_line1, 20, supplierY);
-        supplierY += 6;
-      }
-      
-      if (supplierDetails?.address_line2) {
-        doc.text(supplierDetails.address_line2, 20, supplierY);
-        supplierY += 6;
-      }
-      
-      if (supplierDetails?.city || supplierDetails?.state || supplierDetails?.pin_code) {
-        const addressLine = [supplierDetails?.city, supplierDetails?.state, supplierDetails?.pin_code]
+      if (supplierDetails) {
+        const addressParts = [
+          supplierDetails.address_line1,
+          supplierDetails.address_line2,
+        ].filter(Boolean);
+        
+        addressParts.forEach(part => {
+          if (supplierY < yPos + 60) {
+            doc.text(part, 16, supplierY);
+            supplierY += 6;
+          }
+        });
+        
+        const cityLine = [supplierDetails.city, supplierDetails.state, supplierDetails.pin_code]
           .filter(Boolean).join(', ');
-        doc.text(addressLine, 20, supplierY);
-        supplierY += 6;
+        if (cityLine && supplierY < yPos + 60) {
+          doc.text(cityLine, 16, supplierY);
+          supplierY += 6;
+        }
       }
       
-      if (supplierDetails?.gst_number) {
-        doc.text(`GSTIN: ${supplierDetails.gst_number}`, 20, supplierY);
+      if (gstin && supplierY < yPos + 60) {
+        doc.setFont(undefined, 'bold');
+        doc.text(`GSTIN: ${gstin}`, 16, supplierY);
       }
       
-      // Delivery Address Section
-      doc.setFillColor(240, 248, 255);
-      doc.rect(110, yPos, 85, 60, 'F');
+      // Delivery Address Card
+      doc.setFillColor(245, 245, 245);
+      doc.rect(112, yPos, 88, 65, 'F');
+      doc.setDrawColor(brandSecondary[0], brandSecondary[1], brandSecondary[2]);
+      doc.rect(112, yPos, 88, 65);
       
       doc.setFontSize(12);
       doc.setFont(undefined, 'bold');
-      doc.setTextColor(secondaryColor[0], secondaryColor[1], secondaryColor[2]);
-      doc.text('DELIVERY ADDRESS:', 115, yPos + 8);
+      doc.setTextColor(brandSecondary[0], brandSecondary[1], brandSecondary[2]);
+      doc.text('DELIVERY ADDRESS', 116, yPos + 8);
       
       doc.setFontSize(10);
       doc.setFont(undefined, 'normal');
-      doc.setTextColor(textColor[0], textColor[1], textColor[2]);
+      doc.setTextColor(darkText[0], darkText[1], darkText[2]);
+      let deliveryY = yPos + 18;
       
-      let deliveryY = yPos + 16;
-      
-      if (po.same_as_registered_address) {
-        doc.text('Same as company address', 115, deliveryY);
+      if (po.same_as_registered_address || !po.delivery_address_line1) {
+        doc.setFont(undefined, 'italic');
+        doc.text('Same as company address', 116, deliveryY);
         deliveryY += 8;
-        // Show company address
+        doc.setFont(undefined, 'normal');
+        
         if (companyData?.address_line1) {
-          doc.text(companyData.address_line1, 115, deliveryY);
+          doc.text(companyData.address_line1, 116, deliveryY);
           deliveryY += 6;
         }
-        if (companyData?.city || companyData?.state) {
-          const cityLine = [companyData?.city, companyData?.state, companyData?.postal_code].filter(Boolean).join(', ');
-          doc.text(cityLine, 115, deliveryY);
+        if (companyData?.address_line2) {
+          doc.text(companyData.address_line2, 116, deliveryY);
+          deliveryY += 6;
+        }
+        const companyCityLine = [companyData?.city, companyData?.state, companyData?.postal_code]
+          .filter(Boolean).join(', ');
+        if (companyCityLine) {
+          doc.text(companyCityLine, 116, deliveryY);
         }
       } else {
-        // Show custom delivery address
         if (po.delivery_address_line1) {
-          doc.text(po.delivery_address_line1, 115, deliveryY);
+          doc.text(po.delivery_address_line1, 116, deliveryY);
           deliveryY += 6;
         }
         if (po.delivery_address_line2) {
-          doc.text(po.delivery_address_line2, 115, deliveryY);
+          doc.text(po.delivery_address_line2, 116, deliveryY);
           deliveryY += 6;
         }
-        if (po.delivery_city || po.delivery_state || po.delivery_postal_code) {
-          const cityLine = [po.delivery_city, po.delivery_state, po.delivery_postal_code]
-            .filter(Boolean).join(', ');
-          doc.text(cityLine, 115, deliveryY);
+        const deliveryCityLine = [po.delivery_city, po.delivery_state, po.delivery_postal_code]
+          .filter(Boolean).join(', ');
+        if (deliveryCityLine) {
+          doc.text(deliveryCityLine, 116, deliveryY);
           deliveryY += 6;
         }
         if (po.delivery_country) {
-          doc.text(po.delivery_country, 115, deliveryY);
-        }
-        
-        if (!po.delivery_address_line1 && !po.delivery_city) {
-          doc.text('Delivery address not specified', 115, deliveryY);
+          doc.text(po.delivery_country, 116, deliveryY);
         }
       }
       
-      // Line Items Table
-      yPos = 175;
+      // Line Items Section Header
+      yPos = 190;
+      doc.setFillColor(accentGreen[0], accentGreen[1], accentGreen[2]);
+      doc.rect(12, yPos, 188, 12, 'F');
+      
       doc.setFontSize(14);
       doc.setFont(undefined, 'bold');
-      doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
-      doc.text('ITEM DETAILS', 20, yPos);
+      doc.setTextColor(255, 255, 255);
+      doc.text('ITEM DETAILS', 16, yPos + 8);
       
-      // Table headers
-      yPos += 10;
-      doc.setFillColor(primaryColor[0], primaryColor[1], primaryColor[2]);
-      doc.rect(15, yPos, 180, 10, 'F');
+      // Enhanced Table Headers with better spacing
+      yPos += 12;
+      doc.setFillColor(darkText[0], darkText[1], darkText[2]);
+      doc.rect(12, yPos, 188, 12, 'F');
       
       doc.setFontSize(9);
       doc.setTextColor(255, 255, 255);
       doc.setFont(undefined, 'bold');
-      doc.text('S.No', 18, yPos + 7);
-      doc.text('Description', 35, yPos + 7);
-      doc.text('HSN/SAC', 95, yPos + 7);
-      doc.text('Qty', 120, yPos + 7);
-      doc.text('UOM', 135, yPos + 7);
-      doc.text('Rate', 150, yPos + 7);
-      doc.text('Discount', 165, yPos + 7);
-      doc.text('Amount', 180, yPos + 7);
       
-      // Table data
-      yPos += 10;
+      // Optimized column positions for better readability
+      doc.text('S.No', 15, yPos + 8);
+      doc.text('Description', 28, yPos + 8);
+      doc.text('HSN/SAC', 85, yPos + 8);
+      doc.text('Qty', 110, yPos + 8);
+      doc.text('UOM', 125, yPos + 8);
+      doc.text('Rate (₹)', 140, yPos + 8);
+      doc.text('Disc (₹)', 160, yPos + 8);
+      doc.text('GST %', 175, yPos + 8);
+      doc.text('Amount (₹)', 185, yPos + 8);
+      
+      // Process line items with better calculations
+      yPos += 12;
       let totalQuantity = 0;
-      let subtotal = 0;
-      let totalDiscount = 0;
-      let totalTax = 0;
+      let subtotalAmount = 0;
+      let totalDiscountAmount = 0;
+      let totalTaxAmount = 0;
+      let totalGSTAmount = 0;
       
       if (items && items.length > 0) {
         items.forEach((item, index) => {
-          if (yPos > 250) {
+          if (yPos > 260) {
             doc.addPage();
             yPos = 30;
           }
           
-          const quantity = item.quantity || 0;
-          const unitPrice = item.unit_price || 0;
-          const discount = item.discount_amount || 0;
-          const lineTotal = item.total_price || (quantity * unitPrice - discount);
+          // Safe number parsing with proper defaults
+          const quantity = Number(item.quantity) || 0;
+          const unitPrice = Number(item.unit_price) || 0;
+          const discountAmount = Number(item.discount_amount) || 0;
+          const discountPercent = Number(item.discount_percentage) || 0;
+          const gstRate = Number(item.gst_rate) || 0;
+          const cgstAmount = Number(item.cgst_amount) || 0;
+          const sgstAmount = Number(item.sgst_amount) || 0;
+          const igstAmount = Number(item.igst_amount) || 0;
           
+          // Calculate line values correctly
+          const grossAmount = quantity * unitPrice;
+          const actualDiscount = discountAmount || (grossAmount * discountPercent / 100);
+          const taxableValue = grossAmount - actualDiscount;
+          const itemGSTAmount = cgstAmount + sgstAmount + igstAmount;
+          const lineTotal = Number(item.total_price) || (taxableValue + itemGSTAmount);
+          
+          // Accumulate totals
           totalQuantity += quantity;
-          subtotal += (quantity * unitPrice);
-          totalDiscount += discount;
-          totalTax += (item.cgst_amount || 0) + (item.sgst_amount || 0) + (item.igst_amount || 0);
+          subtotalAmount += grossAmount;
+          totalDiscountAmount += actualDiscount;
+          totalGSTAmount += itemGSTAmount;
+          totalTaxAmount += itemGSTAmount; // For backward compatibility
           
           // Alternate row background
           if (index % 2 === 0) {
             doc.setFillColor(249, 250, 251);
-            doc.rect(15, yPos, 180, 8, 'F');
+            doc.rect(12, yPos, 188, 10, 'F');
           }
           
-          doc.setTextColor(textColor[0], textColor[1], textColor[2]);
+          doc.setTextColor(darkText[0], darkText[1], darkText[2]);
           doc.setFont(undefined, 'normal');
           doc.setFontSize(8);
           
-          doc.text((index + 1).toString(), 18, yPos + 6);
-          doc.text(item.item_description || '', 35, yPos + 6, { maxWidth: 55 });
-          doc.text(item.hsn_sac_code || '', 95, yPos + 6);
-          doc.text(quantity.toString(), 120, yPos + 6);
-          doc.text(item.unit_of_measure || 'pcs', 135, yPos + 6);
-          doc.text(`₹${unitPrice.toFixed(2)}`, 150, yPos + 6);
-          doc.text(`₹${discount.toFixed(2)}`, 165, yPos + 6);
-          doc.text(`₹${lineTotal.toFixed(2)}`, 180, yPos + 6);
+          // Render table data with proper alignment
+          doc.text((index + 1).toString(), 15, yPos + 7);
+          doc.text(item.item_description || 'No description', 28, yPos + 7, { maxWidth: 52 });
+          doc.text(item.hsn_sac_code || '-', 85, yPos + 7);
+          doc.text(quantity.toFixed(2), 110, yPos + 7);
+          doc.text(item.unit_of_measure || 'pcs', 125, yPos + 7);
+          doc.text(unitPrice.toFixed(2), 140, yPos + 7);
+          doc.text(actualDiscount.toFixed(2), 160, yPos + 7);
+          doc.text(gstRate.toFixed(1), 175, yPos + 7);
+          doc.text(lineTotal.toFixed(2), 185, yPos + 7);
           
-          yPos += 8;
+          yPos += 10;
         });
       } else {
-        doc.setTextColor(textColor[0], textColor[1], textColor[2]);
+        // No items message
+        doc.setTextColor(darkText[0], darkText[1], darkText[2]);
         doc.setFont(undefined, 'italic');
-        doc.text('No items found for this purchase order', 20, yPos + 10);
-        yPos += 20;
+        doc.setFontSize(10);
+        doc.text('No line items found for this purchase order', 16, yPos + 15);
+        yPos += 25;
       }
       
-      // Summary Section
-      yPos += 10;
-      doc.setFillColor(lightGray[0], lightGray[1], lightGray[2]);
-      doc.rect(120, yPos, 75, 35, 'F');
+      // Enhanced Summary Section with proper calculations
+      yPos += 8;
       
-      doc.setFontSize(10);
-      doc.setTextColor(textColor[0], textColor[1], textColor[2]);
-      doc.setFont(undefined, 'normal');
+      // Summary box background
+      doc.setFillColor(lightBg[0], lightBg[1], lightBg[2]);
+      doc.rect(120, yPos, 80, 50, 'F');
+      doc.setDrawColor(brandPrimary[0], brandPrimary[1], brandPrimary[2]);
+      doc.rect(120, yPos, 80, 50);
       
-      doc.text('Total Quantity:', 125, yPos + 8);
-      doc.text(totalQuantity.toString(), 175, yPos + 8);
-      
-      doc.text('Subtotal:', 125, yPos + 16);
-      doc.text(`₹${subtotal.toFixed(2)}`, 175, yPos + 16);
-      
-      doc.text('Total Discount:', 125, yPos + 24);
-      doc.text(`₹${totalDiscount.toFixed(2)}`, 175, yPos + 24);
-      
-      doc.text('Total Tax:', 125, yPos + 32);
-      doc.text(`₹${totalTax.toFixed(2)}`, 175, yPos + 32);
-      
-      // Grand Total
-      yPos += 40;
-      doc.setFillColor(primaryColor[0], primaryColor[1], primaryColor[2]);
-      doc.rect(120, yPos, 75, 12, 'F');
-      
-      doc.setFontSize(12);
+      // Summary header
+      doc.setFillColor(brandPrimary[0], brandPrimary[1], brandPrimary[2]);
+      doc.rect(120, yPos, 80, 12, 'F');
+      doc.setFontSize(11);
       doc.setFont(undefined, 'bold');
       doc.setTextColor(255, 255, 255);
-      doc.text('GRAND TOTAL:', 125, yPos + 8);
-      doc.text(`₹${po.total_amount.toFixed(2)}`, 175, yPos + 8);
+      doc.text('ORDER SUMMARY', 124, yPos + 8);
       
-      // Notes section
+      // Summary details
+      doc.setFontSize(9);
+      doc.setTextColor(darkText[0], darkText[1], darkText[2]);
+      doc.setFont(undefined, 'normal');
+      let summaryY = yPos + 20;
+      
+      doc.text('Total Quantity:', 124, summaryY);
+      doc.text(totalQuantity.toFixed(2), 185, summaryY);
+      summaryY += 8;
+      
+      doc.text('Subtotal:', 124, summaryY);
+      doc.text(`₹${subtotalAmount.toFixed(2)}`, 175, summaryY);
+      summaryY += 8;
+      
+      doc.text('Total Discount:', 124, summaryY);
+      doc.text(`₹${totalDiscountAmount.toFixed(2)}`, 175, summaryY);
+      summaryY += 8;
+      
+      doc.text('Total Tax (GST):', 124, summaryY);
+      doc.text(`₹${totalGSTAmount.toFixed(2)}`, 175, summaryY);
+      
+      // Grand Total Section
+      yPos += 58;
+      doc.setFillColor(accentGreen[0], accentGreen[1], accentGreen[2]);
+      doc.rect(120, yPos, 80, 15, 'F');
+      
+      doc.setFontSize(14);
+      doc.setFont(undefined, 'bold');
+      doc.setTextColor(255, 255, 255);
+      doc.text('GRAND TOTAL:', 124, yPos + 10);
+      doc.text(`₹${po.total_amount.toFixed(2)}`, 175, yPos + 10);
+      
+      // Notes Section
       if (po.notes) {
-        yPos += 20;
-        doc.setFont(undefined, 'bold');
-        doc.setFontSize(12);
-        doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
-        doc.text('NOTES & TERMS:', 20, yPos);
+        yPos += 25;
+        doc.setFillColor(lightBg[0], lightBg[1], lightBg[2]);
+        doc.rect(12, yPos, 188, 25, 'F');
+        doc.setDrawColor(brandPrimary[0], brandPrimary[1], brandPrimary[2]);
+        doc.rect(12, yPos, 188, 25);
         
-        yPos += 8;
+        doc.setFontSize(12);
+        doc.setFont(undefined, 'bold');
+        doc.setTextColor(brandPrimary[0], brandPrimary[1], brandPrimary[2]);
+        doc.text('NOTES & TERMS:', 16, yPos + 8);
+        
+        doc.setFontSize(9);
         doc.setFont(undefined, 'normal');
-        doc.setFontSize(10);
-        doc.setTextColor(textColor[0], textColor[1], textColor[2]);
-        const noteLines = doc.splitTextToSize(po.notes, 170);
-        doc.text(noteLines, 20, yPos);
+        doc.setTextColor(darkText[0], darkText[1], darkText[2]);
+        const noteLines = doc.splitTextToSize(po.notes, 180);
+        doc.text(noteLines, 16, yPos + 18);
       }
       
-      // Footer
+      // Footer Section
       const pageHeight = doc.internal.pageSize.height;
       doc.setFontSize(8);
-      doc.setTextColor(secondaryColor[0], secondaryColor[1], secondaryColor[2]);
-      doc.text(`Generated on: ${new Date().toLocaleDateString()} at ${new Date().toLocaleTimeString()}`, 20, pageHeight - 25);
-      doc.text('This is a computer generated document and does not require signature.', 20, pageHeight - 20);
+      doc.setTextColor(brandSecondary[0], brandSecondary[1], brandSecondary[2]);
+      doc.text(`Generated on: ${new Date().toLocaleDateString()} at ${new Date().toLocaleTimeString()}`, 16, pageHeight - 25);
+      doc.text('This is a computer generated document and does not require signature.', 16, pageHeight - 20);
       
-      // Page border
-      doc.setDrawColor(primaryColor[0], primaryColor[1], primaryColor[2]);
-      doc.setLineWidth(1);
-      doc.rect(10, 10, 190, pageHeight - 20);
+      // Professional footer line
+      doc.setDrawColor(brandPrimary[0], brandPrimary[1], brandPrimary[2]);
+      doc.setLineWidth(0.5);
+      doc.line(12, pageHeight - 15, 200, pageHeight - 15);
       
       // Save the PDF
       const fileName = `PO_${po.po_number}_${new Date().toISOString().split('T')[0]}.pdf`;
@@ -1249,7 +1339,7 @@ export function PurchaseModule() {
     } catch (error) {
       console.error('Error generating PDF:', error);
       toast({
-        title: "Error",
+        title: "Error", 
         description: "Failed to generate PDF",
         variant: "destructive",
       });
