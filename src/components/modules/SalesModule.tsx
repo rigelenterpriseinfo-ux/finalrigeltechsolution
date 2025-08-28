@@ -203,6 +203,24 @@ interface PerformaInvoiceForm {
   sales_order_id: string;
   customer_id: string;
   customer_name: string;
+  // Sales order fields in editable mode
+  order_date?: string;
+  order_number?: string;
+  customer_po_number?: string;
+  customer_reference_no?: string;
+  delivery_date?: string;
+  expected_delivery_date?: string;
+  payment_terms?: string;
+  currency?: string;
+  mode_of_transport?: string;
+  shipping_instructions?: string;
+  delivery_address_line1?: string;
+  delivery_address_line2?: string;
+  delivery_city?: string;
+  delivery_state?: string;
+  delivery_pin_code?: string;
+  delivery_country?: string;
+  same_as_registered_address?: boolean;
   subtotal_amount: number;
   tax_amount: number;
   discount_amount: number;
@@ -218,6 +236,24 @@ const [performaInvoiceForm, setPerformaInvoiceForm] = useState<PerformaInvoiceFo
   sales_order_id: '',
   customer_id: '',
   customer_name: '',
+  // Initialize sales order fields
+  order_date: '',
+  order_number: '',
+  customer_po_number: '',
+  customer_reference_no: '',
+  delivery_date: '',
+  expected_delivery_date: '',
+  payment_terms: '',
+  currency: 'INR',
+  mode_of_transport: '',
+  shipping_instructions: '',
+  delivery_address_line1: '',
+  delivery_address_line2: '',
+  delivery_city: '',
+  delivery_state: '',
+  delivery_pin_code: '',
+  delivery_country: '',
+  same_as_registered_address: false,
   subtotal_amount: 0,
   tax_amount: 0,
   discount_amount: 0,
@@ -929,11 +965,29 @@ const [performaInvoiceForm, setPerformaInvoiceForm] = useState<PerformaInvoiceFo
         sales_order_id: salesOrder.id,
         customer_id: customer?.id || '',
         customer_name: customer?.name || '',
+        // Copy all sales order fields in editable mode
+        order_date: salesOrder.order_date,
+        order_number: salesOrder.order_number,
+        customer_po_number: salesOrder.customer_po_number || '',
+        customer_reference_no: salesOrder.customer_reference_no || '',
+        delivery_date: salesOrder.delivery_date || '',
+        expected_delivery_date: salesOrder.expected_delivery_date || '',
+        payment_terms: salesOrder.payment_terms || '',
+        currency: salesOrder.currency || 'INR',
+        mode_of_transport: salesOrder.mode_of_transport || '',
+        shipping_instructions: salesOrder.shipping_instructions || '',
+        delivery_address_line1: salesOrder.delivery_address_line1 || '',
+        delivery_address_line2: salesOrder.delivery_address_line2 || '',
+        delivery_city: salesOrder.delivery_city || '',
+        delivery_state: salesOrder.delivery_state || '',
+        delivery_pin_code: salesOrder.delivery_pin_code || '',
+        delivery_country: salesOrder.delivery_country || '',
+        same_as_registered_address: salesOrder.same_as_registered_address || false,
         subtotal_amount: salesOrder.subtotal_amount || 0,
         tax_amount: salesOrder.tax_amount,
         discount_amount: salesOrder.discount_amount,
         total_amount: salesOrder.total_amount,
-        notes: '',
+        notes: salesOrder.notes || '',
         status: 'draft',
         items: performaItems
       });
@@ -956,6 +1010,23 @@ const [performaInvoiceForm, setPerformaInvoiceForm] = useState<PerformaInvoiceFo
       sales_order_id: '',
       customer_id: '',
       customer_name: '',
+      order_date: '',
+      order_number: '',
+      customer_po_number: '',
+      customer_reference_no: '',
+      delivery_date: '',
+      expected_delivery_date: '',
+      payment_terms: '',
+      currency: 'INR',
+      mode_of_transport: '',
+      shipping_instructions: '',
+      delivery_address_line1: '',
+      delivery_address_line2: '',
+      delivery_city: '',
+      delivery_state: '',
+      delivery_pin_code: '',
+      delivery_country: '',
+      same_as_registered_address: false,
       subtotal_amount: 0,
       tax_amount: 0,
       discount_amount: 0,
@@ -2533,9 +2604,243 @@ const [performaInvoiceForm, setPerformaInvoiceForm] = useState<PerformaInvoiceFo
                   <Input
                     id="customer-name"
                     value={performaInvoiceForm.customer_name}
-                    disabled
-                    placeholder="Will be populated from selected sales order"
+                    onChange={(e) => setPerformaInvoiceForm(prev => ({
+                      ...prev,
+                      customer_name: e.target.value
+                    }))}
                   />
+                </div>
+
+                {/* Sales Order Details - Editable */}
+                <div className="space-y-4">
+                  <h3 className="text-lg font-medium">Order Details</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="order-date">Order Date</Label>
+                      <Input
+                        id="order-date"
+                        type="date"
+                        value={performaInvoiceForm.order_date}
+                        onChange={(e) => setPerformaInvoiceForm(prev => ({
+                          ...prev,
+                          order_date: e.target.value
+                        }))}
+                      />
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <Label htmlFor="order-number">Order Number</Label>
+                      <Input
+                        id="order-number"
+                        value={performaInvoiceForm.order_number}
+                        onChange={(e) => setPerformaInvoiceForm(prev => ({
+                          ...prev,
+                          order_number: e.target.value
+                        }))}
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="customer-po-number">Customer PO Number</Label>
+                      <Input
+                        id="customer-po-number"
+                        value={performaInvoiceForm.customer_po_number}
+                        onChange={(e) => setPerformaInvoiceForm(prev => ({
+                          ...prev,
+                          customer_po_number: e.target.value
+                        }))}
+                        placeholder="Customer's PO Number"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="customer-reference-no">Customer Reference</Label>
+                      <Input
+                        id="customer-reference-no"
+                        value={performaInvoiceForm.customer_reference_no}
+                        onChange={(e) => setPerformaInvoiceForm(prev => ({
+                          ...prev,
+                          customer_reference_no: e.target.value
+                        }))}
+                        placeholder="Customer Reference Number"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="delivery-date">Delivery Date</Label>
+                      <Input
+                        id="delivery-date"
+                        type="date"
+                        value={performaInvoiceForm.delivery_date}
+                        onChange={(e) => setPerformaInvoiceForm(prev => ({
+                          ...prev,
+                          delivery_date: e.target.value
+                        }))}
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="expected-delivery-date">Expected Delivery Date</Label>
+                      <Input
+                        id="expected-delivery-date"
+                        type="date"
+                        value={performaInvoiceForm.expected_delivery_date}
+                        onChange={(e) => setPerformaInvoiceForm(prev => ({
+                          ...prev,
+                          expected_delivery_date: e.target.value
+                        }))}
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="payment-terms">Payment Terms</Label>
+                      <Select 
+                        value={performaInvoiceForm.payment_terms}
+                        onValueChange={(value) => setPerformaInvoiceForm(prev => ({
+                          ...prev,
+                          payment_terms: value
+                        }))}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select payment terms" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="advance">Advance</SelectItem>
+                          <SelectItem value="cod">COD</SelectItem>
+                          <SelectItem value="net_15">Net 15</SelectItem>
+                          <SelectItem value="net_30">Net 30</SelectItem>
+                          <SelectItem value="net_45">Net 45</SelectItem>
+                          <SelectItem value="net_60">Net 60</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="currency">Currency</Label>
+                      <Select 
+                        value={performaInvoiceForm.currency}
+                        onValueChange={(value) => setPerformaInvoiceForm(prev => ({
+                          ...prev,
+                          currency: value
+                        }))}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="INR">INR</SelectItem>
+                          <SelectItem value="USD">USD</SelectItem>
+                          <SelectItem value="EUR">EUR</SelectItem>
+                          <SelectItem value="GBP">GBP</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="mode-of-transport">Mode of Transport</Label>
+                      <Input
+                        id="mode-of-transport"
+                        value={performaInvoiceForm.mode_of_transport}
+                        onChange={(e) => setPerformaInvoiceForm(prev => ({
+                          ...prev,
+                          mode_of_transport: e.target.value
+                        }))}
+                        placeholder="e.g., Road, Rail, Air"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Delivery Address */}
+                <div className="space-y-4">
+                  <h3 className="text-lg font-medium">Delivery Address</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="md:col-span-2">
+                      <Label htmlFor="delivery-address-line1">Delivery Address Line 1</Label>
+                      <Input
+                        id="delivery-address-line1"
+                        value={performaInvoiceForm.delivery_address_line1}
+                        onChange={(e) => setPerformaInvoiceForm(prev => ({
+                          ...prev,
+                          delivery_address_line1: e.target.value
+                        }))}
+                      />
+                    </div>
+
+                    <div className="md:col-span-2">
+                      <Label htmlFor="delivery-address-line2">Delivery Address Line 2</Label>
+                      <Input
+                        id="delivery-address-line2"
+                        value={performaInvoiceForm.delivery_address_line2}
+                        onChange={(e) => setPerformaInvoiceForm(prev => ({
+                          ...prev,
+                          delivery_address_line2: e.target.value
+                        }))}
+                      />
+                    </div>
+
+                    <div>
+                      <Label htmlFor="delivery-city">Delivery City</Label>
+                      <Input
+                        id="delivery-city"
+                        value={performaInvoiceForm.delivery_city}
+                        onChange={(e) => setPerformaInvoiceForm(prev => ({
+                          ...prev,
+                          delivery_city: e.target.value
+                        }))}
+                      />
+                    </div>
+
+                    <div>
+                      <Label htmlFor="delivery-state">Delivery State</Label>
+                      <Input
+                        id="delivery-state"
+                        value={performaInvoiceForm.delivery_state}
+                        onChange={(e) => setPerformaInvoiceForm(prev => ({
+                          ...prev,
+                          delivery_state: e.target.value
+                        }))}
+                      />
+                    </div>
+
+                    <div>
+                      <Label htmlFor="delivery-pin-code">Delivery PIN Code</Label>
+                      <Input
+                        id="delivery-pin-code"
+                        value={performaInvoiceForm.delivery_pin_code}
+                        onChange={(e) => setPerformaInvoiceForm(prev => ({
+                          ...prev,
+                          delivery_pin_code: e.target.value
+                        }))}
+                      />
+                    </div>
+
+                    <div>
+                      <Label htmlFor="delivery-country">Delivery Country</Label>
+                      <Input
+                        id="delivery-country"
+                        value={performaInvoiceForm.delivery_country}
+                        onChange={(e) => setPerformaInvoiceForm(prev => ({
+                          ...prev,
+                          delivery_country: e.target.value
+                        }))}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="shipping-instructions">Shipping Instructions</Label>
+                    <Textarea
+                      id="shipping-instructions"
+                      value={performaInvoiceForm.shipping_instructions}
+                      onChange={(e) => setPerformaInvoiceForm(prev => ({
+                        ...prev,
+                        shipping_instructions: e.target.value
+                      }))}
+                      placeholder="Special shipping instructions..."
+                      rows={3}
+                    />
+                  </div>
                 </div>
 
                 {/* Items Section */}
