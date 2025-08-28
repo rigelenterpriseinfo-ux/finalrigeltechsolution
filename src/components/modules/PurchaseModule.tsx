@@ -645,7 +645,7 @@ export function PurchaseModule() {
     }
   };
 
-  // Supplier CRUD operations (simplified for space)
+// Supplier CRUD operations
   const handleAddSupplier = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     
@@ -656,6 +656,28 @@ export function PurchaseModule() {
         email: formData.get('email') as string || null,
         phone: formData.get('phone') as string || null,
         contact_person: formData.get('contact_person') as string || null,
+        address_line1: formData.get('address_line1') as string || null,
+        address_line2: formData.get('address_line2') as string || null,
+        city: formData.get('city') as string || null,
+        state: formData.get('state') as string || null,
+        country: formData.get('country') as string || null,
+        pin_code: formData.get('pin_code') as string || null,
+        place_of_supply: formData.get('place_of_supply') as string || null,
+        gst_number: formData.get('gst_number') as string || null,
+        pan_number: formData.get('pan_number') as string || null,
+        credit_time: formData.get('credit_time') ? parseInt(formData.get('credit_time') as string) : null,
+        bank_name: formData.get('bank_name') as string || null,
+        bank_address: formData.get('bank_address') as string || null,
+        account_number: formData.get('account_number') as string || null,
+        account_type: formData.get('account_type') as string || null,
+        ifsc_code: formData.get('ifsc_code') as string || null,
+        same_as_registered_address: formData.get('same_as_registered_address') === 'on',
+        dispatch_address_line1: formData.get('dispatch_address_line1') as string || null,
+        dispatch_address_line2: formData.get('dispatch_address_line2') as string || null,
+        dispatch_city: formData.get('dispatch_city') as string || null,
+        dispatch_state: formData.get('dispatch_state') as string || null,
+        dispatch_country: formData.get('dispatch_country') as string || null,
+        dispatch_pin_code: formData.get('dispatch_pin_code') as string || null,
         company_id: profile?.company_id,
       };
 
@@ -684,6 +706,106 @@ export function PurchaseModule() {
       toast({
         title: "Error",
         description: "Failed to add supplier",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleEditSupplier = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    
+    if (!editingSupplier) return;
+    
+    try {
+      const formData = new FormData(e.currentTarget);
+      const updateData = {
+        name: formData.get('name') as string,
+        email: formData.get('email') as string || null,
+        phone: formData.get('phone') as string || null,
+        contact_person: formData.get('contact_person') as string || null,
+        address_line1: formData.get('address_line1') as string || null,
+        address_line2: formData.get('address_line2') as string || null,
+        city: formData.get('city') as string || null,
+        state: formData.get('state') as string || null,
+        country: formData.get('country') as string || null,
+        pin_code: formData.get('pin_code') as string || null,
+        place_of_supply: formData.get('place_of_supply') as string || null,
+        gst_number: formData.get('gst_number') as string || null,
+        pan_number: formData.get('pan_number') as string || null,
+        credit_time: formData.get('credit_time') ? parseInt(formData.get('credit_time') as string) : null,
+        bank_name: formData.get('bank_name') as string || null,
+        bank_address: formData.get('bank_address') as string || null,
+        account_number: formData.get('account_number') as string || null,
+        account_type: formData.get('account_type') as string || null,
+        ifsc_code: formData.get('ifsc_code') as string || null,
+        same_as_registered_address: formData.get('same_as_registered_address') === 'on',
+        dispatch_address_line1: formData.get('dispatch_address_line1') as string || null,
+        dispatch_address_line2: formData.get('dispatch_address_line2') as string || null,
+        dispatch_city: formData.get('dispatch_city') as string || null,
+        dispatch_state: formData.get('dispatch_state') as string || null,
+        dispatch_country: formData.get('dispatch_country') as string || null,
+        dispatch_pin_code: formData.get('dispatch_pin_code') as string || null,
+      };
+
+      const { error } = await supabase
+        .from('suppliers')
+        .update(updateData)
+        .eq('id', editingSupplier.id);
+
+      if (error) {
+        toast({
+          title: "Error",
+          description: error.message,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      toast({
+        title: "Success",
+        description: "Supplier updated successfully",
+      });
+
+      setShowEditSupplierDialog(false);
+      setEditingSupplier(null);
+      fetchSuppliers();
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: "Failed to update supplier",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleDeleteSupplier = async (supplierId: string) => {
+    if (!confirm('Are you sure you want to delete this supplier?')) return;
+
+    try {
+      const { error } = await supabase
+        .from('suppliers')
+        .update({ is_active: false })
+        .eq('id', supplierId);
+
+      if (error) {
+        toast({
+          title: "Error",
+          description: error.message,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      toast({
+        title: "Success",
+        description: "Supplier deactivated successfully",
+      });
+
+      fetchSuppliers();
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: "Failed to delete supplier",
         variant: "destructive",
       });
     }
@@ -1010,29 +1132,170 @@ export function PurchaseModule() {
                 Add Supplier
               </Button>
             </DialogTrigger>
-            <DialogContent>
+            <DialogContent className="max-w-4xl max-h-[95vh] overflow-y-auto">
               <DialogHeader>
-                <DialogTitle>Add New Supplier</DialogTitle>
-                <DialogDescription>Add a new supplier to your system</DialogDescription>
+                <DialogTitle className="text-xl text-primary">Add New Supplier</DialogTitle>
+                <DialogDescription>Add a new supplier with complete details to your system</DialogDescription>
               </DialogHeader>
-              <form onSubmit={handleAddSupplier} className="space-y-4">
-                <div>
-                  <Label htmlFor="sup-name">Supplier Name *</Label>
-                  <Input id="sup-name" name="name" required />
+              <form onSubmit={handleAddSupplier} className="space-y-6">
+                {/* Basic Information */}
+                <div className="bg-gradient-to-r from-primary/5 to-primary/10 p-6 rounded-xl border border-primary/20">
+                  <h3 className="text-lg font-semibold text-primary mb-4">Basic Information</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="sup-name">Supplier Name *</Label>
+                      <Input id="sup-name" name="name" required className="mt-1" />
+                    </div>
+                    <div>
+                      <Label htmlFor="sup-email">Email</Label>
+                      <Input id="sup-email" name="email" type="email" className="mt-1" />
+                    </div>
+                    <div>
+                      <Label htmlFor="sup-phone">Phone</Label>
+                      <Input id="sup-phone" name="phone" className="mt-1" />
+                    </div>
+                    <div>
+                      <Label htmlFor="sup-contact">Contact Person</Label>
+                      <Input id="sup-contact" name="contact_person" className="mt-1" />
+                    </div>
+                  </div>
                 </div>
-                <div>
-                  <Label htmlFor="sup-email">Email</Label>
-                  <Input id="sup-email" name="email" type="email" />
+
+                {/* Address Information */}
+                <div className="bg-gradient-to-r from-blue/5 to-blue/10 p-6 rounded-xl border border-blue/20">
+                  <h3 className="text-lg font-semibold text-blue-700 mb-4">Address Information</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="sup-address1">Address Line 1</Label>
+                      <Input id="sup-address1" name="address_line1" className="mt-1" />
+                    </div>
+                    <div>
+                      <Label htmlFor="sup-address2">Address Line 2</Label>
+                      <Input id="sup-address2" name="address_line2" className="mt-1" />
+                    </div>
+                    <div>
+                      <Label htmlFor="sup-city">City</Label>
+                      <Input id="sup-city" name="city" className="mt-1" />
+                    </div>
+                    <div>
+                      <Label htmlFor="sup-state">State</Label>
+                      <Input id="sup-state" name="state" className="mt-1" />
+                    </div>
+                    <div>
+                      <Label htmlFor="sup-country">Country</Label>
+                      <Input id="sup-country" name="country" defaultValue="India" className="mt-1" />
+                    </div>
+                    <div>
+                      <Label htmlFor="sup-pin">Pin Code</Label>
+                      <Input id="sup-pin" name="pin_code" className="mt-1" />
+                    </div>
+                  </div>
+                  <div className="mt-4">
+                    <Label htmlFor="sup-pos">Place of Supply</Label>
+                    <Input id="sup-pos" name="place_of_supply" className="mt-1" />
+                  </div>
                 </div>
-                <div>
-                  <Label htmlFor="sup-phone">Phone</Label>
-                  <Input id="sup-phone" name="phone" />
+
+                {/* Tax Information */}
+                <div className="bg-gradient-to-r from-green/5 to-green/10 p-6 rounded-xl border border-green/20">
+                  <h3 className="text-lg font-semibold text-green-700 mb-4">Tax Information</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                      <Label htmlFor="sup-gst">GST Number</Label>
+                      <Input id="sup-gst" name="gst_number" className="mt-1" placeholder="e.g., 27AAAAA0000A1Z5" />
+                    </div>
+                    <div>
+                      <Label htmlFor="sup-pan">PAN Number</Label>
+                      <Input id="sup-pan" name="pan_number" className="mt-1" placeholder="e.g., AAAAA0000A" />
+                    </div>
+                    <div>
+                      <Label htmlFor="sup-credit">Credit Period (Days)</Label>
+                      <Input id="sup-credit" name="credit_time" type="number" className="mt-1" placeholder="30" />
+                    </div>
+                  </div>
                 </div>
-                <div>
-                  <Label htmlFor="sup-contact">Contact Person</Label>
-                  <Input id="sup-contact" name="contact_person" />
+
+                {/* Banking Information */}
+                <div className="bg-gradient-to-r from-orange/5 to-orange/10 p-6 rounded-xl border border-orange/20">
+                  <h3 className="text-lg font-semibold text-orange-700 mb-4">Banking Information</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="sup-bank">Bank Name</Label>
+                      <Input id="sup-bank" name="bank_name" className="mt-1" />
+                    </div>
+                    <div>
+                      <Label htmlFor="sup-bank-address">Bank Address</Label>
+                      <Input id="sup-bank-address" name="bank_address" className="mt-1" />
+                    </div>
+                    <div>
+                      <Label htmlFor="sup-account">Account Number</Label>
+                      <Input id="sup-account" name="account_number" className="mt-1" />
+                    </div>
+                    <div>
+                      <Label htmlFor="sup-account-type">Account Type</Label>
+                      <Select name="account_type">
+                        <SelectTrigger className="mt-1">
+                          <SelectValue placeholder="Select account type" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="savings">Savings</SelectItem>
+                          <SelectItem value="current">Current</SelectItem>
+                          <SelectItem value="od">Overdraft</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="md:col-span-1">
+                      <Label htmlFor="sup-ifsc">IFSC Code</Label>
+                      <Input id="sup-ifsc" name="ifsc_code" className="mt-1" placeholder="e.g., ICIC0001234" />
+                    </div>
+                  </div>
                 </div>
-                <Button type="submit" className="w-full">Add Supplier</Button>
+
+                {/* Dispatch Address */}
+                <div className="bg-gradient-to-r from-purple/5 to-purple/10 p-6 rounded-xl border border-purple/20">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-lg font-semibold text-purple-700">Dispatch Address</h3>
+                    <div className="flex items-center space-x-2">
+                      <input
+                        type="checkbox"
+                        id="same-address"
+                        name="same_as_registered_address"
+                        className="rounded border-gray-300"
+                      />
+                      <Label htmlFor="same-address" className="text-sm">Same as registered address</Label>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="sup-dispatch1">Dispatch Address Line 1</Label>
+                      <Input id="sup-dispatch1" name="dispatch_address_line1" className="mt-1" />
+                    </div>
+                    <div>
+                      <Label htmlFor="sup-dispatch2">Dispatch Address Line 2</Label>
+                      <Input id="sup-dispatch2" name="dispatch_address_line2" className="mt-1" />
+                    </div>
+                    <div>
+                      <Label htmlFor="sup-dispatch-city">Dispatch City</Label>
+                      <Input id="sup-dispatch-city" name="dispatch_city" className="mt-1" />
+                    </div>
+                    <div>
+                      <Label htmlFor="sup-dispatch-state">Dispatch State</Label>
+                      <Input id="sup-dispatch-state" name="dispatch_state" className="mt-1" />
+                    </div>
+                    <div>
+                      <Label htmlFor="sup-dispatch-country">Dispatch Country</Label>
+                      <Input id="sup-dispatch-country" name="dispatch_country" defaultValue="India" className="mt-1" />
+                    </div>
+                    <div>
+                      <Label htmlFor="sup-dispatch-pin">Dispatch Pin Code</Label>
+                      <Input id="sup-dispatch-pin" name="dispatch_pin_code" className="mt-1" />
+                    </div>
+                  </div>
+                </div>
+
+                <Button type="submit" className="w-full bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary text-white py-3">
+                  Add Supplier
+                </Button>
               </form>
             </DialogContent>
           </Dialog>
@@ -1925,6 +2188,390 @@ export function PurchaseModule() {
           </Table>
         </CardContent>
       </Card>
+
+      {/* Supplier Management Section */}
+      <Card className="bg-background border shadow-sm">
+        <CardHeader className="border-b bg-muted/30">
+          <CardTitle className="text-xl">Supplier Management</CardTitle>
+          <CardDescription>Complete CRUD operations for suppliers</CardDescription>
+        </CardHeader>
+        <CardContent className="p-0">
+          <Table>
+            <TableHeader>
+              <TableRow className="bg-muted/50">
+                <TableHead className="font-semibold">Supplier Ref</TableHead>
+                <TableHead className="font-semibold">Name</TableHead>
+                <TableHead className="font-semibold">Contact Person</TableHead>
+                <TableHead className="font-semibold">Email</TableHead>
+                <TableHead className="font-semibold">Phone</TableHead>
+                <TableHead className="font-semibold">City</TableHead>
+                <TableHead className="font-semibold">GST Number</TableHead>
+                <TableHead className="font-semibold text-center">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {suppliers.map((supplier) => (
+                <TableRow key={supplier.id} className="hover:bg-muted/30 transition-colors">
+                  <TableCell className="font-medium font-mono text-xs">
+                    <Badge variant="outline">{supplier.supplier_ref || 'N/A'}</Badge>
+                  </TableCell>
+                  <TableCell className="font-medium">{supplier.name}</TableCell>
+                  <TableCell>{supplier.contact_person || '-'}</TableCell>
+                  <TableCell>{supplier.email || '-'}</TableCell>
+                  <TableCell>{supplier.phone || '-'}</TableCell>
+                  <TableCell>{supplier.city || '-'}</TableCell>
+                  <TableCell className="font-mono text-xs">{supplier.gst_number || '-'}</TableCell>
+                  <TableCell>
+                    <div className="flex items-center justify-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setEditingSupplier(supplier);
+                          setShowEditSupplierDialog(true);
+                        }}
+                        className="h-8 w-8 p-0 hover:bg-blue-50 hover:border-blue-200"
+                        title="Edit Supplier"
+                      >
+                        <Edit className="h-4 w-4 text-blue-600" />
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleDeleteSupplier(supplier.id)}
+                        className="h-8 w-8 p-0 hover:bg-red-50 hover:border-red-200"
+                        title="Delete Supplier"
+                      >
+                        <Trash2 className="h-4 w-4 text-red-600" />
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+              {suppliers.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={8} className="text-center text-muted-foreground">
+                    No suppliers found
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+
+      {/* Edit Supplier Dialog */}
+      <Dialog open={showEditSupplierDialog} onOpenChange={setShowEditSupplierDialog}>
+        <DialogContent className="max-w-4xl max-h-[95vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-xl text-primary">Edit Supplier</DialogTitle>
+            <DialogDescription>Update supplier details</DialogDescription>
+          </DialogHeader>
+          {editingSupplier && (
+            <form onSubmit={handleEditSupplier} className="space-y-6">
+              {/* Basic Information */}
+              <div className="bg-gradient-to-r from-primary/5 to-primary/10 p-6 rounded-xl border border-primary/20">
+                <h3 className="text-lg font-semibold text-primary mb-4">Basic Information</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="edit-sup-name">Supplier Name *</Label>
+                    <Input 
+                      id="edit-sup-name" 
+                      name="name" 
+                      required 
+                      defaultValue={editingSupplier.name}
+                      className="mt-1" 
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="edit-sup-email">Email</Label>
+                    <Input 
+                      id="edit-sup-email" 
+                      name="email" 
+                      type="email" 
+                      defaultValue={editingSupplier.email || ''}
+                      className="mt-1" 
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="edit-sup-phone">Phone</Label>
+                    <Input 
+                      id="edit-sup-phone" 
+                      name="phone" 
+                      defaultValue={editingSupplier.phone || ''}
+                      className="mt-1" 
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="edit-sup-contact">Contact Person</Label>
+                    <Input 
+                      id="edit-sup-contact" 
+                      name="contact_person" 
+                      defaultValue={editingSupplier.contact_person || ''}
+                      className="mt-1" 
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Address Information */}
+              <div className="bg-gradient-to-r from-blue/5 to-blue/10 p-6 rounded-xl border border-blue/20">
+                <h3 className="text-lg font-semibold text-blue-700 mb-4">Address Information</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="edit-sup-address1">Address Line 1</Label>
+                    <Input 
+                      id="edit-sup-address1" 
+                      name="address_line1" 
+                      defaultValue={editingSupplier.address_line1 || ''}
+                      className="mt-1" 
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="edit-sup-address2">Address Line 2</Label>
+                    <Input 
+                      id="edit-sup-address2" 
+                      name="address_line2" 
+                      defaultValue={editingSupplier.address_line2 || ''}
+                      className="mt-1" 
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="edit-sup-city">City</Label>
+                    <Input 
+                      id="edit-sup-city" 
+                      name="city" 
+                      defaultValue={editingSupplier.city || ''}
+                      className="mt-1" 
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="edit-sup-state">State</Label>
+                    <Input 
+                      id="edit-sup-state" 
+                      name="state" 
+                      defaultValue={editingSupplier.state || ''}
+                      className="mt-1" 
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="edit-sup-country">Country</Label>
+                    <Input 
+                      id="edit-sup-country" 
+                      name="country" 
+                      defaultValue={editingSupplier.country || 'India'}
+                      className="mt-1" 
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="edit-sup-pin">Pin Code</Label>
+                    <Input 
+                      id="edit-sup-pin" 
+                      name="pin_code" 
+                      defaultValue={editingSupplier.pin_code || ''}
+                      className="mt-1" 
+                    />
+                  </div>
+                </div>
+                <div className="mt-4">
+                  <Label htmlFor="edit-sup-pos">Place of Supply</Label>
+                  <Input 
+                    id="edit-sup-pos" 
+                    name="place_of_supply" 
+                    defaultValue={editingSupplier.place_of_supply || ''}
+                    className="mt-1" 
+                  />
+                </div>
+              </div>
+
+              {/* Tax Information */}
+              <div className="bg-gradient-to-r from-green/5 to-green/10 p-6 rounded-xl border border-green/20">
+                <h3 className="text-lg font-semibold text-green-700 mb-4">Tax Information</h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <Label htmlFor="edit-sup-gst">GST Number</Label>
+                    <Input 
+                      id="edit-sup-gst" 
+                      name="gst_number" 
+                      defaultValue={editingSupplier.gst_number || ''}
+                      className="mt-1" 
+                      placeholder="e.g., 27AAAAA0000A1Z5" 
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="edit-sup-pan">PAN Number</Label>
+                    <Input 
+                      id="edit-sup-pan" 
+                      name="pan_number" 
+                      defaultValue={editingSupplier.pan_number || ''}
+                      className="mt-1" 
+                      placeholder="e.g., AAAAA0000A" 
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="edit-sup-credit">Credit Period (Days)</Label>
+                    <Input 
+                      id="edit-sup-credit" 
+                      name="credit_time" 
+                      type="number" 
+                      defaultValue={editingSupplier.credit_time || ''}
+                      className="mt-1" 
+                      placeholder="30" 
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Banking Information */}
+              <div className="bg-gradient-to-r from-orange/5 to-orange/10 p-6 rounded-xl border border-orange/20">
+                <h3 className="text-lg font-semibold text-orange-700 mb-4">Banking Information</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="edit-sup-bank">Bank Name</Label>
+                    <Input 
+                      id="edit-sup-bank" 
+                      name="bank_name" 
+                      defaultValue={editingSupplier.bank_name || ''}
+                      className="mt-1" 
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="edit-sup-bank-address">Bank Address</Label>
+                    <Input 
+                      id="edit-sup-bank-address" 
+                      name="bank_address" 
+                      defaultValue={editingSupplier.bank_address || ''}
+                      className="mt-1" 
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="edit-sup-account">Account Number</Label>
+                    <Input 
+                      id="edit-sup-account" 
+                      name="account_number" 
+                      defaultValue={editingSupplier.account_number || ''}
+                      className="mt-1" 
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="edit-sup-account-type">Account Type</Label>
+                    <Select name="account_type" defaultValue={editingSupplier.account_type || ''}>
+                      <SelectTrigger className="mt-1">
+                        <SelectValue placeholder="Select account type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="savings">Savings</SelectItem>
+                        <SelectItem value="current">Current</SelectItem>
+                        <SelectItem value="od">Overdraft</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="md:col-span-1">
+                    <Label htmlFor="edit-sup-ifsc">IFSC Code</Label>
+                    <Input 
+                      id="edit-sup-ifsc" 
+                      name="ifsc_code" 
+                      defaultValue={editingSupplier.ifsc_code || ''}
+                      className="mt-1" 
+                      placeholder="e.g., ICIC0001234" 
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Dispatch Address */}
+              <div className="bg-gradient-to-r from-purple/5 to-purple/10 p-6 rounded-xl border border-purple/20">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold text-purple-700">Dispatch Address</h3>
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="checkbox"
+                      id="edit-same-address"
+                      name="same_as_registered_address"
+                      defaultChecked={editingSupplier.same_as_registered_address}
+                      className="rounded border-gray-300"
+                    />
+                    <Label htmlFor="edit-same-address" className="text-sm">Same as registered address</Label>
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="edit-sup-dispatch1">Dispatch Address Line 1</Label>
+                    <Input 
+                      id="edit-sup-dispatch1" 
+                      name="dispatch_address_line1" 
+                      defaultValue={editingSupplier.dispatch_address_line1 || ''}
+                      className="mt-1" 
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="edit-sup-dispatch2">Dispatch Address Line 2</Label>
+                    <Input 
+                      id="edit-sup-dispatch2" 
+                      name="dispatch_address_line2" 
+                      defaultValue={editingSupplier.dispatch_address_line2 || ''}
+                      className="mt-1" 
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="edit-sup-dispatch-city">Dispatch City</Label>
+                    <Input 
+                      id="edit-sup-dispatch-city" 
+                      name="dispatch_city" 
+                      defaultValue={editingSupplier.dispatch_city || ''}
+                      className="mt-1" 
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="edit-sup-dispatch-state">Dispatch State</Label>
+                    <Input 
+                      id="edit-sup-dispatch-state" 
+                      name="dispatch_state" 
+                      defaultValue={editingSupplier.dispatch_state || ''}
+                      className="mt-1" 
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="edit-sup-dispatch-country">Dispatch Country</Label>
+                    <Input 
+                      id="edit-sup-dispatch-country" 
+                      name="dispatch_country" 
+                      defaultValue={editingSupplier.dispatch_country || 'India'}
+                      className="mt-1" 
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="edit-sup-dispatch-pin">Dispatch Pin Code</Label>
+                    <Input 
+                      id="edit-sup-dispatch-pin" 
+                      name="dispatch_pin_code" 
+                      defaultValue={editingSupplier.dispatch_pin_code || ''}
+                      className="mt-1" 
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex gap-4">
+                <Button type="submit" className="flex-1 bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary/80">
+                  Update Supplier
+                </Button>
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  onClick={() => {
+                    setShowEditSupplierDialog(false);
+                    setEditingSupplier(null);
+                  }} 
+                  className="flex-1"
+                >
+                  Cancel
+                </Button>
+              </div>
+            </form>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* View Purchase Order Dialog */}
       <Dialog open={showViewPODialog} onOpenChange={setShowViewPODialog}>
