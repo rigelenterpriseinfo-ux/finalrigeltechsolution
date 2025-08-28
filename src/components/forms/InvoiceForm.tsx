@@ -15,7 +15,6 @@ interface SalesOrder {
   id: string;
   order_number: string;
   customer_id: string;
-  customer_name: string;
   order_date: string;
   delivery_date: string;
   total_amount: number;
@@ -100,7 +99,6 @@ export default function InvoiceForm({ invoice, onSubmit, onCancel }: InvoiceForm
           id,
           order_number,
           customer_id,
-          customer_name,
           order_date,
           delivery_date,
           total_amount,
@@ -130,15 +128,14 @@ export default function InvoiceForm({ invoice, onSubmit, onCancel }: InvoiceForm
           id,
           order_number,
           customer_id,
-          customer_name,
           order_date,
           delivery_date,
           total_amount,
           status,
           sales_order_items (
             id,
-            product_name,
-            description,
+            product_id,
+            item_description,
             quantity,
             unit_price,
             cgst_rate,
@@ -147,7 +144,7 @@ export default function InvoiceForm({ invoice, onSubmit, onCancel }: InvoiceForm
             cgst_amount,
             sgst_amount,
             igst_amount,
-            total_amount
+            total_price
           )
         `)
         .eq('id', salesOrderId)
@@ -176,15 +173,14 @@ export default function InvoiceForm({ invoice, onSubmit, onCancel }: InvoiceForm
           id,
           order_number,
           customer_id,
-          customer_name,
           order_date,
           delivery_date,
           total_amount,
           status,
           sales_order_items (
             id,
-            product_name,
-            description,
+            product_id,
+            item_description,
             quantity,
             unit_price,
             cgst_rate,
@@ -193,13 +189,20 @@ export default function InvoiceForm({ invoice, onSubmit, onCancel }: InvoiceForm
             cgst_amount,
             sgst_amount,
             igst_amount,
-            total_amount
+            total_price
           )
         `)
         .eq('id', salesOrder.id)
         .single();
 
       if (error) throw error;
+
+      // Get customer name from customers table
+      const { data: customerData } = await supabase
+        .from('customers')
+        .select('name')
+        .eq('id', data.customer_id)
+        .single();
 
       setSelectedSalesOrder({
         ...data,
@@ -210,7 +213,7 @@ export default function InvoiceForm({ invoice, onSubmit, onCancel }: InvoiceForm
       setInvoiceData({
         sales_order_id: data.id,
         customer_id: data.customer_id,
-        customer_name: data.customer_name,
+        customer_name: customerData?.name || '',
         invoice_date: new Date().toISOString().split('T')[0],
         place_of_supply: '',
         notes: '',
@@ -220,17 +223,17 @@ export default function InvoiceForm({ invoice, onSubmit, onCancel }: InvoiceForm
 
       // Convert sales order items to invoice items
       const invoiceItems = data.sales_order_items.map((item: any) => ({
-        product_name: item.product_name,
-        description: item.description,
+        product_name: item.item_description || '',
+        description: item.item_description || '',
         quantity: item.quantity,
         unit_price: item.unit_price,
-        cgst_rate: item.cgst_rate,
-        sgst_rate: item.sgst_rate,
+        cgst_rate: item.cgst_rate || 9,
+        sgst_rate: item.sgst_rate || 9,
         igst_rate: item.igst_rate || 0,
-        cgst_amount: item.cgst_amount,
-        sgst_amount: item.sgst_amount,
+        cgst_amount: item.cgst_amount || 0,
+        sgst_amount: item.sgst_amount || 0,
         igst_amount: item.igst_amount || 0,
-        total_amount: item.total_amount
+        total_amount: item.total_price || 0
       }));
 
       setItems(invoiceItems);
@@ -317,8 +320,6 @@ export default function InvoiceForm({ invoice, onSubmit, onCancel }: InvoiceForm
     const submitData = {
       ...invoiceData,
       status: action === 'draft' ? 'draft' : 'invoiced',
-      // Don't send performa_invoice_number for drafts - let DB trigger handle it for invoices
-      performa_invoice_number: action === 'draft' ? null : undefined,
       performa_invoice_date: invoiceData.invoice_date,
       subtotal_amount: totals.subtotal,
       total_cgst_amount: totals.totalCGST,
@@ -332,8 +333,7 @@ export default function InvoiceForm({ invoice, onSubmit, onCancel }: InvoiceForm
   };
 
   const filteredSalesOrders = salesOrders.filter(so =>
-    so.order_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    so.customer_name.toLowerCase().includes(searchTerm.toLowerCase())
+    so.order_number.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   if (showSalesOrderSearch && !invoice) {
@@ -347,7 +347,7 @@ export default function InvoiceForm({ invoice, onSubmit, onCancel }: InvoiceForm
         <div className="relative">
           <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
           <Input
-            placeholder="Search by order number or customer name..."
+            placeholder="Search by order number..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="pl-10"
@@ -361,7 +361,6 @@ export default function InvoiceForm({ invoice, onSubmit, onCancel }: InvoiceForm
                 <div className="flex justify-between items-start">
                   <div>
                     <h4 className="font-medium">{so.order_number}</h4>
-                    <p className="text-sm text-gray-600">{so.customer_name}</p>
                     <p className="text-sm text-gray-500">Order Date: {new Date(so.order_date).toLocaleDateString()}</p>
                   </div>
                   <div className="text-right">
@@ -531,7 +530,7 @@ export default function InvoiceForm({ invoice, onSubmit, onCancel }: InvoiceForm
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div>
                     <Label>IGST %</Label>
                     <Input
