@@ -919,55 +919,44 @@ export function SalesModule() {
 
                                     {/* Name Selection */}
                                     <div className="col-span-3">
-                                      <div className="space-y-2">
-                                        <Select
-                                          value={item.product_id || ''}
-                                          onValueChange={(value) => handleProductSelection(index, value)}
-                                        >
-                                          <SelectTrigger className="h-9 bg-background border-input">
-                                            <span className="truncate text-sm">
-                                              {item.product_id ? (products.find(p => p.id === item.product_id)?.name || 'Select Item') : 'Search by name'}
-                                            </span>
-                                          </SelectTrigger>
-                                          <SelectContent className="max-h-60 z-[100] bg-popover border shadow-lg">
-                                            <div className="p-2 border-b border-border">
-                                              <Input
-                                                placeholder="Search item name..."
-                                                className="h-8 text-xs"
-                                                value={productSearchTerms[index] || ''}
-                                                onChange={(e) => {
-                                                  setProductSearchTerms(prev => ({
-                                                    ...prev,
-                                                    [index]: e.target.value
-                                                  }));
-                                                }}
-                                              />
-                                            </div>
-                                            <div className="max-h-48 overflow-y-auto">
-                                              {products
-                                                .filter(product => {
-                                                  const term = (productSearchTerms[index] || '').toLowerCase();
-                                                  return term === '' ||
-                                                         product.name.toLowerCase().includes(term);
-                                                })
-                                                .map((product) => (
-                                                <SelectItem key={product.id} value={product.id} className="text-sm">
-                                                  <div className="flex flex-col">
-                                                    <span className="font-medium">{product.name}</span>
-                                                    <span className="text-xs text-muted-foreground">{product.sku} • ₹{product.unit_price}</span>
-                                                  </div>
-                                                </SelectItem>
-                                              ))}
-                                            </div>
-                                          </SelectContent>
-                                        </Select>
-                                        <Textarea
-                                          value={item.item_description}
-                                          onChange={(e) => updateLineItem(index, 'item_description', e.target.value)}
-                                          placeholder="Item description..."
-                                          className="min-h-[60px] text-xs resize-none bg-background"
-                                        />
-                                      </div>
+                                      <Select
+                                        value={item.product_id || ''}
+                                        onValueChange={(value) => handleProductSelection(index, value)}
+                                      >
+                                        <SelectTrigger className="h-9 bg-background border-input">
+                                          <span className="truncate text-sm">
+                                            {item.product_id ? (products.find(p => p.id === item.product_id)?.name || 'Select Item') : 'Search by name'}
+                                          </span>
+                                        </SelectTrigger>
+                                        <SelectContent className="max-h-60 z-[100] bg-popover border shadow-lg">
+                                          <div className="p-2 border-b border-border">
+                                            <Input
+                                              placeholder="Search item name..."
+                                              className="h-8 text-xs"
+                                              value={productSearchTerms[index] || ''}
+                                              onChange={(e) => {
+                                                setProductSearchTerms(prev => ({
+                                                  ...prev,
+                                                  [index]: e.target.value
+                                                }));
+                                              }}
+                                            />
+                                          </div>
+                                          <div className="max-h-48 overflow-y-auto">
+                                            {products
+                                              .filter(product => {
+                                                const term = (productSearchTerms[index] || '').toLowerCase();
+                                                return term === '' ||
+                                                       product.name.toLowerCase().includes(term);
+                                              })
+                                              .map((product) => (
+                                              <SelectItem key={product.id} value={product.id} className="text-sm">
+                                                <span className="font-medium">{product.name}</span>
+                                              </SelectItem>
+                                            ))}
+                                          </div>
+                                        </SelectContent>
+                                      </Select>
                                     </div>
 
                                     {/* HSN/SAC Code */}
