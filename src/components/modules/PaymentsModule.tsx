@@ -58,6 +58,8 @@ export function PaymentsModule() {
   const [payments, setPayments] = useState<Payment[]>([]);
   const [salesOrders, setSalesOrders] = useState<SalesOrder[]>([]);
   const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>([]);
+  const [accountPayable, setAccountPayable] = useState<any[]>([]);
+  const [accountReceivable, setAccountReceivable] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [showAddDialog, setShowAddDialog] = useState(false);
@@ -66,6 +68,8 @@ export function PaymentsModule() {
     fetchPayments();
     fetchSalesOrders();
     fetchPurchaseOrders();
+    fetchAccountPayable();
+    fetchAccountReceivable();
   }, []);
 
   const fetchPayments = async () => {
@@ -141,6 +145,86 @@ export function PaymentsModule() {
       setPurchaseOrders(data || []);
     } catch (error) {
       console.error('Error fetching purchase orders:', error);
+    }
+  };
+
+  const fetchAccountPayable = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('purchase_orders')
+        .select(`
+          id,
+          po_number,
+          order_date,
+          total_amount,
+          status,
+          supplier:suppliers(name)
+        `)
+        .in('status', ['confirmed', 'pending'])
+        .order('order_date', { ascending: false });
+
+      if (error) {
+        console.error('Error fetching account payable:', error);
+        return;
+      }
+
+      // Calculate due date and ageing for each order
+      const processedData = (data || []).map(order => {
+        const orderDate = new Date(order.order_date);
+        const dueDate = new Date(orderDate.getTime() + 30 * 24 * 60 * 60 * 1000); // 30 days payment terms
+        const today = new Date();
+        const ageingDays = Math.floor((today.getTime() - dueDate.getTime()) / (1000 * 60 * 60 * 24));
+        
+        return {
+          ...order,
+          due_date: dueDate,
+          ageing_days: ageingDays
+        };
+      });
+
+      setAccountPayable(processedData);
+    } catch (error) {
+      console.error('Error fetching account payable:', error);
+    }
+  };
+
+  const fetchAccountReceivable = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('performa_invoices')
+        .select(`
+          id,
+          performa_invoice_number,
+          performa_invoice_date,
+          total_amount,
+          status,
+          customer:customers(name)
+        `)
+        .in('status', ['invoiced', 'sent'])
+        .order('performa_invoice_date', { ascending: false });
+
+      if (error) {
+        console.error('Error fetching account receivable:', error);
+        return;
+      }
+
+      // Calculate due date and ageing for each invoice
+      const processedData = (data || []).map(invoice => {
+        const invoiceDate = new Date(invoice.performa_invoice_date);
+        const dueDate = new Date(invoiceDate.getTime() + 30 * 24 * 60 * 60 * 1000); // 30 days payment terms
+        const today = new Date();
+        const ageingDays = Math.floor((today.getTime() - dueDate.getTime()) / (1000 * 60 * 60 * 24));
+        
+        return {
+          ...invoice,
+          due_date: dueDate,
+          ageing_days: ageingDays
+        };
+      });
+
+      setAccountReceivable(processedData);
+    } catch (error) {
+      console.error('Error fetching account receivable:', error);
     }
   };
 
@@ -420,37 +504,31 @@ export function PaymentsModule() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {/* Placeholder data - replace with actual purchase invoice data */}
-                <TableRow>
-                  <TableCell>ABC Suppliers Ltd</TableCell>
-                  <TableCell>INV-2024-001</TableCell>
-                  <TableCell>Jan 15, 2024</TableCell>
-                  <TableCell className="text-red-600">₹25,000</TableCell>
-                  <TableCell>Feb 14, 2024</TableCell>
-                  <TableCell>
-                    <Badge variant="destructive">45 days</Badge>
-                  </TableCell>
-                </TableRow>
-                <TableRow>
-                  <TableCell>XYZ Materials</TableCell>
-                  <TableCell>INV-2024-002</TableCell>
-                  <TableCell>Feb 10, 2024</TableCell>
-                  <TableCell className="text-red-600">₹15,000</TableCell>
-                  <TableCell>Mar 11, 2024</TableCell>
-                  <TableCell>
-                    <Badge variant="secondary">15 days</Badge>
-                  </TableCell>
-                </TableRow>
-                <TableRow>
-                  <TableCell>Tech Solutions</TableCell>
-                  <TableCell>INV-2024-003</TableCell>
-                  <TableCell>Feb 20, 2024</TableCell>
-                  <TableCell className="text-red-600">₹10,000</TableCell>
-                  <TableCell>Mar 21, 2024</TableCell>
-                  <TableCell>
-                    <Badge variant="outline">5 days</Badge>
-                  </TableCell>
-                </TableRow>
+                {accountPayable.map((order) => (
+                  <TableRow key={order.id}>
+                    <TableCell>{order.supplier?.name || 'Unknown Supplier'}</TableCell>
+                    <TableCell>{order.po_number}</TableCell>
+                    <TableCell>{new Date(order.order_date).toLocaleDateString()}</TableCell>
+                    <TableCell className="text-red-600">₹{order.total_amount.toLocaleString()}</TableCell>
+                    <TableCell>{order.due_date.toLocaleDateString()}</TableCell>
+                    <TableCell>
+                      <Badge variant={
+                        order.ageing_days > 30 ? "destructive" : 
+                        order.ageing_days > 0 ? "secondary" : 
+                        "outline"
+                      }>
+                        {Math.abs(order.ageing_days)} days {order.ageing_days > 0 ? 'overdue' : 'remaining'}
+                      </Badge>
+                    </TableCell>
+                  </TableRow>
+                ))}
+                {accountPayable.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={6} className="text-center text-muted-foreground">
+                      No pending purchase orders found
+                    </TableCell>
+                  </TableRow>
+                )}
               </TableBody>
             </Table>
           </CardContent>
@@ -478,37 +556,31 @@ export function PaymentsModule() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {/* Placeholder data - replace with actual sales invoice data */}
-                <TableRow>
-                  <TableCell>Global Enterprises</TableCell>
-                  <TableCell>SI-2024-001</TableCell>
-                  <TableCell>Jan 20, 2024</TableCell>
-                  <TableCell className="text-green-600">₹20,000</TableCell>
-                  <TableCell>Feb 19, 2024</TableCell>
-                  <TableCell>
-                    <Badge variant="destructive">35 days</Badge>
-                  </TableCell>
-                </TableRow>
-                <TableRow>
-                  <TableCell>Metro Solutions</TableCell>
-                  <TableCell>SI-2024-002</TableCell>
-                  <TableCell>Feb 15, 2024</TableCell>
-                  <TableCell className="text-green-600">₹12,000</TableCell>
-                  <TableCell>Mar 16, 2024</TableCell>
-                  <TableCell>
-                    <Badge variant="secondary">10 days</Badge>
-                  </TableCell>
-                </TableRow>
-                <TableRow>
-                  <TableCell>Regional Corp</TableCell>
-                  <TableCell>SI-2024-003</TableCell>
-                  <TableCell>Feb 25, 2024</TableCell>
-                  <TableCell className="text-green-600">₹3,000</TableCell>
-                  <TableCell>Mar 26, 2024</TableCell>
-                  <TableCell>
-                    <Badge variant="outline">1 day</Badge>
-                  </TableCell>
-                </TableRow>
+                {accountReceivable.map((invoice) => (
+                  <TableRow key={invoice.id}>
+                    <TableCell>{invoice.customer?.name || 'Unknown Customer'}</TableCell>
+                    <TableCell>{invoice.performa_invoice_number}</TableCell>
+                    <TableCell>{new Date(invoice.performa_invoice_date).toLocaleDateString()}</TableCell>
+                    <TableCell className="text-green-600">₹{invoice.total_amount.toLocaleString()}</TableCell>
+                    <TableCell>{invoice.due_date.toLocaleDateString()}</TableCell>
+                    <TableCell>
+                      <Badge variant={
+                        invoice.ageing_days > 30 ? "destructive" : 
+                        invoice.ageing_days > 0 ? "secondary" : 
+                        "outline"
+                      }>
+                        {Math.abs(invoice.ageing_days)} days {invoice.ageing_days > 0 ? 'overdue' : 'remaining'}
+                      </Badge>
+                    </TableCell>
+                  </TableRow>
+                ))}
+                {accountReceivable.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={6} className="text-center text-muted-foreground">
+                      No pending invoices found
+                    </TableCell>
+                  </TableRow>
+                )}
               </TableBody>
             </Table>
           </CardContent>
