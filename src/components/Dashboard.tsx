@@ -206,24 +206,34 @@ export default function Dashboard() {
           <div className="space-y-6">
             {/* Welcome & Company Info Card - Full Width at Top */}
             <Card className="card-interactive shadow-card hover:shadow-elevated transition-all duration-300 bg-gradient-to-br from-primary/5 to-primary/10 border-primary/20">
-              <CardContent className="p-6">
-                <div className="flex items-start justify-between">
-                  <div className="space-y-2">
-                    <p className="text-sm font-medium text-muted-foreground">Dashboard</p>
+              <CardContent className="p-8">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    <div className="p-4 rounded-2xl bg-primary/10 text-primary">
+                      <SidebarTrigger className="p-0">
+                        <Menu className="h-8 w-8" />
+                      </SidebarTrigger>
+                    </div>
                     <div className="space-y-1">
-                      <p className="text-lg font-bold tracking-tight">Welcome back, {profile?.first_name || 'User'}!</p>
-                      {company?.business_ref_no && (
-                        <p className="text-xs text-muted-foreground">
-                          Company ID: <span className="font-mono text-primary font-medium">{company.business_ref_no}</span>
-                        </p>
-                      )}
+                      <p className="text-sm font-medium text-muted-foreground uppercase tracking-wide">Dashboard Overview</p>
+                      <h1 className="text-3xl font-bold tracking-tight text-foreground">
+                        Welcome back, {profile?.first_name || 'User'}!
+                      </h1>
+                      <p className="text-base text-muted-foreground">
+                        Here's what's happening with your business today
+                      </p>
                     </div>
                   </div>
-                  <div className="p-3 rounded-xl bg-background/50 text-primary">
-                    <SidebarTrigger className="p-0">
-                      <Menu className="h-6 w-6" />
-                    </SidebarTrigger>
-                  </div>
+                  
+                  {/* Company ID - Right Side */}
+                  {company?.business_ref_no && (
+                    <div className="text-right">
+                      <p className="text-sm font-medium text-muted-foreground mb-1">Company ID</p>
+                      <div className="inline-flex items-center px-4 py-2 rounded-lg bg-primary/10 border border-primary/20">
+                        <span className="font-mono text-lg font-semibold text-primary">{company.business_ref_no}</span>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>
