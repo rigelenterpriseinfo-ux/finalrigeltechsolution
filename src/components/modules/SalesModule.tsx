@@ -275,10 +275,7 @@ export function SalesModule() {
     try {
       const { data, error } = await supabase
         .from('performa_invoices')
-        .select(`
-          *,
-          sales_order:sales_orders(order_number)
-        `)
+        .select('*')
         .order('created_at', { ascending: false });
 
       if (error) {
@@ -286,7 +283,24 @@ export function SalesModule() {
         return;
       }
 
-      setPerformaInvoices(data || []);
+      // Fetch sales order details separately if needed
+      const enrichedData = await Promise.all((data || []).map(async (invoice) => {
+        if (invoice.sales_order_id) {
+          const { data: salesOrder } = await supabase
+            .from('sales_orders')
+            .select('order_number')
+            .eq('id', invoice.sales_order_id)
+            .single();
+          
+          return {
+            ...invoice,
+            sales_order: salesOrder
+          };
+        }
+        return invoice;
+      }));
+
+      setPerformaInvoices(enrichedData);
     } catch (error) {
       console.error('Error fetching performa invoices:', error);
     }
@@ -1016,13 +1030,93 @@ export function SalesModule() {
         <TabsContent value="sales-orders" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Sales Orders</CardTitle>
-              <CardDescription>View and manage sales orders</CardDescription>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle>Sales Orders</CardTitle>
+                  <CardDescription>View and manage sales orders</CardDescription>
+                </div>
+                <Button onClick={() => setShowAddSODialog(true)}>
+                  <Plus className="mr-2 h-4 w-4" />
+                  Create Sales Order
+                </Button>
+              </div>
             </CardHeader>
             <CardContent>
-              <div className="text-center py-8">
-                <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                <p className="text-muted-foreground">Sales orders functionality coming soon</p>
+              <div className="space-y-4">
+                <div className="flex items-center space-x-2">
+                  <div className="relative flex-1">
+                    <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Search by order number, customer, or PO number..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="pl-8"
+                    />
+                  </div>
+                </div>
+
+                <div className="rounded-lg border border-border/40 shadow-sm overflow-hidden">
+                  <Table>
+                    <TableHeader className="bg-gradient-to-r from-muted/50 to-muted/30">
+                      <TableRow className="border-border/50 hover:bg-transparent">
+                        <TableHead className="font-semibold text-foreground">Order Number</TableHead>
+                        <TableHead className="font-semibold text-foreground">Customer</TableHead>
+                        <TableHead className="font-semibold text-foreground">Order Date</TableHead>
+                        <TableHead className="font-semibold text-foreground">Amount</TableHead>
+                        <TableHead className="font-semibold text-foreground">Status</TableHead>
+                        <TableHead className="font-semibold text-foreground">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {salesOrders.length > 0 ? (
+                        salesOrders.slice(0, 5).map((order) => (
+                          <TableRow key={order.id} className="hover:bg-muted/30 transition-colors border-border/30">
+                            <TableCell className="font-medium text-primary">{order.order_number}</TableCell>
+                            <TableCell className="font-medium">{order.customer.name}</TableCell>
+                            <TableCell>{format(new Date(order.order_date), 'dd/MM/yyyy')}</TableCell>
+                            <TableCell className="font-semibold">₹{order.total_amount.toLocaleString()}</TableCell>
+                            <TableCell>
+                              <Badge 
+                                variant={order.status === 'approved' ? 'default' : order.status === 'draft' ? 'secondary' : 'outline'}
+                                className="capitalize"
+                              >
+                                {order.status}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex items-center space-x-1">
+                                <Button 
+                                  variant="ghost" 
+                                  size="sm"
+                                  className="h-8 w-8 p-0 hover:bg-primary/10"
+                                >
+                                  <Edit2 className="h-3 w-3" />
+                                </Button>
+                                <Button 
+                                  variant="ghost" 
+                                  size="sm"
+                                  className="h-8 w-8 p-0 hover:bg-destructive/10 hover:text-destructive"
+                                >
+                                  <Trash2 className="h-3 w-3" />
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      ) : (
+                        <TableRow>
+                          <TableCell colSpan={6} className="text-center py-12">
+                            <div className="flex flex-col items-center space-y-2">
+                              <FileText className="h-8 w-8 text-muted-foreground" />
+                              <p className="text-muted-foreground">No sales orders found</p>
+                              <p className="text-sm text-muted-foreground">Create your first sales order to get started</p>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -1031,13 +1125,104 @@ export function SalesModule() {
         <TabsContent value="customers" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Customers</CardTitle>
-              <CardDescription>Manage customer information</CardDescription>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle>Customers</CardTitle>
+                  <CardDescription>Manage customer information</CardDescription>
+                </div>
+                <Button onClick={() => {
+                  setEditingCustomer(null);
+                  setShowAddCustomerDialog(true);
+                }}>
+                  <Plus className="mr-2 h-4 w-4" />
+                  Add Customer
+                </Button>
+              </div>
             </CardHeader>
             <CardContent>
-              <div className="text-center py-8">
-                <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                <p className="text-muted-foreground">Customer management functionality coming soon</p>
+              <div className="space-y-4">
+                <div className="flex items-center space-x-2">
+                  <div className="relative flex-1">
+                    <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Search by name, reference number, or GSTIN..."
+                      value={customerSearchTerm}
+                      onChange={(e) => setCustomerSearchTerm(e.target.value)}
+                      className="pl-8"
+                    />
+                  </div>
+                </div>
+
+                <div className="rounded-lg border border-border/40 shadow-sm overflow-hidden">
+                  <Table>
+                    <TableHeader className="bg-gradient-to-r from-muted/50 to-muted/30">
+                      <TableRow className="border-border/50 hover:bg-transparent">
+                        <TableHead className="font-semibold text-foreground">Name</TableHead>
+                        <TableHead className="font-semibold text-foreground">Reference No.</TableHead>
+                        <TableHead className="font-semibold text-foreground">GSTIN</TableHead>
+                        <TableHead className="font-semibold text-foreground">Contact</TableHead>
+                        <TableHead className="font-semibold text-foreground">Credit Limit</TableHead>
+                        <TableHead className="font-semibold text-foreground">Status</TableHead>
+                        <TableHead className="font-semibold text-foreground">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {customers.length > 0 ? (
+                        customers.slice(0, 5).map((customer) => (
+                          <TableRow key={customer.id} className="hover:bg-muted/30 transition-colors border-border/30">
+                            <TableCell className="font-medium">{customer.name}</TableCell>
+                            <TableCell>{customer.customer_ref || 'N/A'}</TableCell>
+                            <TableCell>{customer.gstin || 'N/A'}</TableCell>
+                            <TableCell>
+                              <div>
+                                <p className="text-sm">{customer.email || 'No email'}</p>
+                                <p className="text-xs text-muted-foreground">{customer.phone || 'No phone'}</p>
+                              </div>
+                            </TableCell>
+                            <TableCell className="font-semibold">₹{customer.credit_limit.toLocaleString()}</TableCell>
+                            <TableCell>
+                              <Badge variant={customer.is_active ? 'default' : 'secondary'}>
+                                {customer.is_active ? 'Active' : 'Inactive'}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex items-center space-x-1">
+                                <Button 
+                                  variant="ghost" 
+                                  size="sm"
+                                  onClick={() => {
+                                    setEditingCustomer(customer);
+                                    setShowAddCustomerDialog(true);
+                                  }}
+                                  className="h-8 w-8 p-0 hover:bg-primary/10"
+                                >
+                                  <Edit2 className="h-3 w-3" />
+                                </Button>
+                                <Button 
+                                  variant="ghost" 
+                                  size="sm"
+                                  className="h-8 w-8 p-0 hover:bg-destructive/10 hover:text-destructive"
+                                >
+                                  <Trash2 className="h-3 w-3" />
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      ) : (
+                        <TableRow>
+                          <TableCell colSpan={7} className="text-center py-12">
+                            <div className="flex flex-col items-center space-y-2">
+                              <Users className="h-8 w-8 text-muted-foreground" />
+                              <p className="text-muted-foreground">No customers found</p>
+                              <p className="text-sm text-muted-foreground">Add your first customer to get started</p>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
               </div>
             </CardContent>
           </Card>
