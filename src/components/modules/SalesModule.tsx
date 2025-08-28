@@ -238,6 +238,118 @@ export function SalesModule() {
     }
   };
 
+  // Line item calculation functions
+  const calculateLineTotal = (quantity: number, unitPrice: number, discountAmount: number, taxAmount: number) => {
+    const subtotal = quantity * unitPrice;
+    return subtotal - discountAmount + taxAmount;
+  };
+
+  const calculateTaxBreakdown = (amount: number, gstRate: number, isInterstate: boolean = false) => {
+    const taxAmount = (amount * gstRate) / 100;
+    
+    if (isInterstate) {
+      return {
+        cgst_rate: 0,
+        sgst_rate: 0,
+        igst_rate: gstRate,
+        cgst_amount: 0,
+        sgst_amount: 0,
+        igst_amount: taxAmount,
+      };
+    } else {
+      return {
+        cgst_rate: gstRate / 2,
+        sgst_rate: gstRate / 2,
+        igst_rate: 0,
+        cgst_amount: taxAmount / 2,
+        sgst_amount: taxAmount / 2,
+        igst_amount: 0,
+      };
+    }
+  };
+
+  const calculateOrderTotals = () => {
+    const subtotal = orderItems.reduce((sum, item) => sum + (item.quantity * item.unit_price), 0);
+    const totalDiscount = orderItems.reduce((sum, item) => sum + item.discount_amount, 0);
+    const totalTax = orderItems.reduce((sum, item) => sum + item.cgst_amount + item.sgst_amount + item.igst_amount, 0);
+    const total = subtotal - totalDiscount + totalTax;
+
+    return {
+      subtotal,
+      totalDiscount,
+      totalTax,
+      total,
+    };
+  };
+
+  const addLineItem = () => {
+    const newItem: SalesOrderItem = {
+      product_id: null,
+      item_description: '',
+      hsn_sac_code: '',
+      quantity: 1,
+      unit_of_measure: 'pcs',
+      unit_price: 0,
+      discount_percentage: 0,
+      discount_amount: 0,
+      tax_percentage: 18,
+      cgst_rate: 9,
+      sgst_rate: 9,
+      igst_rate: 0,
+      cgst_amount: 0,
+      sgst_amount: 0,
+      igst_amount: 0,
+      line_total: 0,
+    };
+    setOrderItems([...orderItems, newItem]);
+  };
+
+  const updateLineItem = (index: number, field: keyof SalesOrderItem, value: any) => {
+    const updatedItems = [...orderItems];
+    updatedItems[index] = { ...updatedItems[index], [field]: value };
+
+    // Auto-calculate amounts when relevant fields change
+    if (['quantity', 'unit_price', 'discount_percentage', 'tax_percentage'].includes(field)) {
+      const item = updatedItems[index];
+      const subtotal = item.quantity * item.unit_price;
+      
+      // Calculate discount
+      item.discount_amount = (subtotal * item.discount_percentage) / 100;
+      
+      // Calculate tax breakdown
+      const taxableAmount = subtotal - item.discount_amount;
+      const taxBreakdown = calculateTaxBreakdown(taxableAmount, item.tax_percentage);
+      
+      Object.assign(item, taxBreakdown);
+      
+      // Calculate line total
+      item.line_total = calculateLineTotal(
+        item.quantity,
+        item.unit_price,
+        item.discount_amount,
+        taxBreakdown.cgst_amount + taxBreakdown.sgst_amount + taxBreakdown.igst_amount
+      );
+    }
+
+    setOrderItems(updatedItems);
+  };
+
+  const removeLineItem = (index: number) => {
+    setOrderItems(orderItems.filter((_, i) => i !== index));
+  };
+
+  const handleProductSelection = (index: number, productId: string) => {
+    const product = products.find(p => p.id === productId);
+    if (product) {
+      updateLineItem(index, 'product_id', productId);
+      updateLineItem(index, 'item_description', product.description || product.name);
+      updateLineItem(index, 'hsn_sac_code', product.hsn_code || '');
+      updateLineItem(index, 'unit_price', product.unit_price);
+      updateLineItem(index, 'unit_of_measure', product.unit || 'pcs');
+      updateLineItem(index, 'tax_percentage', product.gst_percentage || 18);
+    }
+  };
+
   const handleAddSalesOrder = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     
@@ -281,10 +393,12 @@ export function SalesModule() {
         subtotal_amount: 0,
       };
 
-      // Remove the array wrapper - insert single object, not array
-      const { error } = await supabase
+      // Insert sales order first
+      const { data: salesOrderResult, error } = await supabase
         .from('sales_orders')
-        .insert(salesOrderData); // Remove the array wrapper
+        .insert(salesOrderData)
+        .select()
+        .single();
 
       if (error) {
         console.error('Error creating sales order:', error);
@@ -296,6 +410,56 @@ export function SalesModule() {
         return;
       }
 
+      // Insert line items if any exist
+      if (orderItems.length > 0) {
+        const lineItemsData = orderItems.map(item => ({
+          sales_order_id: salesOrderResult.id,
+          product_id: item.product_id,
+          item_description: item.item_description,
+          hsn_sac_code: item.hsn_sac_code,
+          quantity: item.quantity,
+          unit_of_measure: item.unit_of_measure,
+          unit_price: item.unit_price,
+          discount_percentage: item.discount_percentage,
+          discount_amount: item.discount_amount,
+          tax_percentage: item.tax_percentage,
+          cgst_rate: item.cgst_rate,
+          sgst_rate: item.sgst_rate,
+          igst_rate: item.igst_rate,
+          cgst_amount: item.cgst_amount,
+          sgst_amount: item.sgst_amount,
+          igst_amount: item.igst_amount,
+          total_price: item.line_total, // Map line_total to total_price for database
+        }));
+
+        const { error: itemsError } = await supabase
+          .from('sales_order_items')
+          .insert(lineItemsData);
+
+        if (itemsError) {
+          console.error('Error creating line items:', itemsError);
+          toast({
+            title: "Warning",
+            description: "Sales order created but failed to add line items",
+            variant: "destructive",
+          });
+        }
+
+        // Update sales order totals
+        const totals = calculateOrderTotals();
+        if (totals.total > 0) {
+          await supabase
+            .from('sales_orders')
+            .update({
+              subtotal_amount: totals.subtotal,
+              total_amount: totals.total,
+              tax_amount: totals.totalTax,
+              discount_amount: totals.totalDiscount,
+            })
+            .eq('id', salesOrderResult.id);
+        }
+      }
+
       toast({
         title: "Success",
         description: "Sales order created successfully",
@@ -304,6 +468,7 @@ export function SalesModule() {
       setShowAddSODialog(false);
       setSelectedCustomer(null);
       setDeliverySameAsRegistered(false);
+      setOrderItems([]); // Reset order items
       fetchSalesOrders();
       
     } catch (error) {
@@ -693,11 +858,195 @@ export function SalesModule() {
                                 <p><strong>Payment Terms:</strong> {selectedCustomer.payment_terms || 'N/A'}</p>
                                 <p><strong>Credit Limit:</strong> ₹{selectedCustomer.credit_limit.toLocaleString()}</p>
                               </div>
-                            </div>
-                          )}
                         </div>
+                      )}
+                    </div>
 
-                        <Separator />
+                    <Separator />
+
+                    {/* Order Line Items */}
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <h3 className="text-lg font-semibold">3. Order Line Items</h3>
+                        <Button type="button" onClick={addLineItem} variant="outline" size="sm">
+                          <Plus className="h-4 w-4 mr-2" />
+                          Add Item
+                        </Button>
+                      </div>
+                      
+                      {orderItems.length > 0 && (
+                        <div className="space-y-4">
+                          <div className="border rounded-lg overflow-hidden">
+                            <Table>
+                              <TableHeader>
+                                <TableRow className="bg-muted/50">
+                                  <TableHead>Product</TableHead>
+                                  <TableHead>Description</TableHead>
+                                  <TableHead>HSN/SAC</TableHead>
+                                  <TableHead>Qty</TableHead>
+                                  <TableHead>UOM</TableHead>
+                                  <TableHead>Unit Price</TableHead>
+                                  <TableHead>Disc %</TableHead>
+                                  <TableHead>Tax %</TableHead>
+                                  <TableHead>Line Total</TableHead>
+                                  <TableHead></TableHead>
+                                </TableRow>
+                              </TableHeader>
+                              <TableBody>
+                                {orderItems.map((item, index) => (
+                                  <TableRow key={index}>
+                                    <TableCell className="w-48">
+                                      <Select
+                                        value={item.product_id || ''}
+                                        onValueChange={(value) => handleProductSelection(index, value)}
+                                      >
+                                        <SelectTrigger className="w-full">
+                                          <SelectValue placeholder="Select product" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                          {products.map((product) => (
+                                            <SelectItem key={product.id} value={product.id}>
+                                              {product.name} - ₹{product.unit_price}
+                                            </SelectItem>
+                                          ))}
+                                        </SelectContent>
+                                      </Select>
+                                    </TableCell>
+                                    <TableCell className="w-40">
+                                      <Input
+                                        value={item.item_description}
+                                        onChange={(e) => updateLineItem(index, 'item_description', e.target.value)}
+                                        placeholder="Description"
+                                        className="text-xs"
+                                      />
+                                    </TableCell>
+                                    <TableCell className="w-24">
+                                      <Input
+                                        value={item.hsn_sac_code}
+                                        onChange={(e) => updateLineItem(index, 'hsn_sac_code', e.target.value)}
+                                        placeholder="HSN"
+                                        className="text-xs"
+                                      />
+                                    </TableCell>
+                                    <TableCell className="w-20">
+                                      <Input
+                                        type="number"
+                                        value={item.quantity}
+                                        onChange={(e) => updateLineItem(index, 'quantity', parseInt(e.target.value) || 0)}
+                                        className="text-xs"
+                                        min="1"
+                                      />
+                                    </TableCell>
+                                    <TableCell className="w-20">
+                                      <Input
+                                        value={item.unit_of_measure}
+                                        onChange={(e) => updateLineItem(index, 'unit_of_measure', e.target.value)}
+                                        className="text-xs"
+                                      />
+                                    </TableCell>
+                                    <TableCell className="w-24">
+                                      <Input
+                                        type="number"
+                                        value={item.unit_price}
+                                        onChange={(e) => updateLineItem(index, 'unit_price', parseFloat(e.target.value) || 0)}
+                                        className="text-xs"
+                                        step="0.01"
+                                      />
+                                    </TableCell>
+                                    <TableCell className="w-20">
+                                      <Input
+                                        type="number"
+                                        value={item.discount_percentage}
+                                        onChange={(e) => updateLineItem(index, 'discount_percentage', parseFloat(e.target.value) || 0)}
+                                        className="text-xs"
+                                        step="0.1"
+                                        max="100"
+                                      />
+                                    </TableCell>
+                                    <TableCell className="w-20">
+                                      <Input
+                                        type="number"
+                                        value={item.tax_percentage}
+                                        onChange={(e) => updateLineItem(index, 'tax_percentage', parseFloat(e.target.value) || 0)}
+                                        className="text-xs"
+                                        step="0.1"
+                                      />
+                                    </TableCell>
+                                    <TableCell className="w-24 font-medium">
+                                      ₹{item.line_total.toFixed(2)}
+                                    </TableCell>
+                                    <TableCell className="w-12">
+                                      <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => removeLineItem(index)}
+                                      >
+                                        <Trash2 className="h-4 w-4" />
+                                      </Button>
+                                    </TableCell>
+                                  </TableRow>
+                                ))}
+                              </TableBody>
+                            </Table>
+                          </div>
+
+                          {/* Tax Breakdown and Totals */}
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="bg-muted/50 p-4 rounded-lg">
+                              <h4 className="font-medium mb-3">Tax Breakdown</h4>
+                              <div className="space-y-2 text-sm">
+                                {orderItems.map((item, index) => (
+                                  item.line_total > 0 && (
+                                    <div key={index} className="border-b pb-2">
+                                      <p className="font-medium">{item.item_description || `Item ${index + 1}`}</p>
+                                      <div className="grid grid-cols-3 gap-2 text-xs text-muted-foreground">
+                                        <div>CGST ({item.cgst_rate}%): ₹{item.cgst_amount.toFixed(2)}</div>
+                                        <div>SGST ({item.sgst_rate}%): ₹{item.sgst_amount.toFixed(2)}</div>
+                                        <div>IGST ({item.igst_rate}%): ₹{item.igst_amount.toFixed(2)}</div>
+                                      </div>
+                                    </div>
+                                  )
+                                ))}
+                              </div>
+                            </div>
+                            
+                            <div className="bg-primary/5 p-4 rounded-lg">
+                              <h4 className="font-medium mb-3">Order Summary</h4>
+                              <div className="space-y-2">
+                                <div className="flex justify-between">
+                                  <span>Subtotal:</span>
+                                  <span>₹{calculateOrderTotals().subtotal.toFixed(2)}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span>Discount:</span>
+                                  <span>-₹{calculateOrderTotals().totalDiscount.toFixed(2)}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span>Tax:</span>
+                                  <span>₹{calculateOrderTotals().totalTax.toFixed(2)}</span>
+                                </div>
+                                <Separator />
+                                <div className="flex justify-between font-bold text-lg">
+                                  <span>Total:</span>
+                                  <span>₹{calculateOrderTotals().total.toFixed(2)}</span>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {orderItems.length === 0 && (
+                        <div className="text-center py-8 text-muted-foreground">
+                          <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                          <p>No line items added yet</p>
+                          <p className="text-sm">Click "Add Item" to start adding products to this order</p>
+                        </div>
+                      )}
+                    </div>
+
+                    <Separator />
 
                         {/* Shipping & Delivery */}
                         <div className="space-y-4">
