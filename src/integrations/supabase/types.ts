@@ -1068,33 +1068,66 @@ export type Database = {
       }
       sales_order_items: {
         Row: {
+          cgst_amount: number | null
+          cgst_rate: number | null
           created_at: string
           discount_amount: number
+          discount_percentage: number | null
+          hsn_sac_code: string | null
           id: string
+          igst_amount: number | null
+          igst_rate: number | null
+          item_description: string
           product_id: string
           quantity: number
           sales_order_id: string
+          sgst_amount: number | null
+          sgst_rate: number | null
+          tax_percentage: number | null
           total_price: number
+          unit_of_measure: string
           unit_price: number
         }
         Insert: {
+          cgst_amount?: number | null
+          cgst_rate?: number | null
           created_at?: string
           discount_amount?: number
+          discount_percentage?: number | null
+          hsn_sac_code?: string | null
           id?: string
+          igst_amount?: number | null
+          igst_rate?: number | null
+          item_description?: string
           product_id: string
           quantity: number
           sales_order_id: string
+          sgst_amount?: number | null
+          sgst_rate?: number | null
+          tax_percentage?: number | null
           total_price: number
+          unit_of_measure?: string
           unit_price: number
         }
         Update: {
+          cgst_amount?: number | null
+          cgst_rate?: number | null
           created_at?: string
           discount_amount?: number
+          discount_percentage?: number | null
+          hsn_sac_code?: string | null
           id?: string
+          igst_amount?: number | null
+          igst_rate?: number | null
+          item_description?: string
           product_id?: string
           quantity?: number
           sales_order_id?: string
+          sgst_amount?: number | null
+          sgst_rate?: number | null
+          tax_percentage?: number | null
           total_price?: number
+          unit_of_measure?: string
           unit_price?: number
         }
         Relationships: [
