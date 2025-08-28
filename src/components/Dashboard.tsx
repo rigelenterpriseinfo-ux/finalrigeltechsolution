@@ -266,10 +266,10 @@ export default function Dashboard() {
               />
               
               <StatsCard
-                title="Customers"
-                value="0"
-                subtitle="Grow your customer base"
-                icon={Users}
+                title="Inventory"
+                value="0 SKUs"
+                subtitle="Total Units: 0 | Total Cost: ₹0"
+                icon={Package}
                 variant="default"
               />
             </div>
