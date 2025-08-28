@@ -50,6 +50,49 @@ interface PurchaseOrder {
   }[];
 }
 
+interface PurchaseInvoice {
+  id: string;
+  purchase_invoice_number: string;
+  purchase_invoice_date: string;
+  status: string;
+  subtotal_amount: number;
+  total_discount_amount: number;
+  total_tax_amount: number;
+  total_amount: number;
+  place_of_supply: string | null;
+  notes: string | null;
+  supplier: {
+    id: string;
+    name: string;
+    email: string | null;
+    supplier_ref: string | null;
+  };
+  purchase_invoice_items?: PurchaseInvoiceItem[];
+}
+
+interface PurchaseInvoiceItem {
+  id: string;
+  product_id: string | null;
+  item_code: string | null;
+  item_description: string;
+  hsn_sac_code: string | null;
+  unit_of_measure: string;
+  quantity: number;
+  unit_price: number;
+  discount_percentage: number;
+  discount_amount: number;
+  taxable_value: number;
+  cgst_rate: number;
+  sgst_rate: number;
+  igst_rate: number;
+  cgst_amount: number;
+  sgst_amount: number;
+  igst_amount: number;
+  total_price: number;
+  is_taxable: boolean;
+  remarks: string | null;
+}
+
 interface Supplier {
   id: string;
   supplier_ref: string | null;
@@ -134,11 +177,21 @@ const purchaseOrderSchema = z.object({
   delivery_postal_code: z.string().optional(),
 });
 
+const purchaseInvoiceSchema = z.object({
+  supplier_id: z.string().min(1, "Please select a supplier"),
+  purchase_invoice_date: z.string().min(1, "Invoice date is required"),
+  purchase_order_id: z.string().optional(),
+  place_of_supply: z.string().optional(),
+  notes: z.string().optional(),
+});
+
 export function PurchaseModule() {
   const { profile } = useAuth();
   const { toast } = useToast();
   const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>([]);
   const [purchaseOrderItems, setPurchaseOrderItems] = useState<any[]>([]);
+  const [purchaseInvoices, setPurchaseInvoices] = useState<any[]>([]);
+  const [products, setProducts] = useState<any[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -156,6 +209,7 @@ export function PurchaseModule() {
   const [showEditSupplierDialog, setShowEditSupplierDialog] = useState(false);
   const [showEditPODialog, setShowEditPODialog] = useState(false);
   const [showViewPODialog, setShowViewPODialog] = useState(false);
+  const [showAddPIDialog, setShowAddPIDialog] = useState(false);
   const [editingSupplier, setEditingSupplier] = useState<Supplier | null>(null);
   const [editingPO, setEditingPO] = useState<PurchaseOrder | null>(null);
   const [viewingPO, setViewingPO] = useState<PurchaseOrder | null>(null);
@@ -189,6 +243,31 @@ export function PurchaseModule() {
     }
   ]);
 
+  const [invoiceItems, setInvoiceItems] = useState<PurchaseInvoiceItem[]>([
+    {
+      id: 'temp-1',
+      product_id: null,
+      item_code: '',
+      item_description: '',
+      hsn_sac_code: '',
+      unit_of_measure: 'pcs',
+      quantity: 1,
+      unit_price: 0,
+      discount_percentage: 0,
+      discount_amount: 0,
+      taxable_value: 0,
+      cgst_rate: 9,
+      sgst_rate: 9,
+      igst_rate: 0,
+      cgst_amount: 0,
+      sgst_amount: 0,
+      igst_amount: 0,
+      total_price: 0,
+      is_taxable: true,
+      remarks: null,
+    }
+  ]);
+
   const form = useForm<z.infer<typeof purchaseOrderSchema>>({
     resolver: zodResolver(purchaseOrderSchema),
     defaultValues: {
@@ -196,6 +275,17 @@ export function PurchaseModule() {
       order_date: new Date().toISOString().split('T')[0],
       expected_date: '',
       external_po_ref: '',
+      notes: '',
+    },
+  });
+
+  const invoiceForm = useForm<z.infer<typeof purchaseInvoiceSchema>>({
+    resolver: zodResolver(purchaseInvoiceSchema),
+    defaultValues: {
+      supplier_id: '',
+      purchase_invoice_date: new Date().toISOString().split('T')[0],
+      purchase_order_id: '',
+      place_of_supply: '',
       notes: '',
     },
   });
@@ -579,6 +669,121 @@ export function PurchaseModule() {
         description: "Failed to create purchase order",
         variant: "destructive",
       });
+    }
+  };
+
+  // Purchase Invoice Functions
+  const handleAddPurchaseInvoice = async (data: z.infer<typeof purchaseInvoiceSchema>) => {
+    try {
+      const { data: invoiceData, error: invoiceError } = await supabase
+        .from('purchase_invoices')
+        .insert({
+          company_id: profile?.company_id!,
+          supplier_id: data.supplier_id,
+          purchase_invoice_date: data.purchase_invoice_date,
+          place_of_supply: data.place_of_supply || null,
+          notes: data.notes || null,
+          subtotal_amount: invoiceItems.reduce((sum, item) => sum + (item.quantity * item.unit_price), 0),
+          total_discount_amount: invoiceItems.reduce((sum, item) => sum + item.discount_amount, 0),
+          total_tax_amount: invoiceItems.reduce((sum, item) => sum + item.cgst_amount + item.sgst_amount + item.igst_amount, 0),
+          total_amount: invoiceItems.reduce((sum, item) => sum + item.total_price, 0),
+          created_by: profile?.id!,
+        })
+        .select()
+        .single();
+
+      if (invoiceError) throw invoiceError;
+
+      // Insert invoice items
+      const itemsToInsert = invoiceItems.map(item => ({
+        purchase_invoice_id: invoiceData.id,
+        product_id: item.product_id,
+        item_description: item.item_description,
+        hsn_sac_code: item.hsn_sac_code,
+        unit_of_measure: item.unit_of_measure,
+        quantity: item.quantity,
+        unit_price: item.unit_price,
+        discount_percentage: item.discount_percentage,
+        discount_amount: item.discount_amount,
+        taxable_value: item.taxable_value,
+        cgst_rate: item.cgst_rate,
+        sgst_rate: item.sgst_rate,
+        igst_rate: item.igst_rate,
+        cgst_amount: item.cgst_amount,
+        sgst_amount: item.sgst_amount,
+        igst_amount: item.igst_amount,
+        total_price: item.total_price,
+        is_taxable: item.is_taxable,
+        remarks: item.remarks,
+      }));
+
+      const { error: itemsError } = await supabase
+        .from('purchase_invoice_items')
+        .insert(itemsToInsert);
+
+      if (itemsError) throw itemsError;
+
+      toast({
+        title: "Success",
+        description: "Purchase invoice created successfully!",
+      });
+
+      setShowAddPIDialog(false);
+      invoiceForm.reset();
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: "Failed to create purchase invoice",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const addInvoiceItem = () => {
+    setInvoiceItems([...invoiceItems, {
+      id: `temp-${Date.now()}`,
+      product_id: null,
+      item_code: '',
+      item_description: '',
+      hsn_sac_code: '',
+      unit_of_measure: 'pcs',
+      quantity: 1,
+      unit_price: 0,
+      discount_percentage: 0,
+      discount_amount: 0,
+      taxable_value: 0,
+      cgst_rate: 9,
+      sgst_rate: 9,
+      igst_rate: 0,
+      cgst_amount: 0,
+      sgst_amount: 0,
+      igst_amount: 0,
+      total_price: 0,
+      is_taxable: true,
+      remarks: null,
+    }]);
+  };
+
+  const handleInvoiceItemChange = (index: number, field: string, value: any) => {
+    const newItems = [...invoiceItems];
+    newItems[index] = { ...newItems[index], [field]: value };
+    
+    // Recalculate totals
+    const item = newItems[index];
+    const subtotal = item.quantity * item.unit_price;
+    item.discount_amount = (subtotal * item.discount_percentage) / 100;
+    item.taxable_value = subtotal - item.discount_amount;
+    item.cgst_amount = (item.taxable_value * item.cgst_rate) / 100;
+    item.sgst_amount = (item.taxable_value * item.sgst_rate) / 100;
+    item.igst_amount = (item.taxable_value * item.igst_rate) / 100;
+    item.total_price = item.taxable_value + item.cgst_amount + item.sgst_amount + item.igst_amount;
+    
+    setInvoiceItems(newItems);
+  };
+
+  const removeInvoiceItem = (index: number) => {
+    if (invoiceItems.length > 1) {
+      setInvoiceItems(invoiceItems.filter((_, i) => i !== index));
     }
   };
 
@@ -1737,6 +1942,15 @@ export function PurchaseModule() {
                 Create Purchase Order
               </Button>
             </DialogTrigger>
+          </Dialog>
+
+          <Dialog open={showAddPIDialog} onOpenChange={setShowAddPIDialog}>
+            <DialogTrigger asChild>
+              <Button className="shadow-sm bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white">
+                <FileDown className="h-4 w-4 mr-2" />
+                Purchase Invoice Entry
+              </Button>
+            </DialogTrigger>
             <DialogContent className="max-w-6xl max-h-[95vh] overflow-y-auto">
               <DialogHeader className="border-b pb-4">
                 <DialogTitle className="text-xl text-primary">Create Purchase Order</DialogTitle>
@@ -2486,6 +2700,433 @@ export function PurchaseModule() {
               </Form>
             </DialogContent>
           </Dialog>
+
+          {/* Purchase Invoice Dialog */}
+          <DialogContent className="max-w-6xl max-h-[95vh] overflow-y-auto">
+            <DialogHeader className="border-b pb-4">
+              <DialogTitle className="text-xl text-green-700">Purchase Invoice Entry</DialogTitle>
+              <DialogDescription>Create a purchase invoice with multiple items and automatic inventory updates</DialogDescription>
+            </DialogHeader>
+            
+            <Form {...invoiceForm}>
+              <form onSubmit={invoiceForm.handleSubmit(handleAddPurchaseInvoice)} className="space-y-8">
+                
+                {/* Header Section */}
+                <div className="bg-gradient-to-r from-green-50 to-green-100 p-6 rounded-xl border border-green-200">
+                  <div className="flex items-center gap-3 mb-6">
+                    <FileDown className="h-6 w-6 text-green-600" />
+                    <h3 className="text-lg font-semibold text-green-800">Invoice Information</h3>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <FormField
+                      control={invoiceForm.control}
+                      name="purchase_invoice_date"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-green-700">Invoice Date *</FormLabel>
+                          <FormControl>
+                            <Input 
+                              type="date" 
+                              {...field}
+                              className="border-green-200 focus:border-green-400"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={invoiceForm.control}
+                      name="place_of_supply"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-green-700">Place of Supply</FormLabel>
+                          <FormControl>
+                            <Input 
+                              placeholder="Enter place of supply"
+                              {...field}
+                              className="border-green-200 focus:border-green-400"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={invoiceForm.control}
+                      name="notes"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-green-700">Notes</FormLabel>
+                          <FormControl>
+                            <Textarea 
+                              placeholder="Additional notes..."
+                              {...field}
+                              rows={2}
+                              className="border-green-200 focus:border-green-400"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                </div>
+
+                {/* Supplier Selection */}
+                <div className="bg-gradient-to-r from-blue-50 to-blue-100 p-6 rounded-xl border border-blue-200">
+                  <div className="flex items-center gap-3 mb-6">
+                    <Truck className="h-6 w-6 text-blue-600" />
+                    <h3 className="text-lg font-semibold text-blue-800">Supplier Information</h3>
+                  </div>
+                  
+                  <FormField
+                    control={invoiceForm.control}
+                    name="supplier_id"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-blue-700">Select Supplier *</FormLabel>
+                        <Select 
+                          onValueChange={(value) => {
+                            field.onChange(value);
+                            const supplier = suppliers.find(s => s.id === value);
+                            setSelectedSupplier(supplier || null);
+                          }}
+                          value={field.value}
+                        >
+                          <FormControl>
+                            <SelectTrigger className="border-blue-200 focus:border-blue-400">
+                              <SelectValue placeholder="Choose a supplier for this invoice" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {suppliers.map((supplier) => (
+                              <SelectItem key={supplier.id} value={supplier.id}>
+                                <div className="flex flex-col">
+                                  <span className="font-medium">{supplier.name}</span>
+                                  <span className="text-sm text-muted-foreground">
+                                    {supplier.supplier_ref} • {supplier.email}
+                                  </span>
+                                </div>
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  {selectedSupplier && (
+                    <Card className="mt-4 p-4 bg-blue-50/50 border-blue-200">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                        <div>
+                          <strong className="text-blue-800">Contact:</strong> {selectedSupplier.contact_person || 'N/A'}
+                        </div>
+                        <div>
+                          <strong className="text-blue-800">Phone:</strong> {selectedSupplier.phone || 'N/A'}
+                        </div>
+                        <div>
+                          <strong className="text-blue-800">Email:</strong> {selectedSupplier.email || 'N/A'}
+                        </div>
+                        <div>
+                          <strong className="text-blue-800">GST:</strong> {selectedSupplier.gst_number || 'N/A'}
+                        </div>
+                      </div>
+                    </Card>
+                  )}
+                </div>
+
+                {/* Invoice Items Section */}
+                <div className="bg-gradient-to-r from-purple-50 to-purple-100 p-6 rounded-xl border border-purple-200">
+                  <div className="flex items-center justify-between mb-6">
+                    <div className="flex items-center gap-3">
+                      <Package className="h-6 w-6 text-purple-600" />
+                      <h3 className="text-lg font-semibold text-purple-800">Invoice Items</h3>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={addInvoiceItem}
+                      className="border-purple-300 text-purple-700 hover:bg-purple-100"
+                    >
+                      <Plus className="h-4 w-4 mr-2" />
+                      Add Item
+                    </Button>
+                  </div>
+
+                  <div className="space-y-4">
+                    {invoiceItems.map((item, index) => (
+                      <Card key={item.id} className="p-4 bg-white/80 border-purple-200">
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                          <div>
+                            <Label className="text-purple-700">Product/Item *</Label>
+                            <Select 
+                              value={item.product_id || ''}
+                              onValueChange={(value) => handleInvoiceItemChange(index, 'product_id', value)}
+                            >
+                              <SelectTrigger className="border-purple-200">
+                                <SelectValue placeholder="Select product or manual entry" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="">Manual Entry</SelectItem>
+                                {products.map((product) => (
+                                  <SelectItem key={product.id} value={product.id}>
+                                    {product.name} ({product.sku})
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+
+                          <div>
+                            <Label className="text-purple-700">Item Description *</Label>
+                            <Input
+                              value={item.item_description}
+                              onChange={(e) => handleInvoiceItemChange(index, 'item_description', e.target.value)}
+                              placeholder="Enter item description"
+                              className="border-purple-200"
+                            />
+                          </div>
+
+                          <div>
+                            <Label className="text-purple-700">HSN/SAC Code</Label>
+                            <Input
+                              value={item.hsn_sac_code || ''}
+                              onChange={(e) => handleInvoiceItemChange(index, 'hsn_sac_code', e.target.value)}
+                              placeholder="HSN/SAC code"
+                              className="border-purple-200"
+                            />
+                          </div>
+
+                          <div>
+                            <Label className="text-purple-700">Unit of Measure</Label>
+                            <Select 
+                              value={item.unit_of_measure}
+                              onValueChange={(value) => handleInvoiceItemChange(index, 'unit_of_measure', value)}
+                            >
+                              <SelectTrigger className="border-purple-200">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="pcs">Pieces</SelectItem>
+                                <SelectItem value="kg">Kilograms</SelectItem>
+                                <SelectItem value="gm">Grams</SelectItem>
+                                <SelectItem value="ltr">Liters</SelectItem>
+                                <SelectItem value="mtr">Meters</SelectItem>
+                                <SelectItem value="box">Box</SelectItem>
+                                <SelectItem value="set">Set</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mt-4">
+                          <div>
+                            <Label className="text-purple-700">Quantity *</Label>
+                            <Input
+                              type="number"
+                              value={item.quantity}
+                              onChange={(e) => handleInvoiceItemChange(index, 'quantity', parseFloat(e.target.value) || 0)}
+                              min="0"
+                              step="0.01"
+                              className="border-purple-200"
+                            />
+                          </div>
+
+                          <div>
+                            <Label className="text-purple-700">Unit Price *</Label>
+                            <Input
+                              type="number"
+                              value={item.unit_price}
+                              onChange={(e) => handleInvoiceItemChange(index, 'unit_price', parseFloat(e.target.value) || 0)}
+                              min="0"
+                              step="0.01"
+                              className="border-purple-200"
+                            />
+                          </div>
+
+                          <div>
+                            <Label className="text-purple-700">Discount %</Label>
+                            <Input
+                              type="number"
+                              value={item.discount_percentage}
+                              onChange={(e) => handleInvoiceItemChange(index, 'discount_percentage', parseFloat(e.target.value) || 0)}
+                              min="0"
+                              max="100"
+                              step="0.01"
+                              className="border-purple-200"
+                            />
+                          </div>
+
+                          <div>
+                            <Label className="text-purple-700">CGST Rate %</Label>
+                            <Input
+                              type="number"
+                              value={item.cgst_rate}
+                              onChange={(e) => handleInvoiceItemChange(index, 'cgst_rate', parseFloat(e.target.value) || 0)}
+                              min="0"
+                              max="30"
+                              step="0.01"
+                              className="border-purple-200"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mt-4">
+                          <div>
+                            <Label className="text-purple-700">SGST Rate %</Label>
+                            <Input
+                              type="number"
+                              value={item.sgst_rate}
+                              onChange={(e) => handleInvoiceItemChange(index, 'sgst_rate', parseFloat(e.target.value) || 0)}
+                              min="0"
+                              max="30"
+                              step="0.01"
+                              className="border-purple-200"
+                            />
+                          </div>
+
+                          <div>
+                            <Label className="text-purple-700">IGST Rate %</Label>
+                            <Input
+                              type="number"
+                              value={item.igst_rate}
+                              onChange={(e) => handleInvoiceItemChange(index, 'igst_rate', parseFloat(e.target.value) || 0)}
+                              min="0"
+                              max="30"
+                              step="0.01"
+                              className="border-purple-200"
+                            />
+                          </div>
+
+                          <div>
+                            <Label className="text-purple-700">Total Price</Label>
+                            <Input
+                              value={`₹${item.total_price.toFixed(2)}`}
+                              disabled
+                              className="border-purple-200 bg-purple-50"
+                            />
+                          </div>
+
+                          <div className="flex items-end">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => removeInvoiceItem(index)}
+                              disabled={invoiceItems.length === 1}
+                              className="w-full border-red-300 text-red-700 hover:bg-red-100"
+                            >
+                              <Trash2 className="h-4 w-4 mr-2" />
+                              Remove
+                            </Button>
+                          </div>
+                        </div>
+                      </Card>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Invoice Summary */}
+                <div className="bg-gradient-to-br from-muted/30 to-muted/50 p-6 rounded-xl border shadow-sm space-y-6">
+                  <div className="flex items-center gap-2">
+                    <Package className="h-5 w-5 text-primary" />
+                    <h4 className="text-lg font-semibold text-primary">Invoice Summary</h4>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <Card className="p-4 bg-background/80">
+                      <div className="space-y-2">
+                        <div className="text-sm font-medium text-muted-foreground">Total Quantity</div>
+                        <div className="text-2xl font-bold text-primary">
+                          {invoiceItems.reduce((sum, item) => sum + (item.quantity || 0), 0).toFixed(2)}
+                        </div>
+                      </div>
+                    </Card>
+                    
+                    <Card className="p-4 bg-background/80">
+                      <div className="space-y-2">
+                        <div className="text-sm font-medium text-muted-foreground">Subtotal</div>
+                        <div className="text-2xl font-bold text-green-600">
+                          ₹{invoiceItems.reduce((sum, item) => sum + (item.quantity * item.unit_price), 0).toFixed(2)}
+                        </div>
+                      </div>
+                    </Card>
+                    
+                    <Card className="p-4 bg-background/80">
+                      <div className="space-y-2">
+                        <div className="text-sm font-medium text-muted-foreground">Total Tax</div>
+                        <div className="text-2xl font-bold text-orange-600">
+                          ₹{invoiceItems.reduce((sum, item) => sum + item.cgst_amount + item.sgst_amount + item.igst_amount, 0).toFixed(2)}
+                        </div>
+                      </div>
+                    </Card>
+                    
+                    <Card className="p-4 bg-background/80">
+                      <div className="space-y-2">
+                        <div className="text-sm font-medium text-muted-foreground">Grand Total</div>
+                        <div className="text-3xl font-bold text-primary">
+                          ₹{invoiceItems.reduce((sum, item) => sum + item.total_price, 0).toFixed(2)}
+                        </div>
+                      </div>
+                    </Card>
+                  </div>
+                </div>
+
+                {/* Submit Actions */}
+                <div className="flex gap-4 pt-6 border-t">
+                  <Button 
+                    type="submit" 
+                    className="flex-1 h-12 bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 shadow-lg"
+                    disabled={!selectedSupplier || invoiceItems.length === 0 || !invoiceItems.some(item => item.item_description.trim())}
+                  >
+                    <FileDown className="h-4 w-4 mr-2" />
+                    Create Purchase Invoice
+                  </Button>
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    onClick={() => {
+                      setShowAddPIDialog(false);
+                      invoiceForm.reset();
+                      setSelectedSupplier(null);
+                      setInvoiceItems([{
+                        id: 'temp-1',
+                        product_id: null,
+                        item_code: '',
+                        item_description: '',
+                        hsn_sac_code: '',
+                        unit_of_measure: 'pcs',
+                        quantity: 1,
+                        unit_price: 0,
+                        discount_percentage: 0,
+                        discount_amount: 0,
+                        taxable_value: 0,
+                        cgst_rate: 9,
+                        sgst_rate: 9,
+                        igst_rate: 0,
+                        cgst_amount: 0,
+                        sgst_amount: 0,
+                        igst_amount: 0,
+                        total_price: 0,
+                        is_taxable: true,
+                        remarks: null,
+                      }]);
+                    }} 
+                    className="flex-1"
+                  >
+                    <X className="h-4 w-4 mr-2" />
+                    Cancel
+                  </Button>
+                </div>
+              </form>
+            </Form>
+          </DialogContent>
         </div>
       </div>
 

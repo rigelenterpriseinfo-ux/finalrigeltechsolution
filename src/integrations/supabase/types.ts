@@ -978,6 +978,153 @@ export type Database = {
           },
         ]
       }
+      purchase_invoice_items: {
+        Row: {
+          cgst_amount: number | null
+          cgst_rate: number | null
+          created_at: string
+          discount_amount: number | null
+          discount_percentage: number | null
+          hsn_sac_code: string | null
+          id: string
+          igst_amount: number | null
+          igst_rate: number | null
+          is_taxable: boolean | null
+          item_code: string | null
+          item_description: string
+          product_id: string | null
+          purchase_invoice_id: string
+          quantity: number
+          remarks: string | null
+          sgst_amount: number | null
+          sgst_rate: number | null
+          taxable_value: number | null
+          total_price: number
+          unit_of_measure: string
+          unit_price: number
+        }
+        Insert: {
+          cgst_amount?: number | null
+          cgst_rate?: number | null
+          created_at?: string
+          discount_amount?: number | null
+          discount_percentage?: number | null
+          hsn_sac_code?: string | null
+          id?: string
+          igst_amount?: number | null
+          igst_rate?: number | null
+          is_taxable?: boolean | null
+          item_code?: string | null
+          item_description?: string
+          product_id?: string | null
+          purchase_invoice_id: string
+          quantity: number
+          remarks?: string | null
+          sgst_amount?: number | null
+          sgst_rate?: number | null
+          taxable_value?: number | null
+          total_price: number
+          unit_of_measure?: string
+          unit_price: number
+        }
+        Update: {
+          cgst_amount?: number | null
+          cgst_rate?: number | null
+          created_at?: string
+          discount_amount?: number | null
+          discount_percentage?: number | null
+          hsn_sac_code?: string | null
+          id?: string
+          igst_amount?: number | null
+          igst_rate?: number | null
+          is_taxable?: boolean | null
+          item_code?: string | null
+          item_description?: string
+          product_id?: string | null
+          purchase_invoice_id?: string
+          quantity?: number
+          remarks?: string | null
+          sgst_amount?: number | null
+          sgst_rate?: number | null
+          taxable_value?: number | null
+          total_price?: number
+          unit_of_measure?: string
+          unit_price?: number
+        }
+        Relationships: []
+      }
+      purchase_invoices: {
+        Row: {
+          company_id: string
+          created_at: string
+          created_by: string
+          id: string
+          notes: string | null
+          place_of_supply: string | null
+          purchase_invoice_date: string
+          purchase_invoice_number: string
+          purchase_order_id: string | null
+          status: string
+          subtotal_amount: number
+          supplier_code: string | null
+          supplier_contact_email: string | null
+          supplier_contact_person: string | null
+          supplier_contact_phone: string | null
+          supplier_gstin: string | null
+          supplier_id: string
+          total_amount: number
+          total_discount_amount: number
+          total_tax_amount: number
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          created_by: string
+          id?: string
+          notes?: string | null
+          place_of_supply?: string | null
+          purchase_invoice_date?: string
+          purchase_invoice_number: string
+          purchase_order_id?: string | null
+          status?: string
+          subtotal_amount?: number
+          supplier_code?: string | null
+          supplier_contact_email?: string | null
+          supplier_contact_person?: string | null
+          supplier_contact_phone?: string | null
+          supplier_gstin?: string | null
+          supplier_id: string
+          total_amount?: number
+          total_discount_amount?: number
+          total_tax_amount?: number
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          created_by?: string
+          id?: string
+          notes?: string | null
+          place_of_supply?: string | null
+          purchase_invoice_date?: string
+          purchase_invoice_number?: string
+          purchase_order_id?: string | null
+          status?: string
+          subtotal_amount?: number
+          supplier_code?: string | null
+          supplier_contact_email?: string | null
+          supplier_contact_person?: string | null
+          supplier_contact_phone?: string | null
+          supplier_gstin?: string | null
+          supplier_id?: string
+          total_amount?: number
+          total_discount_amount?: number
+          total_tax_amount?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       purchase_order_items: {
         Row: {
           cgst_amount: number | null
@@ -1631,6 +1778,10 @@ export type Database = {
         Returns: string
       }
       generate_po_number: {
+        Args: { comp_id: string }
+        Returns: string
+      }
+      generate_purchase_invoice_number: {
         Args: { comp_id: string }
         Returns: string
       }
