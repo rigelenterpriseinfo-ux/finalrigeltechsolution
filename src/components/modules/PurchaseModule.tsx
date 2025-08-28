@@ -16,7 +16,7 @@ import { Separator } from '@/components/ui/separator';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Search, ShoppingCart, Truck, Edit, Trash2, Eye, Calendar, Package, FileDown, MapPin } from 'lucide-react';
+import { Plus, Search, ShoppingCart, Truck, Edit, Trash2, Eye, Calendar, Package, FileDown, MapPin, Save, X } from 'lucide-react';
 
 interface PurchaseOrder {
   id: string;
@@ -572,12 +572,34 @@ export function PurchaseModule() {
     
     try {
       const formData = new FormData(e.currentTarget);
+      
+      // Calculate totals from line items
+      const totalQty = lineItems.reduce((sum, item) => sum + (item.quantity || 0), 0);
+      const subtotalAmount = lineItems.reduce((sum, item) => sum + ((item.quantity || 0) * (item.unit_price || 0)), 0);
+      const totalDiscountAmount = lineItems.reduce((sum, item) => sum + (item.discount_amount || 0), 0);
+      const totalTaxAmount = lineItems.reduce((sum, item) => 
+        sum + (item.cgst_amount || 0) + (item.sgst_amount || 0) + (item.igst_amount || 0), 0);
+      const grandTotal = subtotalAmount - totalDiscountAmount + totalTaxAmount;
+      
       const updateData = {
         order_date: formData.get('order_date') as string,
         expected_date: formData.get('expected_date') as string || null,
         external_po_ref: formData.get('external_po_ref') as string || null,
         notes: formData.get('notes') as string || null,
         status: formData.get('status') as string,
+        // Delivery address fields
+        delivery_address_line1: formData.get('delivery_address_line1') as string || null,
+        delivery_address_line2: formData.get('delivery_address_line2') as string || null,
+        delivery_city: formData.get('delivery_city') as string || null,
+        delivery_state: formData.get('delivery_state') as string || null,
+        delivery_country: formData.get('delivery_country') as string || null,
+        delivery_postal_code: formData.get('delivery_postal_code') as string || null,
+        same_as_registered_address: formData.get('same_as_registered_address') === 'on',
+        // Totals
+        subtotal_amount: subtotalAmount,
+        total_discount_amount: totalDiscountAmount,
+        total_tax_amount: totalTaxAmount,
+        total_amount: grandTotal,
       };
 
       const { error } = await supabase
@@ -594,6 +616,45 @@ export function PurchaseModule() {
         return;
       }
 
+      // Update line items
+      if (lineItems.length > 0) {
+        // Delete existing items first
+        await supabase
+          .from('purchase_order_items')
+          .delete()
+          .eq('purchase_order_id', editingPO.id);
+
+        // Insert updated items
+        const itemsToInsert = lineItems.map(item => ({
+          purchase_order_id: editingPO.id,
+          item_description: item.item_description,
+          hsn_sac_code: item.hsn_sac_code,
+          quantity: item.quantity,
+          unit_of_measure: item.unit_of_measure,
+          unit_price: item.unit_price,
+          discount_percentage: item.discount_percentage,
+          discount_amount: item.discount_amount,
+          taxable_value: item.value_after_discount,
+          is_taxable: item.is_taxable,
+          gst_rate: item.gst_rate,
+          cgst_rate: item.cgst_rate,
+          sgst_rate: item.sgst_rate,
+          igst_rate: item.igst_rate,
+          cgst_amount: item.cgst_amount,
+          sgst_amount: item.sgst_amount,
+          igst_amount: item.igst_amount,
+          total_price: item.line_total,
+        }));
+
+        const { error: itemsError } = await supabase
+          .from('purchase_order_items')
+          .insert(itemsToInsert);
+
+        if (itemsError) {
+          console.error('Error updating purchase order items:', itemsError);
+        }
+      }
+
       toast({
         title: "Success",
         description: "Purchase order updated successfully",
@@ -601,6 +662,31 @@ export function PurchaseModule() {
 
       setShowEditPODialog(false);
       setEditingPO(null);
+        setLineItems([{
+          id: 1,
+          sku_number: '',
+          item_description: '',
+          hsn_sac_code: '',
+          quantity: 1,
+          unit_of_measure: 'pcs',
+          unit_price: 0,
+          discount_percentage: 0,
+          discount_amount: 0,
+          value_before_discount: 0,
+          value_after_discount: 0,
+          taxable_value: 0,
+          non_taxable_value: 0,
+          is_taxable: true,
+          gst_rate: 0,
+          cgst_rate: 0,
+          sgst_rate: 0,
+          igst_rate: 0,
+          cgst_amount: 0,
+          sgst_amount: 0,
+          igst_amount: 0,
+          total_gst_amount: 0,
+          line_total: 0,
+        }]);
       fetchPurchaseOrders();
     } catch (error: any) {
       toast({
@@ -2442,8 +2528,71 @@ export function PurchaseModule() {
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => {
+                        onClick={async () => {
                           setEditingPO(po);
+                          
+                          // Fetch and load existing line items for editing
+                          const { data: existingItems } = await supabase
+                            .from('purchase_order_items')
+                            .select('*')
+                            .eq('purchase_order_id', po.id);
+                          
+                          if (existingItems && existingItems.length > 0) {
+                            const mappedItems = existingItems.map((item, index) => ({
+                              id: index + 1,
+                              sku_number: '',
+                              item_description: item.item_description || '',
+                              hsn_sac_code: item.hsn_sac_code || '',
+                              quantity: item.quantity || 1,
+                              unit_of_measure: item.unit_of_measure || 'pcs',
+                              unit_price: item.unit_price || 0,
+                              discount_percentage: item.discount_percentage || 0,
+                              discount_amount: item.discount_amount || 0,
+                              value_before_discount: (item.quantity || 1) * (item.unit_price || 0),
+                              value_after_discount: item.taxable_value || 0,
+                              taxable_value: item.taxable_value || 0,
+                              non_taxable_value: 0,
+                              is_taxable: item.is_taxable ?? true,
+                              gst_rate: item.gst_rate || 0,
+                              cgst_rate: item.cgst_rate || 0,
+                              sgst_rate: item.sgst_rate || 0,
+                              igst_rate: item.igst_rate || 0,
+                              cgst_amount: item.cgst_amount || 0,
+                              sgst_amount: item.sgst_amount || 0,
+                              igst_amount: item.igst_amount || 0,
+                              total_gst_amount: (item.cgst_amount || 0) + (item.sgst_amount || 0) + (item.igst_amount || 0),
+                              line_total: item.total_price || 0,
+                            }));
+                            setLineItems(mappedItems);
+                          } else {
+                            // Reset to default single item if no items exist
+                            setLineItems([{
+                              id: 1,
+                              sku_number: '',
+                              item_description: '',
+                              hsn_sac_code: '',
+                              quantity: 1,
+                              unit_of_measure: 'pcs',
+                              unit_price: 0,
+                              discount_percentage: 0,
+                              discount_amount: 0,
+                              value_before_discount: 0,
+                              value_after_discount: 0,
+                              taxable_value: 0,
+                              non_taxable_value: 0,
+                              is_taxable: true,
+                              gst_rate: 0,
+                              cgst_rate: 0,
+                              sgst_rate: 0,
+                              igst_rate: 0,
+                              cgst_amount: 0,
+                              sgst_amount: 0,
+                              igst_amount: 0,
+                              total_gst_amount: 0,
+                              line_total: 0,
+                            }]);
+                          }
+                          
                           setShowEditPODialog(true);
                         }}
                         className="h-8 w-8 p-0 hover:bg-blue-50 hover:border-blue-200"
@@ -2904,68 +3053,522 @@ export function PurchaseModule() {
         </DialogContent>
       </Dialog>
 
-      {/* Edit Purchase Order Dialog */}
+      {/* Edit Purchase Order Dialog - Complete Form */}
       <Dialog open={showEditPODialog} onOpenChange={setShowEditPODialog}>
-        <DialogContent>
+        <DialogContent className="max-w-7xl max-h-[95vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Edit Purchase Order</DialogTitle>
-            <DialogDescription>Update purchase order details</DialogDescription>
+            <DialogTitle className="text-2xl text-primary">Edit Purchase Order</DialogTitle>
+            <DialogDescription>Update all purchase order details including supplier, delivery address, and line items</DialogDescription>
           </DialogHeader>
           {editingPO && (
-            <form onSubmit={handleEditPurchaseOrder} className="space-y-4">
-              <div>
-                <Label htmlFor="edit-order-date">Order Date</Label>
-                <Input 
-                  id="edit-order-date" 
-                  name="order_date" 
-                  type="date" 
-                  defaultValue={editingPO.order_date}
-                  required 
-                />
+            <form onSubmit={handleEditPurchaseOrder} className="space-y-6">
+              {/* Basic PO Information */}
+              <div className="bg-gradient-to-r from-primary/5 to-primary/10 p-6 rounded-xl border border-primary/20">
+                <h3 className="text-lg font-semibold text-primary mb-4">Purchase Order Information</h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <Label htmlFor="edit-order-date">Order Date *</Label>
+                    <Input 
+                      id="edit-order-date" 
+                      name="order_date" 
+                      type="date" 
+                      defaultValue={editingPO.order_date}
+                      required 
+                      className="mt-1"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="edit-expected-date">Expected Date</Label>
+                    <Input 
+                      id="edit-expected-date" 
+                      name="expected_date" 
+                      type="date" 
+                      defaultValue={editingPO.expected_date || ''}
+                      className="mt-1"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="edit-status">Status</Label>
+                    <Select name="status" defaultValue={editingPO.status}>
+                      <SelectTrigger className="mt-1">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="draft">Draft</SelectItem>
+                        <SelectItem value="sent">Sent</SelectItem>
+                        <SelectItem value="confirmed">Confirmed</SelectItem>
+                        <SelectItem value="received">Received</SelectItem>
+                        <SelectItem value="cancelled">Cancelled</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="md:col-span-3">
+                    <Label htmlFor="edit-external-ref">External Reference</Label>
+                    <Input 
+                      id="edit-external-ref" 
+                      name="external_po_ref" 
+                      defaultValue={editingPO.external_po_ref || ''}
+                      placeholder="Reference number, email date, etc."
+                      className="mt-1"
+                    />
+                  </div>
+                </div>
               </div>
-              <div>
-                <Label htmlFor="edit-expected-date">Expected Date</Label>
-                <Input 
-                  id="edit-expected-date" 
-                  name="expected_date" 
-                  type="date" 
-                  defaultValue={editingPO.expected_date || ''}
-                />
+
+              {/* Supplier Information (Read-only) */}
+              <div className="bg-gradient-to-r from-blue/5 to-blue/10 p-6 rounded-xl border border-blue/20">
+                <h3 className="text-lg font-semibold text-blue-700 mb-4">Supplier Information (View Only)</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label>Supplier Name</Label>
+                    <Input value={editingPO.supplier?.name || 'N/A'} disabled className="mt-1" />
+                  </div>
+                  <div>
+                    <Label>Supplier Code</Label>
+                    <Input value={editingPO.supplier?.supplier_ref || 'N/A'} disabled className="mt-1" />
+                  </div>
+                  <div>
+                    <Label>Contact Person</Label>
+                    <Input value={suppliers.find(s => s.name === editingPO.supplier?.name)?.contact_person || 'N/A'} disabled className="mt-1" />
+                  </div>
+                  <div>
+                    <Label>Contact Phone</Label>
+                    <Input value={suppliers.find(s => s.name === editingPO.supplier?.name)?.phone || 'N/A'} disabled className="mt-1" />
+                  </div>
+                </div>
+                <div className="mt-4 p-3 bg-blue/10 rounded-lg">
+                  <p className="text-sm text-blue-700">
+                    <strong>Note:</strong> To change supplier details, please create a new purchase order or edit the supplier information separately.
+                  </p>
+                </div>
               </div>
-              <div>
-                <Label htmlFor="edit-external-ref">External Reference</Label>
-                <Input 
-                  id="edit-external-ref" 
-                  name="external_po_ref" 
-                  defaultValue={editingPO.external_po_ref || ''}
-                />
+
+              {/* Delivery Address */}
+              <div className="bg-gradient-to-r from-green/5 to-green/10 p-6 rounded-xl border border-green/20">
+                <div className="flex items-center gap-3 mb-4">
+                  <Truck className="h-5 w-5 text-green-600" />
+                  <h3 className="text-lg font-semibold text-green-700">Delivery Address</h3>
+                </div>
+                
+                <div className="mb-4">
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="checkbox"
+                      id="edit-same-address"
+                      name="same_as_registered_address"
+                      defaultChecked={editingPO.same_as_registered_address}
+                      className="w-5 h-5 accent-primary"
+                    />
+                    <Label htmlFor="edit-same-address" className="text-sm font-medium">
+                      Same as company registered address
+                    </Label>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="edit-delivery-address1">Address Line 1</Label>
+                    <Input 
+                      id="edit-delivery-address1" 
+                      name="delivery_address_line1" 
+                      defaultValue={editingPO.delivery_address_line1 || ''}
+                      placeholder="Street address"
+                      className="mt-1"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="edit-delivery-address2">Address Line 2</Label>
+                    <Input 
+                      id="edit-delivery-address2" 
+                      name="delivery_address_line2" 
+                      defaultValue={editingPO.delivery_address_line2 || ''}
+                      placeholder="Apartment, suite, etc."
+                      className="mt-1"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="edit-delivery-city">City</Label>
+                    <Input 
+                      id="edit-delivery-city" 
+                      name="delivery_city" 
+                      defaultValue={editingPO.delivery_city || ''}
+                      placeholder="City"
+                      className="mt-1"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="edit-delivery-state">State</Label>
+                    <Input 
+                      id="edit-delivery-state" 
+                      name="delivery_state" 
+                      defaultValue={editingPO.delivery_state || ''}
+                      placeholder="State/Province"
+                      className="mt-1"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="edit-delivery-country">Country</Label>
+                    <Input 
+                      id="edit-delivery-country" 
+                      name="delivery_country" 
+                      defaultValue={editingPO.delivery_country || ''}
+                      placeholder="Country"
+                      className="mt-1"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="edit-delivery-postal">Postal Code</Label>
+                    <Input 
+                      id="edit-delivery-postal" 
+                      name="delivery_postal_code" 
+                      defaultValue={editingPO.delivery_postal_code || ''}
+                      placeholder="Postal/ZIP code"
+                      className="mt-1"
+                    />
+                  </div>
+                </div>
               </div>
-              <div>
-                <Label htmlFor="edit-status">Status</Label>
-                <Select name="status" defaultValue={editingPO.status}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="draft">Draft</SelectItem>
-                    <SelectItem value="sent">Sent</SelectItem>
-                    <SelectItem value="confirmed">Confirmed</SelectItem>
-                    <SelectItem value="received">Received</SelectItem>
-                    <SelectItem value="cancelled">Cancelled</SelectItem>
-                  </SelectContent>
-                </Select>
+
+              {/* Line Items Section - Reuse the same table from create form */}
+              <div className="space-y-6">
+                <div className="bg-gradient-to-r from-secondary/20 to-secondary/10 p-6 rounded-xl border">
+                  <div className="flex justify-between items-center mb-6">
+                    <div className="flex items-center gap-3">
+                      <div className="p-3 bg-secondary/10 rounded-xl">
+                        <Package className="h-6 w-6 text-secondary-foreground" />
+                      </div>
+                      <div>
+                        <h3 className="text-xl font-semibold">Line Items</h3>
+                        <p className="text-sm text-muted-foreground">Update products/services in your purchase order</p>
+                      </div>
+                    </div>
+                    <Button 
+                      type="button" 
+                      onClick={addLineItem} 
+                      variant="outline" 
+                      size="sm"
+                      className="bg-background hover:bg-muted shadow-sm"
+                    >
+                      <Plus className="h-4 w-4 mr-2" />
+                      Add Item
+                    </Button>
+                  </div>
+                  
+                  <div className="overflow-x-auto rounded-lg border bg-background">
+                    <Table>
+                      <TableHeader>
+                        <TableRow className="bg-muted/30">
+                          <TableHead className="min-w-[200px] font-semibold">Description *</TableHead>
+                          <TableHead className="min-w-[100px] font-semibold">HSN/SAC Code</TableHead>
+                          <TableHead className="min-w-[80px] font-semibold">Qty *</TableHead>
+                          <TableHead className="min-w-[80px] font-semibold">UOM</TableHead>
+                          <TableHead className="min-w-[100px] font-semibold">Rate *</TableHead>
+                          <TableHead className="min-w-[80px] font-semibold">Disc%</TableHead>
+                          <TableHead className="min-w-[100px] font-semibold">After Disc</TableHead>
+                          <TableHead className="min-w-[60px] font-semibold">Taxable</TableHead>
+                          <TableHead className="min-w-[80px] font-semibold">GST%</TableHead>
+                          <TableHead className="min-w-[80px] font-semibold">CGST</TableHead>
+                          <TableHead className="min-w-[80px] font-semibold">SGST</TableHead>
+                          <TableHead className="min-w-[80px] font-semibold">IGST</TableHead>
+                          <TableHead className="min-w-[100px] font-semibold">Line Total</TableHead>
+                          <TableHead className="min-w-[60px] font-semibold">Action</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {lineItems.map((item) => (
+                          <TableRow key={item.id} className="hover:bg-muted/20 transition-colors">
+                            <TableCell>
+                              <Input
+                                value={item.item_description}
+                                onChange={(e) => updateLineItem(item.id, 'item_description', e.target.value)}
+                                placeholder="Item description"
+                                required
+                                className="w-full min-w-[200px]"
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <Input
+                                value={item.hsn_sac_code}
+                                onChange={(e) => updateLineItem(item.id, 'hsn_sac_code', e.target.value)}
+                                placeholder="HSN/SAC code"
+                                className="w-full min-w-[100px]"
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <Input
+                                type="number"
+                                value={item.quantity}
+                                onChange={(e) => updateLineItem(item.id, 'quantity', parseFloat(e.target.value) || 0)}
+                                min="0.01"
+                                step="0.01"
+                                required
+                                className="w-full min-w-[80px]"
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <Select 
+                                value={item.unit_of_measure} 
+                                onValueChange={(value) => updateLineItem(item.id, 'unit_of_measure', value)}
+                              >
+                                <SelectTrigger className="w-full min-w-[80px]">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="pcs">Pieces</SelectItem>
+                                  <SelectItem value="kg">Kilogram</SelectItem>
+                                  <SelectItem value="ltr">Liter</SelectItem>
+                                  <SelectItem value="box">Box</SelectItem>
+                                  <SelectItem value="mtr">Meter</SelectItem>
+                                  <SelectItem value="sq.ft">Sq.Ft</SelectItem>
+                                  <SelectItem value="set">Set</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </TableCell>
+                            <TableCell>
+                              <Input
+                                type="number"
+                                value={item.unit_price}
+                                onChange={(e) => updateLineItem(item.id, 'unit_price', parseFloat(e.target.value) || 0)}
+                                min="0"
+                                step="0.01"
+                                required
+                                className="w-full min-w-[100px]"
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <Input
+                                type="number"
+                                value={item.discount_percentage}
+                                onChange={(e) => updateLineItem(item.id, 'discount_percentage', parseFloat(e.target.value) || 0)}
+                                min="0"
+                                max="100"
+                                step="0.01"
+                                className="w-full min-w-[80px]"
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <div className="text-sm font-medium min-w-[100px] p-2 bg-muted/30 rounded text-center">
+                                ₹{item.value_after_discount.toFixed(2)}
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex justify-center">
+                                <input
+                                  type="checkbox"
+                                  checked={item.is_taxable}
+                                  onChange={(e) => updateLineItem(item.id, 'is_taxable', e.target.checked)}
+                                  className="w-5 h-5 accent-primary cursor-pointer"
+                                />
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <Input
+                                type="number"
+                                value={item.gst_rate}
+                                onChange={(e) => updateLineItem(item.id, 'gst_rate', parseFloat(e.target.value) || 0)}
+                                min="0"
+                                max="28"
+                                step="0.01"
+                                disabled={!item.is_taxable}
+                                className="w-full min-w-[80px]"
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <div className="min-w-[80px] space-y-1">
+                                <Input
+                                  type="number"
+                                  value={item.cgst_rate}
+                                  onChange={(e) => updateLineItem(item.id, 'cgst_rate', parseFloat(e.target.value) || 0)}
+                                  placeholder="0"
+                                  className="text-center h-8"
+                                  min="0"
+                                  max="30"
+                                  step="0.01"
+                                  disabled={!item.is_taxable}
+                                />
+                                <div className="text-xs text-muted-foreground text-center">
+                                  ₹{item.cgst_amount.toFixed(2)}
+                                </div>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <div className="min-w-[80px] space-y-1">
+                                <Input
+                                  type="number"
+                                  value={item.sgst_rate}
+                                  onChange={(e) => updateLineItem(item.id, 'sgst_rate', parseFloat(e.target.value) || 0)}
+                                  placeholder="0"
+                                  className="text-center h-8"
+                                  min="0"
+                                  max="30"
+                                  step="0.01"
+                                  disabled={!item.is_taxable}
+                                />
+                                <div className="text-xs text-muted-foreground text-center">
+                                  ₹{item.sgst_amount.toFixed(2)}
+                                </div>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <div className="min-w-[80px] space-y-1">
+                                <Input
+                                  type="number"
+                                  value={item.igst_rate}
+                                  onChange={(e) => updateLineItem(item.id, 'igst_rate', parseFloat(e.target.value) || 0)}
+                                  placeholder="0"
+                                  className="text-center h-8"
+                                  min="0"
+                                  max="30"
+                                  step="0.01"
+                                  disabled={!item.is_taxable}
+                                />
+                                <div className="text-xs text-muted-foreground text-center">
+                                  ₹{item.igst_amount.toFixed(2)}
+                                </div>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <div className="text-sm font-bold min-w-[100px] p-2 bg-primary/10 text-primary rounded text-center">
+                                ₹{item.line_total.toFixed(2)}
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex justify-center">
+                                {lineItems.length > 1 && (
+                                  <Button
+                                    type="button"
+                                    variant="destructive"
+                                    size="sm"
+                                    onClick={() => removeLineItem(item.id)}
+                                    className="h-8 w-8 p-0"
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                )}
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+
+                  {/* Summary */}
+                  <div className="bg-gradient-to-br from-muted/30 to-muted/50 p-6 rounded-xl border shadow-sm space-y-6 mt-6">
+                    <div className="flex items-center gap-2">
+                      <Package className="h-5 w-5 text-primary" />
+                      <h4 className="text-lg font-semibold text-primary">Purchase Order Summary</h4>
+                    </div>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                      <Card className="p-4 bg-background/80">
+                        <div className="space-y-2">
+                          <div className="text-sm font-medium text-muted-foreground">Total Quantity</div>
+                          <div className="text-2xl font-bold text-primary">
+                            {lineItems.reduce((sum, item) => sum + (item.quantity || 0), 0).toFixed(2)}
+                          </div>
+                        </div>
+                      </Card>
+                      
+                      <Card className="p-4 bg-background/80">
+                        <div className="space-y-2">
+                          <div className="text-sm font-medium text-muted-foreground">Subtotal</div>
+                          <div className="text-2xl font-bold text-green-600">
+                            ₹{lineItems.reduce((sum, item) => sum + ((item.quantity || 0) * (item.unit_price || 0)), 0).toFixed(2)}
+                          </div>
+                        </div>
+                      </Card>
+                      
+                      <Card className="p-4 bg-background/80">
+                        <div className="space-y-2">
+                          <div className="text-sm font-medium text-muted-foreground">Total Discount</div>
+                          <div className="text-2xl font-bold text-orange-600">
+                            ₹{lineItems.reduce((sum, item) => sum + (item.discount_amount || 0), 0).toFixed(2)}
+                          </div>
+                        </div>
+                      </Card>
+                      
+                      <Card className="p-4 bg-background/80">
+                        <div className="space-y-2">
+                          <div className="text-sm font-medium text-muted-foreground">Total Tax</div>
+                          <div className="text-2xl font-bold text-blue-600">
+                            ₹{lineItems.reduce((sum, item) => sum + (item.cgst_amount || 0) + (item.sgst_amount || 0) + (item.igst_amount || 0), 0).toFixed(2)}
+                          </div>
+                        </div>
+                      </Card>
+                    </div>
+                    
+                    <div className="border-t pt-4">
+                      <div className="flex justify-between items-center">
+                        <span className="text-xl font-semibold">Grand Total:</span>
+                        <span className="text-3xl font-bold text-primary">
+                          ₹{lineItems.reduce((sum, item) => {
+                            const subtotal = (item.quantity || 0) * (item.unit_price || 0);
+                            const discount = item.discount_amount || 0;
+                            const tax = (item.cgst_amount || 0) + (item.sgst_amount || 0) + (item.igst_amount || 0);
+                            return sum + subtotal - discount + tax;
+                          }, 0).toFixed(2)}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
-              <div>
-                <Label htmlFor="edit-notes">Notes</Label>
+
+              {/* Notes */}
+              <div className="bg-gradient-to-r from-orange/5 to-orange/10 p-6 rounded-xl border border-orange/20">
+                <h3 className="text-lg font-semibold text-orange-700 mb-4">Notes & Terms</h3>
                 <Textarea 
                   id="edit-notes" 
                   name="notes" 
                   defaultValue={editingPO.notes || ''}
+                  placeholder="Add any special instructions, terms, or conditions..."
+                  rows={4}
+                  className="w-full"
                 />
               </div>
-              <div className="flex gap-4">
-                <Button type="submit" className="flex-1">Update Purchase Order</Button>
-                <Button type="button" variant="outline" onClick={() => setShowEditPODialog(false)} className="flex-1">
+
+              {/* Action Buttons */}
+              <div className="flex gap-4 pt-6 border-t">
+                <Button type="submit" className="flex-1 bg-primary hover:bg-primary/90">
+                  <Save className="h-4 w-4 mr-2" />
+                  Update Purchase Order
+                </Button>
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  onClick={() => {
+                    setShowEditPODialog(false);
+                    setEditingPO(null);
+                    setLineItems([{
+                      id: 1,
+                      sku_number: '',
+                      item_description: '',
+                      hsn_sac_code: '',
+                      quantity: 1,
+                      unit_of_measure: 'pcs',
+                      unit_price: 0,
+                      discount_percentage: 0,
+                      discount_amount: 0,
+                      value_before_discount: 0,
+                      value_after_discount: 0,
+                      taxable_value: 0,
+                      non_taxable_value: 0,
+                      is_taxable: true,
+                      gst_rate: 0,
+                      cgst_rate: 0,
+                      sgst_rate: 0,
+                      igst_rate: 0,
+                      cgst_amount: 0,
+                      sgst_amount: 0,
+                      igst_amount: 0,
+                      total_gst_amount: 0,
+                      line_total: 0,
+                    }]);
+                  }} 
+                  className="flex-1"
+                >
+                  <X className="h-4 w-4 mr-2" />
                   Cancel
                 </Button>
               </div>
