@@ -34,6 +34,13 @@ interface PurchaseOrder {
     email: string | null;
     supplier_ref: string | null;
   };
+  purchase_order_items?: {
+    id: string;
+    quantity: number;
+    item_description: string;
+    unit_price: number;
+    total_price: number;
+  }[];
 }
 
 interface Supplier {
@@ -183,7 +190,14 @@ export function PurchaseModule() {
         .from('purchase_orders')
         .select(`
           *,
-          supplier:suppliers(name, email, supplier_ref)
+          supplier:suppliers(name, email, supplier_ref),
+          purchase_order_items(
+            id,
+            quantity,
+            item_description,
+            unit_price,
+            total_price
+          )
         `)
         .order('created_at', { ascending: false });
 
@@ -1371,6 +1385,8 @@ export function PurchaseModule() {
               <TableRow className="bg-muted/50">
                 <TableHead className="font-semibold">PO Number</TableHead>
                 <TableHead className="font-semibold">Supplier</TableHead>
+                <TableHead className="font-semibold">Total Qty</TableHead>
+                <TableHead className="font-semibold">Item Description</TableHead>
                 <TableHead className="font-semibold">Order Date</TableHead>
                 <TableHead className="font-semibold">Expected Date</TableHead>
                 <TableHead className="font-semibold">Total Amount</TableHead>
@@ -1379,19 +1395,39 @@ export function PurchaseModule() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredPOs.map((po) => (
-                <TableRow key={po.id} className="hover:bg-muted/30 transition-colors">
-                  <TableCell className="font-medium">{po.po_number}</TableCell>
-                  <TableCell>{po.supplier.name}</TableCell>
-                  <TableCell>{new Date(po.order_date).toLocaleDateString()}</TableCell>
-                  <TableCell>
-                    {po.expected_date ? new Date(po.expected_date).toLocaleDateString() : '-'}
-                  </TableCell>
-                  <TableCell className="font-medium">₹{po.total_amount.toFixed(2)}</TableCell>
-                  <TableCell>
-                    <Badge variant={getStatusColor(po.status)} className="shadow-sm">
-                      {po.status.charAt(0).toUpperCase() + po.status.slice(1)}
-                    </Badge>
+              {filteredPOs.map((po) => {
+                // Calculate total quantity from all items
+                const totalQuantity = po.purchase_order_items?.reduce((sum, item) => sum + (item.quantity || 0), 0) || 0;
+                
+                // Get item descriptions (first 3 items)
+                const itemDescriptions = po.purchase_order_items?.slice(0, 3).map(item => item.item_description).filter(Boolean) || [];
+                const itemDescDisplay = itemDescriptions.length > 0 
+                  ? itemDescriptions.join(', ') + (po.purchase_order_items && po.purchase_order_items.length > 3 ? '...' : '')
+                  : 'No items';
+
+                return (
+                  <TableRow key={po.id} className="hover:bg-muted/30 transition-colors">
+                    <TableCell className="font-medium">{po.po_number}</TableCell>
+                    <TableCell>{po.supplier.name}</TableCell>
+                    <TableCell className="font-medium text-center">
+                      <Badge variant="outline" className="font-mono">
+                        {totalQuantity.toFixed(0)}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="max-w-xs">
+                      <div className="truncate" title={itemDescDisplay}>
+                        {itemDescDisplay}
+                      </div>
+                    </TableCell>
+                    <TableCell>{new Date(po.order_date).toLocaleDateString()}</TableCell>
+                    <TableCell>
+                      {po.expected_date ? new Date(po.expected_date).toLocaleDateString() : '-'}
+                    </TableCell>
+                    <TableCell className="font-medium">₹{po.total_amount.toFixed(2)}</TableCell>
+                    <TableCell>
+                      <Badge variant={getStatusColor(po.status)} className="shadow-sm">
+                        {po.status.charAt(0).toUpperCase() + po.status.slice(1)}
+                      </Badge>
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center justify-center gap-2">
@@ -1428,10 +1464,11 @@ export function PurchaseModule() {
                     </div>
                   </TableCell>
                 </TableRow>
-              ))}
+                );
+              })}
               {filteredPOs.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center text-muted-foreground">
+                  <TableCell colSpan={9} className="text-center text-muted-foreground">
                     No purchase orders found
                   </TableCell>
                 </TableRow>
