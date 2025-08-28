@@ -683,14 +683,12 @@ export function PurchaseModule() {
                       (po.external_po_ref && po.external_po_ref.toLowerCase().includes(searchLower));
     
     // Search in purchase order items
-    const itemsMatch = purchaseOrderItems.some(item => 
-      item.purchase_order?.po_number === po.po_number && (
-        (item.item_description && item.item_description.toLowerCase().includes(searchLower)) ||
-        (item.item_code && item.item_code.toLowerCase().includes(searchLower)) ||
-        (item.sku_number && item.sku_number.toLowerCase().includes(searchLower)) ||
-        (item.hsn_sac_code && item.hsn_sac_code.toLowerCase().includes(searchLower))
-      )
-    );
+    const poItems = purchaseOrderItems.filter(item => item.purchase_order_id === po.id);
+    const itemsMatch = poItems.some(item => (
+      (item.item_description && item.item_description.toLowerCase().includes(searchLower)) ||
+      (item.item_code && item.item_code.toLowerCase().includes(searchLower)) ||
+      (item.hsn_sac_code && item.hsn_sac_code.toLowerCase().includes(searchLower))
+    ));
     
     return basicMatch || itemsMatch;
   });
@@ -1396,8 +1394,8 @@ export function PurchaseModule() {
             </TableHeader>
             <TableBody>
               {filteredPOs.map((po) => {
-                // Force recalculation and debugging
-                const items = po.purchase_order_items || [];
+                // Resolve items from separate state by purchase_order_id
+                const items = purchaseOrderItems.filter((it) => it.purchase_order_id === po.id);
                 
                 // Calculate total quantity - ensure we have valid numbers
                 const totalQuantity = items.reduce((sum, item) => {
