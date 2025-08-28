@@ -970,353 +970,392 @@ export function PurchaseModule() {
   // Generate PDF for Purchase Order
   const generatePOPDF = async (po: PurchaseOrder) => {
     try {
+      console.info('[PDF] Using PO template v2 for', po.po_number);
       const jsPDF = (await import('jspdf')).default;
-      const doc = new jsPDF();
-      
+      const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+
       // Fetch fresh items for this PO to ensure we have the latest data
       const { data: items, error: itemsError } = await supabase
         .from('purchase_order_items')
         .select('*')
         .eq('purchase_order_id', po.id);
-        
+
       if (itemsError) {
         console.error('Error fetching purchase order items:', itemsError);
         toast({
-          title: "Error",
-          description: "Failed to fetch purchase order items for PDF generation",
-          variant: "destructive",
+          title: 'Error',
+          description: 'Failed to fetch purchase order items for PDF generation',
+          variant: 'destructive',
         });
         return;
       }
-      
+
       // Get supplier details
-      const supplierDetails = suppliers.find(s => s.name === po.supplier?.name);
-      
-      // Clean header with centered title
-      doc.setFontSize(18);
+      const supplierDetails = suppliers.find((s) => s.name === po.supplier?.name);
+
+      // Layout helpers
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const margin = 15;
+      const contentWidth = pageWidth - margin * 2; // 180mm on A4
+      let y = 15;
+
+      // Header band
+      doc.setFillColor(33, 37, 41); // dark header
+      doc.rect(0, 0, pageWidth, 18, 'F');
+      doc.setTextColor(255, 255, 255);
       doc.setFont('helvetica', 'bold');
-      doc.text('PURCHASE ORDER', 105, 20, { align: 'center' });
-      
-      // PO details in top right
-      doc.setFontSize(10);
-      doc.setFont('helvetica', 'normal');
-      doc.text(`PO No.: ${po.po_number}`, 140, 35);
-      doc.text(`PO Date: ${new Date(po.order_date).toLocaleDateString('en-GB')}`, 140, 42);
-      
-      let yPos = 55;
-      
-      // Buyer Section
-      doc.setFontSize(10);
+      doc.setFontSize(14);
+      doc.text('PURCHASE ORDER', pageWidth / 2, 11.5, { align: 'center' });
+      doc.setTextColor(0, 0, 0);
+
+      // Company (Buyer) box and PO info box
+      y = 24;
+      const colWidth = (contentWidth - 5) / 2; // two columns with small gap
+
+      // Buyer box
       doc.setFont('helvetica', 'bold');
-      doc.text('Buyer (Your Company):', 20, yPos);
-      
-      yPos += 6;
+      doc.setFontSize(10);
+      doc.text('Buyer', margin, y);
+      y += 3.5;
+      doc.setLineWidth(0.3);
+      doc.rect(margin, y, colWidth, 28);
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(9);
-      
+
+      let lineY = y + 5;
       if (companyData) {
-        doc.text(companyData.name || 'ABC Enterprises Pvt Ltd', 20, yPos);
-        yPos += 4;
-        if (companyData.address_line1) {
-          const fullAddress = [
-            companyData.address_line1,
-            companyData.address_line2,
-            [companyData.city, companyData.state, companyData.postal_code].filter(Boolean).join(', ')
-          ].filter(Boolean).join(', ');
-          doc.text(fullAddress, 20, yPos);
-          yPos += 4;
+        doc.text(companyData.name || 'Company Name', margin + 3, lineY);
+        lineY += 4;
+        const address = [
+          companyData.address_line1,
+          companyData.address_line2,
+          [companyData.city, companyData.state, companyData.postal_code].filter(Boolean).join(', '),
+        ]
+          .filter(Boolean)
+          .join(', ');
+        if (address) {
+          const addrLines = doc.splitTextToSize(address, colWidth - 6);
+          addrLines.forEach((ln: string) => {
+            doc.text(ln, margin + 3, lineY);
+            lineY += 4;
+          });
         }
         if (companyData.gstn) {
-          doc.text(`GSTIN: ${companyData.gstn}`, 20, yPos);
-          yPos += 4;
+          doc.text(`GSTIN: ${companyData.gstn}`, margin + 3, lineY);
+          lineY += 4;
         }
-        const contactInfo = [
-          companyData.email && `${companyData.email}`,
-          companyData.phone && `${companyData.phone}`
-        ].filter(Boolean).join(' | ');
-        if (contactInfo) {
-          doc.text(`Contact: ${contactInfo}`, 20, yPos);
-        }
-      } else {
-        doc.text('ABC Enterprises Pvt Ltd', 20, yPos);
-        yPos += 4;
-        doc.text('12, MG Road, Bengaluru, Karnataka - 560001', 20, yPos);
-        yPos += 4;
-        doc.text('GSTIN: 29ABCDE1234F1Z5', 20, yPos);
-        yPos += 4;
-        doc.text('Contact: procurement@abc.com | +91 98765 43210', 20, yPos);
+        const contact = [companyData.email, companyData.phone].filter(Boolean).join(' | ');
+        if (contact) doc.text(`Contact: ${contact}`, margin + 3, lineY);
       }
-      
-      yPos += 12;
-      
-      // Supplier Section
+
+      // PO details box (right column)
+      const rightX = margin + colWidth + 5;
       doc.setFont('helvetica', 'bold');
-      doc.setFontSize(10);
-      doc.text('Supplier:', 20, yPos);
-      
-      yPos += 6;
+      doc.text('Order Details', rightX, 24);
+      doc.rect(rightX, 27.5, colWidth, 28);
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(9);
-      
-      const supplierName = po.supplier?.name || supplierDetails?.name || 'XYZ Supplies Pvt Ltd';
-      doc.text(supplierName, 20, yPos);
-      yPos += 4;
-      
+      const orderLines = [
+        `PO No.: ${po.po_number}`,
+        `PO Date: ${new Date(po.order_date).toLocaleDateString('en-GB')}`,
+        `Expected Date: ${po.expected_date ? new Date(po.expected_date).toLocaleDateString('en-GB') : '-'}`,
+        `External Ref: ${po.external_po_ref || '-'}`,
+      ];
+      let oy = 27.5 + 5;
+      orderLines.forEach((t) => {
+        doc.text(t, rightX + 3, oy);
+        oy += 6;
+      });
+
+      y = 27.5 + 28 + 6;
+
+      // Supplier and Delivery in two columns
+      doc.setFont('helvetica', 'bold');
+      doc.text('Supplier', margin, y);
+      doc.text('Delivery Details', rightX, y);
+      y += 3.5;
+      doc.setLineWidth(0.3);
+      doc.rect(margin, y, colWidth, 26);
+      doc.rect(rightX, y, colWidth, 26);
+
+      // Supplier content
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(9);
+      let sy = y + 5;
+      const supplierName = po.supplier?.name || supplierDetails?.name || '-';
+      doc.text(supplierName, margin + 3, sy);
+      sy += 4;
       if (supplierDetails) {
-        if (supplierDetails.address_line1) {
-          const supplierAddress = [
-            supplierDetails.address_line1,
-            supplierDetails.address_line2,
-            [supplierDetails.city, supplierDetails.state, supplierDetails.pin_code].filter(Boolean).join(', ')
-          ].filter(Boolean).join(', ');
-          doc.text(supplierAddress, 20, yPos);
-          yPos += 4;
+        const supplierAddress = [
+          supplierDetails.address_line1,
+          supplierDetails.address_line2,
+          [supplierDetails.city, supplierDetails.state, supplierDetails.pin_code].filter(Boolean).join(', '),
+        ]
+          .filter(Boolean)
+          .join(', ');
+        if (supplierAddress) {
+          const sAddr = doc.splitTextToSize(supplierAddress, colWidth - 6);
+          sAddr.forEach((ln: string) => {
+            doc.text(ln, margin + 3, sy);
+            sy += 4;
+          });
         }
         if (supplierDetails.gst_number) {
-          doc.text(`GSTIN: ${supplierDetails.gst_number}`, 20, yPos);
-          yPos += 4;
+          doc.text(`GSTIN: ${supplierDetails.gst_number}`, margin + 3, sy);
+          sy += 4;
         }
-        const supplierContact = [
-          supplierDetails.contact_person && `${supplierDetails.contact_person}`,
-          supplierDetails.phone && `${supplierDetails.phone}`
-        ].filter(Boolean).join(' | ');
-        if (supplierContact) {
-          doc.text(`Contact: ${supplierContact}`, 20, yPos);
-        }
-      } else {
-        doc.text('45, Industrial Area, Pune, Maharashtra - 411001', 20, yPos);
-        yPos += 4;
-        doc.text('GSTIN: 27XYZDE5678K2Z9', 20, yPos);
-        yPos += 4;
-        doc.text('Contact: Mr. Rajesh Sharma | +91 99887 66554', 20, yPos);
+        const sContact = [supplierDetails.contact_person, supplierDetails.phone].filter(Boolean).join(' | ');
+        if (sContact) doc.text(`Contact: ${sContact}`, margin + 3, sy);
       }
-      
-      yPos += 12;
-      
-      // Delivery Details
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(10);
-      doc.text('Delivery Details:', 20, yPos);
-      
-      yPos += 6;
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(9);
-      
-      let deliveryAddress = 'ABC Enterprises Pvt Ltd, Warehouse-3, Whitefield, Bengaluru';
+
+      // Delivery content
+      let dy = y + 5;
+      let deliveryAddress = 'Same as Buyer';
       if (!po.same_as_registered_address && po.delivery_address_line1) {
         deliveryAddress = [
           po.delivery_address_line1,
           po.delivery_address_line2,
-          [po.delivery_city, po.delivery_state, po.delivery_postal_code].filter(Boolean).join(', ')
-        ].filter(Boolean).join(', ');
+          [po.delivery_city, po.delivery_state, po.delivery_postal_code].filter(Boolean).join(', '),
+        ]
+          .filter(Boolean)
+          .join(', ');
       } else if (companyData?.address_line1) {
         deliveryAddress = [
           companyData.address_line1,
           companyData.address_line2,
-          [companyData.city, companyData.state, companyData.postal_code].filter(Boolean).join(', ')
-        ].filter(Boolean).join(', ');
+          [companyData.city, companyData.state, companyData.postal_code].filter(Boolean).join(', '),
+        ]
+          .filter(Boolean)
+          .join(', ');
       }
-      
-      doc.text(`Delivery Address: ${deliveryAddress}`, 20, yPos);
-      yPos += 4;
-      
-      const deliveryDate = po.expected_date ? new Date(po.expected_date).toLocaleDateString('en-GB') : '10-Sep-2025';
-      const deliveryMode = 'Road';
-      const placeOfSupply = supplierDetails?.place_of_supply || 'Karnataka';
-      doc.text(`Delivery Date: ${deliveryDate} | Mode: ${deliveryMode} | Place of Supply: ${placeOfSupply}`, 20, yPos);
-      
-      yPos += 15;
-      
-      // Items Table
-      const tableStartY = yPos;
-      
-      // Table headers with proper borders
-      doc.setLineWidth(0.3);
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(8);
-      
-      const headers = ['S.No', 'Item Code', 'Description', 'HSN Code', 'Qty', 'UOM', 'Rate (₹)', 'Amount (₹)'];
-      const colWidths = [15, 20, 50, 20, 15, 15, 20, 20];
-      let currentX = 20;
-      
-      // Header row background
-      doc.setFillColor(240, 240, 240);
-      doc.rect(20, tableStartY, 155, 8, 'F');
-      
-      // Header borders and text
-      headers.forEach((header, index) => {
-        // Vertical borders
-        doc.line(currentX, tableStartY, currentX, tableStartY + 8);
-        doc.text(header, currentX + 2, tableStartY + 5);
-        currentX += colWidths[index];
-      });
-      
-      // Final vertical border
-      doc.line(currentX, tableStartY, currentX, tableStartY + 8);
-      // Top and bottom borders for header
-      doc.line(20, tableStartY, 175, tableStartY);
-      doc.line(20, tableStartY + 8, 175, tableStartY + 8);
-      
-      yPos = tableStartY + 8;
-      
-      // Table data
-      doc.setFont('helvetica', 'normal');
-      let totalQuantity = 0;
-      let subtotal = 0;
-      
-      if (items && items.length > 0) {
-        items.forEach((item, index) => {
-          const qty = Number(item.quantity) || 0;
-          const rate = Number(item.unit_price) || 0;
-          const amount = qty * rate;
-          
-          totalQuantity += qty;
-          subtotal += amount;
-          
-          // Row border
-          currentX = 20;
-          
-          // Row background for alternating colors
-          if (index % 2 === 1) {
-            doc.setFillColor(248, 248, 248);
-            doc.rect(20, yPos, 155, 8, 'F');
-          }
-          
-          const rowData = [
-            (index + 1).toString(),
-            item.item_code || `ITM-${101 + index}`,
-            item.item_description || 'N/A',
-            item.hsn_sac_code || `${94013000 + index}`,
-            qty.toString(),
-            item.unit_of_measure || 'Nos',
-            rate.toFixed(0),
-            amount.toFixed(0)
-          ];
-          
-          rowData.forEach((data, colIndex) => {
-            // Vertical borders
-            doc.line(currentX, yPos, currentX, yPos + 8);
-            
-            if (colIndex === 2) { // Description - handle long text
-              const lines = doc.splitTextToSize(data, colWidths[colIndex] - 4);
-              doc.text(lines[0], currentX + 2, yPos + 5);
-            } else {
-              doc.text(data, currentX + 2, yPos + 5);
-            }
-            currentX += colWidths[colIndex];
-          });
-          
-          // Final vertical border and bottom border
-          doc.line(currentX, yPos, currentX, yPos + 8);
-          doc.line(20, yPos + 8, 175, yPos + 8);
-          
-          yPos += 8;
-        });
-      }
-      
-      // Calculate totals - use standard GST rates
-      const cgstRate = 9; // Standard CGST rate
-      const sgstRate = 9; // Standard SGST rate
-      
-      const cgstAmount = (subtotal * cgstRate) / 100;
-      const sgstAmount = (subtotal * sgstRate) / 100;
-      const grandTotal = subtotal + cgstAmount + sgstAmount;
-      
-      // Summary section with borders
-      yPos += 5;
-      
-      // Summary rows with proper formatting
-      const summaryRows = [
-        ['Subtotal', subtotal.toFixed(2)],
-        [`CGST @ ${cgstRate}%`, cgstAmount.toFixed(2)],
-        [`SGST @ ${sgstRate}%`, sgstAmount.toFixed(2)],
-        ['Grand Total (INR)', grandTotal.toFixed(2)]
+      const dLines = [
+        `Address: ${deliveryAddress}`,
+        `Place of Supply: ${supplierDetails?.place_of_supply || '-'}`,
       ];
-      
-      summaryRows.forEach((row, index) => {
-        const isGrandTotal = index === summaryRows.length - 1;
-        
-        // Row background for grand total
-        if (isGrandTotal) {
+      dLines.forEach((t) => {
+        const wrapped = doc.splitTextToSize(t, colWidth - 6);
+        wrapped.forEach((ln: string) => {
+          doc.text(ln, rightX + 3, dy);
+          dy += 4;
+        });
+      });
+
+      // Compute item totals for summary
+      let totalQty = 0;
+      let preDiscountTotal = 0;
+      let totalDiscount = 0;
+      let taxableSubtotal = 0;
+      let cgstTotal = 0;
+      let sgstTotal = 0;
+      let grandTotal = 0;
+
+      const preparedItems = (items || []).map((item, index) => {
+        const qty = Number(item.quantity) || 0;
+        const rate = Number(item.unit_price) || 0;
+        const amount = qty * rate;
+        const discountAmt = Number(item.discount_amount) || 0;
+        const taxable = typeof item.taxable_value === 'number' ? Number(item.taxable_value) : Math.max(amount - discountAmt, 0);
+        const cgstRate = Number(item.cgst_rate) || (Number(item.gst_rate) ? Number(item.gst_rate) / 2 : 0);
+        const sgstRate = Number(item.sgst_rate) || (Number(item.gst_rate) ? Number(item.gst_rate) / 2 : 0);
+        const cgstAmt = typeof item.cgst_amount === 'number' ? Number(item.cgst_amount) : (taxable * cgstRate) / 100;
+        const sgstAmt = typeof item.sgst_amount === 'number' ? Number(item.sgst_amount) : (taxable * sgstRate) / 100;
+        const lineTotal = typeof item.total_price === 'number' ? Number(item.total_price) : taxable + cgstAmt + sgstAmt;
+
+        totalQty += qty;
+        preDiscountTotal += amount;
+        totalDiscount += discountAmt;
+        taxableSubtotal += taxable;
+        cgstTotal += cgstAmt;
+        sgstTotal += sgstAmt;
+        grandTotal += lineTotal;
+
+        return {
+          index: index + 1,
+          code: item.item_code || '',
+          desc: item.item_description || '',
+          hsn: item.hsn_sac_code || '',
+          qty,
+          uom: item.unit_of_measure || 'pcs',
+          rate,
+          disc: discountAmt,
+          taxable,
+          cgstRate,
+          sgstRate,
+          cgstAmt,
+          sgstAmt,
+          amount: lineTotal,
+        };
+      });
+
+      // Items table header
+      y = y + 26 + 10; // after supplier/delivery boxes
+      const tableX = margin;
+      const tableW = contentWidth;
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(9);
+      doc.setFillColor(240, 240, 240);
+      doc.rect(tableX, y, tableW, 8, 'F');
+      const headers: string[] = [
+        'S.No',
+        'Item Code',
+        'Description',
+        'HSN/SAC',
+        'Qty',
+        'UOM',
+        'Rate',
+        'Disc',
+        'Taxable',
+        'CGST',
+        'SGST',
+        'Amount',
+      ];
+      // Column widths must sum to tableW (180mm)
+      const colW = [10, 18, 42, 18, 12, 12, 16, 14, 18, 14, 14, 22];
+      let xCursor = tableX + 2;
+      headers.forEach((h, i) => {
+        doc.text(h, xCursor, y + 5);
+        xCursor += colW[i];
+      });
+      // Draw header border
+      doc.setDrawColor(0, 0, 0);
+      doc.rect(tableX, y, tableW, 8);
+      y += 8;
+
+      // Rows
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8);
+      preparedItems.forEach((row, idx) => {
+        // alternating background
+        if (idx % 2 === 1) {
+          doc.setFillColor(248, 248, 248);
+          doc.rect(tableX, y, tableW, 8, 'F');
+        }
+        let cx = tableX + 2;
+        const values = [
+          String(row.index),
+          row.code || '-',
+          row.desc || '-',
+          row.hsn || '-',
+          String(row.qty),
+          row.uom,
+          row.rate.toFixed(2),
+          row.disc.toFixed(2),
+          row.taxable.toFixed(2),
+          `${row.cgstRate}%\n${row.cgstAmt.toFixed(0)}`,
+          `${row.sgstRate}%\n${row.sgstAmt.toFixed(0)}`,
+          row.amount.toFixed(2),
+        ];
+
+        values.forEach((val, i) => {
+          if (i === 2) {
+            const wrapped = doc.splitTextToSize(val, colW[i] - 4);
+            doc.text(wrapped[0], cx, y + 4.5);
+          } else if (i === 9 || i === 10) {
+            // show rate% on first line and amount below
+            const [rateText, amtText] = val.split('\n');
+            doc.text(rateText, cx, y + 3.2);
+            doc.text(amtText, cx, y + 6.6);
+          } else {
+            doc.text(val, cx, y + 4.5);
+          }
+          cx += colW[i];
+        });
+        // row border bottom
+        doc.line(tableX, y + 8, tableX + tableW, y + 8);
+        y += 8;
+      });
+      // table outer border sides
+      doc.line(tableX, y - 8 * preparedItems.length, tableX, y);
+      doc.line(tableX + tableW, y - 8 * preparedItems.length, tableX + tableW, y);
+
+      // Summary boxes: left small metrics, right amount recap
+      y += 6;
+      doc.setFont('helvetica', 'bold');
+      doc.text('Summary', margin, y);
+      y += 3.5;
+
+      const leftBoxH = 20;
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(9);
+      doc.rect(margin, y, colWidth, leftBoxH);
+      const lns = [
+        `Total Quantity: ${totalQty}`,
+        `Pre-discount Total: ₹ ${preDiscountTotal.toFixed(2)}`,
+        `Total Discount: ₹ ${totalDiscount.toFixed(2)}`,
+      ];
+      let ly = y + 6;
+      lns.forEach((t) => {
+        doc.text(t, margin + 3, ly);
+        ly += 6;
+      });
+
+      // Amount recap (right)
+      const recX = rightX;
+      doc.rect(recX, y, colWidth, leftBoxH);
+      const rows = [
+        ['Taxable Subtotal', taxableSubtotal.toFixed(2)],
+        ['CGST Total', cgstTotal.toFixed(2)],
+        ['SGST Total', sgstTotal.toFixed(2)],
+        ['Grand Total (INR)', grandTotal.toFixed(2)],
+      ];
+      let ry = y + 6;
+      rows.forEach((r, i) => {
+        if (i === rows.length - 1) {
           doc.setFillColor(220, 220, 220);
-          doc.rect(20, yPos, 155, 8, 'F');
+          doc.rect(recX, ry - 4, colWidth, 8, 'F');
           doc.setFont('helvetica', 'bold');
         } else {
           doc.setFont('helvetica', 'normal');
         }
-        
-        // Borders
-        doc.line(20, yPos, 20, yPos + 8); // Left border
-        doc.line(150, yPos, 150, yPos + 8); // Middle border
-        doc.line(175, yPos, 175, yPos + 8); // Right border
-        doc.line(20, yPos, 175, yPos); // Top border
-        doc.line(20, yPos + 8, 175, yPos + 8); // Bottom border
-        
-        // Text
-        doc.text(row[0], 22, yPos + 5);
-        doc.text(row[1], 152, yPos + 5);
-        
-        yPos += 8;
+        doc.text(r[0], recX + 3, ry);
+        doc.text(r[1], recX + colWidth - 3, ry, { align: 'right' });
+        // underline row
+        doc.line(recX, ry + 2, recX + colWidth, ry + 2);
+        ry += 6;
       });
-      
-      yPos += 12;
-      
-      // Payment Terms
+
+      y += leftBoxH + 10;
+
+      // Terms & Authorization
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(10);
-      doc.text('Payment Terms:', 20, yPos);
-      yPos += 6;
+      doc.text('Terms & Conditions', margin, y);
+      y += 5;
       doc.setFont('helvetica', 'normal');
-      doc.setFontSize(9);
-      doc.text('30% Advance, 70% within 30 days of delivery.', 20, yPos);
-      yPos += 4;
-      
-      const bankDetails = supplierDetails?.bank_name || 'HDFC Bank, Pune Branch';
-      const accountNumber = supplierDetails?.account_number || '1234567890';
-      const ifscCode = supplierDetails?.ifsc_code || 'HDFC0001234';
-      doc.text(`Bank: ${bankDetails} | A/c: ${accountNumber} | IFSC: ${ifscCode}`, 20, yPos);
-      
-      yPos += 12;
-      
-      // Authorization
-      doc.setFont('helvetica', 'bold');
-      doc.text('Authorization:', 20, yPos);
-      yPos += 6;
-      doc.setFont('helvetica', 'normal');
-      doc.text('Prepared By: Anjali Mehta (Procurement Executive)', 20, yPos);
-      yPos += 4;
-      doc.text('Approved By: Rohit Verma (Manager – Procurement)', 20, yPos);
-      
-      // Notes at bottom if present
-      if (po.notes) {
-        yPos += 10;
-        doc.setFont('helvetica', 'bold');
-        doc.text('Notes:', 20, yPos);
-        yPos += 6;
-        doc.setFont('helvetica', 'normal');
-        doc.setFontSize(8);
-        const noteLines = doc.splitTextToSize(po.notes, 155);
-        noteLines.forEach((line: string) => {
-          doc.text(line, 20, yPos);
-          yPos += 4;
+      doc.setFontSize(8.5);
+      const terms = [
+        '1. Materials must be as per specification. Any deviation requires written approval.',
+        '2. Payment terms: 30% advance, balance within 30 days of delivery.',
+        '3. Delivery challan and tax invoice are mandatory with shipment.',
+      ];
+      terms.forEach((t) => {
+        const wrapped = doc.splitTextToSize(t, contentWidth);
+        wrapped.forEach((ln: string) => {
+          doc.text(ln, margin, y);
+          y += 4;
         });
-      }
-      
+      });
+
+      y += 4;
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(9);
+      doc.text('Authorized Signatory', margin, y + 15);
+      doc.line(margin, y + 14, margin + 50, y + 14);
+
       // Save the PDF
       const fileName = `Purchase_Order_${po.po_number}.pdf`;
       doc.save(fileName);
-      
+
       toast({
-        title: "Success",
+        title: 'Success',
         description: `Purchase Order ${po.po_number} downloaded successfully`,
       });
-      
     } catch (error) {
       console.error('Error generating PDF:', error);
       toast({
-        title: "Error", 
-        description: "Failed to generate PDF",
-        variant: "destructive",
+        title: 'Error',
+        description: 'Failed to generate PDF',
+        variant: 'destructive',
       });
     }
   };
