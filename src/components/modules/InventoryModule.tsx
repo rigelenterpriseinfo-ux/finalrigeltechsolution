@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -11,7 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Search, Package, AlertTriangle, Edit, Trash2, Download } from 'lucide-react';
+import { Plus, Search, Package, AlertTriangle, Edit, Trash2, Download, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
 import * as XLSX from 'xlsx';
 
 interface Product {
@@ -46,10 +46,23 @@ export function InventoryModule() {
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [sortConfig, setSortConfig] = useState<{
+    key: string;
+    direction: 'asc' | 'desc';
+  } | null>(null);
 
   useEffect(() => {
     fetchProducts();
   }, []);
+
+  // Sort function
+  const handleSort = (key: string) => {
+    let direction: 'asc' | 'desc' = 'asc';
+    if (sortConfig && sortConfig.key === key && sortConfig.direction === 'asc') {
+      direction = 'desc';
+    }
+    setSortConfig({ key, direction });
+  };
 
   const fetchProducts = async () => {
     try {
@@ -240,10 +253,69 @@ export function InventoryModule() {
     }
   };
 
-  const filteredProducts = products.filter(product =>
-    product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    product.sku.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // Enhanced search and sort functionality
+  const filteredProducts = useMemo(() => {
+    let filtered = products.filter(product =>
+      product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      product.sku.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (product.hsn_code && product.hsn_code.toLowerCase().includes(searchTerm.toLowerCase()))
+    );
+
+    // Apply sorting
+    if (sortConfig) {
+      filtered.sort((a, b) => {
+        let aValue: any;
+        let bValue: any;
+
+        switch (sortConfig.key) {
+          case 'sku':
+            aValue = a.sku;
+            bValue = b.sku;
+            break;
+          case 'name':
+            aValue = a.name;
+            bValue = b.name;
+            break;
+          case 'unit':
+            aValue = a.unit || '';
+            bValue = b.unit || '';
+            break;
+          case 'hsn_code':
+            aValue = a.hsn_code || '';
+            bValue = b.hsn_code || '';
+            break;
+          case 'stock_quantity':
+            aValue = a.stock_quantity;
+            bValue = b.stock_quantity;
+            break;
+          case 'cost_price':
+            aValue = a.cost_price;
+            bValue = b.cost_price;
+            break;
+          case 'unit_price':
+            aValue = a.unit_price;
+            bValue = b.unit_price;
+            break;
+          case 'gst_percentage':
+            aValue = a.gst_percentage;
+            bValue = b.gst_percentage;
+            break;
+          default:
+            return 0;
+        }
+
+        if (aValue < bValue) {
+          return sortConfig.direction === 'asc' ? -1 : 1;
+        }
+        if (aValue > bValue) {
+          return sortConfig.direction === 'asc' ? 1 : -1;
+        }
+        return 0;
+      });
+    }
+
+    return filtered;
+  }, [products, searchTerm, sortConfig]);
 
   const lowStockProducts = products.filter(product => 
     product.stock_quantity <= product.min_stock_level
@@ -875,7 +947,7 @@ export function InventoryModule() {
         <div className="relative flex-1 max-w-sm">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
-            placeholder="Search products..."
+            placeholder="Search by SKU, Name, or HSN Code..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="pl-10"
@@ -893,14 +965,158 @@ export function InventoryModule() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>SKU</TableHead>
-                <TableHead>Name</TableHead>
-                <TableHead>Unit</TableHead>
-                <TableHead>HSN Code</TableHead>
-                <TableHead>Stock</TableHead>
-                <TableHead>Cost Price</TableHead>
-                <TableHead>Selling Price</TableHead>
-                <TableHead>GST %</TableHead>
+                <TableHead>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-auto p-0 font-semibold hover:bg-transparent"
+                    onClick={() => handleSort('sku')}
+                  >
+                    SKU
+                    {sortConfig?.key === 'sku' ? (
+                      sortConfig.direction === 'asc' ? (
+                        <ArrowUp className="ml-1 h-3 w-3" />
+                      ) : (
+                        <ArrowDown className="ml-1 h-3 w-3" />
+                      )
+                    ) : (
+                      <ArrowUpDown className="ml-1 h-3 w-3 opacity-50" />
+                    )}
+                  </Button>
+                </TableHead>
+                <TableHead>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-auto p-0 font-semibold hover:bg-transparent"
+                    onClick={() => handleSort('name')}
+                  >
+                    Name
+                    {sortConfig?.key === 'name' ? (
+                      sortConfig.direction === 'asc' ? (
+                        <ArrowUp className="ml-1 h-3 w-3" />
+                      ) : (
+                        <ArrowDown className="ml-1 h-3 w-3" />
+                      )
+                    ) : (
+                      <ArrowUpDown className="ml-1 h-3 w-3 opacity-50" />
+                    )}
+                  </Button>
+                </TableHead>
+                <TableHead>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-auto p-0 font-semibold hover:bg-transparent"
+                    onClick={() => handleSort('unit')}
+                  >
+                    Unit
+                    {sortConfig?.key === 'unit' ? (
+                      sortConfig.direction === 'asc' ? (
+                        <ArrowUp className="ml-1 h-3 w-3" />
+                      ) : (
+                        <ArrowDown className="ml-1 h-3 w-3" />
+                      )
+                    ) : (
+                      <ArrowUpDown className="ml-1 h-3 w-3 opacity-50" />
+                    )}
+                  </Button>
+                </TableHead>
+                <TableHead>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-auto p-0 font-semibold hover:bg-transparent"
+                    onClick={() => handleSort('hsn_code')}
+                  >
+                    HSN Code
+                    {sortConfig?.key === 'hsn_code' ? (
+                      sortConfig.direction === 'asc' ? (
+                        <ArrowUp className="ml-1 h-3 w-3" />
+                      ) : (
+                        <ArrowDown className="ml-1 h-3 w-3" />
+                      )
+                    ) : (
+                      <ArrowUpDown className="ml-1 h-3 w-3 opacity-50" />
+                    )}
+                  </Button>
+                </TableHead>
+                <TableHead>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-auto p-0 font-semibold hover:bg-transparent"
+                    onClick={() => handleSort('stock_quantity')}
+                  >
+                    Stock
+                    {sortConfig?.key === 'stock_quantity' ? (
+                      sortConfig.direction === 'asc' ? (
+                        <ArrowUp className="ml-1 h-3 w-3" />
+                      ) : (
+                        <ArrowDown className="ml-1 h-3 w-3" />
+                      )
+                    ) : (
+                      <ArrowUpDown className="ml-1 h-3 w-3 opacity-50" />
+                    )}
+                  </Button>
+                </TableHead>
+                <TableHead>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-auto p-0 font-semibold hover:bg-transparent"
+                    onClick={() => handleSort('cost_price')}
+                  >
+                    Cost Price
+                    {sortConfig?.key === 'cost_price' ? (
+                      sortConfig.direction === 'asc' ? (
+                        <ArrowUp className="ml-1 h-3 w-3" />
+                      ) : (
+                        <ArrowDown className="ml-1 h-3 w-3" />
+                      )
+                    ) : (
+                      <ArrowUpDown className="ml-1 h-3 w-3 opacity-50" />
+                    )}
+                  </Button>
+                </TableHead>
+                <TableHead>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-auto p-0 font-semibold hover:bg-transparent"
+                    onClick={() => handleSort('unit_price')}
+                  >
+                    Selling Price
+                    {sortConfig?.key === 'unit_price' ? (
+                      sortConfig.direction === 'asc' ? (
+                        <ArrowUp className="ml-1 h-3 w-3" />
+                      ) : (
+                        <ArrowDown className="ml-1 h-3 w-3" />
+                      )
+                    ) : (
+                      <ArrowUpDown className="ml-1 h-3 w-3 opacity-50" />
+                    )}
+                  </Button>
+                </TableHead>
+                <TableHead>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-auto p-0 font-semibold hover:bg-transparent"
+                    onClick={() => handleSort('gst_percentage')}
+                  >
+                    GST %
+                    {sortConfig?.key === 'gst_percentage' ? (
+                      sortConfig.direction === 'asc' ? (
+                        <ArrowUp className="ml-1 h-3 w-3" />
+                      ) : (
+                        <ArrowDown className="ml-1 h-3 w-3" />
+                      )
+                    ) : (
+                      <ArrowUpDown className="ml-1 h-3 w-3 opacity-50" />
+                    )}
+                  </Button>
+                </TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Actions</TableHead>
               </TableRow>
