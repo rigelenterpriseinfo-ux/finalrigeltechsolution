@@ -893,7 +893,7 @@ export function SalesModule() {
                             <div className="bg-muted/30 px-6 py-4 border-b border-border">
                               <div className="grid grid-cols-12 gap-4 text-sm font-medium text-muted-foreground uppercase tracking-wide">
                                 <div className="col-span-2">SKU</div>
-                                <div className="col-span-3">Item Name</div>
+                                <div className="col-span-3">Name</div>
                                 <div className="col-span-1">HSN/SAC</div>
                                 <div className="col-span-1">Qty</div>
                                 <div className="col-span-1">UOM</div>
@@ -907,56 +907,18 @@ export function SalesModule() {
                               {orderItems.map((item, index) => (
                                 <div key={index} className="p-6 hover:bg-muted/20 transition-colors">
                                   <div className="grid grid-cols-12 gap-4 items-start">
-                                    {/* SKU Selection */}
+                                    {/* SKU Field */}
                                     <div className="col-span-2">
-                                      <Label className="text-xs font-medium text-muted-foreground mb-2 block">SKU</Label>
-                                      <Select
-                                        value={item.product_id || ''}
-                                        onValueChange={(value) => handleProductSelection(index, value)}
-                                      >
-                                        <SelectTrigger className="h-9 bg-background border-input">
-                                          <span className="truncate text-sm">
-                                            {item.product_id ? (products.find(p => p.id === item.product_id)?.sku || 'Select SKU') : 'Select SKU'}
-                                          </span>
-                                        </SelectTrigger>
-                                        <SelectContent className="max-h-60 z-[100] bg-popover border shadow-lg">
-                                          <div className="p-2 border-b border-border">
-                                            <Input
-                                              placeholder="Search SKU..."
-                                              className="h-8 text-xs"
-                                              value={productSearchTerms[index] || ''}
-                                              onChange={(e) => {
-                                                setProductSearchTerms(prev => ({
-                                                  ...prev,
-                                                  [index]: e.target.value
-                                                }));
-                                              }}
-                                            />
-                                          </div>
-                                          <div className="max-h-48 overflow-y-auto">
-                                            {products
-                                              .filter(product => {
-                                                const term = (productSearchTerms[index] || '').toLowerCase();
-                                                return term === '' ||
-                                                       product.sku.toLowerCase().includes(term) ||
-                                                       product.name.toLowerCase().includes(term);
-                                              })
-                                              .map((product) => (
-                                              <SelectItem key={product.id} value={product.id} className="text-sm">
-                                                <div className="flex flex-col">
-                                                  <span className="font-medium">{product.sku}</span>
-                                                  <span className="text-xs text-muted-foreground">{product.name}</span>
-                                                </div>
-                                              </SelectItem>
-                                            ))}
-                                          </div>
-                                        </SelectContent>
-                                      </Select>
+                                      <Input
+                                        value={item.product_id ? (products.find(p => p.id === item.product_id)?.sku || '') : ''}
+                                        readOnly
+                                        placeholder="SKU"
+                                        className="h-9 text-xs bg-muted/50"
+                                      />
                                     </div>
 
-                                    {/* Item Name Selection */}
+                                    {/* Name Selection */}
                                     <div className="col-span-3">
-                                      <Label className="text-xs font-medium text-muted-foreground mb-2 block">Item Name</Label>
                                       <div className="space-y-2">
                                         <Select
                                           value={item.product_id || ''}
@@ -986,9 +948,7 @@ export function SalesModule() {
                                                 .filter(product => {
                                                   const term = (productSearchTerms[index] || '').toLowerCase();
                                                   return term === '' ||
-                                                         product.name.toLowerCase().includes(term) ||
-                                                         (product.description && product.description.toLowerCase().includes(term)) ||
-                                                         product.sku.toLowerCase().includes(term);
+                                                         product.name.toLowerCase().includes(term);
                                                 })
                                                 .map((product) => (
                                                 <SelectItem key={product.id} value={product.id} className="text-sm">
