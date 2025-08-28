@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -62,7 +61,7 @@ export default function SalesModule() {
         `)
         .eq('company_id', profile.company_id)
         .order('created_at', { ascending: false })
-        .limit(5);
+        .limit(5); // Changed from 50 to 5 as requested
 
       if (error) throw error;
 
@@ -179,6 +178,11 @@ export default function SalesModule() {
         terms_conditions: invoiceData.terms_conditions,
         created_by: profile.id
       };
+
+      // Only include performa_invoice_number if it's not null/undefined
+      if (invoiceData.performa_invoice_number) {
+        invoicePayload.performa_invoice_number = invoiceData.performa_invoice_number;
+      }
 
       let result;
       if (editingInvoice) {
