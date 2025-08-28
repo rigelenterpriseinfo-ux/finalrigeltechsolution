@@ -216,12 +216,7 @@ export default function Dashboard() {
                   </p>
                 </div>
                 <div className="hidden md:flex items-center gap-4">
-                  <Badge variant="secondary" className="bg-white/20 text-white border-white/30">
-                    {company?.name || 'Your Company'}
-                  </Badge>
-                  <div className="w-16 h-16 rounded-full bg-white/20 flex items-center justify-center">
-                    <Building2 className="h-8 w-8" />
-                  </div>
+                  {/* Removed company badge and icon - moved to header */}
                 </div>
               </div>
             </div>

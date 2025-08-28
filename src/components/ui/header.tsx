@@ -48,6 +48,11 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
 
           <div className="flex items-center gap-4">
+            {/* Company Badge */}
+            <Badge variant="secondary" className="bg-primary/10 text-primary border-primary/20">
+              {company?.name || 'Your Company'}
+            </Badge>
+
             {showSearch && (
               <div className="relative w-80 hidden md:block">
                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
