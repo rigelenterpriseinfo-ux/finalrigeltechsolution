@@ -476,10 +476,14 @@ export function PurchaseModule() {
           discount_amount: item.discount_amount,
           taxable_value: item.taxable_value,
           gst_rate: item.gst_rate,
+          cgst_rate: item.cgst_rate,
+          sgst_rate: item.sgst_rate,
+          igst_rate: item.igst_rate,
           cgst_amount: item.cgst_amount,
           sgst_amount: item.sgst_amount,
           igst_amount: item.igst_amount,
           total_price: item.line_total,
+          is_taxable: item.is_taxable,
           remarks: null,
         }));
 

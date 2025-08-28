@@ -759,6 +759,7 @@ export type Database = {
       purchase_order_items: {
         Row: {
           cgst_amount: number | null
+          cgst_rate: number | null
           created_at: string
           discount_amount: number | null
           discount_percentage: number | null
@@ -766,6 +767,8 @@ export type Database = {
           hsn_sac_code: string | null
           id: string
           igst_amount: number | null
+          igst_rate: number | null
+          is_taxable: boolean | null
           item_code: string | null
           item_description: string
           product_id: string | null
@@ -774,6 +777,7 @@ export type Database = {
           received_quantity: number
           remarks: string | null
           sgst_amount: number | null
+          sgst_rate: number | null
           taxable_value: number | null
           total_price: number
           unit_of_measure: string
@@ -781,6 +785,7 @@ export type Database = {
         }
         Insert: {
           cgst_amount?: number | null
+          cgst_rate?: number | null
           created_at?: string
           discount_amount?: number | null
           discount_percentage?: number | null
@@ -788,6 +793,8 @@ export type Database = {
           hsn_sac_code?: string | null
           id?: string
           igst_amount?: number | null
+          igst_rate?: number | null
+          is_taxable?: boolean | null
           item_code?: string | null
           item_description?: string
           product_id?: string | null
@@ -796,6 +803,7 @@ export type Database = {
           received_quantity?: number
           remarks?: string | null
           sgst_amount?: number | null
+          sgst_rate?: number | null
           taxable_value?: number | null
           total_price: number
           unit_of_measure?: string
@@ -803,6 +811,7 @@ export type Database = {
         }
         Update: {
           cgst_amount?: number | null
+          cgst_rate?: number | null
           created_at?: string
           discount_amount?: number | null
           discount_percentage?: number | null
@@ -810,6 +819,8 @@ export type Database = {
           hsn_sac_code?: string | null
           id?: string
           igst_amount?: number | null
+          igst_rate?: number | null
+          is_taxable?: boolean | null
           item_code?: string | null
           item_description?: string
           product_id?: string | null
@@ -818,6 +829,7 @@ export type Database = {
           received_quantity?: number
           remarks?: string | null
           sgst_amount?: number | null
+          sgst_rate?: number | null
           taxable_value?: number | null
           total_price?: number
           unit_of_measure?: string
