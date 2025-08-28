@@ -915,20 +915,22 @@ export function SalesModule() {
                                             onValueChange={(value) => handleProductSelection(index, value)}
                                           >
                                             <SelectTrigger className="w-full">
-                                              <SelectValue placeholder="Select product" />
+                                              <span className="truncate">
+                                                {item.product_id ? (products.find(p => p.id === item.product_id)?.sku || 'SKU') : 'Select SKU'}
+                                              </span>
                                             </SelectTrigger>
-                                            <SelectContent className="max-h-60">
+                                            <SelectContent className="max-h-60 z-[100]">
                                               {products
                                                 .filter(product => {
-                                                  const searchTerm = (productSearchTerms[index] || '').toLowerCase();
-                                                  return searchTerm === '' ||
-                                                         product.name.toLowerCase().includes(searchTerm) ||
-                                                         product.sku.toLowerCase().includes(searchTerm) ||
-                                                         (product.description && product.description.toLowerCase().includes(searchTerm));
+                                                  const term = (productSearchTerms[index] || '').toLowerCase();
+                                                  return term === '' ||
+                                                         product.name.toLowerCase().includes(term) ||
+                                                         product.sku.toLowerCase().includes(term) ||
+                                                         (product.description && product.description.toLowerCase().includes(term));
                                                 })
                                                 .map((product) => (
                                                 <SelectItem key={product.id} value={product.id}>
-                                                  {`${product.sku} — ${product.name} — ₹${product.unit_price} — ${product.unit || 'pcs'}`}
+                                                  {product.sku}
                                                 </SelectItem>
                                               ))}
                                             </SelectContent>
@@ -952,14 +954,52 @@ export function SalesModule() {
                                         )}
                                       </div>
                                     </TableCell>
-                                    <TableCell className="w-40">
-                                      <Textarea
-                                        value={item.item_description}
-                                        onChange={(e) => updateLineItem(index, 'item_description', e.target.value)}
-                                        placeholder="Description"
-                                        className="text-xs min-h-[60px] resize-none"
-                                      />
-                                    </TableCell>
+                                      <TableCell className="w-40">
+                                        <div className="space-y-2">
+                                          <Select
+                                            value={item.product_id || ''}
+                                            onValueChange={(value) => handleProductSelection(index, value)}
+                                          >
+                                            <SelectTrigger className="w-full">
+                                              <span className="truncate">
+                                                {item.product_id ? (products.find(p => p.id === item.product_id)?.sku || 'SKU') : 'Search by description'}
+                                              </span>
+                                            </SelectTrigger>
+                                            <SelectContent className="max-h-60 z-[100]">
+                                              {products
+                                                .filter(product => {
+                                                  const term = (productSearchTerms[index] || '').toLowerCase();
+                                                  return term === '' ||
+                                                         (product.description && product.description.toLowerCase().includes(term)) ||
+                                                         product.name.toLowerCase().includes(term) ||
+                                                         product.sku.toLowerCase().includes(term);
+                                                })
+                                                .map((product) => (
+                                                <SelectItem key={product.id} value={product.id}>
+                                                  {product.name}{product.description ? ` — ${product.description}` : ''}
+                                                </SelectItem>
+                                              ))}
+                                            </SelectContent>
+                                          </Select>
+                                          <Input
+                                            placeholder="Search in description..."
+                                            className="text-xs"
+                                            value={productSearchTerms[index] || ''}
+                                            onChange={(e) => {
+                                              setProductSearchTerms(prev => ({
+                                                ...prev,
+                                                [index]: e.target.value
+                                              }));
+                                            }}
+                                          />
+                                          <Textarea
+                                            value={item.item_description}
+                                            onChange={(e) => updateLineItem(index, 'item_description', e.target.value)}
+                                            placeholder="Description"
+                                            className="text-xs min-h-[60px] resize-none"
+                                          />
+                                        </div>
+                                      </TableCell>
                                     <TableCell className="w-24">
                                       <Input
                                         value={item.hsn_sac_code}
