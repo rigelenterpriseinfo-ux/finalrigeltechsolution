@@ -16,7 +16,7 @@ import { Separator } from '@/components/ui/separator';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Search, ShoppingCart, Truck, Edit, Trash2, Eye, Calendar, Package, FileDown, MapPin, Save, X, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
+import { Plus, Search, ShoppingCart, Truck, Edit, Trash2, Eye, Calendar, Package, FileDown, MapPin, Save, X, ArrowUpDown, ArrowUp, ArrowDown, ChevronLeft, ChevronRight } from 'lucide-react';
 
 interface PurchaseOrder {
   id: string;
@@ -146,6 +146,11 @@ export function PurchaseModule() {
     key: string;
     direction: 'asc' | 'desc';
   } | null>(null);
+  
+  // Pagination state
+  const [currentPOPage, setCurrentPOPage] = useState(1);
+  const [currentSupplierPage, setCurrentSupplierPage] = useState(1);
+  const itemsPerPage = 5;
   const [showAddPODialog, setShowAddPODialog] = useState(false);
   const [showAddSupplierDialog, setShowAddSupplierDialog] = useState(false);
   const [showEditSupplierDialog, setShowEditSupplierDialog] = useState(false);
@@ -994,6 +999,90 @@ export function PurchaseModule() {
 
     return filtered;
   }, [purchaseOrders, purchaseOrderItems, searchTerm, sortConfig]);
+
+  // Reset to first page when search or sort changes for Purchase Orders
+  useEffect(() => {
+    setCurrentPOPage(1);
+  }, [searchTerm, sortConfig]);
+
+  // Purchase Orders Pagination
+  const totalPOPages = Math.ceil(filteredPOs.length / itemsPerPage);
+  const startPOIndex = (currentPOPage - 1) * itemsPerPage;
+  const endPOIndex = startPOIndex + itemsPerPage;
+  const currentPOs = filteredPOs.slice(startPOIndex, endPOIndex);
+
+  // Suppliers Pagination (for the suppliers we need to filter them too)
+  const filteredSuppliers = suppliers.filter(supplier =>
+    supplier.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (supplier.supplier_ref && supplier.supplier_ref.toLowerCase().includes(searchTerm.toLowerCase()))
+  );
+  
+  const totalSupplierPages = Math.ceil(filteredSuppliers.length / itemsPerPage);
+  const startSupplierIndex = (currentSupplierPage - 1) * itemsPerPage;
+  const endSupplierIndex = startSupplierIndex + itemsPerPage;
+  const currentSuppliers = filteredSuppliers.slice(startSupplierIndex, endSupplierIndex);
+
+  // Pagination handlers for Purchase Orders
+  const goToPOPage = (page: number) => {
+    setCurrentPOPage(Math.max(1, Math.min(page, totalPOPages)));
+  };
+
+  const goToPOPrevious = () => {
+    setCurrentPOPage(prev => Math.max(1, prev - 1));
+  };
+
+  const goToPONext = () => {
+    setCurrentPOPage(prev => Math.min(totalPOPages, prev + 1));
+  };
+
+  // Pagination handlers for Suppliers
+  const goToSupplierPage = (page: number) => {
+    setCurrentSupplierPage(Math.max(1, Math.min(page, totalSupplierPages)));
+  };
+
+  const goToSupplierPrevious = () => {
+    setCurrentSupplierPage(prev => Math.max(1, prev - 1));
+  };
+
+  const goToSupplierNext = () => {
+    setCurrentSupplierPage(prev => Math.min(totalSupplierPages, prev + 1));
+  };
+
+  // Generate page numbers for pagination
+  const getPageNumbers = (currentPage: number, totalPages: number) => {
+    const pages = [];
+    const maxVisiblePages = 5;
+    
+    if (totalPages <= maxVisiblePages) {
+      for (let i = 1; i <= totalPages; i++) {
+        pages.push(i);
+      }
+    } else {
+      if (currentPage <= 3) {
+        for (let i = 1; i <= 4; i++) {
+          pages.push(i);
+        }
+        pages.push('...');
+        pages.push(totalPages);
+      } else if (currentPage >= totalPages - 2) {
+        pages.push(1);
+        pages.push('...');
+        for (let i = totalPages - 3; i <= totalPages; i++) {
+          pages.push(i);
+        }
+      } else {
+        pages.push(1);
+        pages.push('...');
+        for (let i = currentPage - 1; i <= currentPage + 1; i++) {
+          pages.push(i);
+        }
+        pages.push('...');
+        pages.push(totalPages);
+      }
+    }
+    
+    return pages;
+  };
 
   // Export to Excel function
   const exportToExcel = () => {
@@ -2602,7 +2691,7 @@ export function PurchaseModule() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredPOs.map((po) => {
+              {currentPOs.map((po) => {
                 // Resolve items from separate state by purchase_order_id
                 const items = purchaseOrderItems.filter((it) => it.purchase_order_id === po.id);
                 
@@ -2757,15 +2846,77 @@ export function PurchaseModule() {
                 </TableRow>
                 );
               })}
-              {filteredPOs.length === 0 && (
+              {currentPOs.length === 0 && (
                 <TableRow>
                   <TableCell colSpan={9} className="text-center text-muted-foreground">
-                    No purchase orders found
+                    {filteredPOs.length === 0 ? 'No purchase orders found' : 'No purchase orders on this page'}
                   </TableCell>
                 </TableRow>
               )}
             </TableBody>
           </Table>
+          
+          {/* Professional Pagination Controls for Purchase Orders */}
+          {filteredPOs.length > 0 && totalPOPages > 1 && (
+            <div className="flex items-center justify-between pt-6 border-t border-border">
+              <div className="flex items-center text-sm text-muted-foreground">
+                <span>
+                  Showing {startPOIndex + 1} to {Math.min(endPOIndex, filteredPOs.length)} of {filteredPOs.length} purchase orders
+                </span>
+              </div>
+              
+              <div className="flex items-center space-x-2">
+                {/* Previous Button */}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={goToPOPrevious}
+                  disabled={currentPOPage === 1}
+                  className="flex items-center gap-1 px-3 py-2 text-sm font-medium transition-colors hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                  Previous
+                </Button>
+                
+                {/* Page Numbers */}
+                <div className="flex items-center space-x-1">
+                  {getPageNumbers(currentPOPage, totalPOPages).map((page, index) => (
+                    page === '...' ? (
+                      <span key={`ellipsis-${index}`} className="px-3 py-2 text-sm text-muted-foreground">
+                        ...
+                      </span>
+                    ) : (
+                      <Button
+                        key={page}
+                        variant={currentPOPage === page ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => goToPOPage(page as number)}
+                        className={`px-3 py-2 text-sm font-medium transition-colors ${
+                          currentPOPage === page
+                            ? 'bg-primary text-primary-foreground shadow-sm'
+                            : 'hover:bg-muted'
+                        }`}
+                      >
+                        {page}
+                      </Button>
+                    )
+                  ))}
+                </div>
+                
+                {/* Next Button */}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={goToPONext}
+                  disabled={currentPOPage === totalPOPages}
+                  className="flex items-center gap-1 px-3 py-2 text-sm font-medium transition-colors hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Next
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -2790,7 +2941,7 @@ export function PurchaseModule() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {suppliers.map((supplier) => (
+              {currentSuppliers.map((supplier) => (
                 <TableRow key={supplier.id} className="hover:bg-muted/30 transition-colors">
                   <TableCell className="font-medium font-mono text-xs">
                     <Badge variant="outline">{supplier.supplier_ref || 'N/A'}</Badge>
@@ -2828,15 +2979,77 @@ export function PurchaseModule() {
                   </TableCell>
                 </TableRow>
               ))}
-              {suppliers.length === 0 && (
+              {currentSuppliers.length === 0 && (
                 <TableRow>
                   <TableCell colSpan={8} className="text-center text-muted-foreground">
-                    No suppliers found
+                    {filteredSuppliers.length === 0 ? 'No suppliers found' : 'No suppliers on this page'}
                   </TableCell>
                 </TableRow>
               )}
             </TableBody>
           </Table>
+          
+          {/* Professional Pagination Controls for Suppliers */}
+          {filteredSuppliers.length > 0 && totalSupplierPages > 1 && (
+            <div className="flex items-center justify-between pt-6 border-t border-border">
+              <div className="flex items-center text-sm text-muted-foreground">
+                <span>
+                  Showing {startSupplierIndex + 1} to {Math.min(endSupplierIndex, filteredSuppliers.length)} of {filteredSuppliers.length} suppliers
+                </span>
+              </div>
+              
+              <div className="flex items-center space-x-2">
+                {/* Previous Button */}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={goToSupplierPrevious}
+                  disabled={currentSupplierPage === 1}
+                  className="flex items-center gap-1 px-3 py-2 text-sm font-medium transition-colors hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                  Previous
+                </Button>
+                
+                {/* Page Numbers */}
+                <div className="flex items-center space-x-1">
+                  {getPageNumbers(currentSupplierPage, totalSupplierPages).map((page, index) => (
+                    page === '...' ? (
+                      <span key={`ellipsis-${index}`} className="px-3 py-2 text-sm text-muted-foreground">
+                        ...
+                      </span>
+                    ) : (
+                      <Button
+                        key={page}
+                        variant={currentSupplierPage === page ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => goToSupplierPage(page as number)}
+                        className={`px-3 py-2 text-sm font-medium transition-colors ${
+                          currentSupplierPage === page
+                            ? 'bg-primary text-primary-foreground shadow-sm'
+                            : 'hover:bg-muted'
+                        }`}
+                      >
+                        {page}
+                      </Button>
+                    )
+                  ))}
+                </div>
+                
+                {/* Next Button */}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={goToSupplierNext}
+                  disabled={currentSupplierPage === totalSupplierPages}
+                  className="flex items-center gap-1 px-3 py-2 text-sm font-medium transition-colors hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Next
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 
