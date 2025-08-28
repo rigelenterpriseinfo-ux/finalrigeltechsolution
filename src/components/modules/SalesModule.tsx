@@ -156,6 +156,7 @@ export function SalesModule() {
   const [soCurrentPage, setSOCurrentPage] = useState(1);
   const [orderItems, setOrderItems] = useState<SalesOrderItem[]>([]);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
+  const [productSearchTerms, setProductSearchTerms] = useState<{[key: number]: string}>({});
   const itemsPerPage = 5;
 
   useEffect(() => {
@@ -309,26 +310,24 @@ export function SalesModule() {
     updatedItems[index] = { ...updatedItems[index], [field]: value };
 
     // Auto-calculate amounts when relevant fields change
-    if (['quantity', 'unit_price', 'discount_percentage', 'tax_percentage'].includes(field)) {
+    if (['quantity', 'unit_price', 'discount_percentage', 'cgst_rate', 'sgst_rate', 'igst_rate'].includes(field)) {
       const item = updatedItems[index];
       const subtotal = item.quantity * item.unit_price;
       
       // Calculate discount
       item.discount_amount = (subtotal * item.discount_percentage) / 100;
       
-      // Calculate tax breakdown
+      // Calculate tax amounts based on manual rates
       const taxableAmount = subtotal - item.discount_amount;
-      const taxBreakdown = calculateTaxBreakdown(taxableAmount, item.tax_percentage);
+      item.cgst_amount = (taxableAmount * item.cgst_rate) / 100;
+      item.sgst_amount = (taxableAmount * item.sgst_rate) / 100;
+      item.igst_amount = (taxableAmount * item.igst_rate) / 100;
       
-      Object.assign(item, taxBreakdown);
+      // Calculate total tax percentage for reference
+      item.tax_percentage = item.cgst_rate + item.sgst_rate + item.igst_rate;
       
       // Calculate line total
-      item.line_total = calculateLineTotal(
-        item.quantity,
-        item.unit_price,
-        item.discount_amount,
-        taxBreakdown.cgst_amount + taxBreakdown.sgst_amount + taxBreakdown.igst_amount
-      );
+      item.line_total = taxableAmount + item.cgst_amount + item.sgst_amount + item.igst_amount;
     }
 
     setOrderItems(updatedItems);
@@ -346,7 +345,18 @@ export function SalesModule() {
       updateLineItem(index, 'hsn_sac_code', product.hsn_code || '');
       updateLineItem(index, 'unit_price', product.unit_price);
       updateLineItem(index, 'unit_of_measure', product.unit || 'pcs');
-      updateLineItem(index, 'tax_percentage', product.gst_percentage || 18);
+      
+      // Set default tax rates (can be manually edited)
+      const gstRate = product.gst_percentage || 18;
+      updateLineItem(index, 'cgst_rate', gstRate / 2);
+      updateLineItem(index, 'sgst_rate', gstRate / 2);
+      updateLineItem(index, 'igst_rate', 0); // Default to intrastate
+      
+      // Clear search term for this index
+      setProductSearchTerms(prev => ({
+        ...prev,
+        [index]: ''
+      }));
     }
   };
 
@@ -880,44 +890,79 @@ export function SalesModule() {
                             <Table>
                               <TableHeader>
                                 <TableRow className="bg-muted/50">
-                                  <TableHead>Product</TableHead>
-                                  <TableHead>Description</TableHead>
-                                  <TableHead>HSN/SAC</TableHead>
-                                  <TableHead>Qty</TableHead>
-                                  <TableHead>UOM</TableHead>
-                                  <TableHead>Unit Price</TableHead>
-                                  <TableHead>Disc %</TableHead>
-                                  <TableHead>Tax %</TableHead>
-                                  <TableHead>Line Total</TableHead>
-                                  <TableHead></TableHead>
+                                  <TableHead className="w-48">Product</TableHead>
+                                  <TableHead className="w-40">Description</TableHead>
+                                  <TableHead className="w-24">HSN/SAC</TableHead>
+                                  <TableHead className="w-20">Qty</TableHead>
+                                  <TableHead className="w-20">UOM</TableHead>
+                                  <TableHead className="w-24">Unit Price</TableHead>
+                                  <TableHead className="w-20">Disc %</TableHead>
+                                  <TableHead className="w-20">CGST %</TableHead>
+                                  <TableHead className="w-20">SGST %</TableHead>
+                                  <TableHead className="w-20">IGST %</TableHead>
+                                  <TableHead className="w-24">Line Total</TableHead>
+                                  <TableHead className="w-12"></TableHead>
                                 </TableRow>
                               </TableHeader>
                               <TableBody>
                                 {orderItems.map((item, index) => (
                                   <TableRow key={index}>
                                     <TableCell className="w-48">
-                                      <Select
-                                        value={item.product_id || ''}
-                                        onValueChange={(value) => handleProductSelection(index, value)}
-                                      >
-                                        <SelectTrigger className="w-full">
-                                          <SelectValue placeholder="Select product" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                          {products.map((product) => (
-                                            <SelectItem key={product.id} value={product.id}>
-                                              {product.name} - ₹{product.unit_price}
-                                            </SelectItem>
-                                          ))}
-                                        </SelectContent>
-                                      </Select>
+                                      <div className="space-y-2">
+                                        <Select
+                                          value={item.product_id || ''}
+                                          onValueChange={(value) => handleProductSelection(index, value)}
+                                        >
+                                          <SelectTrigger className="w-full">
+                                            <SelectValue placeholder="Select product" />
+                                          </SelectTrigger>
+                                          <SelectContent className="max-h-60">
+                                            <div className="p-2">
+                                              <Input
+                                                placeholder="Search products..."
+                                                className="mb-2"
+                                                value={productSearchTerms[index] || ''}
+                                                onChange={(e) => {
+                                                  setProductSearchTerms(prev => ({
+                                                    ...prev,
+                                                    [index]: e.target.value
+                                                  }));
+                                                }}
+                                              />
+                                            </div>
+                                            {products
+                                              .filter(product => {
+                                                const searchTerm = (productSearchTerms[index] || '').toLowerCase();
+                                                return searchTerm === '' ||
+                                                       product.name.toLowerCase().includes(searchTerm) ||
+                                                       product.sku.toLowerCase().includes(searchTerm) ||
+                                                       (product.description && product.description.toLowerCase().includes(searchTerm));
+                                              })
+                                              .map((product) => (
+                                              <SelectItem key={product.id} value={product.id}>
+                                                <div className="flex flex-col">
+                                                  <span className="font-medium">{product.name}</span>
+                                                  <span className="text-xs text-muted-foreground">
+                                                    SKU: {product.sku} | ₹{product.unit_price} | {product.unit || 'pcs'}
+                                                  </span>
+                                                </div>
+                                              </SelectItem>
+                                            ))}
+                                          </SelectContent>
+                                        </Select>
+                                        {item.product_id && (
+                                          <div className="text-xs text-muted-foreground">
+                                            SKU: {products.find(p => p.id === item.product_id)?.sku}
+                                          </div>
+                                        )}
+                                      </div>
                                     </TableCell>
                                     <TableCell className="w-40">
-                                      <Input
+                                      <Textarea
                                         value={item.item_description}
                                         onChange={(e) => updateLineItem(index, 'item_description', e.target.value)}
                                         placeholder="Description"
-                                        className="text-xs"
+                                        className="text-xs min-h-[60px] resize-none"
                                       />
                                     </TableCell>
                                     <TableCell className="w-24">
@@ -942,6 +987,7 @@ export function SalesModule() {
                                         value={item.unit_of_measure}
                                         onChange={(e) => updateLineItem(index, 'unit_of_measure', e.target.value)}
                                         className="text-xs"
+                                        placeholder="pcs"
                                       />
                                     </TableCell>
                                     <TableCell className="w-24">
@@ -951,6 +997,7 @@ export function SalesModule() {
                                         onChange={(e) => updateLineItem(index, 'unit_price', parseFloat(e.target.value) || 0)}
                                         className="text-xs"
                                         step="0.01"
+                                        placeholder="0.00"
                                       />
                                     </TableCell>
                                     <TableCell className="w-20">
@@ -961,15 +1008,37 @@ export function SalesModule() {
                                         className="text-xs"
                                         step="0.1"
                                         max="100"
+                                        placeholder="0"
                                       />
                                     </TableCell>
                                     <TableCell className="w-20">
                                       <Input
                                         type="number"
-                                        value={item.tax_percentage}
-                                        onChange={(e) => updateLineItem(index, 'tax_percentage', parseFloat(e.target.value) || 0)}
+                                        value={item.cgst_rate}
+                                        onChange={(e) => updateLineItem(index, 'cgst_rate', parseFloat(e.target.value) || 0)}
                                         className="text-xs"
                                         step="0.1"
+                                        placeholder="9"
+                                      />
+                                    </TableCell>
+                                    <TableCell className="w-20">
+                                      <Input
+                                        type="number"
+                                        value={item.sgst_rate}
+                                        onChange={(e) => updateLineItem(index, 'sgst_rate', parseFloat(e.target.value) || 0)}
+                                        className="text-xs"
+                                        step="0.1"
+                                        placeholder="9"
+                                      />
+                                    </TableCell>
+                                    <TableCell className="w-20">
+                                      <Input
+                                        type="number"
+                                        value={item.igst_rate}
+                                        onChange={(e) => updateLineItem(index, 'igst_rate', parseFloat(e.target.value) || 0)}
+                                        className="text-xs"
+                                        step="0.1"
+                                        placeholder="18"
                                       />
                                     </TableCell>
                                     <TableCell className="w-24 font-medium">
