@@ -14,9 +14,7 @@ interface Invoice {
   performa_invoice_date: string;
   place_of_supply: string;
   subtotal_amount: number;
-  total_cgst_amount: number;
-  total_sgst_amount: number;
-  total_igst_amount: number;
+  tax_amount: number;
   total_amount: number;
   status: string;
   notes: string;

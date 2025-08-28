@@ -327,9 +327,10 @@ export default function InvoiceForm({ invoice, onSubmit, onCancel }: InvoiceForm
     const totalCGST = items.reduce((sum, item) => sum + item.cgst_amount, 0);
     const totalSGST = items.reduce((sum, item) => sum + item.sgst_amount, 0);
     const totalIGST = items.reduce((sum, item) => sum + item.igst_amount, 0);
+    const totalQuantity = items.reduce((sum, item) => sum + item.quantity, 0);
     const total = subtotal + totalCGST + totalSGST + totalIGST;
     
-    return { subtotal, totalCGST, totalSGST, totalIGST, total };
+    return { subtotal, totalCGST, totalSGST, totalIGST, totalQuantity, total };
   };
 
   const handleSubmit = (action: 'draft' | 'invoice') => {
@@ -347,13 +348,11 @@ export default function InvoiceForm({ invoice, onSubmit, onCancel }: InvoiceForm
     const submitData = {
       ...invoiceData,
       status: action === 'draft' ? 'draft' : 'invoiced',
-      // Don't send performa_invoice_number for drafts - let DB trigger handle it for invoices
-      performa_invoice_number: action === 'draft' ? null : undefined,
+      // Only set invoice number for final invoices, not drafts
+      performa_invoice_number: action === 'invoice' ? undefined : null,
       performa_invoice_date: invoiceData.invoice_date,
       subtotal_amount: totals.subtotal,
-      total_cgst_amount: totals.totalCGST,
-      total_sgst_amount: totals.totalSGST,
-      total_igst_amount: totals.totalIGST,
+      tax_amount: totals.totalCGST + totals.totalSGST + totals.totalIGST,
       total_amount: totals.total,
       items: items
     };
@@ -516,7 +515,7 @@ export default function InvoiceForm({ invoice, onSubmit, onCancel }: InvoiceForm
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
                   <div>
                     <Label>Quantity</Label>
                     <Input
@@ -559,9 +558,6 @@ export default function InvoiceForm({ invoice, onSubmit, onCancel }: InvoiceForm
                       step="0.01"
                     />
                   </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <Label>IGST %</Label>
                     <Input
@@ -573,6 +569,9 @@ export default function InvoiceForm({ invoice, onSubmit, onCancel }: InvoiceForm
                       step="0.01"
                     />
                   </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-1 gap-4">
                   <div>
                     <Label>Total Amount</Label>
                     <Input
@@ -596,6 +595,10 @@ export default function InvoiceForm({ invoice, onSubmit, onCancel }: InvoiceForm
           </CardHeader>
           <CardContent>
             <div className="space-y-2">
+              <div className="flex justify-between">
+                <span>Total Quantity:</span>
+                <span>{calculateTotals().totalQuantity}</span>
+              </div>
               <div className="flex justify-between">
                 <span>Subtotal:</span>
                 <span>₹{calculateTotals().subtotal.toFixed(2)}</span>
