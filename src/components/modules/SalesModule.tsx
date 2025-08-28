@@ -928,7 +928,7 @@ const itemsPerPage = 5;
                                              <ChevronDown className="h-4 w-4 opacity-50" />
                                            </Button>
                                          </PopoverTrigger>
-                                         <PopoverContent className="p-0 w-[320px] z-[100]">
+                                         <PopoverContent align="start" className="p-0 w-[320px] z-[100] pointer-events-auto">
                                            <Command>
                                              <CommandInput placeholder="Search SKU or name..." />
                                              <CommandEmpty>No items found.</CommandEmpty>
@@ -937,9 +937,9 @@ const itemsPerPage = 5;
                                                  {products.map((product) => (
                                                    <CommandItem
                                                      key={product.id}
-                                                     value={`${product.sku} ${product.name}`}
-                                                     onSelect={() => {
-                                                       handleProductSelection(index, product.id);
+                                                     value={product.id}
+                                                     onSelect={(v) => {
+                                                       handleProductSelection(index, v);
                                                        setOpenSkuIndex(null);
                                                      }}
                                                    >
