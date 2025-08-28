@@ -769,6 +769,8 @@ const itemsPerPage = 5;
         <TabsList>
           <TabsTrigger value="sales-orders">Sales Orders</TabsTrigger>
           <TabsTrigger value="customers">Customer Management</TabsTrigger>
+          <TabsTrigger value="performa-invoice">Performa Invoice</TabsTrigger>
+          <TabsTrigger value="sale-invoice">Sale Invoice</TabsTrigger>
         </TabsList>
 
         <TabsContent value="sales-orders" className="space-y-4">
@@ -1888,6 +1890,66 @@ const itemsPerPage = 5;
                     </Button>
                   </div>
                 </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="performa-invoice" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    <FileText className="h-5 w-5" />
+                    Performa Invoice
+                  </CardTitle>
+                  <CardDescription>
+                    Create and manage performa invoices for customers
+                  </CardDescription>
+                </div>
+                <Button onClick={() => {}}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  New Performa Invoice
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="text-center py-12 text-muted-foreground">
+                <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                <h3 className="text-lg font-medium mb-2">Performa Invoice Management</h3>
+                <p>This section will contain performa invoice functionality.</p>
+                <p className="text-sm mt-2">Coming soon...</p>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="sale-invoice" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    <FileText className="h-5 w-5" />
+                    Sale Invoice
+                  </CardTitle>
+                  <CardDescription>
+                    Create and manage sale invoices for completed orders
+                  </CardDescription>
+                </div>
+                <Button onClick={() => {}}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  New Sale Invoice
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="text-center py-12 text-muted-foreground">
+                <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                <h3 className="text-lg font-medium mb-2">Sale Invoice Management</h3>
+                <p>This section will contain sale invoice functionality.</p>
+                <p className="text-sm mt-2">Coming soon...</p>
               </div>
             </CardContent>
           </Card>
