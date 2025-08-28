@@ -1621,6 +1621,335 @@ export function SalesModule() {
           </ScrollArea>
         </DialogContent>
       </Dialog>
+
+      {/* Customer Dialog */}
+      <Dialog open={showAddCustomerDialog} onOpenChange={(open) => {
+        setShowAddCustomerDialog(open);
+        if (!open) {
+          setEditingCustomer(null);
+          setSameAsRegistered(false);
+        }
+      }}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden">
+          <DialogHeader>
+            <DialogTitle>
+              {editingCustomer ? 'Edit Customer' : 'Add New Customer'}
+            </DialogTitle>
+            <DialogDescription>
+              {editingCustomer ? 'Update customer information' : 'Enter customer details to add them to your system'}
+            </DialogDescription>
+          </DialogHeader>
+          
+          <ScrollArea className="max-h-[75vh] pr-4">
+            <form onSubmit={(e) => {
+              e.preventDefault();
+              const formData = new FormData(e.currentTarget);
+              
+              const customerData = {
+                name: formData.get('name') as string,
+                email: formData.get('email') as string,
+                phone: formData.get('phone') as string,
+                contact_person: formData.get('contact_person') as string,
+                customer_type: formData.get('customer_type') as string,
+                address_line1: formData.get('address_line1') as string,
+                address_line2: formData.get('address_line2') as string,
+                city: formData.get('city') as string,
+                state: formData.get('state') as string,
+                country: formData.get('country') as string,
+                pin_code: formData.get('pin_code') as string,
+                gstin: formData.get('gstin') as string,
+                credit_limit: parseFloat(formData.get('credit_limit') as string) || 0,
+                payment_terms: formData.get('payment_terms') as string,
+                company_id: profile?.company_id
+              };
+
+              supabase
+                .from('customers')
+                .insert([customerData])
+                .then(({ error }) => {
+                  if (error) {
+                    toast({
+                      title: "Error",
+                      description: "Failed to create customer",
+                      variant: "destructive",
+                    });
+                  } else {
+                    toast({
+                      title: "Success",
+                      description: "Customer created successfully",
+                    });
+                    setShowAddCustomerDialog(false);
+                    fetchCustomers();
+                  }
+                });
+            }} className="space-y-6">
+              {/* Basic Information */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold border-b pb-2">1. Basic Information</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="name">Company/Customer Name *</Label>
+                    <Input 
+                      id="name" 
+                      name="name" 
+                      required 
+                      defaultValue={editingCustomer?.name || ''} 
+                      placeholder="Enter customer name"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="customer_type">Customer Type</Label>
+                    <Select name="customer_type" defaultValue={editingCustomer?.customer_type || 'business'}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select customer type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="business">Business</SelectItem>
+                        <SelectItem value="individual">Individual</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label htmlFor="contact_person">Contact Person</Label>
+                    <Input 
+                      id="contact_person" 
+                      name="contact_person" 
+                      defaultValue={editingCustomer?.contact_person || ''} 
+                      placeholder="Primary contact person"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="credit_limit">Credit Limit</Label>
+                    <Input 
+                      id="credit_limit" 
+                      name="credit_limit" 
+                      type="number" 
+                      step="0.01" 
+                      placeholder="0.00" 
+                      defaultValue={editingCustomer?.credit_limit || 0} 
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Contact Information */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold border-b pb-2">2. Contact Information</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="email">Email Address</Label>
+                    <Input 
+                      id="email" 
+                      name="email" 
+                      type="email" 
+                      defaultValue={editingCustomer?.email || ''} 
+                      placeholder="customer@example.com"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="phone">Phone Number</Label>
+                    <Input 
+                      id="phone" 
+                      name="phone" 
+                      defaultValue={editingCustomer?.phone || ''} 
+                      placeholder="+91 9876543210"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Address Information */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold border-b pb-2">3. Address Information</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="md:col-span-2">
+                    <Label htmlFor="address_line1">Address Line 1 *</Label>
+                    <Input 
+                      id="address_line1" 
+                      name="address_line1" 
+                      required 
+                      defaultValue={editingCustomer?.address_line1 || ''} 
+                      placeholder="Street address, building number"
+                    />
+                  </div>
+                  <div className="md:col-span-2">
+                    <Label htmlFor="address_line2">Address Line 2 (optional)</Label>
+                    <Input 
+                      id="address_line2" 
+                      name="address_line2" 
+                      defaultValue={editingCustomer?.address_line2 || ''} 
+                      placeholder="Apartment, suite, unit, etc."
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="city">City *</Label>
+                    <Input 
+                      id="city" 
+                      name="city" 
+                      required 
+                      defaultValue={editingCustomer?.city || ''} 
+                      placeholder="City"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="state">State/Province *</Label>
+                    <Input 
+                      id="state" 
+                      name="state" 
+                      required 
+                      defaultValue={editingCustomer?.state || ''} 
+                      placeholder="State"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="pin_code">PIN / ZIP Code *</Label>
+                    <Input 
+                      id="pin_code" 
+                      name="pin_code" 
+                      required 
+                      defaultValue={editingCustomer?.pin_code || ''} 
+                      placeholder="123456"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="country">Country *</Label>
+                    <Input 
+                      id="country" 
+                      name="country" 
+                      required 
+                      defaultValue={editingCustomer?.country || 'India'} 
+                      placeholder="India"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Tax Information */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold border-b pb-2">4. Tax & Payment Information</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="gstin">GSTIN (if applicable)</Label>
+                    <Input 
+                      id="gstin" 
+                      name="gstin" 
+                      defaultValue={editingCustomer?.gstin || ''} 
+                      placeholder="GST identification number"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="payment_terms">Payment Terms</Label>
+                    <Select name="payment_terms" defaultValue={editingCustomer?.payment_terms || 'net_30'}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select payment terms" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="advance">Advance</SelectItem>
+                        <SelectItem value="cod">COD</SelectItem>
+                        <SelectItem value="net_15">Net 15</SelectItem>
+                        <SelectItem value="net_30">Net 30</SelectItem>
+                        <SelectItem value="net_45">Net 45</SelectItem>
+                        <SelectItem value="net_60">Net 60</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex justify-end space-x-2 pt-4 border-t">
+                <Button type="button" variant="outline" onClick={() => setShowAddCustomerDialog(false)}>
+                  Cancel
+                </Button>
+                <Button type="submit">
+                  {editingCustomer ? 'Update Customer' : 'Create Customer'}
+                </Button>
+              </div>
+            </form>
+          </ScrollArea>
+        </DialogContent>
+      </Dialog>
+
+      {/* Sales Order Dialog */}
+      <Dialog open={showAddSODialog} onOpenChange={setShowAddSODialog}>
+        <DialogContent className="max-w-5xl max-h-[90vh] overflow-hidden">
+          <DialogHeader>
+            <DialogTitle>Create Sales Order</DialogTitle>
+            <DialogDescription>
+              Create a new sales order for your customer
+            </DialogDescription>
+          </DialogHeader>
+          
+          <ScrollArea className="max-h-[75vh] pr-4">
+            <form onSubmit={(e) => {
+              e.preventDefault();
+              toast({
+                title: "Info",
+                description: "Sales order creation coming soon",
+              });
+              setShowAddSODialog(false);
+            }} className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="so_customer">Customer *</Label>
+                  <Select name="customer_id" required>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select customer" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {customers.map((customer) => (
+                        <SelectItem key={customer.id} value={customer.id}>
+                          {customer.name} ({customer.customer_ref})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label htmlFor="order_date">Order Date *</Label>
+                  <Input 
+                    id="order_date" 
+                    name="order_date" 
+                    type="date" 
+                    required 
+                    defaultValue={new Date().toISOString().split('T')[0]}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="customer_po_number">Customer PO Number</Label>
+                  <Input 
+                    id="customer_po_number" 
+                    name="customer_po_number" 
+                    placeholder="Customer's purchase order number"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="expected_delivery_date">Expected Delivery Date</Label>
+                  <Input 
+                    id="expected_delivery_date" 
+                    name="expected_delivery_date" 
+                    type="date"
+                  />
+                </div>
+              </div>
+
+              <div className="text-center py-8 border-2 border-dashed border-border/30 rounded-lg">
+                <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                <p className="text-muted-foreground">Sales order item management coming soon</p>
+                <p className="text-sm text-muted-foreground mt-1">Advanced features will be available in the next update</p>
+              </div>
+
+              <div className="flex justify-end space-x-2 pt-4 border-t">
+                <Button type="button" variant="outline" onClick={() => setShowAddSODialog(false)}>
+                  Cancel
+                </Button>
+                <Button type="submit">
+                  Create Sales Order
+                </Button>
+              </div>
+            </form>
+          </ScrollArea>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
