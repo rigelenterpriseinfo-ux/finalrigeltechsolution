@@ -357,23 +357,29 @@ export function PurchaseModule() {
         return;
       }
 
-      const { data, error } = await supabase
-        .from('purchase_invoices')
-        .select(`
-          *,
-          purchase_invoice_items(
+      // Fetch invoices and items separately to avoid foreign key issues
+      const [invoicesResponse, itemsResponse] = await Promise.all([
+        supabase
+          .from('purchase_invoices')
+          .select('*')
+          .eq('company_id', profile.company_id)
+          .order('created_at', { ascending: false }),
+        
+        supabase
+          .from('purchase_invoice_items')
+          .select(`
             id,
+            purchase_invoice_id,
             item_description,
             quantity,
             unit_price,
-            total_price
-          )
-        `)
-        .eq('company_id', profile.company_id)
-        .order('created_at', { ascending: false });
+            total_price,
+            product_id
+          `)
+      ]);
 
-      if (error) {
-        console.error('Error fetching purchase invoices:', error);
+      if (invoicesResponse.error) {
+        console.error('Error fetching purchase invoices:', invoicesResponse.error);
         toast({
           title: 'Error',
           description: 'Failed to fetch purchase invoices',
@@ -382,8 +388,27 @@ export function PurchaseModule() {
         return;
       }
 
-      console.log('Fetched purchase invoices:', data?.length || 0);
-      setPurchaseInvoices(data || []);
+      if (itemsResponse.error) {
+        console.error('Error fetching purchase invoice items:', itemsResponse.error);
+        toast({
+          title: 'Error',
+          description: 'Failed to fetch purchase invoice items',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      // Merge invoices with their items
+      const invoicesWithItems = (invoicesResponse.data || []).map(invoice => ({
+        ...invoice,
+        purchase_invoice_items: (itemsResponse.data || []).filter(
+          item => item.purchase_invoice_id === invoice.id
+        )
+      }));
+
+      console.log('Fetched purchase invoices:', invoicesWithItems.length);
+      console.log('Sample invoice:', invoicesWithItems[0]);
+      setPurchaseInvoices(invoicesWithItems);
     } catch (error) {
       console.error('Error fetching purchase invoices:', error);
       toast({
