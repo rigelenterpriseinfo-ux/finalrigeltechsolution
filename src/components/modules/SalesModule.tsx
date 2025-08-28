@@ -341,7 +341,7 @@ export function SalesModule() {
     const product = products.find(p => p.id === productId);
     if (product) {
       updateLineItem(index, 'product_id', productId);
-      updateLineItem(index, 'item_description', product.description || product.name);
+      updateLineItem(index, 'item_description', product.name); // Use product name for Item Name field
       updateLineItem(index, 'hsn_sac_code', product.hsn_code || '');
       updateLineItem(index, 'unit_price', product.unit_price);
       updateLineItem(index, 'unit_of_measure', product.unit || 'pcs');
