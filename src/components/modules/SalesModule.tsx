@@ -11,10 +11,11 @@ import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Search, FileText, Users } from 'lucide-react';
+import { Plus, Search, FileText, Users, Edit, Trash2, ChevronUp, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
 
 interface SalesOrder {
   id: string;
@@ -43,6 +44,16 @@ interface Customer {
   address: string | null;
   credit_limit: number;
   is_active: boolean;
+  gstin?: string | null;
+  address_line1?: string | null;
+  city?: string | null;
+  state?: string | null;
+  country?: string | null;
+  pin_code?: string | null;
+  website?: string | null;
+  payment_terms?: string | null;
+  preferred_currency?: string;
+  same_as_registered_address?: boolean;
 }
 
 export function SalesModule() {
@@ -52,8 +63,15 @@ export function SalesModule() {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [customerSearchTerm, setCustomerSearchTerm] = useState('');
   const [showAddSODialog, setShowAddSODialog] = useState(false);
   const [showAddCustomerDialog, setShowAddCustomerDialog] = useState(false);
+  const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
+  const [sameAsRegistered, setSameAsRegistered] = useState(false);
+  const [sortField, setSortField] = useState<'name' | 'customer_ref' | 'gstin'>('name');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 5;
 
   useEffect(() => {
     fetchSalesOrders();
@@ -169,9 +187,57 @@ export function SalesModule() {
     }
     
     const formData = new FormData(e.currentTarget);
-    const sameAsRegistered = formData.get('same_as_registered_address') === 'on';
-    
-    const customerData = {
+    const customerData = buildCustomerData(formData, profile.company_id);
+
+    try {
+      const { data, error } = editingCustomer 
+        ? await supabase
+            .from('customers')
+            .update(customerData)
+            .eq('id', editingCustomer.id)
+            .select()
+        : await supabase
+            .from('customers')
+            .insert([customerData])
+            .select();
+
+      if (error) {
+        console.error('Customer operation error:', error);
+        toast({
+          title: "Error",
+          description: error.message,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      toast({
+        title: "Success",
+        description: editingCustomer ? "Customer updated successfully" : "Customer added successfully",
+      });
+
+      setShowAddCustomerDialog(false);
+      setEditingCustomer(null);
+      setSameAsRegistered(false);
+      await fetchCustomers();
+      
+      try {
+        e.currentTarget.reset();
+      } catch (formResetError) {
+        console.warn('Form reset error:', formResetError);
+      }
+    } catch (error: any) {
+      console.error('Unexpected error in handleAddCustomer:', error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to save customer",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const buildCustomerData = (formData: FormData, companyId: string) => {
+    return {
       name: formData.get('name') as string,
       customer_type: formData.get('customer_type') as string,
       contact_person: formData.get('contact_person') as string || null,
@@ -214,17 +280,26 @@ export function SalesModule() {
       ifsc_code: formData.get('ifsc_code') as string || null,
       swift_code: formData.get('swift_code') as string || null,
       upi_id: formData.get('upi_id') as string || null,
-      company_id: profile.company_id,
+      company_id: companyId,
     };
+  };
+
+  const handleEditCustomer = (customer: Customer) => {
+    setEditingCustomer(customer);
+    setSameAsRegistered(customer.same_as_registered_address || false);
+    setShowAddCustomerDialog(true);
+  };
+
+  const handleDeleteCustomer = async (customerId: string) => {
+    if (!confirm('Are you sure you want to delete this customer?')) return;
 
     try {
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from('customers')
-        .insert([customerData])
-        .select();
+        .update({ is_active: false })
+        .eq('id', customerId);
 
       if (error) {
-        console.error('Customer insert error:', error);
         toast({
           title: "Error",
           description: error.message,
@@ -235,24 +310,25 @@ export function SalesModule() {
 
       toast({
         title: "Success",
-        description: "Customer added successfully",
+        description: "Customer deleted successfully",
       });
 
-      setShowAddCustomerDialog(false);
       await fetchCustomers();
-      
-      try {
-        e.currentTarget.reset();
-      } catch (formResetError) {
-        console.warn('Form reset error:', formResetError);
-      }
     } catch (error: any) {
-      console.error('Unexpected error in handleAddCustomer:', error);
       toast({
         title: "Error",
-        description: error.message || "Failed to add customer",
+        description: "Failed to delete customer",
         variant: "destructive",
       });
+    }
+  };
+
+  const handleSort = (field: 'name' | 'customer_ref' | 'gstin') => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDirection('asc');
     }
   };
 
@@ -272,6 +348,25 @@ export function SalesModule() {
     so.customer.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  const filteredCustomers = customers.filter(customer =>
+    customer.name.toLowerCase().includes(customerSearchTerm.toLowerCase()) ||
+    (customer.gstin && customer.gstin.toLowerCase().includes(customerSearchTerm.toLowerCase())) ||
+    (customer.customer_ref && customer.customer_ref.toLowerCase().includes(customerSearchTerm.toLowerCase()))
+  );
+
+  const sortedCustomers = [...filteredCustomers].sort((a, b) => {
+    const aValue = a[sortField] || '';
+    const bValue = b[sortField] || '';
+    const comparison = aValue.toString().localeCompare(bValue.toString());
+    return sortDirection === 'asc' ? comparison : -comparison;
+  });
+
+  const totalPages = Math.ceil(sortedCustomers.length / itemsPerPage);
+  const paginatedCustomers = sortedCustomers.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-48">
@@ -288,15 +383,105 @@ export function SalesModule() {
           <h1 className="text-3xl font-bold">Sales Management</h1>
           <p className="text-muted-foreground">Manage sales orders and customers</p>
         </div>
-        <div className="flex gap-2">
-          <Dialog open={showAddCustomerDialog} onOpenChange={setShowAddCustomerDialog}>
-            <DialogTrigger asChild>
-              <Button variant="outline">Add Customer</Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-4xl max-h-[90vh]">
+      </div>
+
+      <Tabs defaultValue="orders" className="space-y-6">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="orders">Sales Orders</TabsTrigger>
+          <TabsTrigger value="customers">Customer Management</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="orders" className="space-y-6">
+          <div className="flex justify-between items-center">
+            <div className="flex items-center space-x-2">
+              <div className="relative">
+                <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search orders..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-8"
+                />
+              </div>
+            </div>
+            <Dialog open={showAddSODialog} onOpenChange={setShowAddSODialog}>
+              <DialogTrigger asChild>
+                <Button>
+                  <Plus className="mr-2 h-4 w-4" />
+                  Add Sales Order
+                </Button>
+              </DialogTrigger>
+              {/* Add Sales Order Dialog content would go here */}
+            </Dialog>
+          </div>
+
+          {/* Sales Orders Table */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <FileText className="h-5 w-5" />
+                Sales Orders
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Order Number</TableHead>
+                    <TableHead>Customer</TableHead>
+                    <TableHead>Date</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Amount</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredSOs.map((so) => (
+                    <TableRow key={so.id}>
+                      <TableCell className="font-medium">{so.order_number}</TableCell>
+                      <TableCell>{so.customer.name}</TableCell>
+                      <TableCell>{new Date(so.order_date).toLocaleDateString()}</TableCell>
+                      <TableCell>
+                        <Badge variant={getStatusColor(so.status)}>{so.status}</Badge>
+                      </TableCell>
+                      <TableCell>₹{so.total_amount.toLocaleString()}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="customers" className="space-y-6">
+          <div className="flex justify-between items-center">
+            <div className="flex items-center space-x-2">
+              <div className="relative">
+                <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search by name, GSTIN, or reference..."
+                  value={customerSearchTerm}
+                  onChange={(e) => setCustomerSearchTerm(e.target.value)}
+                  className="pl-8 w-80"
+                />
+              </div>
+            </div>
+            <Dialog open={showAddCustomerDialog} onOpenChange={(open) => {
+              setShowAddCustomerDialog(open);
+              if (!open) {
+                setEditingCustomer(null);
+                setSameAsRegistered(false);
+              }
+            }}>
+              <DialogTrigger asChild>
+                <Button>
+                  <Plus className="mr-2 h-4 w-4" />
+                  Add Customer
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-4xl max-h-[90vh]">
               <DialogHeader>
-                <DialogTitle>Add New Customer</DialogTitle>
-                <DialogDescription>Add a comprehensive customer profile to your database</DialogDescription>
+                <DialogTitle>{editingCustomer ? 'Edit Customer' : 'Add New Customer'}</DialogTitle>
+                <DialogDescription>{editingCustomer ? 'Update customer information' : 'Add a comprehensive customer profile to your database'}</DialogDescription>
               </DialogHeader>
               <ScrollArea className="max-h-[75vh] pr-4">
                 <form onSubmit={handleAddCustomer} className="space-y-6">
@@ -306,11 +491,11 @@ export function SalesModule() {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
                         <Label htmlFor="name">Customer Name / Business Name *</Label>
-                        <Input id="name" name="name" required />
+                        <Input id="name" name="name" required defaultValue={editingCustomer?.name || ''} />
                       </div>
                       <div>
                         <Label htmlFor="customer_type">Customer Type *</Label>
-                        <Select name="customer_type" required>
+                        <Select name="customer_type" required defaultValue={editingCustomer?.customer_type || ''}>
                           <SelectTrigger>
                             <SelectValue placeholder="Select customer type" />
                           </SelectTrigger>
@@ -324,7 +509,7 @@ export function SalesModule() {
                       </div>
                       <div>
                         <Label htmlFor="contact_person">Contact Person Name</Label>
-                        <Input id="contact_person" name="contact_person" placeholder="For business customers" />
+                        <Input id="contact_person" name="contact_person" placeholder="For business customers" defaultValue={editingCustomer?.contact_person || ''} />
                       </div>
                     </div>
                   </div>
@@ -422,33 +607,69 @@ export function SalesModule() {
                   <div className="space-y-4">
                     <h3 className="text-lg font-semibold">5. Shipping Address</h3>
                     <div className="flex items-center space-x-2">
-                      <Checkbox id="same_as_registered_address" name="same_as_registered_address" />
+                      <Checkbox 
+                        id="same_as_registered_address" 
+                        name="same_as_registered_address" 
+                        checked={sameAsRegistered}
+                        onCheckedChange={(checked) => setSameAsRegistered(checked === true)}
+                      />
                       <Label htmlFor="same_as_registered_address">Same as Registered Address</Label>
                     </div>
                     <div id="shipping-address-fields" className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="md:col-span-2">
                         <Label htmlFor="shipping_address_line1">Shipping Address Line 1</Label>
-                        <Input id="shipping_address_line1" name="shipping_address_line1" />
+                        <Input 
+                          id="shipping_address_line1" 
+                          name="shipping_address_line1" 
+                          disabled={sameAsRegistered}
+                          className={sameAsRegistered ? 'bg-muted' : ''}
+                        />
                       </div>
                       <div className="md:col-span-2">
                         <Label htmlFor="shipping_address_line2">Shipping Address Line 2 (optional)</Label>
-                        <Input id="shipping_address_line2" name="shipping_address_line2" />
+                        <Input 
+                          id="shipping_address_line2" 
+                          name="shipping_address_line2" 
+                          disabled={sameAsRegistered}
+                          className={sameAsRegistered ? 'bg-muted' : ''}
+                        />
                       </div>
                       <div>
                         <Label htmlFor="shipping_city">Shipping City</Label>
-                        <Input id="shipping_city" name="shipping_city" />
+                        <Input 
+                          id="shipping_city" 
+                          name="shipping_city" 
+                          disabled={sameAsRegistered}
+                          className={sameAsRegistered ? 'bg-muted' : ''}
+                        />
                       </div>
                       <div>
                         <Label htmlFor="shipping_state">Shipping State</Label>
-                        <Input id="shipping_state" name="shipping_state" />
+                        <Input 
+                          id="shipping_state" 
+                          name="shipping_state" 
+                          disabled={sameAsRegistered}
+                          className={sameAsRegistered ? 'bg-muted' : ''}
+                        />
                       </div>
                       <div>
                         <Label htmlFor="shipping_pin_code">Shipping PIN / ZIP Code</Label>
-                        <Input id="shipping_pin_code" name="shipping_pin_code" />
+                        <Input 
+                          id="shipping_pin_code" 
+                          name="shipping_pin_code" 
+                          disabled={sameAsRegistered}
+                          className={sameAsRegistered ? 'bg-muted' : ''}
+                        />
                       </div>
                       <div>
                         <Label htmlFor="shipping_country">Shipping Country</Label>
-                        <Input id="shipping_country" name="shipping_country" defaultValue="India" />
+                        <Input 
+                          id="shipping_country" 
+                          name="shipping_country" 
+                          defaultValue="India" 
+                          disabled={sameAsRegistered}
+                          className={sameAsRegistered ? 'bg-muted' : ''}
+                        />
                       </div>
                     </div>
                   </div>
@@ -555,188 +776,161 @@ export function SalesModule() {
                   </div>
 
                   <div className="pt-4">
-                    <Button type="submit" className="w-full">Add Customer</Button>
+                    <Button type="submit" className="w-full">
+                      {editingCustomer ? 'Update Customer' : 'Add Customer'}
+                    </Button>
                   </div>
                 </form>
               </ScrollArea>
-            </DialogContent>
-          </Dialog>
-          
-          <Dialog open={showAddSODialog} onOpenChange={setShowAddSODialog}>
-            <DialogTrigger asChild>
-              <Button>
-                <Plus className="h-4 w-4 mr-2" />
-                Create Sales Order
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Create Sales Order</DialogTitle>
-                <DialogDescription>Create a new sales order</DialogDescription>
-              </DialogHeader>
-              <form onSubmit={handleAddSalesOrder} className="space-y-4">
-                <div>
-                  <Label htmlFor="customer_id">Customer</Label>
-                  <Select name="customer_id" required>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select customer" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {customers.map((customer) => (
-                        <SelectItem key={customer.id} value={customer.id}>
-                          {customer.name}
-                        </SelectItem>
+              </DialogContent>
+            </Dialog>
+          </div>
+
+          {/* Customer List with Search, Sort, and Pagination */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Users className="h-5 w-5" />
+                Customer Management
+              </CardTitle>
+              <CardDescription>Manage your customer database</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="cursor-pointer" onClick={() => handleSort('customer_ref')}>
+                      <div className="flex items-center gap-1">
+                        Reference No.
+                        {sortField === 'customer_ref' && (
+                          sortDirection === 'asc' ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />
+                        )}
+                      </div>
+                    </TableHead>
+                    <TableHead className="cursor-pointer" onClick={() => handleSort('name')}>
+                      <div className="flex items-center gap-1">
+                        Name
+                        {sortField === 'name' && (
+                          sortDirection === 'asc' ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />
+                        )}
+                      </div>
+                    </TableHead>
+                    <TableHead>Type</TableHead>
+                    <TableHead>Contact</TableHead>
+                    <TableHead className="cursor-pointer" onClick={() => handleSort('gstin')}>
+                      <div className="flex items-center gap-1">
+                        GSTIN
+                        {sortField === 'gstin' && (
+                          sortDirection === 'asc' ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />
+                        )}
+                      </div>
+                    </TableHead>
+                    <TableHead>Location</TableHead>
+                    <TableHead>Credit Limit</TableHead>
+                    <TableHead>Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {paginatedCustomers.map((customer) => (
+                    <TableRow key={customer.id}>
+                      <TableCell className="font-medium">
+                        {customer.customer_ref || 'N/A'}
+                      </TableCell>
+                      <TableCell className="font-medium">{customer.name}</TableCell>
+                      <TableCell>
+                        <Badge variant="secondary">
+                          {customer.customer_type || 'N/A'}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <div className="space-y-1">
+                          <p className="text-sm">{customer.email || 'No email'}</p>
+                          <p className="text-xs text-muted-foreground">{customer.phone || 'No phone'}</p>
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-sm">{customer.gstin || 'N/A'}</TableCell>
+                      <TableCell>
+                        <div className="text-sm">
+                          <p>{customer.city || 'N/A'}</p>
+                          <p className="text-xs text-muted-foreground">{customer.state || 'N/A'}</p>
+                        </div>
+                      </TableCell>
+                      <TableCell>₹{customer.credit_limit.toLocaleString()}</TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleEditCustomer(customer)}
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleDeleteCustomer(customer.id)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                  {paginatedCustomers.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
+                        No customers found
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+
+              {/* Pagination */}
+              {totalPages > 1 && (
+                <div className="flex items-center justify-between px-2 py-4">
+                  <div className="text-sm text-muted-foreground">
+                    Showing {((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, sortedCustomers.length)} of {sortedCustomers.length} customers
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                      disabled={currentPage === 1}
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                      Previous
+                    </Button>
+                    <div className="flex items-center space-x-1">
+                      {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                        <Button
+                          key={page}
+                          variant={currentPage === page ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => setCurrentPage(page)}
+                          className="w-8 h-8 p-0"
+                        >
+                          {page}
+                        </Button>
                       ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="order_date">Order Date</Label>
-                    <Input 
-                      id="order_date" 
-                      name="order_date" 
-                      type="date" 
-                      defaultValue={new Date().toISOString().split('T')[0]}
-                      required 
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="delivery_date">Delivery Date</Label>
-                    <Input id="delivery_date" name="delivery_date" type="date" />
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+                      disabled={currentPage === totalPages}
+                    >
+                      Next
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="discount_amount">Discount Amount</Label>
-                    <Input id="discount_amount" name="discount_amount" type="number" step="0.01" defaultValue="0" />
-                  </div>
-                  <div>
-                    <Label htmlFor="tax_amount">Tax Amount</Label>
-                    <Input id="tax_amount" name="tax_amount" type="number" step="0.01" defaultValue="0" />
-                  </div>
-                </div>
-                <div>
-                  <Label htmlFor="notes">Notes</Label>
-                  <Textarea id="notes" name="notes" />
-                </div>
-                <Button type="submit" className="w-full">Create Sales Order</Button>
-              </form>
-            </DialogContent>
-          </Dialog>
-        </div>
-      </div>
-
-      {/* Stats Cards */}
-      <div className="grid gap-6 md:grid-cols-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total SOs</CardTitle>
-            <FileText className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{salesOrders.length}</div>
-            <p className="text-xs text-muted-foreground">All sales orders</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Pending SOs</CardTitle>
-            <FileText className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {salesOrders.filter(so => ['draft', 'confirmed', 'shipped'].includes(so.status)).length}
-            </div>
-            <p className="text-xs text-muted-foreground">Not yet delivered</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Active Customers</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{customers.length}</div>
-            <p className="text-xs text-muted-foreground">Registered customers</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
-            <FileText className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              ${salesOrders.reduce((sum, so) => sum + so.total_amount, 0).toFixed(2)}
-            </div>
-            <p className="text-xs text-muted-foreground">All sales orders</p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Search */}
-      <div className="flex items-center gap-4">
-        <div className="relative flex-1 max-w-sm">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            placeholder="Search sales orders..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10"
-          />
-        </div>
-      </div>
-
-      {/* Sales Orders Table */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Sales Orders</CardTitle>
-          <CardDescription>Manage your sales orders</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Order Number</TableHead>
-                <TableHead>Customer</TableHead>
-                <TableHead>Order Date</TableHead>
-                <TableHead>Delivery Date</TableHead>
-                <TableHead>Total Amount</TableHead>
-                <TableHead>Status</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredSOs.map((so) => (
-                <TableRow key={so.id}>
-                  <TableCell className="font-medium">{so.order_number}</TableCell>
-                  <TableCell>{so.customer.name}</TableCell>
-                  <TableCell>{new Date(so.order_date).toLocaleDateString()}</TableCell>
-                  <TableCell>
-                    {so.delivery_date ? new Date(so.delivery_date).toLocaleDateString() : '-'}
-                  </TableCell>
-                  <TableCell>${so.total_amount.toFixed(2)}</TableCell>
-                  <TableCell>
-                    <Badge variant={getStatusColor(so.status)}>
-                      {so.status.charAt(0).toUpperCase() + so.status.slice(1)}
-                    </Badge>
-                  </TableCell>
-                </TableRow>
-              ))}
-              {filteredSOs.length === 0 && (
-                <TableRow>
-                  <TableCell colSpan={6} className="text-center text-muted-foreground">
-                    No sales orders found
-                  </TableCell>
-                </TableRow>
               )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
