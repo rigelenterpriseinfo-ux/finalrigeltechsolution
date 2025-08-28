@@ -5,6 +5,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
@@ -154,10 +156,11 @@ export function SalesModule() {
   const [soSortDirection, setSoSortDirection] = useState<'asc' | 'desc'>('desc');
   const [currentPage, setCurrentPage] = useState(1);
   const [soCurrentPage, setSOCurrentPage] = useState(1);
-  const [orderItems, setOrderItems] = useState<SalesOrderItem[]>([]);
-  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
-  const [productSearchTerms, setProductSearchTerms] = useState<{[key: number]: string}>({});
-  const itemsPerPage = 5;
+const [orderItems, setOrderItems] = useState<SalesOrderItem[]>([]);
+const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
+const [productSearchTerms, setProductSearchTerms] = useState<{[key: number]: string}>({});
+const [openSkuIndex, setOpenSkuIndex] = useState<number | null>(null);
+const itemsPerPage = 5;
 
   useEffect(() => {
     fetchSalesOrders();
@@ -914,51 +917,43 @@ export function SalesModule() {
                                      
                                      {/* SKU Selection - Main Product Selector */}
                                      <div className="col-span-2">
-                                       <Select
-                                         value={item.product_id || ''}
-                                         onValueChange={(value) => handleProductSelection(index, value)}
-                                       >
-                                         <SelectTrigger className="h-10 bg-background border-input">
-                                           <span className="truncate text-sm">
-                                             {item.product_id 
-                                               ? (products.find(p => p.id === item.product_id)?.sku || 'Select SKU') 
-                                               : 'Select SKU'
-                                             }
-                                           </span>
-                                         </SelectTrigger>
-                                         <SelectContent className="max-h-60 z-[100] bg-popover border shadow-lg">
-                                           <div className="p-2 border-b border-border">
-                                             <Input
-                                               placeholder="Search by SKU..."
-                                               className="h-8 text-xs"
-                                               value={productSearchTerms[index] || ''}
-                                               onChange={(e) => {
-                                                 setProductSearchTerms(prev => ({
-                                                   ...prev,
-                                                   [index]: e.target.value
-                                                 }));
-                                               }}
-                                             />
-                                           </div>
-                                           <div className="max-h-48 overflow-y-auto">
-                                             {products
-                                               .filter(product => {
-                                                 const term = (productSearchTerms[index] || '').toLowerCase();
-                                                 return term === '' ||
-                                                        product.sku.toLowerCase().includes(term) ||
-                                                        product.name.toLowerCase().includes(term);
-                                               })
-                                               .map((product) => (
-                                                 <SelectItem key={product.id} value={product.id} className="text-sm">
-                                                   <div className="flex flex-col">
-                                                     <span className="font-medium">{product.sku}</span>
-                                                     <span className="text-xs text-muted-foreground">{product.name}</span>
-                                                   </div>
-                                                 </SelectItem>
-                                               ))}
-                                           </div>
-                                         </SelectContent>
-                                       </Select>
+                                       <Popover open={openSkuIndex === index} onOpenChange={(open) => setOpenSkuIndex(open ? index : null)}>
+                                         <PopoverTrigger asChild>
+                                           <Button type="button" variant="outline" className="h-10 w-full justify-between bg-background border-input">
+                                             <span className="truncate text-sm">
+                                               {item.product_id 
+                                                 ? (products.find(p => p.id === item.product_id)?.sku || 'Select SKU') 
+                                                 : 'Select SKU'}
+                                             </span>
+                                             <ChevronDown className="h-4 w-4 opacity-50" />
+                                           </Button>
+                                         </PopoverTrigger>
+                                         <PopoverContent className="p-0 w-[320px] z-[100]">
+                                           <Command>
+                                             <CommandInput placeholder="Search SKU or name..." />
+                                             <CommandEmpty>No items found.</CommandEmpty>
+                                             <CommandList>
+                                               <CommandGroup>
+                                                 {products.map((product) => (
+                                                   <CommandItem
+                                                     key={product.id}
+                                                     value={`${product.sku} ${product.name}`}
+                                                     onSelect={() => {
+                                                       handleProductSelection(index, product.id);
+                                                       setOpenSkuIndex(null);
+                                                     }}
+                                                   >
+                                                     <div className="flex flex-col">
+                                                       <span className="font-medium">{product.sku}</span>
+                                                       <span className="text-xs text-muted-foreground">{product.name}</span>
+                                                     </div>
+                                                   </CommandItem>
+                                                 ))}
+                                               </CommandGroup>
+                                             </CommandList>
+                                           </Command>
+                                         </PopoverContent>
+                                       </Popover>
                                      </div>
 
                                      {/* Product Name - Display Only */}
