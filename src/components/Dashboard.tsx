@@ -447,11 +447,14 @@ export default function Dashboard() {
           </Sidebar>
 
           <main className="flex-1 flex flex-col">
-            <header className="bg-card border-b border-border/50 shadow-sm">
+            <header className="bg-gradient-primary border-b border-border">
               <div className="px-6 py-4 flex items-center justify-between">
-                <SidebarTrigger className="p-2 rounded-lg hover:bg-muted transition-colors">
-                  <Menu className="h-5 w-5" />
-                </SidebarTrigger>
+                <div className="flex items-center gap-3">
+                  <SidebarTrigger className="p-2 rounded-lg hover:bg-white/10 transition-colors text-white">
+                    <Menu className="h-5 w-5 text-white" />
+                  </SidebarTrigger>
+                  <h1 className="text-xl font-semibold text-white">Welcome back, {profile?.first_name || 'User'}!</h1>
+                </div>
                 
                 {/* Right side - Sign Out and Company ID */}
                 <div className="flex flex-col items-end gap-2">
@@ -459,7 +462,7 @@ export default function Dashboard() {
                     onClick={signOut}
                     variant="outline"
                     size="sm"
-                    className="text-destructive hover:bg-destructive/10 border-destructive/20"
+                    className="text-white border-white/30 hover:bg-white/10"
                   >
                     <LogOut className="h-4 w-4 mr-2" />
                     Sign Out
@@ -467,8 +470,8 @@ export default function Dashboard() {
                   
                   {/* Company Business ID */}
                   {company?.business_ref_no && (
-                    <div className="text-xs text-muted-foreground">
-                      Company ID: <span className="font-mono text-primary">{company.business_ref_no}</span>
+                    <div className="text-xs text-white/80">
+                      Company ID: <span className="font-mono text-white">{company.business_ref_no}</span>
                     </div>
                   )}
                 </div>
