@@ -302,12 +302,14 @@ export function PurchaseModule() {
   });
 
   useEffect(() => {
-    fetchPurchaseOrders();
-    fetchSuppliers();
-    fetchCompanyData();
-    fetchPurchaseOrderItems();
-    fetchPurchaseInvoicesData();
-  }, []);
+    if (profile?.company_id) {
+      fetchPurchaseOrders();
+      fetchSuppliers();
+      fetchCompanyData();
+      fetchPurchaseOrderItems();
+      fetchPurchaseInvoicesData();
+    }
+  }, [profile?.company_id]);
 
   // Sort function
   const handleSort = (key: string) => {
@@ -350,6 +352,11 @@ export function PurchaseModule() {
 
   const fetchPurchaseInvoicesData = async () => {
     try {
+      if (!profile?.company_id) {
+        console.error('No company_id found in profile');
+        return;
+      }
+
       const { data, error } = await supabase
         .from('purchase_invoices')
         .select(`
@@ -363,16 +370,28 @@ export function PurchaseModule() {
             total_price
           )
         `)
+        .eq('company_id', profile.company_id)
         .order('created_at', { ascending: false });
 
       if (error) {
         console.error('Error fetching purchase invoices:', error);
+        toast({
+          title: 'Error',
+          description: 'Failed to fetch purchase invoices',
+          variant: 'destructive',
+        });
         return;
       }
 
+      console.log('Fetched purchase invoices:', data?.length || 0);
       setPurchaseInvoices(data || []);
     } catch (error) {
       console.error('Error fetching purchase invoices:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to fetch purchase invoices',
+        variant: 'destructive',
+      });
     }
   };
 
