@@ -1119,14 +1119,29 @@ export type Database = {
           company_id: string
           created_at: string
           created_by: string
+          currency: string | null
           customer_id: string
+          customer_po_number: string | null
+          customer_reference_no: string | null
+          delivery_address_line1: string | null
+          delivery_address_line2: string | null
+          delivery_city: string | null
+          delivery_country: string | null
           delivery_date: string | null
+          delivery_pin_code: string | null
+          delivery_state: string | null
           discount_amount: number
+          expected_delivery_date: string | null
           id: string
+          mode_of_transport: string | null
           notes: string | null
           order_date: string
           order_number: string
+          payment_terms: string | null
+          same_as_registered_address: boolean | null
+          shipping_instructions: string | null
           status: string
+          subtotal_amount: number | null
           tax_amount: number
           total_amount: number
           updated_at: string
@@ -1135,14 +1150,29 @@ export type Database = {
           company_id: string
           created_at?: string
           created_by: string
+          currency?: string | null
           customer_id: string
+          customer_po_number?: string | null
+          customer_reference_no?: string | null
+          delivery_address_line1?: string | null
+          delivery_address_line2?: string | null
+          delivery_city?: string | null
+          delivery_country?: string | null
           delivery_date?: string | null
+          delivery_pin_code?: string | null
+          delivery_state?: string | null
           discount_amount?: number
+          expected_delivery_date?: string | null
           id?: string
+          mode_of_transport?: string | null
           notes?: string | null
           order_date?: string
           order_number: string
+          payment_terms?: string | null
+          same_as_registered_address?: boolean | null
+          shipping_instructions?: string | null
           status?: string
+          subtotal_amount?: number | null
           tax_amount?: number
           total_amount?: number
           updated_at?: string
@@ -1151,14 +1181,29 @@ export type Database = {
           company_id?: string
           created_at?: string
           created_by?: string
+          currency?: string | null
           customer_id?: string
+          customer_po_number?: string | null
+          customer_reference_no?: string | null
+          delivery_address_line1?: string | null
+          delivery_address_line2?: string | null
+          delivery_city?: string | null
+          delivery_country?: string | null
           delivery_date?: string | null
+          delivery_pin_code?: string | null
+          delivery_state?: string | null
           discount_amount?: number
+          expected_delivery_date?: string | null
           id?: string
+          mode_of_transport?: string | null
           notes?: string | null
           order_date?: string
           order_number?: string
+          payment_terms?: string | null
+          same_as_registered_address?: boolean | null
+          shipping_instructions?: string | null
           status?: string
+          subtotal_amount?: number | null
           tax_amount?: number
           total_amount?: number
           updated_at?: string
@@ -1419,6 +1464,10 @@ export type Database = {
         Returns: string
       }
       generate_po_number: {
+        Args: { comp_id: string }
+        Returns: string
+      }
+      generate_so_number: {
         Args: { comp_id: string }
         Returns: string
       }
