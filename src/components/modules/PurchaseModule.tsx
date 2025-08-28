@@ -1385,8 +1385,8 @@ export function PurchaseModule() {
               <TableRow className="bg-muted/50">
                 <TableHead className="font-semibold">PO Number</TableHead>
                 <TableHead className="font-semibold">Supplier</TableHead>
-                <TableHead className="font-semibold">Total Qty</TableHead>
-                <TableHead className="font-semibold">Item Description</TableHead>
+                <TableHead className="font-semibold">Qty</TableHead>
+                <TableHead className="font-semibold">Description</TableHead>
                 <TableHead className="font-semibold">Order Date</TableHead>
                 <TableHead className="font-semibold">Expected Date</TableHead>
                 <TableHead className="font-semibold">Total Amount</TableHead>
