@@ -204,8 +204,33 @@ export default function Dashboard() {
       default:
         return (
           <div className="space-y-6">
-            {/* Key Metrics - moved upward */}
+            {/* Welcome Card & Key Metrics Grid */}
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 stagger-animation">
+              {/* Welcome & Company Info Card - PrismERP Style */}
+              <Card className="card-interactive shadow-card hover:shadow-elevated transition-all duration-300 bg-gradient-to-br from-primary/5 to-primary/10 border-primary/20 md:col-span-2 lg:col-span-1">
+                <CardContent className="p-6">
+                  <div className="flex items-start justify-between">
+                    <div className="space-y-2">
+                      <p className="text-sm font-medium text-muted-foreground">Dashboard</p>
+                      <div className="space-y-1">
+                        <p className="text-lg font-bold tracking-tight">Welcome back, {profile?.first_name || 'User'}!</p>
+                        {company?.business_ref_no && (
+                          <p className="text-xs text-muted-foreground">
+                            Company ID: <span className="font-mono text-primary font-medium">{company.business_ref_no}</span>
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                    <div className="p-3 rounded-xl bg-background/50 text-primary">
+                      <SidebarTrigger className="p-0">
+                        <Menu className="h-6 w-6" />
+                      </SidebarTrigger>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+            {/* Key Metrics - moved upward */}
               <StatsCard
                 title="Total Revenue"
                 value="$0"
@@ -430,24 +455,6 @@ export default function Dashboard() {
           </Sidebar>
 
           <main className="flex-1 flex flex-col">
-            <header className="bg-gradient-primary border-b border-border">
-              <div className="px-6 py-3 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <SidebarTrigger className="p-2 rounded-lg hover:bg-white/10 transition-colors text-white">
-                    <Menu className="h-5 w-5 text-white" />
-                  </SidebarTrigger>
-                  <h1 className="text-xl font-semibold text-white">Welcome back, {profile?.first_name || 'User'}!</h1>
-                </div>
-                
-                {/* Company ID only */}
-                {company?.business_ref_no && (
-                  <div className="text-sm text-white/90 font-medium">
-                    Company ID: <span className="font-mono text-white bg-white/10 px-2 py-1 rounded">{company.business_ref_no}</span>
-                  </div>
-                )}
-              </div>
-            </header>
-
             <div className="flex-1 p-4 overflow-auto">
               {renderActiveModule()}
             </div>
