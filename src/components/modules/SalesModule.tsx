@@ -909,47 +909,54 @@ export function SalesModule() {
                                   <TableRow key={index}>
                                     <TableCell className="w-48">
                                       <div className="space-y-2">
-                                        <Select
-                                          value={item.product_id || ''}
-                                          onValueChange={(value) => handleProductSelection(index, value)}
-                                        >
-                                          <SelectTrigger className="w-full">
-                                            <SelectValue placeholder="Select product" />
-                                          </SelectTrigger>
-                                          <SelectContent className="max-h-60">
-                                            <div className="p-2">
-                                              <Input
-                                                placeholder="Search products..."
-                                                className="mb-2"
-                                                value={productSearchTerms[index] || ''}
-                                                onChange={(e) => {
-                                                  setProductSearchTerms(prev => ({
-                                                    ...prev,
-                                                    [index]: e.target.value
-                                                  }));
-                                                }}
-                                              />
-                                            </div>
-                                            {products
-                                              .filter(product => {
-                                                const searchTerm = (productSearchTerms[index] || '').toLowerCase();
-                                                return searchTerm === '' ||
-                                                       product.name.toLowerCase().includes(searchTerm) ||
-                                                       product.sku.toLowerCase().includes(searchTerm) ||
-                                                       (product.description && product.description.toLowerCase().includes(searchTerm));
-                                              })
-                                              .map((product) => (
-                                              <SelectItem key={product.id} value={product.id}>
-                                                <div className="flex flex-col">
-                                                  <span className="font-medium">{product.name}</span>
-                                                  <span className="text-xs text-muted-foreground">
-                                                    SKU: {product.sku} | ₹{product.unit_price} | {product.unit || 'pcs'}
-                                                  </span>
-                                                </div>
-                                              </SelectItem>
-                                            ))}
-                                          </SelectContent>
-                                        </Select>
+                                        <div className="relative">
+                                          <Select
+                                            value={item.product_id || ''}
+                                            onValueChange={(value) => handleProductSelection(index, value)}
+                                          >
+                                            <SelectTrigger className="w-full">
+                                              <SelectValue 
+                                                placeholder="Select product" 
+                                              >
+                                                {item.product_id ? 
+                                                  products.find(p => p.id === item.product_id)?.name 
+                                                  : "Select product"
+                                                }
+                                              </SelectValue>
+                                            </SelectTrigger>
+                                            <SelectContent className="max-h-60">
+                                              {products
+                                                .filter(product => {
+                                                  const searchTerm = (productSearchTerms[index] || '').toLowerCase();
+                                                  return searchTerm === '' ||
+                                                         product.name.toLowerCase().includes(searchTerm) ||
+                                                         product.sku.toLowerCase().includes(searchTerm) ||
+                                                         (product.description && product.description.toLowerCase().includes(searchTerm));
+                                                })
+                                                .map((product) => (
+                                                <SelectItem key={product.id} value={product.id}>
+                                                  <div className="flex flex-col">
+                                                    <span className="font-medium">{product.name}</span>
+                                                    <span className="text-xs text-muted-foreground">
+                                                      SKU: {product.sku} | ₹{product.unit_price} | {product.unit || 'pcs'}
+                                                    </span>
+                                                  </div>
+                                                </SelectItem>
+                                              ))}
+                                            </SelectContent>
+                                          </Select>
+                                          <Input
+                                            placeholder="Search products..."
+                                            className="mt-1 text-xs"
+                                            value={productSearchTerms[index] || ''}
+                                            onChange={(e) => {
+                                              setProductSearchTerms(prev => ({
+                                                ...prev,
+                                                [index]: e.target.value
+                                              }));
+                                            }}
+                                          />
+                                        </div>
                                         {item.product_id && (
                                           <div className="text-xs text-muted-foreground">
                                             SKU: {products.find(p => p.id === item.product_id)?.sku}
