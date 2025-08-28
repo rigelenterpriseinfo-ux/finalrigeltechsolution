@@ -1286,6 +1286,7 @@ export function PurchaseModule() {
                 <TableHead className="font-semibold">Expected Date</TableHead>
                 <TableHead className="font-semibold">Total Amount</TableHead>
                 <TableHead className="font-semibold">Status</TableHead>
+                <TableHead className="font-semibold text-center">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -1303,11 +1304,45 @@ export function PurchaseModule() {
                       {po.status.charAt(0).toUpperCase() + po.status.slice(1)}
                     </Badge>
                   </TableCell>
+                  <TableCell>
+                    <div className="flex items-center justify-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setEditingPO(po);
+                          setShowEditPODialog(true);
+                        }}
+                        className="h-8 w-8 p-0 hover:bg-blue-50 hover:border-blue-200"
+                      >
+                        <Edit className="h-4 w-4 text-blue-600" />
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setViewingPO(po);
+                          setShowViewPODialog(true);
+                        }}
+                        className="h-8 w-8 p-0 hover:bg-green-50 hover:border-green-200"
+                      >
+                        <Eye className="h-4 w-4 text-green-600" />
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleDeletePurchaseOrder(po.id)}
+                        className="h-8 w-8 p-0 hover:bg-red-50 hover:border-red-200"
+                      >
+                        <Trash2 className="h-4 w-4 text-red-600" />
+                      </Button>
+                    </div>
+                  </TableCell>
                 </TableRow>
               ))}
               {filteredPOs.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center text-muted-foreground">
+                  <TableCell colSpan={7} className="text-center text-muted-foreground">
                     No purchase orders found
                   </TableCell>
                 </TableRow>
