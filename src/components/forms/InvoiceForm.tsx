@@ -109,7 +109,7 @@ export default function InvoiceForm({ invoice, onSubmit, onCancel }: InvoiceForm
         .limit(20);
 
       if (error) throw error;
-      setSalesOrders((data || []).map(order => ({ ...order, items: [] })));
+      setSalesOrders(data || []);
     } catch (error) {
       console.error('Error fetching sales orders:', error);
       toast({

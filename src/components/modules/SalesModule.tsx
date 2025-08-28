@@ -12,7 +12,7 @@ import InvoiceTable from '@/components/tables/InvoiceTable';
 import InvoiceForm from '@/components/forms/InvoiceForm';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 
-export function SalesModule() {
+export default function SalesModule() {
   const { profile } = useAuth();
   const [invoices, setInvoices] = useState([]);
   const [salesOrders, setSalesOrders] = useState([]);
@@ -36,16 +36,19 @@ export function SalesModule() {
           performa_invoice_date,
           place_of_supply,
           subtotal_amount,
-          tax_amount,
+          total_cgst_amount,
+          total_sgst_amount,
+          total_igst_amount,
           total_amount,
           status,
           notes,
+          terms_conditions,
           created_at,
           updated_at,
           performa_invoice_items (
             id,
-            product_id,
-            item_description,
+            product_name,
+            description,
             quantity,
             unit_price,
             cgst_rate,
@@ -54,7 +57,7 @@ export function SalesModule() {
             cgst_amount,
             sgst_amount,
             igst_amount,
-            total_price
+            total_amount
           )
         `)
         .eq('company_id', profile.company_id)
@@ -63,10 +66,10 @@ export function SalesModule() {
 
       if (error) throw error;
 
-      const invoicesWithItems = (data || []).map(invoice => ({
+      const invoicesWithItems = data?.map(invoice => ({
         ...invoice,
         items: invoice.performa_invoice_items || []
-      }));
+      })) || [];
 
       setInvoices(invoicesWithItems);
     } catch (error) {
@@ -167,11 +170,13 @@ export function SalesModule() {
         performa_invoice_date: invoiceData.performa_invoice_date,
         place_of_supply: invoiceData.place_of_supply,
         subtotal_amount: invoiceData.subtotal_amount,
-        tax_amount: invoiceData.tax_amount,
-        discount_amount: invoiceData.discount_amount || 0,
+        total_cgst_amount: invoiceData.total_cgst_amount,
+        total_sgst_amount: invoiceData.total_sgst_amount,
+        total_igst_amount: invoiceData.total_igst_amount,
         total_amount: invoiceData.total_amount,
-        status: action === 'draft' ? 'draft' : 'invoiced',
+        status: invoiceData.status,
         notes: invoiceData.notes,
+        terms_conditions: invoiceData.terms_conditions,
         created_by: profile.id
       };
 
@@ -212,8 +217,8 @@ export function SalesModule() {
         // Insert new items
         const itemsToInsert = invoiceData.items.map((item: any) => ({
           performa_invoice_id: result.id,
-          product_id: item.product_id,
-          item_description: item.item_description,
+          product_name: item.product_name,
+          description: item.description,
           quantity: item.quantity,
           unit_price: item.unit_price,
           cgst_rate: item.cgst_rate,
@@ -222,7 +227,7 @@ export function SalesModule() {
           cgst_amount: item.cgst_amount,
           sgst_amount: item.sgst_amount,
           igst_amount: item.igst_amount,
-          total_price: item.total_price
+          total_amount: item.total_amount
         }));
 
         const { error: itemsError } = await supabase

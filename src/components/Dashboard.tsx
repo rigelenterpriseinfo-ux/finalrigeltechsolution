@@ -4,13 +4,13 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { BarChart3, Package, Users, ShoppingCart, CreditCard, TruckIcon, FileText, Bot } from 'lucide-react';
-import { SalesModule } from '@/components/modules/SalesModule';
-import { InventoryModule } from '@/components/modules/InventoryModule';
-import { PurchaseModule } from '@/components/modules/PurchaseModule';
-import { PaymentsModule } from '@/components/modules/PaymentsModule';
-import { TrackingModule } from '@/components/modules/TrackingModule';
-import { ReportsModule } from '@/components/modules/ReportsModule';
-import { AIAssistant } from '@/components/modules/AIAssistant';
+import InventoryModule from '@/components/modules/InventoryModule';
+import SalesModule from '@/components/modules/SalesModule'; // Changed from named to default import
+import PurchaseModule from '@/components/modules/PurchaseModule';
+import PaymentsModule from '@/components/modules/PaymentsModule';
+import TrackingModule from '@/components/modules/TrackingModule';
+import ReportsModule from '@/components/modules/ReportsModule';
+import AIAssistant from '@/components/modules/AIAssistant';
 
 interface DashboardCardProps {
   title: string;
@@ -47,7 +47,7 @@ const Dashboard: React.FC = () => {
         Dashboard
         {profile && (
           <span className="ml-2 text-sm text-gray-500">
-            ({profile.first_name} {profile.last_name})
+            ({profile.email})
           </span>
         )}
       </h1>
@@ -76,7 +76,7 @@ const Dashboard: React.FC = () => {
         />
       </div>
 
-      <Tabs defaultValue="sales" className="w-full space-y-4">
+      <Tabs defaultvalue="sales" className="w-full space-y-4">
         <TabsList>
           <TabsTrigger value="sales">Sales</TabsTrigger>
           <TabsTrigger value="inventory">Inventory</TabsTrigger>
