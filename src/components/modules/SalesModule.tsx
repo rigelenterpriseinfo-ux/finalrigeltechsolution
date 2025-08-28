@@ -750,6 +750,15 @@ export function SalesModule() {
     }
   });
 
+  const handleSort = (field: 'name' | 'customer_ref' | 'gstin') => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDirection('asc');
+    }
+  };
+
   const paginatedCustomers = sortedCustomers.slice(
     (currentPage - 1) * itemsPerPage,
     currentPage * itemsPerPage
@@ -1157,9 +1166,45 @@ export function SalesModule() {
                   <Table>
                     <TableHeader className="bg-gradient-to-r from-muted/50 to-muted/30">
                       <TableRow className="border-border/50 hover:bg-transparent">
-                        <TableHead className="font-semibold text-foreground">Name</TableHead>
-                        <TableHead className="font-semibold text-foreground">Reference No.</TableHead>
-                        <TableHead className="font-semibold text-foreground">GSTIN</TableHead>
+                        <TableHead className="font-semibold text-foreground">
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            onClick={() => handleSort('name')}
+                            className="h-auto p-0 font-semibold hover:bg-transparent"
+                          >
+                            Name
+                            {sortField === 'name' && (
+                              sortDirection === 'asc' ? <ChevronUp className="ml-1 h-4 w-4" /> : <ChevronDown className="ml-1 h-4 w-4" />
+                            )}
+                          </Button>
+                        </TableHead>
+                        <TableHead className="font-semibold text-foreground">
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            onClick={() => handleSort('customer_ref')}
+                            className="h-auto p-0 font-semibold hover:bg-transparent"
+                          >
+                            Reference No.
+                            {sortField === 'customer_ref' && (
+                              sortDirection === 'asc' ? <ChevronUp className="ml-1 h-4 w-4" /> : <ChevronDown className="ml-1 h-4 w-4" />
+                            )}
+                          </Button>
+                        </TableHead>
+                        <TableHead className="font-semibold text-foreground">
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            onClick={() => handleSort('gstin')}
+                            className="h-auto p-0 font-semibold hover:bg-transparent"
+                          >
+                            GSTIN
+                            {sortField === 'gstin' && (
+                              sortDirection === 'asc' ? <ChevronUp className="ml-1 h-4 w-4" /> : <ChevronDown className="ml-1 h-4 w-4" />
+                            )}
+                          </Button>
+                        </TableHead>
                         <TableHead className="font-semibold text-foreground">Contact</TableHead>
                         <TableHead className="font-semibold text-foreground">Credit Limit</TableHead>
                         <TableHead className="font-semibold text-foreground">Status</TableHead>
@@ -1167,8 +1212,8 @@ export function SalesModule() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {customers.length > 0 ? (
-                        customers.slice(0, 5).map((customer) => (
+                      {paginatedCustomers.length > 0 ? (
+                        paginatedCustomers.map((customer) => (
                           <TableRow key={customer.id} className="hover:bg-muted/30 transition-colors border-border/30">
                             <TableCell className="font-medium">{customer.name}</TableCell>
                             <TableCell>{customer.customer_ref || 'N/A'}</TableCell>
@@ -1222,6 +1267,37 @@ export function SalesModule() {
                       )}
                     </TableBody>
                   </Table>
+
+                  {totalCustomerPages > 1 && (
+                    <div className="flex items-center justify-between px-4 py-3 border-t border-border/40 bg-muted/20">
+                      <p className="text-sm text-muted-foreground">
+                        Showing {((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, sortedCustomers.length)} of {sortedCustomers.length} customers
+                      </p>
+                      <div className="flex items-center space-x-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setCurrentPage(currentPage - 1)}
+                          disabled={currentPage === 1}
+                          className="h-8 border-border/60"
+                        >
+                          <ChevronLeft className="h-4 w-4" />
+                        </Button>
+                        <span className="text-sm font-medium px-2">
+                          Page {currentPage} of {totalCustomerPages}
+                        </span>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setCurrentPage(currentPage + 1)}
+                          disabled={currentPage === totalCustomerPages}
+                          className="h-8 border-border/60"
+                        >
+                          <ChevronRight className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             </CardContent>
@@ -1760,7 +1836,7 @@ export function SalesModule() {
 
               {/* Address Information */}
               <div className="space-y-4">
-                <h3 className="text-lg font-semibold border-b pb-2">3. Address Information</h3>
+                <h3 className="text-lg font-semibold border-b pb-2">3. Registered Address Information</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="md:col-span-2">
                     <Label htmlFor="address_line1">Address Line 1 *</Label>
@@ -1824,9 +1900,101 @@ export function SalesModule() {
                 </div>
               </div>
 
+              {/* Delivery Address Information */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold border-b pb-2">4. Delivery Address Information</h3>
+                <div className="flex items-center space-x-2 mb-4">
+                  <Checkbox 
+                    id="same_as_registered_address" 
+                    name="same_as_registered_address"
+                    defaultChecked={editingCustomer?.same_as_registered_address || false}
+                    onCheckedChange={(checked) => {
+                      const form = document.querySelector('form');
+                      if (form) {
+                        const inputs = form.querySelectorAll('[data-shipping]') as NodeListOf<HTMLInputElement>;
+                        const registeredInputs = form.querySelectorAll('[name^="address_line1"], [name="address_line2"], [name="city"], [name="state"], [name="pin_code"], [name="country"]') as NodeListOf<HTMLInputElement>;
+                        
+                        if (checked) {
+                          registeredInputs.forEach((input, index) => {
+                            if (inputs[index]) {
+                              inputs[index].value = input.value;
+                            }
+                          });
+                        } else {
+                          inputs.forEach(input => input.value = '');
+                        }
+                      }
+                    }}
+                  />
+                  <Label htmlFor="same_as_registered_address">Same as registered address</Label>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="md:col-span-2">
+                    <Label htmlFor="shipping_address_line1">Delivery Address Line 1</Label>
+                    <Input 
+                      id="shipping_address_line1" 
+                      name="shipping_address_line1" 
+                      data-shipping
+                      defaultValue={editingCustomer?.shipping_address_line1 || ''} 
+                      placeholder="Street address, building number"
+                    />
+                  </div>
+                  <div className="md:col-span-2">
+                    <Label htmlFor="shipping_address_line2">Delivery Address Line 2 (optional)</Label>
+                    <Input 
+                      id="shipping_address_line2" 
+                      name="shipping_address_line2" 
+                      data-shipping
+                      defaultValue={editingCustomer?.shipping_address_line2 || ''} 
+                      placeholder="Apartment, suite, unit, etc."
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="shipping_city">Delivery City</Label>
+                    <Input 
+                      id="shipping_city" 
+                      name="shipping_city" 
+                      data-shipping
+                      defaultValue={editingCustomer?.shipping_city || ''} 
+                      placeholder="City"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="shipping_state">Delivery State/Province</Label>
+                    <Input 
+                      id="shipping_state" 
+                      name="shipping_state" 
+                      data-shipping
+                      defaultValue={editingCustomer?.shipping_state || ''} 
+                      placeholder="State"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="shipping_pin_code">Delivery PIN / ZIP Code</Label>
+                    <Input 
+                      id="shipping_pin_code" 
+                      name="shipping_pin_code" 
+                      data-shipping
+                      defaultValue={editingCustomer?.shipping_pin_code || ''} 
+                      placeholder="123456"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="shipping_country">Delivery Country</Label>
+                    <Input 
+                      id="shipping_country" 
+                      name="shipping_country" 
+                      data-shipping
+                      defaultValue={editingCustomer?.shipping_country || 'India'} 
+                      placeholder="India"
+                    />
+                  </div>
+                </div>
+              </div>
+
               {/* Tax Information */}
               <div className="space-y-4">
-                <h3 className="text-lg font-semibold border-b pb-2">4. Tax & Payment Information</h3>
+                <h3 className="text-lg font-semibold border-b pb-2">5. Tax Information</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <Label htmlFor="gstin">GSTIN (if applicable)</Label>
@@ -1837,6 +2005,22 @@ export function SalesModule() {
                       placeholder="GST identification number"
                     />
                   </div>
+                  <div>
+                    <Label htmlFor="pan_number">PAN Number</Label>
+                    <Input 
+                      id="pan_number" 
+                      name="pan_number" 
+                      defaultValue={editingCustomer?.pan_number || ''} 
+                      placeholder="PAN number"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Payment Information */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold border-b pb-2">6. Payment Information</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <Label htmlFor="payment_terms">Payment Terms</Label>
                     <Select name="payment_terms" defaultValue={editingCustomer?.payment_terms || 'net_30'}>
@@ -1852,6 +2036,77 @@ export function SalesModule() {
                         <SelectItem value="net_60">Net 60</SelectItem>
                       </SelectContent>
                     </Select>
+                  </div>
+                  <div>
+                    <Label htmlFor="preferred_currency">Preferred Currency</Label>
+                    <Select name="preferred_currency" defaultValue={editingCustomer?.preferred_currency || 'INR'}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select currency" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="INR">INR - Indian Rupee</SelectItem>
+                        <SelectItem value="USD">USD - US Dollar</SelectItem>
+                        <SelectItem value="EUR">EUR - Euro</SelectItem>
+                        <SelectItem value="GBP">GBP - British Pound</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label htmlFor="bank_name">Bank Name</Label>
+                    <Input 
+                      id="bank_name" 
+                      name="bank_name" 
+                      defaultValue={editingCustomer?.bank_name || ''} 
+                      placeholder="Bank name"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="branch_name">Branch Name</Label>
+                    <Input 
+                      id="branch_name" 
+                      name="branch_name" 
+                      defaultValue={editingCustomer?.branch_name || ''} 
+                      placeholder="Branch name"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="account_type">Account Type</Label>
+                    <Select name="account_type" defaultValue={editingCustomer?.account_type || 'current'}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select account type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="current">Current Account</SelectItem>
+                        <SelectItem value="savings">Savings Account</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label htmlFor="account_number">Account Number</Label>
+                    <Input 
+                      id="account_number" 
+                      name="account_number" 
+                      defaultValue={editingCustomer?.account_number || ''} 
+                      placeholder="Account number"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="ifsc_code">IFSC Code</Label>
+                    <Input 
+                      id="ifsc_code" 
+                      name="ifsc_code" 
+                      defaultValue={editingCustomer?.ifsc_code || ''} 
+                      placeholder="IFSC code"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="swift_code">SWIFT Code (if applicable)</Label>
+                    <Input 
+                      id="swift_code" 
+                      name="swift_code" 
+                      defaultValue={editingCustomer?.swift_code || ''} 
+                      placeholder="SWIFT code"
+                    />
                   </div>
                 </div>
               </div>
