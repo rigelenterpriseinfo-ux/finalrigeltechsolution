@@ -16,7 +16,7 @@ import { Separator } from '@/components/ui/separator';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Search, ShoppingCart, Truck, Edit, Trash2, Eye, Calendar, Package, FileDown } from 'lucide-react';
+import { Plus, Search, ShoppingCart, Truck, Edit, Trash2, Eye, Calendar, Package, FileDown, MapPin } from 'lucide-react';
 
 interface PurchaseOrder {
   id: string;
@@ -27,6 +27,12 @@ interface PurchaseOrder {
   total_amount: number;
   notes: string | null;
   external_po_ref: string | null;
+  delivery_address_line1?: string | null;
+  delivery_address_line2?: string | null;
+  delivery_city?: string | null;
+  delivery_state?: string | null;
+  delivery_country?: string | null;
+  delivery_postal_code?: string | null;
   created_at: string;
   updated_at: string;
   supplier: {
@@ -118,6 +124,12 @@ const purchaseOrderSchema = z.object({
   expected_date: z.string().optional(),
   external_po_ref: z.string().optional(),
   notes: z.string().optional(),
+  delivery_address_line1: z.string().optional(),
+  delivery_address_line2: z.string().optional(),
+  delivery_city: z.string().optional(),
+  delivery_state: z.string().optional(),
+  delivery_country: z.string().optional(),
+  delivery_postal_code: z.string().optional(),
 });
 
 export function PurchaseModule() {
@@ -434,6 +446,12 @@ export function PurchaseModule() {
         expected_date: data.expected_date || null,
         external_po_ref: data.external_po_ref || null,
         notes: data.notes || null,
+        delivery_address_line1: data.delivery_address_line1 || null,
+        delivery_address_line2: data.delivery_address_line2 || null,
+        delivery_city: data.delivery_city || null,
+        delivery_state: data.delivery_state || null,
+        delivery_country: data.delivery_country || null,
+        delivery_postal_code: data.delivery_postal_code || null,
         company_id: profile?.company_id,
         created_by: profile?.id,
         status: 'draft',
@@ -825,8 +843,41 @@ export function PurchaseModule() {
         doc.text(`Email: ${po.supplier.email}`, 20, yPosition);
       }
       
+      // Delivery Address Information
+      yPosition += 15;
+      doc.setFontSize(14);
+      doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+      doc.text('DELIVERY ADDRESS', 20, yPosition);
+      
+      yPosition += 10;
+      doc.setFontSize(11);
+      doc.setTextColor(textColor[0], textColor[1], textColor[2]);
+      
+      if (po.delivery_address_line1) {
+        doc.text(po.delivery_address_line1, 20, yPosition);
+        yPosition += 8;
+      }
+      
+      if (po.delivery_address_line2) {
+        doc.text(po.delivery_address_line2, 20, yPosition);
+        yPosition += 8;
+      }
+      
+      if (po.delivery_city || po.delivery_state || po.delivery_postal_code) {
+        const cityStateZip = [po.delivery_city, po.delivery_state, po.delivery_postal_code]
+          .filter(Boolean)
+          .join(', ');
+        doc.text(cityStateZip, 20, yPosition);
+        yPosition += 8;
+      }
+      
+      if (po.delivery_country) {
+        doc.text(po.delivery_country, 20, yPosition);
+        yPosition += 8;
+      }
+      
       // Line Items Table
-      yPosition += 20;
+      yPosition += 10;
       doc.setFontSize(14);
       doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
       doc.text('LINE ITEMS', 20, yPosition);
@@ -1116,6 +1167,133 @@ export function PurchaseModule() {
                                 ))}
                               </SelectContent>
                             </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Delivery Address Section */}
+                  <div className="bg-gradient-to-r from-blue/5 to-blue/10 p-6 rounded-xl border border-blue/20">
+                    <div className="flex items-center gap-3 mb-6">
+                      <div className="p-3 bg-blue/10 rounded-xl">
+                        <MapPin className="h-6 w-6 text-blue-600" />
+                      </div>
+                      <div>
+                        <h3 className="text-xl font-semibold text-blue-700">Delivery Address</h3>
+                        <p className="text-sm text-muted-foreground">Where should this order be delivered?</p>
+                      </div>
+                    </div>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <FormField
+                        control={form.control}
+                        name="delivery_address_line1"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Address Line 1</FormLabel>
+                            <FormControl>
+                              <Input 
+                                placeholder="Street address, building number"
+                                {...field}
+                                className="bg-background border-input focus:border-primary focus:ring-2 focus:ring-primary/20"
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      
+                      <FormField
+                        control={form.control}
+                        name="delivery_address_line2"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Address Line 2</FormLabel>
+                            <FormControl>
+                              <Input 
+                                placeholder="Apartment, suite, unit, etc. (optional)"
+                                {...field}
+                                className="bg-background border-input focus:border-primary focus:ring-2 focus:ring-primary/20"
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
+                      <FormField
+                        control={form.control}
+                        name="delivery_city"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>City</FormLabel>
+                            <FormControl>
+                              <Input 
+                                placeholder="City"
+                                {...field}
+                                className="bg-background border-input focus:border-primary focus:ring-2 focus:ring-primary/20"
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      
+                      <FormField
+                        control={form.control}
+                        name="delivery_state"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>State</FormLabel>
+                            <FormControl>
+                              <Input 
+                                placeholder="State/Province"
+                                {...field}
+                                className="bg-background border-input focus:border-primary focus:ring-2 focus:ring-primary/20"
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      
+                      <FormField
+                        control={form.control}
+                        name="delivery_postal_code"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Postal Code</FormLabel>
+                            <FormControl>
+                              <Input 
+                                placeholder="Postal/ZIP code"
+                                {...field}
+                                className="bg-background border-input focus:border-primary focus:ring-2 focus:ring-primary/20"
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+
+                    <div className="mt-6">
+                      <FormField
+                        control={form.control}
+                        name="delivery_country"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Country</FormLabel>
+                            <FormControl>
+                              <Input 
+                                placeholder="Country"
+                                {...field}
+                                className="bg-background border-input focus:border-primary focus:ring-2 focus:ring-primary/20"
+                              />
+                            </FormControl>
                             <FormMessage />
                           </FormItem>
                         )}

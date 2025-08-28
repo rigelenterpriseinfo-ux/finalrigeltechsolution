@@ -858,6 +858,12 @@ export type Database = {
           company_place_of_supply: string | null
           created_at: string
           created_by: string
+          delivery_address_line1: string | null
+          delivery_address_line2: string | null
+          delivery_city: string | null
+          delivery_country: string | null
+          delivery_postal_code: string | null
+          delivery_state: string | null
           expected_date: string | null
           external_po_ref: string | null
           id: string
@@ -882,6 +888,12 @@ export type Database = {
           company_place_of_supply?: string | null
           created_at?: string
           created_by: string
+          delivery_address_line1?: string | null
+          delivery_address_line2?: string | null
+          delivery_city?: string | null
+          delivery_country?: string | null
+          delivery_postal_code?: string | null
+          delivery_state?: string | null
           expected_date?: string | null
           external_po_ref?: string | null
           id?: string
@@ -906,6 +918,12 @@ export type Database = {
           company_place_of_supply?: string | null
           created_at?: string
           created_by?: string
+          delivery_address_line1?: string | null
+          delivery_address_line2?: string | null
+          delivery_city?: string | null
+          delivery_country?: string | null
+          delivery_postal_code?: string | null
+          delivery_state?: string | null
           expected_date?: string | null
           external_po_ref?: string | null
           id?: string
