@@ -27,6 +27,8 @@ interface PurchaseOrder {
   total_amount: number;
   notes: string | null;
   external_po_ref: string | null;
+  created_at: string;
+  updated_at: string;
   supplier: {
     name: string;
     email: string | null;
@@ -115,6 +117,7 @@ export function PurchaseModule() {
   const { profile } = useAuth();
   const { toast } = useToast();
   const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>([]);
+  const [purchaseOrderItems, setPurchaseOrderItems] = useState<any[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -171,6 +174,7 @@ export function PurchaseModule() {
     fetchPurchaseOrders();
     fetchSuppliers();
     fetchCompanyData();
+    fetchPurchaseOrderItems();
   }, []);
 
   const fetchPurchaseOrders = async () => {
@@ -231,6 +235,26 @@ export function PurchaseModule() {
       setCompanyData(data);
     } catch (error) {
       console.error('Error fetching company data:', error);
+    }
+  };
+
+  const fetchPurchaseOrderItems = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('purchase_order_items')
+        .select(`
+          *,
+          purchase_order:purchase_orders(po_number)
+        `);
+
+      if (error) {
+        console.error('Error fetching purchase order items:', error);
+        return;
+      }
+
+      setPurchaseOrderItems(data || []);
+    } catch (error) {
+      console.error('Error fetching purchase order items:', error);
     }
   };
 
@@ -636,10 +660,66 @@ export function PurchaseModule() {
     }
   };
 
-  const filteredPOs = purchaseOrders.filter(po =>
-    po.po_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    po.supplier.name.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredPOs = purchaseOrders.filter(po => {
+    const searchLower = searchTerm.toLowerCase();
+    
+    // Search in basic PO fields
+    const basicMatch = po.po_number.toLowerCase().includes(searchLower) ||
+                      po.supplier.name.toLowerCase().includes(searchLower) ||
+                      (po.external_po_ref && po.external_po_ref.toLowerCase().includes(searchLower));
+    
+    // Search in purchase order items
+    const itemsMatch = purchaseOrderItems.some(item => 
+      item.purchase_order?.po_number === po.po_number && (
+        (item.item_description && item.item_description.toLowerCase().includes(searchLower)) ||
+        (item.item_code && item.item_code.toLowerCase().includes(searchLower)) ||
+        (item.sku_number && item.sku_number.toLowerCase().includes(searchLower)) ||
+        (item.hsn_sac_code && item.hsn_sac_code.toLowerCase().includes(searchLower))
+      )
+    );
+    
+    return basicMatch || itemsMatch;
+  });
+
+  // Export to Excel function
+  const exportToExcel = () => {
+    import('xlsx').then((XLSX) => {
+      const exportData = filteredPOs.map(po => ({
+        'PO Number': po.po_number,
+        'Supplier': po.supplier.name,
+        'Order Date': new Date(po.order_date).toLocaleDateString(),
+        'Expected Date': po.expected_date ? new Date(po.expected_date).toLocaleDateString() : 'Not specified',
+        'Total Amount': po.total_amount,
+        'Status': po.status,
+        'External Reference': po.external_po_ref || '',
+        'Notes': po.notes || '',
+        'Created At': new Date(po.created_at).toLocaleDateString(),
+      }));
+
+      // Create a new workbook and worksheet
+      const workbook = XLSX.utils.book_new();
+      const worksheet = XLSX.utils.json_to_sheet(exportData);
+
+      // Add the worksheet to the workbook
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Purchase Orders');
+
+      // Generate Excel file and download
+      const fileName = `purchase_orders_${new Date().toISOString().split('T')[0]}.xlsx`;
+      XLSX.writeFile(workbook, fileName);
+
+      toast({
+        title: "Success",
+        description: "Purchase orders exported to Excel successfully",
+      });
+    }).catch(error => {
+      console.error('Error exporting to Excel:', error);
+      toast({
+        title: "Error",
+        description: "Failed to export to Excel",
+        variant: "destructive",
+      });
+    });
+  };
 
   if (loading) {
     return (
@@ -1257,17 +1337,26 @@ export function PurchaseModule() {
         </Card>
       </div>
 
-      {/* Search */}
+      {/* Enhanced Search with Export */}
       <div className="flex items-center gap-4">
-        <div className="relative flex-1 max-w-sm">
+        <div className="relative flex-1 max-w-md">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
-            placeholder="Search purchase orders..."
+            placeholder="Search by supplier, PO number, item description, or item code..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="pl-10 bg-background border-input focus:border-primary focus:ring-2 focus:ring-primary/20"
           />
         </div>
+        <Button
+          onClick={exportToExcel}
+          variant="outline"
+          className="flex items-center gap-2 hover:bg-green-50 hover:border-green-200"
+          disabled={filteredPOs.length === 0}
+        >
+          <Package className="h-4 w-4 text-green-600" />
+          Export Excel
+        </Button>
       </div>
 
       {/* Purchase Orders Table with CRUD Operations */}
