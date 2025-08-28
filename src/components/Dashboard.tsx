@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { supabase } from '@/integrations/supabase/client';
 import {
   Sidebar,
   SidebarContent,
@@ -64,6 +65,43 @@ type ActiveModule = 'dashboard' | 'inventory' | 'purchase' | 'sales' | 'payments
 export default function Dashboard() {
   const { user, profile, company, signOut, loading } = useAuth();
   const [activeModule, setActiveModule] = useState<ActiveModule>('dashboard');
+  const [inventoryStats, setInventoryStats] = useState({
+    totalSKUs: 0,
+    totalUnits: 0,
+    totalCost: 0
+  });
+
+  useEffect(() => {
+    if (activeModule === 'dashboard' && user) {
+      fetchInventoryStats();
+    }
+  }, [activeModule, user]);
+
+  const fetchInventoryStats = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('products')
+        .select('stock_quantity, cost_price, is_active');
+
+      if (error) {
+        console.error('Error fetching inventory stats:', error);
+        return;
+      }
+
+      const activeProducts = data?.filter(product => product.is_active) || [];
+      const totalSKUs = activeProducts.length;
+      const totalUnits = activeProducts.reduce((sum, product) => sum + (product.stock_quantity || 0), 0);
+      const totalCost = activeProducts.reduce((sum, product) => sum + ((product.stock_quantity || 0) * (product.cost_price || 0)), 0);
+
+      setInventoryStats({
+        totalSKUs,
+        totalUnits,
+        totalCost
+      });
+    } catch (error) {
+      console.error('Error fetching inventory stats:', error);
+    }
+  };
 
   console.log('Dashboard render:', { user: !!user, profile: !!profile, company: !!company, loading, activeModule });
 
@@ -267,8 +305,8 @@ export default function Dashboard() {
               
               <StatsCard
                 title="Inventory"
-                value="0 SKUs"
-                subtitle="Total Units: 0 | Total Cost: ₹0"
+                value={`${inventoryStats.totalSKUs} SKUs`}
+                subtitle={`Total Units: ${inventoryStats.totalUnits} | Total Cost: ₹${inventoryStats.totalCost.toFixed(2)}`}
                 icon={Package}
                 variant="default"
               />
