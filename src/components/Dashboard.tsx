@@ -437,7 +437,7 @@ export default function Dashboard() {
                 
                 <SidebarMenuButton 
                   onClick={signOut}
-                  className="w-full justify-start p-3 rounded-lg text-destructive hover:bg-destructive/10"
+                  className="w-full justify-start p-4 rounded-lg text-white bg-destructive hover:bg-destructive/90 font-medium shadow-md"
                 >
                   <LogOut className="h-5 w-5 mr-3" />
                   <span>Sign Out</span>
@@ -448,7 +448,7 @@ export default function Dashboard() {
 
           <main className="flex-1 flex flex-col">
             <header className="bg-gradient-primary border-b border-border">
-              <div className="px-6 py-4 flex items-center justify-between">
+              <div className="px-6 py-3 flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <SidebarTrigger className="p-2 rounded-lg hover:bg-white/10 transition-colors text-white">
                     <Menu className="h-5 w-5 text-white" />
@@ -456,29 +456,16 @@ export default function Dashboard() {
                   <h1 className="text-xl font-semibold text-white">Welcome back, {profile?.first_name || 'User'}!</h1>
                 </div>
                 
-                {/* Right side - Sign Out and Company ID */}
-                <div className="flex flex-col items-end gap-2">
-                  <Button 
-                    onClick={signOut}
-                    variant="outline"
-                    size="sm"
-                    className="text-white border-white/30 hover:bg-white/10"
-                  >
-                    <LogOut className="h-4 w-4 mr-2" />
-                    Sign Out
-                  </Button>
-                  
-                  {/* Company Business ID */}
-                  {company?.business_ref_no && (
-                    <div className="text-xs text-white/80">
-                      Company ID: <span className="font-mono text-white">{company.business_ref_no}</span>
-                    </div>
-                  )}
-                </div>
+                {/* Company ID only */}
+                {company?.business_ref_no && (
+                  <div className="text-sm text-white/90 font-medium">
+                    Company ID: <span className="font-mono text-white bg-white/10 px-2 py-1 rounded">{company.business_ref_no}</span>
+                  </div>
+                )}
               </div>
             </header>
 
-            <div className="flex-1 p-6 overflow-auto">
+            <div className="flex-1 p-4 overflow-auto">
               {renderActiveModule()}
             </div>
           </main>
