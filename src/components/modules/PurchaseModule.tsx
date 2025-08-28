@@ -963,9 +963,56 @@ export function PurchaseModule() {
       doc.setTextColor(textColor[0], textColor[1], textColor[2]);
       doc.text(`Name: ${po.supplier.name}`, 20, yPosition);
       
-      if (po.supplier.email) {
+      // Get supplier details from selectedSupplier or from suppliers list
+      const supplierDetails = suppliers.find(s => s.name === po.supplier.name) || selectedSupplier;
+      
+      if (supplierDetails?.contact_person) {
         yPosition += 8;
-        doc.text(`Email: ${po.supplier.email}`, 20, yPosition);
+        doc.text(`Contact Person: ${supplierDetails.contact_person}`, 20, yPosition);
+      }
+      
+      if (po.supplier.email || supplierDetails?.email) {
+        yPosition += 8;
+        doc.text(`Email: ${po.supplier.email || supplierDetails?.email}`, 20, yPosition);
+      }
+      
+      if (supplierDetails?.phone) {
+        yPosition += 8;
+        doc.text(`Phone: ${supplierDetails.phone}`, 20, yPosition);
+      }
+      
+      if (supplierDetails?.gst_number) {
+        yPosition += 8;
+        doc.text(`GST Number: ${supplierDetails.gst_number}`, 20, yPosition);
+      }
+      
+      // Complete Supplier Address
+      yPosition += 8;
+      doc.text('Address:', 20, yPosition);
+      
+      if (supplierDetails?.address_line1) {
+        yPosition += 8;
+        doc.text(`${supplierDetails.address_line1}`, 20, yPosition);
+      }
+      
+      if (supplierDetails?.address_line2) {
+        yPosition += 8;
+        doc.text(`${supplierDetails.address_line2}`, 20, yPosition);
+      }
+      
+      if (supplierDetails?.city || supplierDetails?.state || supplierDetails?.pin_code) {
+        const addressLine = [supplierDetails?.city, supplierDetails?.state, supplierDetails?.pin_code]
+          .filter(Boolean)
+          .join(', ');
+        if (addressLine) {
+          yPosition += 8;
+          doc.text(addressLine, 20, yPosition);
+        }
+      }
+      
+      if (supplierDetails?.country) {
+        yPosition += 8;
+        doc.text(supplierDetails.country, 20, yPosition);
       }
       
       // Delivery Address Information
@@ -1438,7 +1485,76 @@ export function PurchaseModule() {
                         )}
                       />
                     </div>
-                  </div>
+                   </div>
+
+                  {/* Selected Supplier Details Display */}
+                  {selectedSupplier && (
+                    <div className="mt-6 p-6 bg-gradient-to-r from-green/5 to-green/10 rounded-xl border border-green/20">
+                      <div className="flex items-center gap-3 mb-4">
+                        <div className="p-2 bg-green/10 rounded-lg">
+                          <Truck className="h-5 w-5 text-green-600" />
+                        </div>
+                        <h4 className="text-lg font-semibold text-green-700">Selected Supplier Details</h4>
+                      </div>
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="space-y-3">
+                          <div>
+                            <Label className="text-sm font-medium text-muted-foreground">Supplier Name</Label>
+                            <p className="text-base font-semibold text-foreground">{selectedSupplier.name}</p>
+                          </div>
+                          
+                          <div>
+                            <Label className="text-sm font-medium text-muted-foreground">Contact Person</Label>
+                            <p className="text-base text-foreground">{selectedSupplier.contact_person || 'Not specified'}</p>
+                          </div>
+                          
+                          <div>
+                            <Label className="text-sm font-medium text-muted-foreground">Phone Number</Label>
+                            <p className="text-base text-foreground">{selectedSupplier.phone || 'Not specified'}</p>
+                          </div>
+                          
+                          <div>
+                            <Label className="text-sm font-medium text-muted-foreground">GST Number</Label>
+                            <p className="text-base font-mono text-foreground">{selectedSupplier.gst_number || 'Not specified'}</p>
+                          </div>
+                        </div>
+                        
+                        <div className="space-y-3">
+                          <div>
+                            <Label className="text-sm font-medium text-muted-foreground">Complete Address</Label>
+                            <div className="text-base text-foreground">
+                              {selectedSupplier.address_line1 && <p>{selectedSupplier.address_line1}</p>}
+                              {selectedSupplier.address_line2 && <p>{selectedSupplier.address_line2}</p>}
+                              <p>
+                                {[selectedSupplier.city, selectedSupplier.state, selectedSupplier.pin_code]
+                                  .filter(Boolean)
+                                  .join(', ')}
+                              </p>
+                              {selectedSupplier.country && <p>{selectedSupplier.country}</p>}
+                              {!selectedSupplier.address_line1 && !selectedSupplier.city && (
+                                <p className="text-muted-foreground">Address not specified</p>
+                              )}
+                            </div>
+                          </div>
+                          
+                          <div>
+                            <Label className="text-sm font-medium text-muted-foreground">Email</Label>
+                            <p className="text-base text-foreground">{selectedSupplier.email || 'Not specified'}</p>
+                          </div>
+                          
+                          <div>
+                            <Label className="text-sm font-medium text-muted-foreground">Supplier Reference</Label>
+                            <p className="text-base font-mono text-foreground">
+                              <Badge variant="outline" className="text-xs">
+                                {selectedSupplier.supplier_ref || 'Not assigned'}
+                              </Badge>
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                   )}
 
                   {/* Delivery Address Section */}
                   <div className="bg-gradient-to-r from-blue/5 to-blue/10 p-6 rounded-xl border border-blue/20">
