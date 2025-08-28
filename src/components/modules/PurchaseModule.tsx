@@ -528,6 +528,7 @@ export function PurchaseModule() {
         line_total: 0,
       }]);
       fetchPurchaseOrders();
+      fetchPurchaseOrderItems(); // Refresh items to ensure they show up in the table and PDF
     } catch (error: any) {
       console.error('Purchase order creation error:', error);
       toast({
@@ -739,8 +740,21 @@ export function PurchaseModule() {
       const jsPDF = (await import('jspdf')).default;
       const doc = new jsPDF();
       
-      // Get items for this PO
-      const items = purchaseOrderItems.filter(item => item.purchase_order_id === po.id);
+      // Fetch fresh items for this PO to ensure we have the latest data
+      const { data: items, error: itemsError } = await supabase
+        .from('purchase_order_items')
+        .select('*')
+        .eq('purchase_order_id', po.id);
+        
+      if (itemsError) {
+        console.error('Error fetching purchase order items:', itemsError);
+        toast({
+          title: "Error",
+          description: "Failed to fetch purchase order items for PDF generation",
+          variant: "destructive",
+        });
+        return;
+      }
       
       // Colors and styling
       const primaryColor = [59, 130, 246] as [number, number, number]; // Blue
