@@ -10,7 +10,9 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { CustomerForm } from "../forms/CustomerForm";
 import { SalesOrderForm } from "../forms/SalesOrderForm";
+import { InvoiceForm } from "../forms/InvoiceForm";
 import { SalesOrderTable } from "../tables/SalesOrderTable";
+import { InvoiceTable } from "../tables/InvoiceTable";
 import { SalesOrderDetailsDialog } from "../dialogs/SalesOrderDetailsDialog";
 import { CustomerTable } from "../tables/CustomerTable";
 
@@ -19,13 +21,18 @@ export const SalesModule = () => {
   const [loading, setLoading] = useState(false);
   const [customers, setCustomers] = useState([]);
   const [salesOrders, setSalesOrders] = useState([]);
+  const [invoices, setInvoices] = useState([]);
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [selectedSalesOrder, setSelectedSalesOrder] = useState(null);
+  const [selectedInvoice, setSelectedInvoice] = useState(null);
   const [selectedSalesOrderForDetails, setSelectedSalesOrderForDetails] = useState(null);
+  const [selectedInvoiceForDetails, setSelectedInvoiceForDetails] = useState(null);
   const [salesOrderItems, setSalesOrderItems] = useState([]);
+  const [invoiceItems, setInvoiceItems] = useState([]);
   const [customerForDetails, setCustomerForDetails] = useState(null);
   const [showCustomerDialog, setShowCustomerDialog] = useState(false);
   const [showSalesOrderDialog, setShowSalesOrderDialog] = useState(false);
+  const [showInvoiceDialog, setShowInvoiceDialog] = useState(false);
   const [showDetailsDialog, setShowDetailsDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
@@ -34,6 +41,7 @@ export const SalesModule = () => {
   useEffect(() => {
     fetchCustomers();
     fetchSalesOrders();
+    fetchInvoices();
   }, []);
 
   const fetchCustomers = async () => {
@@ -286,6 +294,184 @@ export const SalesModule = () => {
     setShowDeleteDialog(true);
   };
 
+  // Invoice-related functions
+  const fetchInvoices = async () => {
+    setLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('performa_invoices')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(50); // Show top 50 entries
+
+      if (error) throw error;
+      setInvoices(data || []);
+    } catch (error) {
+      console.error('Error fetching invoices:', error);
+      toast({
+        title: "Error",
+        description: "Failed to fetch invoices",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleInvoiceSubmit = async ({ invoiceData, lineItems }) => {
+    setLoading(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('User not authenticated');
+
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('id, company_id')
+        .eq('user_id', user.id)
+        .single();
+
+      if (!profile) throw new Error('User profile not found');
+
+      // Calculate totals
+      const subtotal = lineItems.reduce((sum, item) => sum + (parseFloat(item.unit_price) * parseFloat(item.quantity)), 0);
+      const discount = lineItems.reduce((sum, item) => sum + parseFloat(item.discount_amount || 0), 0);
+      const tax = lineItems.reduce((sum, item) => sum + parseFloat(item.cgst_amount || 0) + parseFloat(item.sgst_amount || 0) + parseFloat(item.igst_amount || 0), 0);
+      const total = lineItems.reduce((sum, item) => sum + parseFloat(item.total_price || 0), 0);
+
+      const invoiceWithCompany = {
+        ...invoiceData,
+        company_id: profile.company_id,
+        created_by: profile.id,
+        subtotal_amount: subtotal,
+        discount_amount: discount,
+        tax_amount: tax,
+        total_amount: total
+      };
+
+      let invoiceResult;
+      if (selectedInvoice) {
+        // Update existing invoice
+        invoiceResult = await supabase
+          .from('performa_invoices')
+          .update(invoiceWithCompany)
+          .eq('id', selectedInvoice.id)
+          .select()
+          .single();
+      } else {
+        // Create new invoice
+        invoiceResult = await supabase
+          .from('performa_invoices')
+          .insert(invoiceWithCompany)
+          .select()
+          .single();
+      }
+
+      if (invoiceResult.error) throw invoiceResult.error;
+
+      const invoiceId = invoiceResult.data.id;
+
+      // Handle line items
+      if (selectedInvoice) {
+        // Delete existing items and insert new ones
+        await supabase
+          .from('performa_invoice_items')
+          .delete()
+          .eq('performa_invoice_id', invoiceId);
+      }
+
+      // Insert line items
+      if (lineItems.length > 0) {
+        const itemsToInsert = lineItems.map(item => ({
+          performa_invoice_id: invoiceId,
+          product_id: item.product_id,
+          item_description: item.item_description,
+          hsn_sac_code: item.hsn_sac_code,
+          quantity: item.quantity,
+          unit_of_measure: item.unit_of_measure,
+          unit_price: item.unit_price,
+          discount_percentage: item.discount_percentage,
+          discount_amount: item.discount_amount,
+          cgst_rate: item.cgst_rate,
+          sgst_rate: item.sgst_rate,
+          igst_rate: item.igst_rate,
+          cgst_amount: item.cgst_amount,
+          sgst_amount: item.sgst_amount,
+          igst_amount: item.igst_amount,
+          total_price: item.total_price
+        }));
+
+        const itemsResult = await supabase
+          .from('performa_invoice_items')
+          .insert(itemsToInsert);
+
+        if (itemsResult.error) throw itemsResult.error;
+      }
+
+      toast({
+        title: "Success",
+        description: `Invoice ${selectedInvoice ? 'updated' : 'created'} successfully`,
+      });
+
+      setShowInvoiceDialog(false);
+      setSelectedInvoice(null);
+      fetchInvoices();
+    } catch (error) {
+      console.error('Error saving invoice:', error);
+      toast({
+        title: "Error",
+        description: `Failed to ${selectedInvoice ? 'update' : 'create'} invoice`,
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleViewInvoice = async (invoice) => {
+    try {
+      // Fetch invoice items
+      const { data: items, error: itemsError } = await supabase
+        .from('performa_invoice_items')
+        .select('*')
+        .eq('performa_invoice_id', invoice.id);
+
+      if (itemsError) throw itemsError;
+
+      // Fetch customer details
+      const { data: customer, error: customerError } = await supabase
+        .from('customers')
+        .select('*')
+        .eq('id', invoice.customer_id)
+        .single();
+
+      if (customerError) throw customerError;
+
+      setSelectedInvoiceForDetails(invoice);
+      setInvoiceItems(items || []);
+      setCustomerForDetails(customer);
+      setShowDetailsDialog(true);
+    } catch (error) {
+      console.error('Error fetching invoice details:', error);
+      toast({
+        title: "Error",
+        description: "Failed to fetch invoice details",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleEditInvoice = (invoice) => {
+    setSelectedInvoice(invoice);
+    setShowInvoiceDialog(true);
+  };
+
+  const handleDownloadInvoice = async (invoice) => {
+    toast({
+      title: "Feature Coming Soon",
+      description: "PDF download functionality will be available soon",
+    });
+  };
+
   const handleDeleteExecute = async () => {
     if (!deleteTarget || !deleteType) return;
 
@@ -314,11 +500,26 @@ export const SalesModule = () => {
 
         if (error) throw error;
         fetchSalesOrders();
+      } else if (deleteType === 'invoice') {
+        // Delete invoice items first
+        await supabase
+          .from('performa_invoice_items')
+          .delete()
+          .eq('performa_invoice_id', deleteTarget.id);
+
+        // Then delete the invoice
+        const { error } = await supabase
+          .from('performa_invoices')
+          .delete()
+          .eq('id', deleteTarget.id);
+
+        if (error) throw error;
+        fetchInvoices();
       }
 
       toast({
         title: "Success",
-        description: `${deleteType === 'customer' ? 'Customer' : 'Sales order'} deleted successfully`,
+        description: `${deleteType === 'customer' ? 'Customer' : deleteType === 'salesOrder' ? 'Sales order' : 'Invoice'} deleted successfully`,
       });
     } catch (error) {
       console.error(`Error deleting ${deleteType}:`, error);
@@ -434,14 +635,41 @@ export const SalesModule = () => {
         </TabsContent>
 
         <TabsContent value="performa-invoices" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Performa Invoices</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-muted-foreground">Performa invoice management coming soon...</p>
-            </CardContent>
-          </Card>
+          <div className="flex justify-between items-center">
+            <h3 className="text-xl font-semibold">Performa Invoices</h3>
+            <Dialog open={showInvoiceDialog} onOpenChange={setShowInvoiceDialog}>
+              <DialogTrigger asChild>
+                <Button onClick={() => setSelectedInvoice(null)}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Create Invoice
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-7xl max-h-[95vh] overflow-y-auto">
+                <DialogHeader>
+                  <DialogTitle>
+                    {selectedInvoice ? 'Edit Invoice' : 'Create New Invoice'}
+                  </DialogTitle>
+                </DialogHeader>
+                <InvoiceForm
+                  invoice={selectedInvoice}
+                  onSubmit={handleInvoiceSubmit}
+                  onCancel={() => {
+                    setShowInvoiceDialog(false);
+                    setSelectedInvoice(null);
+                  }}
+                />
+              </DialogContent>
+            </Dialog>
+          </div>
+
+          <InvoiceTable
+            invoices={invoices}
+            onView={handleViewInvoice}
+            onEdit={handleEditInvoice}
+            onDelete={(invoice) => handleDeleteConfirm(invoice, 'invoice')}
+            onDownload={handleDownloadInvoice}
+            loading={loading}
+          />
         </TabsContent>
       </Tabs>
 
@@ -461,7 +689,7 @@ export const SalesModule = () => {
             <AlertDialogTitle>Are you sure?</AlertDialogTitle>
             <AlertDialogDescription>
               This action cannot be undone. This will permanently delete the{' '}
-              {deleteType === 'customer' ? 'customer' : 'sales order'} and all associated data.
+              {deleteType === 'customer' ? 'customer' : deleteType === 'salesOrder' ? 'sales order' : 'invoice'} and all associated data.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
