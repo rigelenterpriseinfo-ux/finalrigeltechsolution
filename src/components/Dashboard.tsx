@@ -203,25 +203,8 @@ export default function Dashboard() {
         );
       default:
         return (
-          <div className="space-y-8">
-            {/* Welcome Section */}
-            <div className="bg-gradient-primary rounded-2xl p-8 text-white">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h1 className="text-3xl font-bold mb-2">
-                    Welcome back, {profile?.first_name}!
-                  </h1>
-                  <p className="text-white/80 text-lg">
-                    Here's what's happening with your business today
-                  </p>
-                </div>
-                <div className="hidden md:flex items-center gap-4">
-                  {/* Removed company badge and icon - moved to header */}
-                </div>
-              </div>
-            </div>
-
-            {/* Key Metrics */}
+          <div className="space-y-6">
+            {/* Key Metrics - moved upward */}
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 stagger-animation">
               <StatsCard
                 title="Total Revenue"
