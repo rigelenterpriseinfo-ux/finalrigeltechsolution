@@ -396,59 +396,124 @@ export function PaymentsModule() {
         </div>
       </div>
 
-      {/* Payments Table */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Payment History</CardTitle>
-          <CardDescription>All payment transactions</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Date</TableHead>
-                <TableHead>Type</TableHead>
-                <TableHead>Order</TableHead>
-                <TableHead>Amount</TableHead>
-                <TableHead>Method</TableHead>
-                <TableHead>Reference</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredPayments.map((payment) => (
-                <TableRow key={payment.id}>
-                  <TableCell>{new Date(payment.payment_date).toLocaleDateString()}</TableCell>
-                  <TableCell>
-                    <Badge variant={payment.sales_order_id ? "default" : "secondary"}>
-                      {payment.sales_order_id ? 'Received' : 'Paid'}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    {payment.sales_order ? 
-                      `SO: ${payment.sales_order.order_number} (${payment.sales_order.customer.name})` :
-                      payment.purchase_order ?
-                      `PO: ${payment.purchase_order.po_number} (${payment.purchase_order.supplier.name})` :
-                      'Direct Payment'
-                    }
-                  </TableCell>
-                  <TableCell className={payment.sales_order_id ? 'text-green-600' : 'text-red-600'}>
-                    {payment.sales_order_id ? '+' : '-'}${payment.amount.toFixed(2)}
-                  </TableCell>
-                  <TableCell className="capitalize">{payment.payment_method.replace('_', ' ')}</TableCell>
-                  <TableCell>{payment.reference_number || '-'}</TableCell>
-                </TableRow>
-              ))}
-              {filteredPayments.length === 0 && (
+      {/* Account Payable & Receivable Tables */}
+      <div className="grid gap-6 lg:grid-cols-2">
+        {/* Account Payable */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <TrendingDown className="h-5 w-5 text-red-600" />
+              Account Payable
+            </CardTitle>
+            <CardDescription>Outstanding purchase invoices</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center text-muted-foreground">
-                    No payments found
+                  <TableHead>Vendor</TableHead>
+                  <TableHead>Invoice No</TableHead>
+                  <TableHead>Invoice Date</TableHead>
+                  <TableHead>Amount</TableHead>
+                  <TableHead>Due Date</TableHead>
+                  <TableHead>Ageing</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {/* Placeholder data - replace with actual purchase invoice data */}
+                <TableRow>
+                  <TableCell>ABC Suppliers Ltd</TableCell>
+                  <TableCell>INV-2024-001</TableCell>
+                  <TableCell>Jan 15, 2024</TableCell>
+                  <TableCell className="text-red-600">₹25,000</TableCell>
+                  <TableCell>Feb 14, 2024</TableCell>
+                  <TableCell>
+                    <Badge variant="destructive">45 days</Badge>
                   </TableCell>
                 </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+                <TableRow>
+                  <TableCell>XYZ Materials</TableCell>
+                  <TableCell>INV-2024-002</TableCell>
+                  <TableCell>Feb 10, 2024</TableCell>
+                  <TableCell className="text-red-600">₹15,000</TableCell>
+                  <TableCell>Mar 11, 2024</TableCell>
+                  <TableCell>
+                    <Badge variant="secondary">15 days</Badge>
+                  </TableCell>
+                </TableRow>
+                <TableRow>
+                  <TableCell>Tech Solutions</TableCell>
+                  <TableCell>INV-2024-003</TableCell>
+                  <TableCell>Feb 20, 2024</TableCell>
+                  <TableCell className="text-red-600">₹10,000</TableCell>
+                  <TableCell>Mar 21, 2024</TableCell>
+                  <TableCell>
+                    <Badge variant="outline">5 days</Badge>
+                  </TableCell>
+                </TableRow>
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+
+        {/* Account Receivable */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <TrendingUp className="h-5 w-5 text-green-600" />
+              Account Receivable
+            </CardTitle>
+            <CardDescription>Outstanding sales invoices</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Customer</TableHead>
+                  <TableHead>Invoice No</TableHead>
+                  <TableHead>Invoice Date</TableHead>
+                  <TableHead>Amount</TableHead>
+                  <TableHead>Due Date</TableHead>
+                  <TableHead>Ageing</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {/* Placeholder data - replace with actual sales invoice data */}
+                <TableRow>
+                  <TableCell>Global Enterprises</TableCell>
+                  <TableCell>SI-2024-001</TableCell>
+                  <TableCell>Jan 20, 2024</TableCell>
+                  <TableCell className="text-green-600">₹20,000</TableCell>
+                  <TableCell>Feb 19, 2024</TableCell>
+                  <TableCell>
+                    <Badge variant="destructive">35 days</Badge>
+                  </TableCell>
+                </TableRow>
+                <TableRow>
+                  <TableCell>Metro Solutions</TableCell>
+                  <TableCell>SI-2024-002</TableCell>
+                  <TableCell>Feb 15, 2024</TableCell>
+                  <TableCell className="text-green-600">₹12,000</TableCell>
+                  <TableCell>Mar 16, 2024</TableCell>
+                  <TableCell>
+                    <Badge variant="secondary">10 days</Badge>
+                  </TableCell>
+                </TableRow>
+                <TableRow>
+                  <TableCell>Regional Corp</TableCell>
+                  <TableCell>SI-2024-003</TableCell>
+                  <TableCell>Feb 25, 2024</TableCell>
+                  <TableCell className="text-green-600">₹3,000</TableCell>
+                  <TableCell>Mar 26, 2024</TableCell>
+                  <TableCell>
+                    <Badge variant="outline">1 day</Badge>
+                  </TableCell>
+                </TableRow>
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }
