@@ -441,20 +441,17 @@ const [performaInvoiceForm, setPerformaInvoiceForm] = useState<PerformaInvoiceFo
         hsn_sac_code: product.hsn_code || '',
         unit_price: product.unit_price,
         unit_of_measure: product.unit || 'pcs',
-        // Default tax split (intra-state by default)
-        cgst_rate: gstRate / 2,
-        sgst_rate: gstRate / 2,
-        igst_rate: 0,
+        // Keep existing tax rates - let user fill manually
       };
 
-      // Recalculate amounts
+      // Recalculate amounts only if tax rates are set
       const subtotal = nextItem.quantity * nextItem.unit_price;
-      nextItem.discount_amount = (subtotal * nextItem.discount_percentage) / 100;
+      nextItem.discount_amount = (subtotal * (nextItem.discount_percentage || 0)) / 100;
       const taxableAmount = subtotal - nextItem.discount_amount;
-      nextItem.cgst_amount = (taxableAmount * nextItem.cgst_rate) / 100;
-      nextItem.sgst_amount = (taxableAmount * nextItem.sgst_rate) / 100;
-      nextItem.igst_amount = (taxableAmount * nextItem.igst_rate) / 100;
-      nextItem.tax_percentage = nextItem.cgst_rate + nextItem.sgst_rate + nextItem.igst_rate;
+      nextItem.cgst_amount = (taxableAmount * (nextItem.cgst_rate || 0)) / 100;
+      nextItem.sgst_amount = (taxableAmount * (nextItem.sgst_rate || 0)) / 100;
+      nextItem.igst_amount = (taxableAmount * (nextItem.igst_rate || 0)) / 100;
+      nextItem.tax_percentage = (nextItem.cgst_rate || 0) + (nextItem.sgst_rate || 0) + (nextItem.igst_rate || 0);
       nextItem.line_total = taxableAmount + nextItem.cgst_amount + nextItem.sgst_amount + nextItem.igst_amount;
 
       updated[index] = nextItem;
