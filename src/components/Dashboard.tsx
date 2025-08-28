@@ -39,7 +39,7 @@ import {
 } from 'lucide-react';
 import { InventoryModule } from '@/components/modules/InventoryModule';
 import { PurchaseModule } from '@/components/modules/PurchaseModule';
-import { SalesModule } from '@/components/modules/SalesModule';
+import SalesModule from '@/components/modules/SalesModule';
 import { PaymentsModule } from '@/components/modules/PaymentsModule';
 import { ReportsModule } from '@/components/modules/ReportsModule';
 import { TrackingModule } from '@/components/modules/TrackingModule';

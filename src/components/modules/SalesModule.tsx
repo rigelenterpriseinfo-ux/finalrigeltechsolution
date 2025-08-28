@@ -24,51 +24,47 @@ export default function SalesModule() {
     if (!profile?.company_id) return;
 
     try {
-      const { data, error } = await supabase
-        .from('performa_invoices')
-        .select(`
-          id,
-          sales_order_id,
-          customer_id,
-          customer_name,
-          performa_invoice_number,
-          performa_invoice_date,
-          place_of_supply,
-          subtotal_amount,
-          total_cgst_amount,
-          total_sgst_amount,
-          total_igst_amount,
-          total_amount,
-          status,
-          notes,
-          terms_conditions,
-          created_at,
-          updated_at,
-          performa_invoice_items (
+        const { data, error } = await supabase
+          .from('performa_invoices')
+          .select(`
             id,
-            product_name,
-            description,
-            quantity,
-            unit_price,
-            cgst_rate,
-            sgst_rate,
-            igst_rate,
-            cgst_amount,
-            sgst_amount,
-            igst_amount,
-            total_amount
-          )
-        `)
-        .eq('company_id', profile.company_id)
-        .order('created_at', { ascending: false })
-        .limit(5); // Changed from 50 to 5 as requested
+            sales_order_id,
+            customer_id,
+            customer_name,
+            performa_invoice_number,
+            performa_invoice_date,
+            place_of_supply,
+            subtotal_amount,
+            tax_amount,
+            total_amount,
+            status,
+            notes,
+            created_at,
+            updated_at,
+            performa_invoice_items (
+              id,
+              item_description,
+              quantity,
+              unit_price,
+              cgst_rate,
+              sgst_rate,
+              igst_rate,
+              cgst_amount,
+              sgst_amount,
+              igst_amount,
+              total_price
+            )
+          `)
+          .eq('company_id', profile.company_id)
+          .order('created_at', { ascending: false })
+          .limit(5)
 
-      if (error) throw error;
+        if (error) throw error;
 
-      const invoicesWithItems = data?.map(invoice => ({
-        ...invoice,
-        items: invoice.performa_invoice_items || []
-      })) || [];
+        const invoicesWithItems = data?.map(invoice => ({
+          ...invoice,
+          items: invoice.performa_invoice_items || []
+        })) || [];
 
       setInvoices(invoicesWithItems);
     } catch (error) {
@@ -169,19 +165,16 @@ export default function SalesModule() {
         performa_invoice_date: invoiceData.performa_invoice_date,
         place_of_supply: invoiceData.place_of_supply,
         subtotal_amount: invoiceData.subtotal_amount,
-        total_cgst_amount: invoiceData.total_cgst_amount,
-        total_sgst_amount: invoiceData.total_sgst_amount,
-        total_igst_amount: invoiceData.total_igst_amount,
+        tax_amount: invoiceData.tax_amount || 0,
         total_amount: invoiceData.total_amount,
         status: invoiceData.status,
         notes: invoiceData.notes,
-        terms_conditions: invoiceData.terms_conditions,
         created_by: profile.id
       };
 
       // Only include performa_invoice_number if it's not null/undefined
       if (invoiceData.performa_invoice_number) {
-        invoicePayload.performa_invoice_number = invoiceData.performa_invoice_number;
+        (invoicePayload as any).performa_invoice_number = invoiceData.performa_invoice_number;
       }
 
       let result;
@@ -221,8 +214,8 @@ export default function SalesModule() {
         // Insert new items
         const itemsToInsert = invoiceData.items.map((item: any) => ({
           performa_invoice_id: result.id,
-          product_name: item.product_name,
-          description: item.description,
+          product_id: item.product_id || null,
+          item_description: item.description || item.product_name,
           quantity: item.quantity,
           unit_price: item.unit_price,
           cgst_rate: item.cgst_rate,
@@ -231,7 +224,7 @@ export default function SalesModule() {
           cgst_amount: item.cgst_amount,
           sgst_amount: item.sgst_amount,
           igst_amount: item.igst_amount,
-          total_amount: item.total_amount
+          total_price: item.total_amount
         }));
 
         const { error: itemsError } = await supabase

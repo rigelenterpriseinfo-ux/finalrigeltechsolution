@@ -94,24 +94,40 @@ export default function InvoiceForm({ invoice, onSubmit, onCancel }: InvoiceForm
 
   const fetchSalesOrders = async () => {
     try {
-      const { data, error } = await supabase
-        .from('sales_orders')
-        .select(`
-          id,
-          order_number,
-          customer_id,
-          customer_name,
-          order_date,
-          delivery_date,
-          total_amount,
-          status
-        `)
-        .eq('status', 'confirmed')
-        .order('created_at', { ascending: false })
-        .limit(20);
+        const { data: salesOrderData, error } = await supabase
+          .from('sales_orders')
+          .select(`
+            id,
+            order_number,
+            customer_id,
+            order_date,
+            delivery_date,
+            total_amount,
+            status
+          `)
+          .eq('status', 'confirmed')
+          .order('created_at', { ascending: false })
+          .limit(20);
 
-      if (error) throw error;
-      setSalesOrders(data || []);
+        if (error) throw error;
+
+        // Fetch customer names for each sales order
+        const salesOrdersWithCustomers = await Promise.all(
+          (salesOrderData || []).map(async (so) => {
+            const { data: customerData } = await supabase
+              .from('customers')
+              .select('name')
+              .eq('id', so.customer_id)
+              .single();
+
+            return {
+              ...so,
+              customer_name: customerData?.name || 'Unknown Customer'
+            };
+          })
+        );
+
+        setSalesOrders(salesOrdersWithCustomers as SalesOrder[] || []);
     } catch (error) {
       console.error('Error fetching sales orders:', error);
       toast({
@@ -124,40 +140,46 @@ export default function InvoiceForm({ invoice, onSubmit, onCancel }: InvoiceForm
 
   const loadSalesOrderById = async (salesOrderId: string) => {
     try {
-      const { data, error } = await supabase
-        .from('sales_orders')
-        .select(`
-          id,
-          order_number,
-          customer_id,
-          customer_name,
-          order_date,
-          delivery_date,
-          total_amount,
-          status,
-          sales_order_items (
+        const { data, error } = await supabase
+          .from('sales_orders')
+          .select(`
             id,
-            product_name,
-            description,
-            quantity,
-            unit_price,
-            cgst_rate,
-            sgst_rate,
-            igst_rate,
-            cgst_amount,
-            sgst_amount,
-            igst_amount,
-            total_amount
-          )
-        `)
-        .eq('id', salesOrderId)
-        .single();
+            order_number,
+            customer_id,
+            order_date,
+            delivery_date,
+            total_amount,
+            status,
+            sales_order_items (
+              id,
+              item_description,
+              quantity,
+              unit_price,
+              cgst_rate,
+              sgst_rate,
+              igst_rate,
+              cgst_amount,
+              sgst_amount,
+              igst_amount,
+              total_price
+            )
+          `)
+          .eq('id', salesOrderId)
+          .single();
 
       if (error) throw error;
       
       if (data) {
+        // Fetch customer name
+        const { data: customerData } = await supabase
+          .from('customers')
+          .select('name')
+          .eq('id', data.customer_id)
+          .single();
+
         setSelectedSalesOrder({
           ...data,
+          customer_name: customerData?.name || 'Unknown Customer',
           items: data.sales_order_items || []
         });
       }
@@ -170,47 +192,55 @@ export default function InvoiceForm({ invoice, onSubmit, onCancel }: InvoiceForm
     setLoading(true);
     try {
       // Fetch full sales order with items
-      const { data, error } = await supabase
-        .from('sales_orders')
-        .select(`
-          id,
-          order_number,
-          customer_id,
-          customer_name,
-          order_date,
-          delivery_date,
-          total_amount,
-          status,
-          sales_order_items (
+        const { data, error } = await supabase
+          .from('sales_orders')
+          .select(`
             id,
-            product_name,
-            description,
-            quantity,
-            unit_price,
-            cgst_rate,
-            sgst_rate,
-            igst_rate,
-            cgst_amount,
-            sgst_amount,
-            igst_amount,
-            total_amount
-          )
-        `)
-        .eq('id', salesOrder.id)
-        .single();
+            order_number,
+            customer_id,
+            order_date,
+            delivery_date,
+            total_amount,
+            status,
+            sales_order_items (
+              id,
+              item_description,
+              quantity,
+              unit_price,
+              cgst_rate,
+              sgst_rate,
+              igst_rate,
+              cgst_amount,
+              sgst_amount,
+              igst_amount,
+              total_price
+            )
+          `)
+          .eq('id', salesOrder.id)
+          .single();
 
       if (error) throw error;
 
-      setSelectedSalesOrder({
+      // Fetch customer name
+      const { data: customerData } = await supabase
+        .from('customers')
+        .select('name')
+        .eq('id', data.customer_id)
+        .single();
+
+      const salesOrderWithCustomer = {
         ...data,
+        customer_name: customerData?.name || 'Unknown Customer',
         items: data.sales_order_items || []
-      });
+      };
+
+      setSelectedSalesOrder(salesOrderWithCustomer);
 
       // Populate invoice form with sales order data
       setInvoiceData({
         sales_order_id: data.id,
         customer_id: data.customer_id,
-        customer_name: data.customer_name,
+        customer_name: customerData?.name || 'Unknown Customer',
         invoice_date: new Date().toISOString().split('T')[0],
         place_of_supply: '',
         notes: '',
@@ -220,8 +250,8 @@ export default function InvoiceForm({ invoice, onSubmit, onCancel }: InvoiceForm
 
       // Convert sales order items to invoice items
       const invoiceItems = data.sales_order_items.map((item: any) => ({
-        product_name: item.product_name,
-        description: item.description,
+        product_name: item.item_description,
+        description: item.item_description,
         quantity: item.quantity,
         unit_price: item.unit_price,
         cgst_rate: item.cgst_rate,
@@ -230,7 +260,7 @@ export default function InvoiceForm({ invoice, onSubmit, onCancel }: InvoiceForm
         cgst_amount: item.cgst_amount,
         sgst_amount: item.sgst_amount,
         igst_amount: item.igst_amount || 0,
-        total_amount: item.total_amount
+        total_amount: item.total_price
       }));
 
       setItems(invoiceItems);
