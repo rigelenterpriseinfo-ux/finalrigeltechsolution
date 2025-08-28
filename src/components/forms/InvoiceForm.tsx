@@ -1,60 +1,94 @@
-import React, { useState, useEffect } from 'react';
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "@/components/ui/command";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Separator } from "@/components/ui/separator";
-import { Badge } from "@/components/ui/badge";
-import { CalendarIcon, Search, Check, ChevronsUpDown, FileText, Save, X } from "lucide-react";
-import { Calendar } from "@/components/ui/calendar";
-import { format } from "date-fns";
-import { cn } from "@/lib/utils";
-import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
 
-interface InvoiceFormProps {
-  onSubmit: (data: any) => void;
-  onCancel: () => void;
-  invoice?: any;
+import React, { useState, useEffect } from 'react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Search, Plus, Trash2 } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
+
+interface SalesOrder {
+  id: string;
+  order_number: string;
+  customer_id: string;
+  customer_name: string;
+  order_date: string;
+  delivery_date: string;
+  total_amount: number;
+  status: string;
+  items: any[];
 }
 
-export const InvoiceForm = ({ onSubmit, onCancel, invoice }: InvoiceFormProps) => {
-  const { toast } = useToast();
+interface InvoiceItem {
+  id?: string;
+  product_name: string;
+  description: string;
+  quantity: number;
+  unit_price: number;
+  cgst_rate: number;
+  sgst_rate: number;
+  igst_rate: number;
+  cgst_amount: number;
+  sgst_amount: number;
+  igst_amount: number;
+  total_amount: number;
+}
+
+interface InvoiceFormProps {
+  invoice?: any;
+  onSubmit: (data: any, action: 'draft' | 'invoice') => void;
+  onCancel: () => void;
+}
+
+export default function InvoiceForm({ invoice, onSubmit, onCancel }: InvoiceFormProps) {
+  const [salesOrders, setSalesOrders] = useState<SalesOrder[]>([]);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedSalesOrder, setSelectedSalesOrder] = useState<SalesOrder | null>(null);
+  const [showSalesOrderSearch, setShowSalesOrderSearch] = useState(true);
   const [loading, setLoading] = useState(false);
-  const [salesOrders, setSalesOrders] = useState([]);
-  const [selectedSalesOrder, setSelectedSalesOrder] = useState(null);
-  const [salesOrderItems, setSalesOrderItems] = useState([]);
-  const [customer, setCustomer] = useState(null);
-  const [searchOpen, setSearchOpen] = useState(false);
-  const [searchValue, setSearchValue] = useState("");
-  const [calendarOpen, setCalendarOpen] = useState(false);
-  
-  const [formData, setFormData] = useState({
-    invoice_date: new Date(),
-    invoice_number: '',
+  const { toast } = useToast();
+
+  // Invoice form data
+  const [invoiceData, setInvoiceData] = useState({
+    sales_order_id: '',
+    customer_id: '',
+    customer_name: '',
+    invoice_date: new Date().toISOString().split('T')[0],
     place_of_supply: '',
     notes: '',
+    terms_conditions: '',
     status: 'draft'
   });
 
+  const [items, setItems] = useState<InvoiceItem[]>([]);
+
   useEffect(() => {
-    fetchSalesOrders();
     if (invoice) {
-      // Load existing invoice data
-      setFormData({
-        invoice_date: new Date(invoice.performa_invoice_date),
-        invoice_number: invoice.performa_invoice_number,
+      // Edit mode - populate form with existing invoice data
+      setInvoiceData({
+        sales_order_id: invoice.sales_order_id || '',
+        customer_id: invoice.customer_id || '',
+        customer_name: invoice.customer_name || '',
+        invoice_date: invoice.performa_invoice_date || new Date().toISOString().split('T')[0],
         place_of_supply: invoice.place_of_supply || '',
         notes: invoice.notes || '',
-        status: invoice.status
+        terms_conditions: invoice.terms_conditions || '',
+        status: invoice.status || 'draft'
       });
+      setItems(invoice.items || []);
+      setShowSalesOrderSearch(false);
+      
+      // If editing an existing invoice, load the related sales order
       if (invoice.sales_order_id) {
-        loadSalesOrder(invoice.sales_order_id);
+        loadSalesOrderById(invoice.sales_order_id);
       }
+    } else {
+      // Create mode - fetch available sales orders
+      fetchSalesOrders();
     }
   }, [invoice]);
 
@@ -63,11 +97,18 @@ export const InvoiceForm = ({ onSubmit, onCancel, invoice }: InvoiceFormProps) =
       const { data, error } = await supabase
         .from('sales_orders')
         .select(`
-          *,
-          customer:customers(name, customer_ref)
+          id,
+          order_number,
+          customer_id,
+          customer_name,
+          order_date,
+          delivery_date,
+          total_amount,
+          status
         `)
         .eq('status', 'confirmed')
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false })
+        .limit(20);
 
       if (error) throw error;
       setSalesOrders(data || []);
@@ -76,465 +117,475 @@ export const InvoiceForm = ({ onSubmit, onCancel, invoice }: InvoiceFormProps) =
       toast({
         title: "Error",
         description: "Failed to fetch sales orders",
-        variant: "destructive"
+        variant: "destructive",
       });
     }
   };
 
-  const loadSalesOrder = async (salesOrderId) => {
+  const loadSalesOrderById = async (salesOrderId: string) => {
     try {
-      // Fetch sales order details
-      const { data: salesOrder, error: soError } = await supabase
+      const { data, error } = await supabase
         .from('sales_orders')
         .select(`
-          *,
-          customer:customers(*)
+          id,
+          order_number,
+          customer_id,
+          customer_name,
+          order_date,
+          delivery_date,
+          total_amount,
+          status,
+          sales_order_items (
+            id,
+            product_name,
+            description,
+            quantity,
+            unit_price,
+            cgst_rate,
+            sgst_rate,
+            igst_rate,
+            cgst_amount,
+            sgst_amount,
+            igst_amount,
+            total_amount
+          )
         `)
         .eq('id', salesOrderId)
         .single();
 
-      if (soError) throw soError;
-
-      // Fetch sales order items
-      const { data: items, error: itemsError } = await supabase
-        .from('sales_order_items')
-        .select('*')
-        .eq('sales_order_id', salesOrderId);
-
-      if (itemsError) throw itemsError;
-
-      setSelectedSalesOrder(salesOrder);
-      setSalesOrderItems(items || []);
-      setCustomer(salesOrder.customer);
-
-      // Generate invoice number if creating new
-      if (!invoice) {
-        await generateInvoiceNumber();
+      if (error) throw error;
+      
+      if (data) {
+        setSelectedSalesOrder({
+          ...data,
+          items: data.sales_order_items || []
+        });
       }
+    } catch (error) {
+      console.error('Error loading sales order:', error);
+    }
+  };
+
+  const loadSalesOrder = async (salesOrder: SalesOrder) => {
+    setLoading(true);
+    try {
+      // Fetch full sales order with items
+      const { data, error } = await supabase
+        .from('sales_orders')
+        .select(`
+          id,
+          order_number,
+          customer_id,
+          customer_name,
+          order_date,
+          delivery_date,
+          total_amount,
+          status,
+          sales_order_items (
+            id,
+            product_name,
+            description,
+            quantity,
+            unit_price,
+            cgst_rate,
+            sgst_rate,
+            igst_rate,
+            cgst_amount,
+            sgst_amount,
+            igst_amount,
+            total_amount
+          )
+        `)
+        .eq('id', salesOrder.id)
+        .single();
+
+      if (error) throw error;
+
+      setSelectedSalesOrder({
+        ...data,
+        items: data.sales_order_items || []
+      });
+
+      // Populate invoice form with sales order data
+      setInvoiceData({
+        sales_order_id: data.id,
+        customer_id: data.customer_id,
+        customer_name: data.customer_name,
+        invoice_date: new Date().toISOString().split('T')[0],
+        place_of_supply: '',
+        notes: '',
+        terms_conditions: '',
+        status: 'draft'
+      });
+
+      // Convert sales order items to invoice items
+      const invoiceItems = data.sales_order_items.map((item: any) => ({
+        product_name: item.product_name,
+        description: item.description,
+        quantity: item.quantity,
+        unit_price: item.unit_price,
+        cgst_rate: item.cgst_rate,
+        sgst_rate: item.sgst_rate,
+        igst_rate: item.igst_rate || 0,
+        cgst_amount: item.cgst_amount,
+        sgst_amount: item.sgst_amount,
+        igst_amount: item.igst_amount || 0,
+        total_amount: item.total_amount
+      }));
+
+      setItems(invoiceItems);
+      setShowSalesOrderSearch(false);
     } catch (error) {
       console.error('Error loading sales order:', error);
       toast({
         title: "Error",
         description: "Failed to load sales order details",
-        variant: "destructive"
+        variant: "destructive",
       });
+    } finally {
+      setLoading(false);
     }
   };
 
-  const generateInvoiceNumber = async () => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('company_id')
-        .eq('user_id', user.id)
-        .single();
-
-      if (!profile) return;
-
-      const { data: company } = await supabase
-        .from('companies')
-        .select('name')
-        .eq('id', profile.company_id)
-        .single();
-
-      if (!company) return;
-
-      // Extract first 4 letters from company name
-      const firstFourLetters = company.name
-        .replace(/[^A-Za-z]/g, '')
-        .substring(0, 4)
-        .toUpperCase()
-        .padEnd(4, 'X');
-
-      // Get next invoice number
-      const { data: lastInvoice } = await supabase
-        .from('performa_invoices')
-        .select('performa_invoice_number')
-        .eq('company_id', profile.company_id)
-        .like('performa_invoice_number', `INV${firstFourLetters}%`)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .single();
-
-      let nextNumber = '001';
-      if (lastInvoice) {
-        const lastNumber = parseInt(lastInvoice.performa_invoice_number.slice(-3));
-        nextNumber = (lastNumber + 1).toString().padStart(3, '0');
-      }
-
-      const invoiceNumber = `INV${firstFourLetters}${nextNumber}`;
-      setFormData(prev => ({ ...prev, invoice_number: invoiceNumber }));
-    } catch (error) {
-      console.error('Error generating invoice number:', error);
-    }
+  const calculateItemTotal = (item: InvoiceItem) => {
+    const subtotal = item.quantity * item.unit_price;
+    const cgstAmount = (subtotal * item.cgst_rate) / 100;
+    const sgstAmount = (subtotal * item.sgst_rate) / 100;
+    const igstAmount = (subtotal * item.igst_rate) / 100;
+    return subtotal + cgstAmount + sgstAmount + igstAmount;
   };
 
-  const handleSalesOrderSelect = (salesOrderId) => {
-    loadSalesOrder(salesOrderId);
-    setSearchOpen(false);
-  };
-
-  const updateItemField = (index, field, value) => {
-    const updatedItems = [...salesOrderItems];
+  const updateItem = (index: number, field: keyof InvoiceItem, value: any) => {
+    const updatedItems = [...items];
     updatedItems[index] = { ...updatedItems[index], [field]: value };
     
-    // Recalculate totals
-    const item = updatedItems[index];
-    const quantity = parseFloat(item.quantity) || 0;
-    const unitPrice = parseFloat(item.unit_price) || 0;
-    const discountPercentage = parseFloat(item.discount_percentage) || 0;
+    // Recalculate amounts when quantity, unit price, or tax rates change
+    if (['quantity', 'unit_price', 'cgst_rate', 'sgst_rate', 'igst_rate'].includes(field)) {
+      const item = updatedItems[index];
+      const subtotal = item.quantity * item.unit_price;
+      item.cgst_amount = (subtotal * item.cgst_rate) / 100;
+      item.sgst_amount = (subtotal * item.sgst_rate) / 100;
+      item.igst_amount = (subtotal * item.igst_rate) / 100;
+      item.total_amount = subtotal + item.cgst_amount + item.sgst_amount + item.igst_amount;
+    }
     
-    const lineTotal = quantity * unitPrice;
-    const discountAmount = (lineTotal * discountPercentage) / 100;
-    const taxableAmount = lineTotal - discountAmount;
-    
-    const cgstAmount = (taxableAmount * (parseFloat(item.cgst_rate) || 0)) / 100;
-    const sgstAmount = (taxableAmount * (parseFloat(item.sgst_rate) || 0)) / 100;
-    const igstAmount = (taxableAmount * (parseFloat(item.igst_rate) || 0)) / 100;
-    
-    updatedItems[index] = {
-      ...item,
-      discount_amount: discountAmount,
-      cgst_amount: cgstAmount,
-      sgst_amount: sgstAmount,
-      igst_amount: igstAmount,
-      total_price: taxableAmount + cgstAmount + sgstAmount + igstAmount
-    };
-    
-    setSalesOrderItems(updatedItems);
+    setItems(updatedItems);
   };
 
-  const handleSubmit = (status) => {
-    if (!selectedSalesOrder) {
+  const addItem = () => {
+    setItems([...items, {
+      product_name: '',
+      description: '',
+      quantity: 1,
+      unit_price: 0,
+      cgst_rate: 9,
+      sgst_rate: 9,
+      igst_rate: 0,
+      cgst_amount: 0,
+      sgst_amount: 0,
+      igst_amount: 0,
+      total_amount: 0
+    }]);
+  };
+
+  const removeItem = (index: number) => {
+    setItems(items.filter((_, i) => i !== index));
+  };
+
+  const calculateTotals = () => {
+    const subtotal = items.reduce((sum, item) => sum + (item.quantity * item.unit_price), 0);
+    const totalCGST = items.reduce((sum, item) => sum + item.cgst_amount, 0);
+    const totalSGST = items.reduce((sum, item) => sum + item.sgst_amount, 0);
+    const totalIGST = items.reduce((sum, item) => sum + item.igst_amount, 0);
+    const total = subtotal + totalCGST + totalSGST + totalIGST;
+    
+    return { subtotal, totalCGST, totalSGST, totalIGST, total };
+  };
+
+  const handleSubmit = (action: 'draft' | 'invoice') => {
+    if (items.length === 0) {
       toast({
         title: "Error",
-        description: "Please select a sales order",
-        variant: "destructive"
+        description: "Please add at least one item to the invoice",
+        variant: "destructive",
       });
       return;
     }
 
-    const invoiceData = {
-      ...formData,
-      status,
-      sales_order_id: selectedSalesOrder.id,
-      customer_id: selectedSalesOrder.customer_id,
-      customer_name: customer?.name,
-      performa_invoice_date: formData.invoice_date,
-      performa_invoice_number: formData.invoice_number,
-      place_of_supply: formData.place_of_supply
+    const totals = calculateTotals();
+    
+    const submitData = {
+      ...invoiceData,
+      status: action === 'draft' ? 'draft' : 'invoiced',
+      // Don't send performa_invoice_number for drafts - let DB trigger handle it for invoices
+      performa_invoice_number: action === 'draft' ? null : undefined,
+      performa_invoice_date: invoiceData.invoice_date,
+      subtotal_amount: totals.subtotal,
+      total_cgst_amount: totals.totalCGST,
+      total_sgst_amount: totals.totalSGST,
+      total_igst_amount: totals.totalIGST,
+      total_amount: totals.total,
+      items: items
     };
 
-    onSubmit({
-      invoiceData,
-      lineItems: salesOrderItems
-    });
+    onSubmit(submitData, action);
   };
 
-  const calculateTotals = () => {
-    const subtotal = salesOrderItems.reduce((sum, item) => sum + (parseFloat(item.unit_price) * parseFloat(item.quantity)), 0);
-    const discount = salesOrderItems.reduce((sum, item) => sum + parseFloat(item.discount_amount || 0), 0);
-    const tax = salesOrderItems.reduce((sum, item) => sum + parseFloat(item.cgst_amount || 0) + parseFloat(item.sgst_amount || 0) + parseFloat(item.igst_amount || 0), 0);
-    const total = salesOrderItems.reduce((sum, item) => sum + parseFloat(item.total_price || 0), 0);
+  const filteredSalesOrders = salesOrders.filter(so =>
+    so.order_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    so.customer_name.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
-    return { subtotal, discount, tax, total };
-  };
+  if (showSalesOrderSearch && !invoice) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h3 className="text-lg font-semibold">Select Sales Order</h3>
+          <p className="text-sm text-gray-600">Choose a sales order to create an invoice</p>
+        </div>
 
-  const totals = calculateTotals();
+        <div className="relative">
+          <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+          <Input
+            placeholder="Search by order number or customer name..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-10"
+          />
+        </div>
+
+        <div className="space-y-2 max-h-96 overflow-y-auto">
+          {filteredSalesOrders.map((so) => (
+            <Card key={so.id} className="cursor-pointer hover:bg-gray-50" onClick={() => loadSalesOrder(so)}>
+              <CardContent className="p-4">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <h4 className="font-medium">{so.order_number}</h4>
+                    <p className="text-sm text-gray-600">{so.customer_name}</p>
+                    <p className="text-sm text-gray-500">Order Date: {new Date(so.order_date).toLocaleDateString()}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="font-medium">₹{so.total_amount.toFixed(2)}</p>
+                    <Badge variant={so.status === 'confirmed' ? 'default' : 'secondary'}>
+                      {so.status}
+                    </Badge>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+
+        <div className="flex justify-end space-x-2">
+          <Button variant="outline" onClick={onCancel}>
+            Cancel
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center gap-2 text-lg font-semibold">
-        <FileText className="h-5 w-5" />
-        {invoice ? 'Edit Invoice' : 'Create New Invoice'}
+      {/* Invoice Header */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <Label htmlFor="sales_order">Sales Order</Label>
+          <Input
+            id="sales_order"
+            value={selectedSalesOrder?.order_number || ''}
+            disabled
+            className="bg-gray-50"
+          />
+        </div>
+        <div>
+          <Label htmlFor="customer_name">Customer</Label>
+          <Input
+            id="customer_name"
+            value={invoiceData.customer_name}
+            disabled
+            className="bg-gray-50"
+          />
+        </div>
+        <div>
+          <Label htmlFor="invoice_date">Invoice Date</Label>
+          <Input
+            id="invoice_date"
+            type="date"
+            value={invoiceData.invoice_date}
+            onChange={(e) => setInvoiceData({ ...invoiceData, invoice_date: e.target.value })}
+          />
+        </div>
+        <div>
+          <Label htmlFor="place_of_supply">Place of Supply</Label>
+          <Input
+            id="place_of_supply"
+            value={invoiceData.place_of_supply}
+            onChange={(e) => setInvoiceData({ ...invoiceData, place_of_supply: e.target.value })}
+            placeholder="Enter place of supply"
+          />
+        </div>
       </div>
 
-      {/* Sales Order Selection */}
+      {/* Invoice Number Display (if exists) */}
+      {invoice?.performa_invoice_number && (
+        <div>
+          <Label htmlFor="invoice_number">Invoice Number</Label>
+          <Input
+            id="invoice_number"
+            value={invoice.performa_invoice_number}
+            disabled
+            className="bg-gray-50"
+          />
+        </div>
+      )}
+
+      {/* Items Section */}
       <Card>
         <CardHeader>
-          <CardTitle>Select Sales Order</CardTitle>
+          <div className="flex justify-between items-center">
+            <CardTitle>Invoice Items</CardTitle>
+            <Button onClick={addItem} size="sm">
+              <Plus className="h-4 w-4 mr-2" />
+              Add Item
+            </Button>
+          </div>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            <div className="space-y-2">
-              <Label>Sales Order</Label>
-              <Popover open={searchOpen} onOpenChange={setSearchOpen}>
-                <PopoverTrigger asChild>
+            {items.map((item, index) => (
+              <div key={index} className="border rounded-lg p-4 space-y-4">
+                <div className="flex justify-between items-start">
+                  <h4 className="font-medium">Item {index + 1}</h4>
                   <Button
-                    variant="outline"
-                    role="combobox"
-                    aria-expanded={searchOpen}
-                    className="w-full justify-between"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => removeItem(index)}
+                    className="text-red-600 hover:text-red-700"
                   >
-                    {selectedSalesOrder
-                      ? `${selectedSalesOrder.order_number} - ${selectedSalesOrder.customer?.name}`
-                      : "Select sales order..."}
-                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    <Trash2 className="h-4 w-4" />
                   </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-full p-0">
-                  <Command>
-                    <CommandInput placeholder="Search sales orders..." />
-                    <CommandEmpty>No sales orders found.</CommandEmpty>
-                    <CommandGroup>
-                      {salesOrders.map((so) => (
-                        <CommandItem
-                          key={so.id}
-                          value={`${so.order_number} ${so.customer?.name}`}
-                          onSelect={() => handleSalesOrderSelect(so.id)}
-                        >
-                          <Check
-                            className={cn(
-                              "mr-2 h-4 w-4",
-                              selectedSalesOrder?.id === so.id ? "opacity-100" : "opacity-0"
-                            )}
-                          />
-                          <div className="flex flex-col">
-                            <span className="font-medium">{so.order_number}</span>
-                            <span className="text-sm text-muted-foreground">
-                              {so.customer?.name} - ₹{so.total_amount?.toLocaleString()}
-                            </span>
-                          </div>
-                        </CommandItem>
-                      ))}
-                    </CommandGroup>
-                  </Command>
-                </PopoverContent>
-              </Popover>
-            </div>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label>Product Name</Label>
+                    <Input
+                      value={item.product_name}
+                      onChange={(e) => updateItem(index, 'product_name', e.target.value)}
+                      placeholder="Enter product name"
+                    />
+                  </div>
+                  <div>
+                    <Label>Description</Label>
+                    <Input
+                      value={item.description}
+                      onChange={(e) => updateItem(index, 'description', e.target.value)}
+                      placeholder="Enter description"
+                    />
+                  </div>
+                </div>
 
-            {selectedSalesOrder && (
-              <div className="p-4 bg-muted rounded-lg">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   <div>
-                    <span className="font-medium">Customer:</span> {customer?.name}
+                    <Label>Quantity</Label>
+                    <Input
+                      type="number"
+                      value={item.quantity}
+                      onChange={(e) => updateItem(index, 'quantity', parseFloat(e.target.value) || 0)}
+                      min="0"
+                      step="0.01"
+                    />
                   </div>
                   <div>
-                    <span className="font-medium">Order Date:</span> {format(new Date(selectedSalesOrder.order_date), 'dd MMM yyyy')}
+                    <Label>Unit Price</Label>
+                    <Input
+                      type="number"
+                      value={item.unit_price}
+                      onChange={(e) => updateItem(index, 'unit_price', parseFloat(e.target.value) || 0)}
+                      min="0"
+                      step="0.01"
+                    />
                   </div>
                   <div>
-                    <span className="font-medium">Total Amount:</span> ₹{selectedSalesOrder.total_amount?.toLocaleString()}
+                    <Label>CGST %</Label>
+                    <Input
+                      type="number"
+                      value={item.cgst_rate}
+                      onChange={(e) => updateItem(index, 'cgst_rate', parseFloat(e.target.value) || 0)}
+                      min="0"
+                      max="100"
+                      step="0.01"
+                    />
+                  </div>
+                  <div>
+                    <Label>SGST %</Label>
+                    <Input
+                      type="number"
+                      value={item.sgst_rate}
+                      onChange={(e) => updateItem(index, 'sgst_rate', parseFloat(e.target.value) || 0)}
+                      min="0"
+                      max="100"
+                      step="0.01"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label>IGST %</Label>
+                    <Input
+                      type="number"
+                      value={item.igst_rate}
+                      onChange={(e) => updateItem(index, 'igst_rate', parseFloat(e.target.value) || 0)}
+                      min="0"
+                      max="100"
+                      step="0.01"
+                    />
+                  </div>
+                  <div>
+                    <Label>Total Amount</Label>
+                    <Input
+                      value={`₹${item.total_amount.toFixed(2)}`}
+                      disabled
+                      className="bg-gray-50"
+                    />
                   </div>
                 </div>
               </div>
-            )}
+            ))}
           </div>
         </CardContent>
       </Card>
 
-      {/* Invoice Details */}
-      {selectedSalesOrder && (
+      {/* Totals */}
+      {items.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle>Invoice Details</CardTitle>
+            <CardTitle>Invoice Summary</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="invoice_date">Invoice Date</Label>
-                <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className={cn(
-                        "w-full justify-start text-left font-normal",
-                        !formData.invoice_date && "text-muted-foreground"
-                      )}
-                    >
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {formData.invoice_date ? format(formData.invoice_date, "dd MMM yyyy") : "Pick a date"}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0">
-                    <Calendar
-                      mode="single"
-                      selected={formData.invoice_date}
-                      onSelect={(date) => {
-                        setFormData(prev => ({ ...prev, invoice_date: date }));
-                        setCalendarOpen(false);
-                      }}
-                      initialFocus
-                    />
-                  </PopoverContent>
-                </Popover>
+            <div className="space-y-2">
+              <div className="flex justify-between">
+                <span>Subtotal:</span>
+                <span>₹{calculateTotals().subtotal.toFixed(2)}</span>
               </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="invoice_number">Invoice Number</Label>
-                <Input
-                  id="invoice_number"
-                  value={formData.invoice_number}
-                  onChange={(e) => setFormData(prev => ({ ...prev, invoice_number: e.target.value }))}
-                  placeholder="INV-COMP-001"
-                />
+              <div className="flex justify-between">
+                <span>Total CGST:</span>
+                <span>₹{calculateTotals().totalCGST.toFixed(2)}</span>
               </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="place_of_supply">Place of Supply</Label>
-                <Input
-                  id="place_of_supply"
-                  value={formData.place_of_supply}
-                  onChange={(e) => setFormData(prev => ({ ...prev, place_of_supply: e.target.value }))}
-                  placeholder="Enter place of supply"
-                />
+              <div className="flex justify-between">
+                <span>Total SGST:</span>
+                <span>₹{calculateTotals().totalSGST.toFixed(2)}</span>
               </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Customer Details */}
-      {customer && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Customer Information</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-              <div>
-                <div className="font-medium">{customer.name}</div>
-                <div className="text-muted-foreground">{customer.customer_ref}</div>
-                <div>{customer.email}</div>
-                <div>{customer.phone}</div>
+              <div className="flex justify-between">
+                <span>Total IGST:</span>
+                <span>₹{calculateTotals().totalIGST.toFixed(2)}</span>
               </div>
-              <div>
-                <div>{customer.address_line1}</div>
-                {customer.address_line2 && <div>{customer.address_line2}</div>}
-                <div>{customer.city}, {customer.state} {customer.pin_code}</div>
-                <div>{customer.country}</div>
-                {customer.gstin && <div className="font-medium">GSTIN: {customer.gstin}</div>}
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Line Items */}
-      {salesOrderItems.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Invoice Items</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b">
-                      <th className="text-left p-2">Item Description</th>
-                      <th className="text-left p-2">HSN/SAC</th>
-                      <th className="text-left p-2">Qty</th>
-                      <th className="text-left p-2">UOM</th>
-                      <th className="text-left p-2">Rate</th>
-                      <th className="text-left p-2">Discount %</th>
-                      <th className="text-left p-2">CGST %</th>
-                      <th className="text-left p-2">SGST %</th>
-                      <th className="text-left p-2">Total</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {salesOrderItems.map((item, index) => (
-                      <tr key={index} className="border-b">
-                        <td className="p-2">
-                          <Input
-                            value={item.item_description}
-                            onChange={(e) => updateItemField(index, 'item_description', e.target.value)}
-                            className="min-w-[200px]"
-                          />
-                        </td>
-                        <td className="p-2">
-                          <Input
-                            value={item.hsn_sac_code || ''}
-                            onChange={(e) => updateItemField(index, 'hsn_sac_code', e.target.value)}
-                            className="w-20"
-                          />
-                        </td>
-                        <td className="p-2">
-                          <Input
-                            type="number"
-                            value={item.quantity}
-                            onChange={(e) => updateItemField(index, 'quantity', e.target.value)}
-                            className="w-20"
-                          />
-                        </td>
-                        <td className="p-2">
-                          <Input
-                            value={item.unit_of_measure}
-                            onChange={(e) => updateItemField(index, 'unit_of_measure', e.target.value)}
-                            className="w-20"
-                          />
-                        </td>
-                        <td className="p-2">
-                          <Input
-                            type="number"
-                            step="0.01"
-                            value={item.unit_price}
-                            onChange={(e) => updateItemField(index, 'unit_price', e.target.value)}
-                            className="w-24"
-                          />
-                        </td>
-                        <td className="p-2">
-                          <Input
-                            type="number"
-                            step="0.01"
-                            value={item.discount_percentage || 0}
-                            onChange={(e) => updateItemField(index, 'discount_percentage', e.target.value)}
-                            className="w-20"
-                          />
-                        </td>
-                        <td className="p-2">
-                          <Input
-                            type="number"
-                            step="0.01"
-                            value={item.cgst_rate || 0}
-                            onChange={(e) => updateItemField(index, 'cgst_rate', e.target.value)}
-                            className="w-20"
-                          />
-                        </td>
-                        <td className="p-2">
-                          <Input
-                            type="number"
-                            step="0.01"
-                            value={item.sgst_rate || 0}
-                            onChange={(e) => updateItemField(index, 'sgst_rate', e.target.value)}
-                            className="w-20"
-                          />
-                        </td>
-                        <td className="p-2 font-medium">
-                          ₹{(item.total_price || 0).toLocaleString()}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-
-              <Separator />
-
-              {/* Totals */}
-              <div className="flex justify-end">
-                <div className="w-80 space-y-2 text-sm">
-                  <div className="flex justify-between">
-                    <span>Subtotal:</span>
-                    <span>₹{totals.subtotal.toLocaleString()}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Discount:</span>
-                    <span>₹{totals.discount.toLocaleString()}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Tax:</span>
-                    <span>₹{totals.tax.toLocaleString()}</span>
-                  </div>
-                  <Separator />
-                  <div className="flex justify-between font-semibold text-base">
-                    <span>Total:</span>
-                    <span>₹{totals.total.toLocaleString()}</span>
-                  </div>
+              <div className="border-t pt-2">
+                <div className="flex justify-between font-semibold text-lg">
+                  <span>Total Amount:</span>
+                  <span>₹{calculateTotals().total.toFixed(2)}</span>
                 </div>
               </div>
             </div>
@@ -542,51 +593,42 @@ export const InvoiceForm = ({ onSubmit, onCancel, invoice }: InvoiceFormProps) =
         </Card>
       )}
 
-      {/* Notes */}
-      {selectedSalesOrder && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Additional Notes</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Textarea
-              value={formData.notes}
-              onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
-              placeholder="Enter any additional notes or terms..."
-              rows={3}
-            />
-          </CardContent>
-        </Card>
-      )}
+      {/* Notes and Terms */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <Label htmlFor="notes">Notes</Label>
+          <Textarea
+            id="notes"
+            value={invoiceData.notes}
+            onChange={(e) => setInvoiceData({ ...invoiceData, notes: e.target.value })}
+            placeholder="Additional notes..."
+            rows={3}
+          />
+        </div>
+        <div>
+          <Label htmlFor="terms_conditions">Terms & Conditions</Label>
+          <Textarea
+            id="terms_conditions"
+            value={invoiceData.terms_conditions}
+            onChange={(e) => setInvoiceData({ ...invoiceData, terms_conditions: e.target.value })}
+            placeholder="Terms and conditions..."
+            rows={3}
+          />
+        </div>
+      </div>
 
       {/* Action Buttons */}
-      <div className="flex justify-end gap-3 pt-4 border-t">
-        <Button
-          variant="outline"
-          onClick={onCancel}
-          className="flex items-center gap-2"
-        >
-          <X className="h-4 w-4" />
+      <div className="flex justify-end space-x-2">
+        <Button variant="outline" onClick={onCancel}>
           Cancel
         </Button>
-        <Button
-          variant="outline"
-          onClick={() => handleSubmit('draft')}
-          disabled={!selectedSalesOrder || loading}
-          className="flex items-center gap-2"
-        >
-          <Save className="h-4 w-4" />
+        <Button variant="outline" onClick={() => handleSubmit('draft')}>
           Save as Draft
         </Button>
-        <Button
-          onClick={() => handleSubmit('confirmed')}
-          disabled={!selectedSalesOrder || loading}
-          className="flex items-center gap-2"
-        >
-          <FileText className="h-4 w-4" />
+        <Button onClick={() => handleSubmit('invoice')}>
           Generate Invoice
         </Button>
       </div>
     </div>
   );
-};
+}

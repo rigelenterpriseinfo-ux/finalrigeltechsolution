@@ -739,7 +739,8 @@ export type Database = {
           id: string
           notes: string | null
           performa_invoice_date: string
-          performa_invoice_number: string
+          performa_invoice_number: string | null
+          place_of_supply: string | null
           sales_order_id: string
           status: string
           subtotal_amount: number
@@ -757,7 +758,8 @@ export type Database = {
           id?: string
           notes?: string | null
           performa_invoice_date?: string
-          performa_invoice_number: string
+          performa_invoice_number?: string | null
+          place_of_supply?: string | null
           sales_order_id: string
           status?: string
           subtotal_amount?: number
@@ -775,7 +777,8 @@ export type Database = {
           id?: string
           notes?: string | null
           performa_invoice_date?: string
-          performa_invoice_number?: string
+          performa_invoice_number?: string | null
+          place_of_supply?: string | null
           sales_order_id?: string
           status?: string
           subtotal_amount?: number
@@ -1609,6 +1612,10 @@ export type Database = {
       }
       generate_business_ref_no: {
         Args: { company_name: string }
+        Returns: string
+      }
+      generate_company_invoice_number: {
+        Args: { comp_id: string }
         Returns: string
       }
       generate_customer_ref: {
