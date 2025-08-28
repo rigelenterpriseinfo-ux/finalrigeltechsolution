@@ -23,39 +23,39 @@ interface Message {
 const quickActions = [
   {
     icon: Package,
-    title: "Low Stock Alert",
-    description: "Check products that need reordering",
-    prompt: "Show me products with low stock levels that need immediate reordering"
+    title: "Inventory Management",
+    description: "Check stock levels and reorder alerts",
+    prompt: "Show me all products with low stock that need immediate reordering, including SKU and current quantities"
   },
   {
     icon: TrendingUp,
-    title: "Recent Sales Orders",
-    description: "View latest sales activity",
-    prompt: "Show me the sales orders from the last 15 days"
+    title: "Sales Performance",
+    description: "Analyze recent sales trends and metrics",
+    prompt: "Analyze my sales performance for the last 30 days with trends and key metrics"
   },
   {
     icon: FileText,
-    title: "Purchase Invoices",
-    description: "Review recent purchase transactions",
-    prompt: "Display purchase invoices from the last 30 days"
+    title: "Purchase Analytics",
+    description: "Review procurement and supplier data",
+    prompt: "Show me purchase invoices from the last month with supplier analysis and spending patterns"
   },
   {
     icon: DollarSign,
-    title: "Customer Analysis",
-    description: "Review customer data and insights",
-    prompt: "Show me our top customers and their contact information"
+    title: "Financial Dashboard",
+    description: "View revenue, costs, and profitability",
+    prompt: "Give me a comprehensive financial overview including sales revenue, purchase costs, and profit margins"
   },
   {
     icon: BarChart3,
-    title: "Business Overview",
-    description: "Get a general business summary",
-    prompt: "Give me a general overview of my business performance"
+    title: "Business Intelligence",
+    description: "Advanced analytics and KPI tracking",
+    prompt: "Provide detailed business intelligence report with KPIs, trends, and performance metrics"
   },
   {
     icon: Lightbulb,
-    title: "AI Insights",
-    description: "Get AI-powered business recommendations",
-    prompt: "Based on my business data, what insights and recommendations do you have?"
+    title: "Strategic Insights",
+    description: "AI-powered recommendations and opportunities",
+    prompt: "Based on my complete business data, provide strategic insights, opportunities, and actionable recommendations for growth"
   }
 ];
 
@@ -64,7 +64,7 @@ export function AIAssistant() {
   const [messages, setMessages] = useState<Message[]>([
     {
       id: '1',
-      content: "Hello! I'm your AI Business Assistant powered by Google Gemini. I can analyze your business data in real-time and provide insights about your sales orders, purchase invoices, inventory, customers, suppliers, and more. Try one of the quick actions below or ask me anything about your business!",
+      content: "🚀 Welcome to your Enhanced AI Business Assistant!\n\nI'm powered by Google Gemini and can provide comprehensive business intelligence including:\n\n📊 **Advanced Analytics**: KPIs, trends, and performance metrics\n📦 **Smart Inventory**: Stock optimization and reorder alerts\n💰 **Financial Intelligence**: Revenue analysis and cost management\n👥 **Customer Insights**: Behavior patterns and relationship analytics\n🔍 **Predictive Analytics**: Business forecasting and recommendations\n\nI understand natural language queries like:\n• \"Show top-performing products this quarter\"\n• \"Which customers have outstanding payments over 30 days?\"\n• \"Analyze supplier performance and delivery metrics\"\n• \"What are my cash flow trends?\"\n\nTry the enhanced quick actions below or ask me anything about your business!",
       isUser: false,
       timestamp: new Date(),
     }
@@ -269,7 +269,7 @@ export function AIAssistant() {
                 value={inputValue}
                 onChange={(e) => setInputValue(e.target.value)}
                 onKeyPress={handleKeyPress}
-                placeholder="Ask me anything about your business... (e.g., 'Show sales from last week' or 'Which products are low in stock?')"
+                placeholder="Ask anything: 'Monthly sales trends', 'Low stock alerts', 'Customer payment analysis', 'Supplier performance metrics'..."
                 disabled={isLoading}
                 className="flex-1"
               />
