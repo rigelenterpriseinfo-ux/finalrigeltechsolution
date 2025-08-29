@@ -1740,6 +1740,44 @@ export type Database = {
           },
         ]
       }
+      warehouse_bins: {
+        Row: {
+          bin_name: string
+          company_id: string
+          created_at: string
+          id: string
+          is_active: boolean
+          updated_at: string
+          wh_bin_code: string
+        }
+        Insert: {
+          bin_name: string
+          company_id: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          updated_at?: string
+          wh_bin_code: string
+        }
+        Update: {
+          bin_name?: string
+          company_id?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          updated_at?: string
+          wh_bin_code?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "warehouse_bins_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never

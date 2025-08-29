@@ -8,10 +8,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Search, Package, AlertTriangle, Edit, Trash2, Download, ArrowUpDown, ArrowUp, ArrowDown, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Plus, Search, Package, AlertTriangle, Edit, Trash2, Download, ArrowUpDown, ArrowUp, ArrowDown, ChevronLeft, ChevronRight, MapPin } from 'lucide-react';
+import { WarehouseBinForm } from '@/components/forms/WarehouseBinForm';
+import { WarehouseBinTable } from '@/components/tables/WarehouseBinTable';
 import * as XLSX from 'xlsx';
 
 interface Product {
@@ -45,6 +48,7 @@ export function InventoryModule() {
   const [searchTerm, setSearchTerm] = useState('');
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
+  const [showBinDialog, setShowBinDialog] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [sortConfig, setSortConfig] = useState<{
     key: string;
@@ -455,9 +459,13 @@ export function InventoryModule() {
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold">Inventory Management</h1>
-          <p className="text-muted-foreground">Manage your products and stock levels</p>
+          <p className="text-muted-foreground">Manage your products, stock levels, and warehouse locations</p>
         </div>
         <div className="flex gap-2">
+          <Button onClick={() => setShowBinDialog(true)} variant="outline">
+            <MapPin className="h-4 w-4 mr-2" />
+            Create Warehouse BIN
+          </Button>
           <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
             <DialogTrigger asChild>
               <Button>
@@ -917,385 +925,313 @@ export function InventoryModule() {
         </DialogContent>
       </Dialog>
 
-      {/* Low Stock Alert */}
-      {lowStockProducts.length > 0 && (
-        <Card className="border-yellow-200 bg-yellow-50">
-          <CardHeader>
-            <CardTitle className="text-yellow-800 flex items-center gap-2">
-              <AlertTriangle className="h-5 w-5" />
-              Low Stock Alert
-            </CardTitle>
-            <CardDescription className="text-yellow-700">
-              {lowStockProducts.length} product(s) are running low on stock
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="flex flex-wrap gap-2">
-              {lowStockProducts.map((product) => (
-                <Badge key={product.id} variant="outline" className="text-yellow-800 border-yellow-300">
-                  {product.name} ({product.stock_quantity} left)
-                </Badge>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
+      {/* Main Content - Tabbed Interface */}
+      <Tabs defaultValue="products" className="space-y-6">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="products" className="flex items-center gap-2">
+            <Package className="h-4 w-4" />
+            Products Management
+          </TabsTrigger>
+          <TabsTrigger value="warehouse" className="flex items-center gap-2">
+            <MapPin className="h-4 w-4" />
+            Warehouse BIN Locations
+          </TabsTrigger>
+        </TabsList>
 
-      {/* Stats Cards */}
-      <div className="grid gap-6 md:grid-cols-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Products</CardTitle>
-            <Package className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{products.length}</div>
-            <p className="text-xs text-muted-foreground">
-              {products.filter(p => p.is_active).length} active products
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Stock on Hand</CardTitle>
-            <Package className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {products.reduce((sum, p) => sum + p.stock_quantity, 0)}
-            </div>
-            <p className="text-xs text-muted-foreground">Total units</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Stock Value</CardTitle>
-            <Package className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              ₹{products.reduce((sum, p) => sum + (p.stock_quantity * p.cost_price), 0).toFixed(2)}
-            </div>
-            <p className="text-xs text-muted-foreground">At cost price</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Low Stock Items</CardTitle>
-            <AlertTriangle className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{lowStockProducts.length}</div>
-            <p className="text-xs text-muted-foreground">Require attention</p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Search and Export */}
-      <div className="flex items-center gap-4">
-        <Button
-          onClick={exportToExcel}
-          variant="outline"
-          className="flex items-center gap-2"
-          disabled={filteredProducts.length === 0}
-        >
-          <Download className="h-4 w-4" />
-          Export to Excel
-        </Button>
-        
-        <div className="relative flex-1 max-w-sm">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            placeholder="Search by SKU, Name, or HSN Code..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10"
-          />
-        </div>
-      </div>
-
-      {/* Products Table */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Products</CardTitle>
-          <CardDescription>Manage your product inventory</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-auto p-0 font-semibold hover:bg-transparent"
-                    onClick={() => handleSort('sku')}
-                  >
-                    SKU
-                    {sortConfig?.key === 'sku' ? (
-                      sortConfig.direction === 'asc' ? (
-                        <ArrowUp className="ml-1 h-3 w-3" />
-                      ) : (
-                        <ArrowDown className="ml-1 h-3 w-3" />
-                      )
-                    ) : (
-                      <ArrowUpDown className="ml-1 h-3 w-3 opacity-50" />
-                    )}
-                  </Button>
-                </TableHead>
-                <TableHead>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-auto p-0 font-semibold hover:bg-transparent"
-                    onClick={() => handleSort('name')}
-                  >
-                    Name
-                    {sortConfig?.key === 'name' ? (
-                      sortConfig.direction === 'asc' ? (
-                        <ArrowUp className="ml-1 h-3 w-3" />
-                      ) : (
-                        <ArrowDown className="ml-1 h-3 w-3" />
-                      )
-                    ) : (
-                      <ArrowUpDown className="ml-1 h-3 w-3 opacity-50" />
-                    )}
-                  </Button>
-                </TableHead>
-                <TableHead>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-auto p-0 font-semibold hover:bg-transparent"
-                    onClick={() => handleSort('unit')}
-                  >
-                    Unit
-                    {sortConfig?.key === 'unit' ? (
-                      sortConfig.direction === 'asc' ? (
-                        <ArrowUp className="ml-1 h-3 w-3" />
-                      ) : (
-                        <ArrowDown className="ml-1 h-3 w-3" />
-                      )
-                    ) : (
-                      <ArrowUpDown className="ml-1 h-3 w-3 opacity-50" />
-                    )}
-                  </Button>
-                </TableHead>
-                <TableHead>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-auto p-0 font-semibold hover:bg-transparent"
-                    onClick={() => handleSort('hsn_code')}
-                  >
-                    HSN Code
-                    {sortConfig?.key === 'hsn_code' ? (
-                      sortConfig.direction === 'asc' ? (
-                        <ArrowUp className="ml-1 h-3 w-3" />
-                      ) : (
-                        <ArrowDown className="ml-1 h-3 w-3" />
-                      )
-                    ) : (
-                      <ArrowUpDown className="ml-1 h-3 w-3 opacity-50" />
-                    )}
-                  </Button>
-                </TableHead>
-                <TableHead>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-auto p-0 font-semibold hover:bg-transparent"
-                    onClick={() => handleSort('stock_quantity')}
-                  >
-                    Stock
-                    {sortConfig?.key === 'stock_quantity' ? (
-                      sortConfig.direction === 'asc' ? (
-                        <ArrowUp className="ml-1 h-3 w-3" />
-                      ) : (
-                        <ArrowDown className="ml-1 h-3 w-3" />
-                      )
-                    ) : (
-                      <ArrowUpDown className="ml-1 h-3 w-3 opacity-50" />
-                    )}
-                  </Button>
-                </TableHead>
-                <TableHead>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-auto p-0 font-semibold hover:bg-transparent"
-                    onClick={() => handleSort('cost_price')}
-                  >
-                    Cost Price
-                    {sortConfig?.key === 'cost_price' ? (
-                      sortConfig.direction === 'asc' ? (
-                        <ArrowUp className="ml-1 h-3 w-3" />
-                      ) : (
-                        <ArrowDown className="ml-1 h-3 w-3" />
-                      )
-                    ) : (
-                      <ArrowUpDown className="ml-1 h-3 w-3 opacity-50" />
-                    )}
-                  </Button>
-                </TableHead>
-                <TableHead>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-auto p-0 font-semibold hover:bg-transparent"
-                    onClick={() => handleSort('unit_price')}
-                  >
-                    Selling Price
-                    {sortConfig?.key === 'unit_price' ? (
-                      sortConfig.direction === 'asc' ? (
-                        <ArrowUp className="ml-1 h-3 w-3" />
-                      ) : (
-                        <ArrowDown className="ml-1 h-3 w-3" />
-                      )
-                    ) : (
-                      <ArrowUpDown className="ml-1 h-3 w-3 opacity-50" />
-                    )}
-                  </Button>
-                </TableHead>
-                <TableHead>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-auto p-0 font-semibold hover:bg-transparent"
-                    onClick={() => handleSort('gst_percentage')}
-                  >
-                    GST %
-                    {sortConfig?.key === 'gst_percentage' ? (
-                      sortConfig.direction === 'asc' ? (
-                        <ArrowUp className="ml-1 h-3 w-3" />
-                      ) : (
-                        <ArrowDown className="ml-1 h-3 w-3" />
-                      )
-                    ) : (
-                      <ArrowUpDown className="ml-1 h-3 w-3 opacity-50" />
-                    )}
-                  </Button>
-                </TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {currentProducts.map((product) => (
-                <TableRow key={product.id}>
-                  <TableCell className="font-medium">{product.sku}</TableCell>
-                  <TableCell>{product.name}</TableCell>
-                  <TableCell>{product.unit || '-'}</TableCell>
-                  <TableCell>{product.hsn_code || '-'}</TableCell>
-                  <TableCell>
-                    <span className={product.stock_quantity <= product.min_stock_level ? 'text-yellow-600' : ''}>
-                      {product.stock_quantity}
-                    </span>
-                  </TableCell>
-                  <TableCell>₹{product.cost_price.toFixed(2)}</TableCell>
-                  <TableCell>₹{product.unit_price.toFixed(2)}</TableCell>
-                  <TableCell>{product.gst_percentage}%</TableCell>
-                  <TableCell>
-                    <Badge variant={product.is_active ? "default" : "secondary"}>
-                      {product.is_active ? 'Active' : 'Inactive'}
+        {/* Products Tab */}
+        <TabsContent value="products" className="space-y-6">
+          {/* Low Stock Alert */}
+          {lowStockProducts.length > 0 && (
+            <Card className="border-yellow-200 bg-yellow-50">
+              <CardHeader>
+                <CardTitle className="text-yellow-800 flex items-center gap-2">
+                  <AlertTriangle className="h-5 w-5" />
+                  Low Stock Alert
+                </CardTitle>
+                <CardDescription className="text-yellow-700">
+                  {lowStockProducts.length} product(s) are running low on stock
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="flex flex-wrap gap-2">
+                  {lowStockProducts.map((product) => (
+                    <Badge key={product.id} variant="outline" className="text-yellow-800 border-yellow-300">
+                      {product.name} ({product.stock_quantity} left)
                     </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleEditProduct(product)}
-                      >
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="destructive"
-                        size="sm"
-                        onClick={() => handleDeleteProduct(product.id)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-              {currentProducts.length === 0 && (
-                <TableRow>
-                  <TableCell colSpan={10} className="text-center text-muted-foreground">
-                    {filteredProducts.length === 0 ? 'No products found' : 'No products on this page'}
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
-          
-          {/* Professional Pagination Controls */}
-          {filteredProducts.length > 0 && totalPages > 1 && (
-            <div className="flex items-center justify-between pt-6 border-t border-border">
-              <div className="flex items-center text-sm text-muted-foreground">
-                <span>
-                  Showing {startIndex + 1} to {Math.min(endIndex, filteredProducts.length)} of {filteredProducts.length} products
-                </span>
-              </div>
-              
-              <div className="flex items-center space-x-2">
-                {/* Previous Button */}
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={goToPrevious}
-                  disabled={currentPage === 1}
-                  className="flex items-center gap-1 px-3 py-2 text-sm font-medium transition-colors hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                  Previous
-                </Button>
-                
-                {/* Page Numbers */}
-                <div className="flex items-center space-x-1">
-                  {getPageNumbers().map((page, index) => (
-                    page === '...' ? (
-                      <span key={`ellipsis-${index}`} className="px-3 py-2 text-sm text-muted-foreground">
-                        ...
-                      </span>
-                    ) : (
-                      <Button
-                        key={page}
-                        variant={currentPage === page ? "default" : "outline"}
-                        size="sm"
-                        onClick={() => goToPage(page as number)}
-                        className={`px-3 py-2 text-sm font-medium transition-colors ${
-                          currentPage === page
-                            ? 'bg-primary text-primary-foreground shadow-sm'
-                            : 'hover:bg-muted'
-                        }`}
-                      >
-                        {page}
-                      </Button>
-                    )
                   ))}
                 </div>
-                
-                {/* Next Button */}
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={goToNext}
-                  disabled={currentPage === totalPages}
-                  className="flex items-center gap-1 px-3 py-2 text-sm font-medium transition-colors hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Next
-                  <ChevronRight className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
+              </CardContent>
+            </Card>
           )}
-        </CardContent>
-      </Card>
+
+          {/* Stats Cards */}
+          <div className="grid gap-6 md:grid-cols-4">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Total Products</CardTitle>
+                <Package className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{products.length}</div>
+                <p className="text-xs text-muted-foreground">
+                  {products.filter(p => p.is_active).length} active products
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Stock on Hand</CardTitle>
+                <Package className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">
+                  {products.reduce((sum, p) => sum + p.stock_quantity, 0)}
+                </div>
+                <p className="text-xs text-muted-foreground">Total units</p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Total Stock Value</CardTitle>
+                <Package className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">
+                  ₹{products.reduce((sum, p) => sum + (p.stock_quantity * p.cost_price), 0).toFixed(2)}
+                </div>
+                <p className="text-xs text-muted-foreground">At cost price</p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Low Stock Items</CardTitle>
+                <AlertTriangle className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{lowStockProducts.length}</div>
+                <p className="text-xs text-muted-foreground">Require attention</p>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Search and Export */}
+          <div className="flex items-center gap-4">
+            <Button
+              onClick={exportToExcel}
+              variant="outline"
+              className="flex items-center gap-2"
+              disabled={filteredProducts.length === 0}
+            >
+              <Download className="h-4 w-4" />
+              Export to Excel
+            </Button>
+            
+            <div className="relative flex-1 max-w-sm">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                placeholder="Search by SKU, Name, or HSN Code..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+          </div>
+
+          {/* Products Table */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Products</CardTitle>
+              <CardDescription>Manage your product inventory</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-auto p-0 font-semibold hover:bg-transparent"
+                        onClick={() => handleSort('sku')}
+                      >
+                        SKU
+                        {sortConfig?.key === 'sku' ? (
+                          sortConfig.direction === 'asc' ? (
+                            <ArrowUp className="ml-1 h-3 w-3" />
+                          ) : (
+                            <ArrowDown className="ml-1 h-3 w-3" />
+                          )
+                        ) : (
+                          <ArrowUpDown className="ml-1 h-3 w-3 opacity-50" />
+                        )}
+                      </Button>
+                    </TableHead>
+                    <TableHead>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-auto p-0 font-semibold hover:bg-transparent"
+                        onClick={() => handleSort('name')}
+                      >
+                        Name
+                        {sortConfig?.key === 'name' ? (
+                          sortConfig.direction === 'asc' ? (
+                            <ArrowUp className="ml-1 h-3 w-3" />
+                          ) : (
+                            <ArrowDown className="ml-1 h-3 w-3" />
+                          )
+                        ) : (
+                          <ArrowUpDown className="ml-1 h-3 w-3 opacity-50" />
+                        )}
+                      </Button>
+                    </TableHead>
+                    <TableHead>Unit</TableHead>
+                    <TableHead>HSN Code</TableHead>
+                    <TableHead>Stock</TableHead>
+                    <TableHead>Cost Price</TableHead>
+                    <TableHead>Selling Price</TableHead>
+                    <TableHead>GST %</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {currentProducts.map((product) => (
+                    <TableRow key={product.id}>
+                      <TableCell className="font-medium">{product.sku}</TableCell>
+                      <TableCell>{product.name}</TableCell>
+                      <TableCell>{product.unit || '-'}</TableCell>
+                      <TableCell>{product.hsn_code || '-'}</TableCell>
+                      <TableCell>
+                        <span className={product.stock_quantity <= product.min_stock_level ? 'text-yellow-600' : ''}>
+                          {product.stock_quantity}
+                        </span>
+                      </TableCell>
+                      <TableCell>₹{product.cost_price.toFixed(2)}</TableCell>
+                      <TableCell>₹{product.unit_price.toFixed(2)}</TableCell>
+                      <TableCell>{product.gst_percentage}%</TableCell>
+                      <TableCell>
+                        <Badge variant={product.is_active ? "default" : "secondary"}>
+                          {product.is_active ? 'Active' : 'Inactive'}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleEditProduct(product)}
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            onClick={() => handleDeleteProduct(product.id)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                  {currentProducts.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={10} className="text-center text-muted-foreground">
+                        {filteredProducts.length === 0 ? 'No products found' : 'No products on this page'}
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+              
+              {/* Pagination */}
+              {filteredProducts.length > 0 && totalPages > 1 && (
+                <div className="flex items-center justify-between pt-6 border-t border-border">
+                  <div className="flex items-center text-sm text-muted-foreground">
+                    <span>
+                      Showing {startIndex + 1} to {Math.min(endIndex, filteredProducts.length)} of {filteredProducts.length} products
+                    </span>
+                  </div>
+                  
+                  <div className="flex items-center space-x-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={goToPrevious}
+                      disabled={currentPage === 1}
+                      className="flex items-center gap-1"
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                      Previous
+                    </Button>
+                    
+                    <div className="flex items-center space-x-1">
+                      {getPageNumbers().map((page, index) => (
+                        page === '...' ? (
+                          <span key={`ellipsis-${index}`} className="px-3 py-2 text-sm text-muted-foreground">
+                            ...
+                          </span>
+                        ) : (
+                          <Button
+                            key={page}
+                            variant={currentPage === page ? "default" : "outline"}
+                            size="sm"
+                            onClick={() => goToPage(page as number)}
+                          >
+                            {page}
+                          </Button>
+                        )
+                      ))}
+                    </div>
+                    
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={goToNext}
+                      disabled={currentPage === totalPages}
+                      className="flex items-center gap-1"
+                    >
+                      Next
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Warehouse BIN Locations Tab */}
+        <TabsContent value="warehouse" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <MapPin className="h-5 w-5" />
+                Warehouse BIN Locations
+              </CardTitle>
+              <CardDescription>
+                Organize your inventory with warehouse bin locations for efficient storage management
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <WarehouseBinTable />
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
+
+      {/* Warehouse BIN Form Dialog */}
+      <WarehouseBinForm
+        open={showBinDialog}
+        onOpenChange={setShowBinDialog}
+        onSuccess={() => {
+          // No need to refresh here as WarehouseBinTable manages its own state
+        }}
+      />
     </div>
   );
 }
