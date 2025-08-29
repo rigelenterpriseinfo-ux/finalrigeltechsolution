@@ -21,9 +21,14 @@ export default function Auth() {
   const [searchParams] = useSearchParams();
   const defaultTab = searchParams.get('tab') || 'signin';
 
-  // Redirect if already authenticated
-  if (user && !loading) {
-    return <Navigate to="/" replace />;
+  // Redirect if already authenticated and email confirmed
+  if (user && user.email_confirmed_at && !loading) {
+    return <Navigate to="/dashboard" replace />;
+  }
+
+  // Redirect if user exists but email not confirmed
+  if (user && !user.email_confirmed_at && !loading) {
+    return <Navigate to="/email-verification" replace />;
   }
 
   const handleSignIn = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -83,26 +88,21 @@ export default function Auth() {
       return;
     }
     
-    try {
-      const result = await signUp(email, password, companyName, firstName, lastName, phone, city, state, country);
-      
-      if (!result.error && result.needsEmailVerification) {
-        // Store email for verification page and navigate
+    const result = await signUp(email, password, companyName, firstName, lastName, phone, city, state, country);
+    
+    if (!result.error) {
+      if (result.needsEmailVerification) {
+        // Store pending email for verification page
         sessionStorage.setItem('pendingVerificationEmail', email);
+        // Navigate to email verification page
         window.location.href = '/email-verification';
-        return;
-      }
-      
-      if (!result.error && !result.needsEmailVerification) {
-        // User created and signed in immediately
+      } else {
+        // User is automatically signed in, redirect to dashboard
         window.location.href = '/dashboard';
-        return;
       }
-    } catch (error) {
-      console.error('Signup error:', error);
-    } finally {
-      setIsLoading(false);
     }
+    
+    setIsLoading(false);
   };
 
 

@@ -85,6 +85,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
         if (session?.user) {
           console.log('User found, fetching profile...');
+          // Clear any pending verification email since user is now authenticated
+          sessionStorage.removeItem('pendingVerificationEmail');
+          
           // Fetch user profile and company data
           setTimeout(async () => {
             try {
@@ -98,60 +101,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
               if (profileError && (profileError as any).code !== 'PGRST116') {
                 console.error('Error fetching profile:', profileError);
-              }
-
-              // If no profile exists, create one on the fly using auth metadata
-              if (!effectiveProfile) {
-                try {
-                  const userEmail = session.user.email || null;
-                  // Try to find existing company by email, else create one
-                  let companyId: string | null = null;
-                  if (userEmail) {
-                    const { data: existingCompany } = await supabase
-                      .from('companies')
-                      .select('*')
-                      .eq('email', userEmail)
-                      .maybeSingle();
-                    if (existingCompany) companyId = (existingCompany as any).id;
-                  }
-
-                  if (!companyId) {
-                    const { data: createdCompany } = await supabase
-                      .from('companies')
-                      .insert([
-                        {
-                          name: (session.user.user_metadata as any)?.company_name || 'My Company',
-                          email: userEmail,
-                          status: 'active',
-                        },
-                      ])
-                      .select('*')
-                      .single();
-                    companyId = (createdCompany as any)?.id || null;
-                  }
-
-                  const { data: insertedProfile } = await supabase
-                    .from('profiles')
-                    .insert([
-                      {
-                        user_id: session.user.id,
-                        company_id: companyId,
-                        first_name: (session.user.user_metadata as any)?.first_name || null,
-                        last_name: (session.user.user_metadata as any)?.last_name || null,
-                        phone: (session.user.user_metadata as any)?.phone || null,
-                        city: (session.user.user_metadata as any)?.city || null,
-                        state: (session.user.user_metadata as any)?.state || null,
-                        country: (session.user.user_metadata as any)?.country || null,
-                        role: 'owner',
-                      },
-                    ])
-                    .select('*')
-                    .single();
-
-                  effectiveProfile = insertedProfile as any;
-                } catch (createErr) {
-                  console.error('Error creating missing profile/company:', createErr);
-                }
               }
 
               console.log('Profile resolved:', effectiveProfile);
