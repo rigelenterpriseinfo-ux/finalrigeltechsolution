@@ -8,7 +8,7 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 
 export default function EmailVerification() {
-  const { user, loading } = useAuth();
+  const { user, loading, resendConfirmation } = useAuth();
   const [searchParams] = useSearchParams();
   const [isResending, setIsResending] = useState(false);
   const [verificationStatus, setVerificationStatus] = useState<'pending' | 'verified' | 'error'>('pending');
@@ -35,36 +35,8 @@ export default function EmailVerification() {
     if (!user?.email) return;
     
     setIsResending(true);
-    try {
-      const { error } = await supabase.auth.resend({
-        type: 'signup',
-        email: user.email,
-        options: {
-          emailRedirectTo: `${window.location.origin}/dashboard`
-        }
-      });
-
-      if (error) {
-        toast({
-          title: "Failed to resend email",
-          description: error.message,
-          variant: "destructive",
-        });
-      } else {
-        toast({
-          title: "Email sent!",
-          description: "Please check your inbox for the verification link.",
-        });
-      }
-    } catch (error: any) {
-      toast({
-        title: "Failed to resend email",
-        description: "An unexpected error occurred",
-        variant: "destructive",
-      });
-    } finally {
-      setIsResending(false);
-    }
+    const result = await resendConfirmation(user.email);
+    setIsResending(false);
   };
 
   if (loading) {

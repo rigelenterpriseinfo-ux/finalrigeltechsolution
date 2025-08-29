@@ -5,18 +5,15 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp';
+
 import { AlertDialog, AlertDialogAction, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { PasswordStrength } from '@/components/ui/password-strength';
 import { useAuth } from '@/hooks/useAuth';
-import { Loader2, Building2, Phone, MapPin, Mail } from 'lucide-react';
+import { Loader2, Building2, Phone, MapPin } from 'lucide-react';
 
 export default function Auth() {
-  const { user, signIn, signUp, sendOTP, verifyOTP, resetPassword, loading, checkExistingUser } = useAuth();
+  const { user, signIn, signUp, resetPassword, loading, checkExistingUser } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
-  const [step, setStep] = useState<'signup' | 'otp'>('signup');
-  const [otpData, setOtpData] = useState({ phone: '', email: '' });
-  const [otp, setOtp] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showExistingUserDialog, setShowExistingUserDialog] = useState(false);
@@ -88,23 +85,14 @@ export default function Auth() {
     
     const result = await signUp(email, password, companyName, firstName, lastName, phone, city, state, country);
     
-    if (!result.error) {
-      setOtpData({ phone, email });
-      await sendOTP(email);
-      setStep('otp');
+    if (!result.error && result.needsEmailVerification) {
+      // Navigate to email verification page
+      window.location.href = '/email-verification';
     }
     
     setIsLoading(false);
   };
 
-  const handleOTPVerification = async () => {
-    setIsLoading(true);
-    const result = await verifyOTP(otpData.email, otp);
-    if (!result.error) {
-      setStep('signup');
-    }
-    setIsLoading(false);
-  };
 
   const handleForgotPassword = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -201,18 +189,12 @@ export default function Auth() {
           <TabsContent value="signup">
             <Card>
               <CardHeader>
-                <CardTitle>
-                  {step === 'signup' ? 'Create your account' : 'Verify your phone'}
-                </CardTitle>
+                <CardTitle>Create your account</CardTitle>
                 <CardDescription>
-                  {step === 'signup' 
-                    ? 'Set up your company workspace and start managing your business'
-                    : `Enter the OTP sent to ${otpData.email}`
-                  }
+                  Set up your company workspace and start managing your business
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                {step === 'signup' ? (
                   <form onSubmit={handleSignUp} className="space-y-4">
                     <div className="space-y-2">
                       <Label htmlFor="signup-company">Company Name</Label>
@@ -354,75 +336,10 @@ export default function Auth() {
                           Creating account...
                         </>
                       ) : (
-                        'Create Account & Send OTP'
+                        'Create Account'
                       )}
                     </Button>
                   </form>
-                ) : (
-                  <div className="space-y-6">
-                    <div className="space-y-2">
-                      <Label htmlFor="otp" className="flex items-center gap-2">
-                        <Mail className="h-4 w-4" />
-                        Enter verification code sent to your email
-                      </Label>
-                      <div className="flex justify-center">
-                        <InputOTP
-                          maxLength={6}
-                          value={otp}
-                          onChange={setOtp}
-                        >
-                          <InputOTPGroup>
-                            <InputOTPSlot index={0} />
-                            <InputOTPSlot index={1} />
-                            <InputOTPSlot index={2} />
-                            <InputOTPSlot index={3} />
-                            <InputOTPSlot index={4} />
-                            <InputOTPSlot index={5} />
-                          </InputOTPGroup>
-                        </InputOTP>
-                      </div>
-                    </div>
-
-                    <div className="space-y-4">
-                      <Button 
-                        onClick={handleOTPVerification} 
-                        className="w-full" 
-                        disabled={isLoading || otp.length !== 6}
-                      >
-                        {isLoading ? (
-                          <>
-                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                            Verifying...
-                          </>
-                        ) : (
-                          'Verify Phone Number'
-                        )}
-                      </Button>
-
-                      <div className="text-center">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            sendOTP(otpData.email);
-                          }}
-                          className="text-sm text-primary hover:underline"
-                        >
-                          Resend OTP
-                        </button>
-                      </div>
-
-                      <div className="text-center">
-                        <button
-                          type="button"
-                          onClick={() => setStep('signup')}
-                          className="text-sm text-muted-foreground hover:underline"
-                        >
-                          Back to registration
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                )}
               </CardContent>
             </Card>
           </TabsContent>

@@ -48,13 +48,12 @@ interface AuthContextType {
     city: string,
     state: string,
     country: string
-  ) => Promise<{ error: any }>;
+  ) => Promise<{ error: any; needsEmailVerification?: boolean }>;
   signOut: () => Promise<void>;
   updateProfile: (updates: Partial<Profile>) => Promise<{ error: any }>;
-  sendOTP: (email: string) => Promise<{ error: any }>;
-  verifyOTP: (email: string, otp: string) => Promise<{ error: any }>;
   resetPassword: (email: string) => Promise<{ error: any }>;
   checkExistingUser: (email: string, companyName: string) => Promise<{ emailExists: boolean; companyExists: boolean }>;
+  resendConfirmation: (email: string) => Promise<{ error: any }>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -289,7 +288,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     country: string
   ) => {
     try {
-      const redirectUrl = `${window.location.origin}/`;
+      const redirectUrl = `${window.location.origin}/dashboard`;
       
       const { data, error } = await supabase.auth.signUp({
         email,
@@ -320,8 +319,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (data.user && !data.session) {
         toast({
           title: "Check your email",
-          description: "We've sent you a confirmation link.",
+          description: "We've sent you a confirmation link. Please check your inbox.",
         });
+        return { error: null, needsEmailVerification: true };
       }
 
       return { error: null };
@@ -386,110 +386,35 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const sendOTP = async (email: string) => {
-    try {
-      // Generate 6-digit OTP
-      const otp = Math.floor(100000 + Math.random() * 900000).toString();
-      const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
 
-      // Store OTP in profile (in real app, use email service)
-      const { error } = await supabase
-        .from('profiles')
-        .update({ 
-          otp_code: otp, 
-          otp_expires_at: expiresAt.toISOString() 
-        })
-        .eq('user_id', (await supabase.auth.getUser()).data.user?.id);
+  const resendConfirmation = async (email: string) => {
+    try {
+      const { error } = await supabase.auth.resend({
+        type: 'signup',
+        email: email,
+        options: {
+          emailRedirectTo: `${window.location.origin}/dashboard`
+        }
+      });
 
       if (error) {
         toast({
-          title: "OTP send failed",
+          title: "Failed to resend email",
           description: error.message,
           variant: "destructive",
         });
         return { error };
       }
 
-      // For demo purposes, show OTP in toast (use email service in production)
       toast({
-        title: "OTP Sent",
-        description: `Your OTP is: ${otp} (Demo mode - Check your email)`,
+        title: "Email sent!",
+        description: "Please check your inbox for the verification link.",
       });
 
       return { error: null };
     } catch (error: any) {
       toast({
-        title: "OTP send failed",
-        description: "An unexpected error occurred",
-        variant: "destructive",
-      });
-      return { error };
-    }
-  };
-
-  const verifyOTP = async (email: string, otp: string) => {
-    try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('otp_code, otp_expires_at, user_id')
-        .eq('user_id', (await supabase.auth.getUser()).data.user?.id)
-        .single();
-
-      if (error || !data) {
-        toast({
-          title: "Verification failed",
-          description: "Invalid email address",
-          variant: "destructive",
-        });
-        return { error: error || new Error('Email not found') };
-      }
-
-      if (data.otp_code !== otp) {
-        toast({
-          title: "Verification failed",
-          description: "Invalid OTP code",
-          variant: "destructive",
-        });
-        return { error: new Error('Invalid OTP') };
-      }
-
-      if (new Date() > new Date(data.otp_expires_at)) {
-        toast({
-          title: "Verification failed",
-          description: "OTP has expired",
-          variant: "destructive",
-        });
-        return { error: new Error('OTP expired') };
-      }
-
-      // Mark email as verified
-      const { error: updateError } = await supabase
-        .from('profiles')
-        .update({ 
-          phone_verified: true, // We'll use this field for email verification status
-          otp_code: null,
-          otp_expires_at: null 
-        })
-        .eq('user_id', data.user_id);
-
-      if (updateError) {
-        toast({
-          title: "Verification failed",
-          description: updateError.message,
-          variant: "destructive",
-        });
-        return { error: updateError };
-      }
-
-      toast({
-        title: "Email verified",
-        description: "Your email address has been verified successfully",
-      });
-
-      return { error: null };
-    } catch (error: any) {
-      toast({
-        title: "Verification failed",
+        title: "Failed to resend email",
         description: "An unexpected error occurred",
         variant: "destructive",
       });
@@ -563,10 +488,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     signUp,
     signOut,
     updateProfile,
-    sendOTP,
-    verifyOTP,
     resetPassword,
     checkExistingUser,
+    resendConfirmation,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
