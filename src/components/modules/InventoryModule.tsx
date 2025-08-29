@@ -477,7 +477,8 @@ export function InventoryModule() {
   };
 
   const lowStockProducts = products.filter(product => 
-    product.stock_quantity <= product.min_stock_level
+    product.stock_quantity <= product.min_stock_level && 
+    product.wh_bin_code === '1111'
   );
 
   const exportToExcel = () => {
@@ -1286,6 +1287,7 @@ export function InventoryModule() {
                     </TableHead>
                     <TableHead>Unit</TableHead>
                     <TableHead>HSN Code</TableHead>
+                    <TableHead>Bin Name</TableHead>
                     <TableHead>Stock</TableHead>
                     <TableHead>Cost Price</TableHead>
                     <TableHead>Selling Price</TableHead>
@@ -1301,6 +1303,7 @@ export function InventoryModule() {
                       <TableCell>{product.name}</TableCell>
                       <TableCell>{product.unit || '-'}</TableCell>
                       <TableCell>{product.hsn_code || '-'}</TableCell>
+                      <TableCell>{product.bin_name || 'Unassigned'}</TableCell>
                       <TableCell>
                         <span className={product.stock_quantity <= product.min_stock_level ? 'text-yellow-600' : ''}>
                           {product.stock_quantity}
