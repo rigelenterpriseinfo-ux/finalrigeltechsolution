@@ -12,7 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Search, Package, AlertTriangle, Edit, Trash2, Download, ArrowUpDown, ArrowUp, ArrowDown, ChevronLeft, ChevronRight, MapPin } from 'lucide-react';
+import { Plus, Search, Package, AlertTriangle, Edit, Trash2, Download, ArrowUpDown, ArrowUp, ArrowDown, ChevronLeft, ChevronRight, MapPin, TrendingUp } from 'lucide-react';
 import { WarehouseBinForm } from '@/components/forms/WarehouseBinForm';
 import { WarehouseBinTable } from '@/components/tables/WarehouseBinTable';
 import * as XLSX from 'xlsx';
@@ -36,6 +36,9 @@ interface Product {
   max_stock_level: number | null;
   is_active: boolean;
   company_id: string;
+  category_id: string | null;
+  wh_bin_code: string | null;
+  bin_name: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -55,6 +58,7 @@ export function InventoryModule() {
   const [selectedBinName, setSelectedBinName] = useState('');
   const [editSelectedBinCode, setEditSelectedBinCode] = useState('');
   const [editSelectedBinName, setEditSelectedBinName] = useState('');
+  const [warehouseBinStats, setWarehouseBinStats] = useState<any[]>([]);
   const [sortConfig, setSortConfig] = useState<{
     key: string;
     direction: 'asc' | 'desc';
@@ -78,10 +82,46 @@ export function InventoryModule() {
     }
   };
 
+  // Calculate warehouse bin statistics
+  const calculateWarehouseBinStats = () => {
+    const binStats = warehouseBins.map(bin => {
+      const binProducts = products.filter(product => product.wh_bin_code === bin.wh_bin_code);
+      const totalUnits = binProducts.reduce((sum, product) => sum + product.stock_quantity, 0);
+      const totalValue = binProducts.reduce((sum, product) => sum + (product.stock_quantity * product.cost_price), 0);
+      
+      return {
+        binCode: bin.wh_bin_code,
+        binName: bin.bin_name,
+        totalUnits,
+        totalValue
+      };
+    });
+
+    // Add "Unassigned" bin for products without warehouse bin
+    const unassignedProducts = products.filter(product => !product.wh_bin_code);
+    if (unassignedProducts.length > 0) {
+      const totalUnits = unassignedProducts.reduce((sum, product) => sum + product.stock_quantity, 0);
+      const totalValue = unassignedProducts.reduce((sum, product) => sum + (product.stock_quantity * product.cost_price), 0);
+      
+      binStats.push({
+        binCode: 'UNASSIGNED',
+        binName: 'Unassigned',
+        totalUnits,
+        totalValue
+      });
+    }
+
+    setWarehouseBinStats(binStats);
+  };
+
   useEffect(() => {
     fetchProducts();
     fetchWarehouseBins();
   }, [profile?.company_id]);
+
+  useEffect(() => {
+    calculateWarehouseBinStats();
+  }, [products, warehouseBins]);
 
   // Sort function
   const handleSort = (key: string) => {
@@ -1023,6 +1063,49 @@ export function InventoryModule() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Warehouse Bin Statistics Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+        {warehouseBinStats.map((stat, index) => (
+          <div key={stat.binCode} className="space-y-4">
+            {/* Stock on Hand Card */}
+            <div className="bg-card rounded-lg border p-6 shadow-sm">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Stock on Hand</p>
+                  <div className="flex items-baseline space-x-2">
+                    <p className="text-2xl font-bold">{stat.totalUnits}</p>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {stat.binName} ({stat.binCode})
+                  </p>
+                </div>
+                <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
+                  <MapPin className="h-4 w-4 text-primary" />
+                </div>
+              </div>
+            </div>
+
+            {/* Total Stock Value Card */}
+            <div className="bg-card rounded-lg border p-6 shadow-sm">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Total Stock Value</p>
+                  <div className="flex items-baseline space-x-2">
+                    <p className="text-2xl font-bold">₹{stat.totalValue.toFixed(2)}</p>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {stat.binName} ({stat.binCode})
+                  </p>
+                </div>
+                <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
+                  <TrendingUp className="h-4 w-4 text-primary" />
+                </div>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
 
       {/* Main Content - Tabbed Interface */}
       <Tabs defaultValue="products" className="space-y-6">

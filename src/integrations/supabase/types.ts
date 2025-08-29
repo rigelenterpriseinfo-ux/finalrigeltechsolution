@@ -825,6 +825,7 @@ export type Database = {
       }
       products: {
         Row: {
+          bin_name: string | null
           category_id: string | null
           company_id: string
           cost_price: number
@@ -845,9 +846,11 @@ export type Database = {
           unit_price: number
           updated_at: string
           weight_kg: number | null
+          wh_bin_code: string | null
           width_cm: number | null
         }
         Insert: {
+          bin_name?: string | null
           category_id?: string | null
           company_id: string
           cost_price?: number
@@ -868,9 +871,11 @@ export type Database = {
           unit_price?: number
           updated_at?: string
           weight_kg?: number | null
+          wh_bin_code?: string | null
           width_cm?: number | null
         }
         Update: {
+          bin_name?: string | null
           category_id?: string | null
           company_id?: string
           cost_price?: number
@@ -891,9 +896,17 @@ export type Database = {
           unit_price?: number
           updated_at?: string
           weight_kg?: number | null
+          wh_bin_code?: string | null
           width_cm?: number | null
         }
         Relationships: [
+          {
+            foreignKeyName: "fk_products_warehouse_bin"
+            columns: ["wh_bin_code"]
+            isOneToOne: false
+            referencedRelation: "warehouse_bins"
+            referencedColumns: ["wh_bin_code"]
+          },
           {
             foreignKeyName: "products_category_id_fkey"
             columns: ["category_id"]
