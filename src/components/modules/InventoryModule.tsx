@@ -51,6 +51,10 @@ export function InventoryModule() {
   const [showBinDialog, setShowBinDialog] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [warehouseBins, setWarehouseBins] = useState<any[]>([]);
+  const [selectedBinCode, setSelectedBinCode] = useState('');
+  const [selectedBinName, setSelectedBinName] = useState('');
+  const [editSelectedBinCode, setEditSelectedBinCode] = useState('');
+  const [editSelectedBinName, setEditSelectedBinName] = useState('');
   const [sortConfig, setSortConfig] = useState<{
     key: string;
     direction: 'asc' | 'desc';
@@ -86,6 +90,26 @@ export function InventoryModule() {
       direction = 'desc';
     }
     setSortConfig({ key, direction });
+  };
+
+  const handleBinCodeChange = (binCode: string) => {
+    setSelectedBinCode(binCode);
+    const selectedBin = warehouseBins.find(bin => bin.wh_bin_code === binCode);
+    if (selectedBin) {
+      setSelectedBinName(selectedBin.bin_name);
+    } else {
+      setSelectedBinName('');
+    }
+  };
+
+  const handleEditBinCodeChange = (binCode: string) => {
+    setEditSelectedBinCode(binCode);
+    const selectedBin = warehouseBins.find(bin => bin.wh_bin_code === binCode);
+    if (selectedBin) {
+      setEditSelectedBinName(selectedBin.bin_name);
+    } else {
+      setEditSelectedBinName('');
+    }
   };
 
   const fetchProducts = async () => {
@@ -165,6 +189,8 @@ export function InventoryModule() {
       });
 
       setShowAddDialog(false);
+      setSelectedBinCode('');
+      setSelectedBinName('');
       fetchProducts();
       fetchWarehouseBins();
       
@@ -663,36 +689,31 @@ export function InventoryModule() {
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="wh_bin_code">WH BIN Code</Label>
-                    <Select name="wh_bin_code">
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select WH BIN Code" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {warehouseBins.map((bin) => (
-                          <SelectItem key={bin.id} value={bin.wh_bin_code}>
-                            {bin.wh_bin_code}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <Label htmlFor="bin_name">Bin Name</Label>
-                    <Select name="bin_name">
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select Bin Name" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {warehouseBins.map((bin) => (
-                          <SelectItem key={bin.id} value={bin.bin_name}>
-                            {bin.bin_name} ({bin.wh_bin_code})
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
+                <div>
+                  <Label htmlFor="wh_bin_code">WH BIN Code</Label>
+                  <Select name="wh_bin_code" value={selectedBinCode} onValueChange={handleBinCodeChange}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select WH BIN Code" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {warehouseBins.map((bin) => (
+                        <SelectItem key={bin.id} value={bin.wh_bin_code}>
+                          {bin.wh_bin_code}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label htmlFor="bin_name">Bin Name</Label>
+                  <Input 
+                    name="bin_name" 
+                    value={selectedBinName}
+                    placeholder="Auto-filled when WH BIN Code is selected"
+                    readOnly
+                    className="bg-muted/50"
+                  />
+                </div>
                 </div>
                 <div className="grid grid-cols-3 gap-4">
                   <div>
@@ -927,7 +948,7 @@ export function InventoryModule() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="edit-wh_bin_code">WH BIN Code</Label>
-                  <Select name="wh_bin_code">
+                  <Select name="wh_bin_code" value={editSelectedBinCode} onValueChange={handleEditBinCodeChange}>
                     <SelectTrigger>
                       <SelectValue placeholder="Select WH BIN Code" />
                     </SelectTrigger>
@@ -942,18 +963,13 @@ export function InventoryModule() {
                 </div>
                 <div>
                   <Label htmlFor="edit-bin_name">Bin Name</Label>
-                  <Select name="bin_name">
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select Bin Name" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {warehouseBins.map((bin) => (
-                        <SelectItem key={bin.id} value={bin.bin_name}>
-                          {bin.bin_name} ({bin.wh_bin_code})
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <Input 
+                    name="bin_name" 
+                    value={editSelectedBinName}
+                    placeholder="Auto-filled when WH BIN Code is selected"
+                    readOnly
+                    className="bg-muted/50"
+                  />
                 </div>
               </div>
               <div className="grid grid-cols-3 gap-4">
