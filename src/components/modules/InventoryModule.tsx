@@ -1065,46 +1065,52 @@ export function InventoryModule() {
       </Dialog>
 
       {/* Warehouse Bin Statistics Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
-        {warehouseBinStats.map((stat, index) => (
-          <div key={stat.binCode} className="space-y-4">
-            {/* Stock on Hand Card */}
-            <div className="bg-card rounded-lg border p-6 shadow-sm">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Stock on Hand</p>
-                  <div className="flex items-baseline space-x-2">
-                    <p className="text-2xl font-bold">{stat.totalUnits}</p>
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {stat.binName} ({stat.binCode})
-                  </p>
-                </div>
-                <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
-                  <MapPin className="h-4 w-4 text-primary" />
-                </div>
-              </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+        {/* Stock on Hand Card */}
+        <div className="bg-card rounded-lg border p-6 shadow-sm">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <p className="text-sm font-medium text-muted-foreground">Stock on Hand</p>
+              <p className="text-2xl font-bold">
+                {warehouseBinStats.reduce((sum, stat) => sum + stat.totalUnits, 0)} Total units
+              </p>
             </div>
-
-            {/* Total Stock Value Card */}
-            <div className="bg-card rounded-lg border p-6 shadow-sm">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Total Stock Value</p>
-                  <div className="flex items-baseline space-x-2">
-                    <p className="text-2xl font-bold">₹{stat.totalValue.toFixed(2)}</p>
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {stat.binName} ({stat.binCode})
-                  </p>
-                </div>
-                <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
-                  <TrendingUp className="h-4 w-4 text-primary" />
-                </div>
-              </div>
+            <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
+              <MapPin className="h-4 w-4 text-primary" />
             </div>
           </div>
-        ))}
+          <div className="space-y-2">
+            {warehouseBinStats.map((stat) => (
+              <div key={stat.binCode} className="flex justify-between items-center py-2 px-3 bg-muted/50 rounded-md">
+                <span className="text-sm font-medium">{stat.binName} ({stat.binCode})</span>
+                <span className="text-sm font-bold">{stat.totalUnits}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Total Stock Value Card */}
+        <div className="bg-card rounded-lg border p-6 shadow-sm">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <p className="text-sm font-medium text-muted-foreground">Total Stock Value</p>
+              <p className="text-2xl font-bold">
+                ₹{warehouseBinStats.reduce((sum, stat) => sum + stat.totalValue, 0).toFixed(2)}
+              </p>
+            </div>
+            <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
+              <TrendingUp className="h-4 w-4 text-primary" />
+            </div>
+          </div>
+          <div className="space-y-2">
+            {warehouseBinStats.map((stat) => (
+              <div key={stat.binCode} className="flex justify-between items-center py-2 px-3 bg-muted/50 rounded-md">
+                <span className="text-sm font-medium">{stat.binName} ({stat.binCode})</span>
+                <span className="text-sm font-bold">₹{stat.totalValue.toFixed(2)}</span>
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
 
       {/* Main Content - Tabbed Interface */}
