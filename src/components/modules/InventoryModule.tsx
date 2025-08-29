@@ -206,6 +206,9 @@ export function InventoryModule() {
       max_stock_level: formData.get('max_stock_level') ? parseInt(formData.get('max_stock_level') as string) : null,
       stock_quantity: parseInt(formData.get('stock_on_hand') as string) || 0,
       company_id: profile.company_id,
+      // Persist warehouse bin mapping
+      wh_bin_code: selectedBinCode || null,
+      bin_name: selectedBinName || null,
     };
 
     try {
@@ -270,6 +273,9 @@ export function InventoryModule() {
       min_stock_level: parseInt(formData.get('min_stock_level') as string),
       max_stock_level: formData.get('max_stock_level') ? parseInt(formData.get('max_stock_level') as string) : null,
       stock_quantity: parseInt(formData.get('stock_quantity') as string),
+      // Persist warehouse bin mapping
+      wh_bin_code: editSelectedBinCode || null,
+      bin_name: editSelectedBinName || null,
     };
 
     try {
@@ -306,6 +312,8 @@ export function InventoryModule() {
 
   const handleEditProduct = (product: Product) => {
     setEditingProduct(product);
+    setEditSelectedBinCode(product.wh_bin_code || '');
+    setEditSelectedBinName(product.bin_name || '');
     setShowEditDialog(true);
   };
 
