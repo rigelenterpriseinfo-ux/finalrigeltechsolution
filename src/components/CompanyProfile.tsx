@@ -13,8 +13,24 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Loader2, Building2, Save, Phone, Mail, Globe, MapPin, User, Lock, Eye, EyeOff, LogIn, AlertCircle, CheckCircle, IdCard } from 'lucide-react';
 
 export function CompanyProfile() {
-  const { company, profile, user } = useAuth();
+  const { company, profile, user, loading } = useAuth();
   const { toast } = useToast();
+
+  // Show loading state while auth is initializing
+  if (loading) {
+    return (
+      <div className="max-w-2xl mx-auto">
+        <Card>
+          <CardContent className="flex items-center justify-center py-12">
+            <div className="text-center space-y-3">
+              <Loader2 className="h-8 w-8 animate-spin mx-auto text-primary" />
+              <p className="text-muted-foreground">Loading your profile...</p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -173,14 +189,75 @@ export function CompanyProfile() {
         updated_at: new Date().toISOString(),
       };
 
-      if (!profile || !user) {
+      if (!user) {
         toast({
-          title: "Not ready",
-          description: "Please sign in again.",
+          title: "Authentication required",
+          description: "Please sign in to continue.",
           variant: "destructive",
         });
         setIsLoading(false);
         return;
+      }
+
+      // If profile is missing, create it automatically
+      if (!profile) {
+        try {
+          const userData = user.user_metadata || {};
+          
+          // Create a minimal company record first if none exists
+          let targetCompanyId = company?.id;
+          if (!targetCompanyId) {
+            const { data: newCompany, error: companyError } = await supabase
+              .from('companies')
+              .insert({
+                name: formData.name || userData.company_name || 'My Company',
+                email: formData.email || userData.email || user.email,
+                phone: formData.phone || userData.phone,
+                city: formData.city || userData.city,
+                state: formData.state || userData.state,
+                country: formData.country || userData.country,
+              })
+              .select()
+              .single();
+
+            if (companyError) throw companyError;
+            targetCompanyId = newCompany.id;
+          }
+
+          // Create the missing profile
+          const { error: profileError } = await supabase
+            .from('profiles')
+            .insert({
+              user_id: user.id,
+              company_id: targetCompanyId,
+              first_name: userData.first_name,
+              last_name: userData.last_name,
+              phone: userData.phone,
+              city: userData.city,
+              state: userData.state,
+              country: userData.country,
+              role: 'owner'
+            });
+
+          if (profileError) throw profileError;
+
+          toast({
+            title: "Profile created",
+            description: "Your profile has been set up. Please reload the page.",
+          });
+          
+          setTimeout(() => window.location.reload(), 1000);
+          setIsLoading(false);
+          return;
+        } catch (error: any) {
+          toast({
+            title: "Setup failed",
+            description: "Could not create your profile. Please try again.",
+            variant: "destructive",
+          });
+          setIsLoading(false);
+          return;
+        }
       }
 
       let targetCompanyId = company?.id;

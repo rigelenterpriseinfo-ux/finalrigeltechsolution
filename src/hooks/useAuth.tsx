@@ -103,6 +103,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                 console.error('Error fetching profile:', profileError);
               }
 
+              // If no profile found, try auto-recovery
+              if (!effectiveProfile && event === 'SIGNED_IN') {
+                console.log('No profile found, attempting auto-recovery...');
+                await createMissingUserRecords(session.user);
+                return; // Exit early as createMissingUserRecords will reload the page
+              }
+
               console.log('Profile resolved:', effectiveProfile);
               setProfile(effectiveProfile as any);
 
@@ -292,6 +299,73 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setSession(null);
       setProfile(null);
       setCompany(null);
+    }
+  };
+
+  // Auto-recovery function for missing user records
+  const createMissingUserRecords = async (user: any) => {
+    try {
+      // Check if profile exists
+      const { data: existingProfile } = await supabase
+        .from('profiles')
+        .select('*, companies(*)')
+        .eq('user_id', user.id)
+        .single();
+
+      if (!existingProfile && user.user_metadata) {
+        console.log('Creating missing user records for:', user.email);
+        
+        // Create missing company and profile records
+        const userData = user.user_metadata;
+        
+        // Create company first
+        const { data: newCompany, error: companyError } = await supabase
+          .from('companies')
+          .insert({
+            name: userData.company_name || 'My Company',
+            email: userData.email || user.email,
+            phone: userData.phone,
+            city: userData.city,
+            state: userData.state,
+            country: userData.country,
+            address: [userData.city, userData.state, userData.country].filter(Boolean).join(', ')
+          })
+          .select()
+          .single();
+
+        if (companyError) {
+          console.error('Company creation error:', companyError);
+          return;
+        }
+
+        // Create profile linked to company
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .insert({
+            user_id: user.id,
+            company_id: newCompany.id,
+            first_name: userData.first_name,
+            last_name: userData.last_name,
+            phone: userData.phone,
+            city: userData.city,
+            state: userData.state,
+            country: userData.country,
+            role: 'owner'
+          });
+
+        if (profileError) {
+          console.error('Profile creation error:', profileError);
+          return;
+        }
+
+        console.log('Successfully created missing records, refreshing...');
+        // Refresh data
+        setTimeout(() => {
+          window.location.reload();
+        }, 500);
+      }
+    } catch (error) {
+      console.error('Auto-recovery error:', error);
     }
   };
 
