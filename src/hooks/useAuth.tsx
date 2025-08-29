@@ -287,18 +287,37 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const signOut = async () => {
-    const { error } = await supabase.auth.signOut();
-    if (error) {
-      toast({
-        title: "Sign out failed",
-        description: error.message,
-        variant: "destructive",
-      });
-    } else {
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) {
+        toast({
+          title: "Sign out failed",
+          description: error.message,
+          variant: "destructive",
+        });
+      } else {
+        // Clear state immediately
+        setUser(null);
+        setSession(null);
+        setProfile(null);
+        setCompany(null);
+        
+        toast({
+          title: "Signed out successfully",
+          description: "You have been signed out.",
+        });
+      }
+    } catch (error: any) {
+      // Force clear state even if logout fails
       setUser(null);
       setSession(null);
       setProfile(null);
       setCompany(null);
+      
+      toast({
+        title: "Signed out",
+        description: "You have been signed out.",
+      });
     }
   };
 
