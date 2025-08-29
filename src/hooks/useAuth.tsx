@@ -237,13 +237,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     country: string
   ) => {
     try {
-      const redirectUrl = `${window.location.origin}/dashboard`;
-      
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
-          emailRedirectTo: redirectUrl,
+          emailRedirectTo: `${window.location.origin}/dashboard`,
           data: {
             first_name: firstName,
             last_name: lastName,
@@ -265,13 +263,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         return { error };
       }
 
-      if (data.user && !data.session) {
-        toast({
-          title: "Check your email",
-          description: "We've sent you a confirmation link. Please check your inbox.",
-        });
-        return { error: null, needsEmailVerification: true };
-      }
+      toast({
+        title: "Account created successfully!",
+        description: "Welcome to PRISM ERP. Your account is ready to use.",
+      });
 
       return { error: null };
     } catch (error: any) {
