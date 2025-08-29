@@ -83,14 +83,26 @@ export default function Auth() {
       return;
     }
     
-    const result = await signUp(email, password, companyName, firstName, lastName, phone, city, state, country);
-    
-    if (!result.error && result.needsEmailVerification) {
-      // Navigate to email verification page
-      window.location.href = '/email-verification';
+    try {
+      const result = await signUp(email, password, companyName, firstName, lastName, phone, city, state, country);
+      
+      if (!result.error && result.needsEmailVerification) {
+        // Store email for verification page and navigate
+        sessionStorage.setItem('pendingVerificationEmail', email);
+        window.location.href = '/email-verification';
+        return;
+      }
+      
+      if (!result.error && !result.needsEmailVerification) {
+        // User created and signed in immediately
+        window.location.href = '/dashboard';
+        return;
+      }
+    } catch (error) {
+      console.error('Signup error:', error);
+    } finally {
+      setIsLoading(false);
     }
-    
-    setIsLoading(false);
   };
 
 

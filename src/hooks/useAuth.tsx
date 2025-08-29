@@ -247,7 +247,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
       if (error) {
         // Log failed attempt
-        await logSecurityEvent(supabase, 'login_failed', { email, error: error.message });
+        await logSecurityEvent(supabase, 'login_failed', { email, error: error.message }, '127.0.0.1');
         
         toast({
           title: "Sign in failed",
@@ -258,7 +258,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
 
       // Log successful login
-      await logSecurityEvent(supabase, 'login_success', { email });
+      await logSecurityEvent(supabase, 'login_success', { email }, '127.0.0.1');
 
       toast({
         title: "Welcome back!",

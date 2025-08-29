@@ -12,12 +12,21 @@ export default function EmailVerification() {
   const [searchParams] = useSearchParams();
   const [isResending, setIsResending] = useState(false);
   const [verificationStatus, setVerificationStatus] = useState<'pending' | 'verified' | 'error'>('pending');
+  const [pendingEmail, setPendingEmail] = useState<string | null>(null);
   const { toast } = useToast();
 
-  // Check if user is already verified
+  // Check if user is already verified or get pending email
   useEffect(() => {
     if (user && user.email_confirmed_at) {
       setVerificationStatus('verified');
+    } else {
+      // Get email from sessionStorage for pending verification
+      const storedEmail = sessionStorage.getItem('pendingVerificationEmail');
+      if (storedEmail) {
+        setPendingEmail(storedEmail);
+      } else if (user?.email) {
+        setPendingEmail(user.email);
+      }
     }
   }, [user]);
 
@@ -26,16 +35,17 @@ export default function EmailVerification() {
     return <Navigate to="/dashboard" replace />;
   }
 
-  // If no user and not loading, redirect to auth
-  if (!loading && !user) {
+  // If no user and no pending email and not loading, redirect to auth
+  if (!loading && !user && !pendingEmail) {
     return <Navigate to="/auth" replace />;
   }
 
   const handleResendEmail = async () => {
-    if (!user?.email) return;
+    const emailToUse = user?.email || pendingEmail;
+    if (!emailToUse) return;
     
     setIsResending(true);
-    const result = await resendConfirmation(user.email);
+    const result = await resendConfirmation(emailToUse);
     setIsResending(false);
   };
 
@@ -67,7 +77,7 @@ export default function EmailVerification() {
             <CardDescription className="text-base">
               {verificationStatus === 'verified' 
                 ? 'Your email has been successfully verified.'
-                : `We've sent a verification link to ${user?.email || 'your email'}`
+                : `We've sent a verification link to ${user?.email || pendingEmail || 'your email'}`
               }
             </CardDescription>
           </CardHeader>
@@ -80,14 +90,14 @@ export default function EmailVerification() {
                     Please check your email and click the verification link to activate your account.
                   </p>
                   
-                  <div className="bg-muted/50 p-4 rounded-lg text-left">
-                    <h4 className="font-medium text-sm mb-2">Didn't receive the email?</h4>
-                    <ul className="text-xs text-muted-foreground space-y-1">
-                      <li>• Check your spam/junk folder</li>
-                      <li>• Make sure {user?.email} is correct</li>
-                      <li>• Wait a few minutes for delivery</li>
-                    </ul>
-                  </div>
+                    <div className="bg-muted/50 p-4 rounded-lg text-left">
+                      <h4 className="font-medium text-sm mb-2">Didn't receive the email?</h4>
+                      <ul className="text-xs text-muted-foreground space-y-1">
+                        <li>• Check your spam/junk folder</li>
+                        <li>• Make sure {user?.email || pendingEmail} is correct</li>
+                        <li>• Wait a few minutes for delivery</li>
+                      </ul>
+                    </div>
                 </div>
 
                 <Button 
