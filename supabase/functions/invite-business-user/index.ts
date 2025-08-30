@@ -15,7 +15,7 @@ interface InvitePayload {
   email: string;
   password?: string; // optional; if missing, we'll generate one
   name?: string;
-  role: 'Admin' | 'Editor' | 'Viewer';
+  role?: 'Admin' | 'Editor' | 'Viewer';
   company_id: string;
   created_by?: string; // Track who created this user
 }
@@ -56,22 +56,24 @@ serve(async (req) => {
 
     const { email, password, name, role, company_id, created_by } = payload;
 
-    if (!email || !role || !company_id) {
-      console.log('Validation failed - missing fields:', { email: !!email, role: !!role, company_id: !!company_id });
-      return new Response(JSON.stringify({ error: 'Missing required fields: email, role, and company_id are required' }), {
+    if (!email || !company_id) {
+      console.log('Validation failed - missing fields:', { email: !!email, company_id: !!company_id });
+      return new Response(JSON.stringify({ error: 'Missing required fields: email and company_id are required' }), {
         status: 400,
         headers: { "Content-Type": "application/json", ...corsHeaders },
       });
     }
 
-    // Validate role
-    if (!['Admin', 'Editor', 'Viewer'].includes(role)) {
+    // Optional role validation and normalization
+    if (role && !['Admin', 'Editor', 'Viewer'].includes(role)) {
       console.log('Invalid role provided:', role);
       return new Response(JSON.stringify({ error: 'Invalid role. Must be Admin, Editor, or Viewer' }), {
         status: 400,
         headers: { "Content-Type": "application/json", ...corsHeaders },
       });
     }
+
+    const normalizedRole: 'Admin' | 'Editor' | 'Viewer' = (role as any) ?? 'Viewer';
 
     const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
     const SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -150,7 +152,7 @@ serve(async (req) => {
         name,
         invited_via: 'invite-business-user',
         company_id,
-        app_role: mapRoleToProfile(role),
+        app_role: mapRoleToProfile(normalizedRole),
       },
     });
 
@@ -221,11 +223,10 @@ serve(async (req) => {
       return new Response(JSON.stringify({ error: 'Database error checking existing user' }), { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } });
     }
 
-    // Map role to database values
-    const dbRole = role === 'Admin' ? 'admin' : role === 'Editor' ? 'editor' : 'viewer';
-    const accessType = role === 'Admin' ? 'ADMIN' : 'USER';
+    // Determine access type (ADMIN only when explicitly provided)
+    const accessType = normalizedRole === 'Admin' ? 'ADMIN' : 'USER';
 
-    console.log('Role mapping:', { role, dbRole, accessType });
+    console.log('Access type mapping:', { normalizedRole, accessType });
 
     if (existingCompanyUser) {
       console.log('Updating existing company user');
@@ -235,7 +236,6 @@ serve(async (req) => {
         .update({
           user_id: authUserId,
           full_name: name || existingCompanyUser.username,
-          role: dbRole,
           access_type: accessType,
           updated_at: new Date().toISOString()
         })
@@ -256,7 +256,6 @@ serve(async (req) => {
           email: email,
           username: email, // Keep for backward compatibility
           full_name: name,
-          role: dbRole,
           access_type: accessType,
           status: 'ACTIVE',
           password_hash: 'MANAGED_BY_AUTH', // Indicate this is managed by Supabase Auth
@@ -277,7 +276,7 @@ serve(async (req) => {
       company_id,
       first_name,
       last_name,
-      role: mapRoleToProfile(role),
+      role: mapRoleToProfile(normalizedRole),
       is_active: true,
     }, { onConflict: 'user_id' });
 
