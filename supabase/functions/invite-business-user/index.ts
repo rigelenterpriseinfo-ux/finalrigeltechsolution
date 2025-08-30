@@ -1,3 +1,4 @@
+
 // Edge Function: invite-business-user
 // Creates a Supabase Auth user for a business user and links profile to company
 // Requires: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY secrets
@@ -51,10 +52,22 @@ serve(async (req) => {
     }
 
     const payload: InvitePayload = await req.json();
+    console.log('Received payload:', { ...payload, password: payload.password ? '[REDACTED]' : undefined });
+
     const { email, password, name, role, company_id, created_by } = payload;
 
     if (!email || !role || !company_id) {
-      return new Response(JSON.stringify({ error: 'Missing required fields' }), {
+      console.log('Validation failed - missing fields:', { email: !!email, role: !!role, company_id: !!company_id });
+      return new Response(JSON.stringify({ error: 'Missing required fields: email, role, and company_id are required' }), {
+        status: 400,
+        headers: { "Content-Type": "application/json", ...corsHeaders },
+      });
+    }
+
+    // Validate role
+    if (!['Admin', 'Editor', 'Viewer'].includes(role)) {
+      console.log('Invalid role provided:', role);
+      return new Response(JSON.stringify({ error: 'Invalid role. Must be Admin, Editor, or Viewer' }), {
         status: 400,
         headers: { "Content-Type": "application/json", ...corsHeaders },
       });
@@ -63,30 +76,64 @@ serve(async (req) => {
     const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
     const SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 
+    if (!SUPABASE_URL || !SERVICE_ROLE_KEY) {
+      console.error('Missing environment variables');
+      return new Response(JSON.stringify({ error: 'Server configuration error' }), {
+        status: 500,
+        headers: { "Content-Type": "application/json", ...corsHeaders },
+      });
+    }
+
     const admin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, { auth: { persistSession: false } });
 
     // Verify requester is authenticated and is admin/owner of the same company
     const authHeader = req.headers.get('Authorization');
     const token = authHeader?.replace('Bearer ', '');
     if (!token) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { "Content-Type": "application/json", ...corsHeaders } });
+      console.log('No authorization token provided');
+      return new Response(JSON.stringify({ error: 'Unauthorized - no token' }), { status: 401, headers: { "Content-Type": "application/json", ...corsHeaders } });
     }
 
     const { data: requesterData, error: requesterErr } = await admin.auth.getUser(token);
     if (requesterErr || !requesterData.user) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { "Content-Type": "application/json", ...corsHeaders } });
+      console.log('Token verification failed:', requesterErr?.message);
+      return new Response(JSON.stringify({ error: 'Unauthorized - invalid token' }), { status: 401, headers: { "Content-Type": "application/json", ...corsHeaders } });
     }
 
     const requesterId = requesterData.user.id;
-    const { data: requesterProfile } = await admin
+    const { data: requesterProfile, error: profileError } = await admin
       .from('profiles')
       .select('role, company_id')
       .eq('user_id', requesterId)
       .maybeSingle();
 
-    if (!requesterProfile || !['owner', 'admin'].includes(requesterProfile.role) || requesterProfile.company_id !== company_id) {
-      return new Response(JSON.stringify({ error: 'Forbidden' }), { status: 403, headers: { "Content-Type": "application/json", ...corsHeaders } });
+    if (profileError) {
+      console.error('Error fetching requester profile:', profileError);
+      return new Response(JSON.stringify({ error: 'Error verifying permissions' }), { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } });
     }
+
+    if (!requesterProfile || !['owner', 'admin'].includes(requesterProfile.role) || requesterProfile.company_id !== company_id) {
+      console.log('Insufficient permissions:', { 
+        hasProfile: !!requesterProfile, 
+        role: requesterProfile?.role, 
+        companyMatch: requesterProfile?.company_id === company_id 
+      });
+      return new Response(JSON.stringify({ error: 'Forbidden - insufficient permissions' }), { status: 403, headers: { "Content-Type": "application/json", ...corsHeaders } });
+    }
+
+    // Verify company exists
+    const { data: company, error: companyError } = await admin
+      .from('companies')
+      .select('id, name')
+      .eq('id', company_id)
+      .maybeSingle();
+
+    if (companyError || !company) {
+      console.error('Company verification failed:', companyError?.message);
+      return new Response(JSON.stringify({ error: 'Company not found' }), { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } });
+    }
+
+    console.log('Verified company:', company.name);
 
     // Try to create auth user first, then handle existing user case
     let authUserId: string | null = null;
@@ -95,6 +142,7 @@ serve(async (req) => {
     const tempPassword = password || crypto.randomUUID().replace(/-/g, '').slice(0, 16);
     
     // Try creating the user first
+    console.log('Attempting to create auth user for:', email);
     const { data: created, error: createErr } = await admin.auth.admin.createUser({
       email,
       password: tempPassword,
@@ -111,8 +159,6 @@ serve(async (req) => {
       // User created successfully
       authUserId = created.user.id;
       console.log(`Created new auth user: ${authUserId} for email: ${email}`);
-      
-      // No email sending - user is ready to log in immediately
     } else if (createErr?.message?.includes('already registered') || createErr?.message?.includes('User already registered')) {
       // User already exists, find them by listing users and matching email
       console.log(`User already exists for email: ${email}, searching for existing user`);
@@ -131,6 +177,7 @@ serve(async (req) => {
       existingUser = users?.users?.find(u => u.email === email);
       
       if (!existingUser) {
+        console.error(`User exists but could not be found for email: ${email}`);
         return new Response(JSON.stringify({ error: 'User exists but could not be found' }), { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } });
       }
       
@@ -149,7 +196,7 @@ serve(async (req) => {
         return new Response(JSON.stringify({ error: `Failed to update existing user: ${updateErr.message}` }), { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } });
       }
       
-      // No email sending - user can log in immediately
+      console.log('Updated existing auth user successfully');
     } else {
       // Unexpected error during user creation
       console.error('Error creating user:', createErr);
@@ -157,22 +204,32 @@ serve(async (req) => {
     }
 
     if (!authUserId) {
+      console.error('No auth user ID obtained');
       return new Response(JSON.stringify({ error: 'Failed to create or find user' }), { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } });
     }
 
     // Check if user already exists in company_users
-    const { data: existingCompanyUser } = await admin
+    console.log('Checking for existing company user');
+    const { data: existingCompanyUser, error: existingUserError } = await admin
       .from('company_users')
       .select('*')
       .eq('email', email)
       .eq('company_id', company_id)
       .maybeSingle();
 
+    if (existingUserError) {
+      console.error('Error checking existing company user:', existingUserError);
+      return new Response(JSON.stringify({ error: 'Database error checking existing user' }), { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } });
+    }
+
     // Map role to database values
     const dbRole = role === 'Admin' ? 'admin' : role === 'Editor' ? 'editor' : 'viewer';
     const accessType = role === 'Admin' ? 'ADMIN' : 'USER';
 
+    console.log('Role mapping:', { role, dbRole, accessType });
+
     if (existingCompanyUser) {
+      console.log('Updating existing company user');
       // Update existing company_user record with auth user_id
       const { error: updateError } = await admin
         .from('company_users')
@@ -187,8 +244,10 @@ serve(async (req) => {
 
       if (updateError) {
         console.error('Error updating company user:', updateError);
+        return new Response(JSON.stringify({ error: 'Failed to update company user' }), { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } });
       }
     } else {
+      console.log('Creating new company user');
       // Create new company_user record linked to auth.users
       const { error: insertError } = await admin
         .from('company_users')
@@ -207,12 +266,14 @@ serve(async (req) => {
 
       if (insertError) {
         console.error('Error creating company user:', insertError);
+        return new Response(JSON.stringify({ error: `Failed to create company user: ${insertError.message}` }), { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } });
       }
     }
 
     // Ensure profile exists and is linked to company
+    console.log('Creating/updating profile');
     const { first_name, last_name } = splitName(name);
-    await admin.from('profiles').upsert({
+    const { error: profileError } = await admin.from('profiles').upsert({
       user_id: authUserId,
       company_id,
       first_name,
@@ -220,6 +281,13 @@ serve(async (req) => {
       role: mapRoleToProfile(role),
       is_active: true,
     }, { onConflict: 'user_id' });
+
+    if (profileError) {
+      console.error('Error creating/updating profile:', profileError);
+      return new Response(JSON.stringify({ error: `Failed to create profile: ${profileError.message}` }), { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } });
+    }
+
+    console.log('User creation completed successfully');
 
     return new Response(JSON.stringify({ 
       success: true, 
