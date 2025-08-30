@@ -63,7 +63,8 @@ const UserManagement = () => {
     { key: 'reports', label: 'Reports & Analytics', icon: Settings, description: 'View business reports and analytics dashboards' },
     { key: 'payments', label: 'Payment Processing', icon: CreditCard, description: 'Process payments and manage financial transactions' },
     { key: 'tracking', label: 'Order Tracking', icon: MapPin, description: 'Track order status and delivery management' },
-    { key: 'ai', label: 'AI Assistant', icon: Bot, description: 'Access AI-powered business insights and automation' }
+    { key: 'ai', label: 'AI Assistant', icon: Bot, description: 'Access AI-powered business insights and automation' },
+    { key: 'company_profile', label: 'Company Profile', icon: Building2, description: 'Manage company information and business settings' }
   ];
 
   const roleIcons = {

@@ -10,6 +10,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { sanitizeHtml } from '@/lib/security';
 import { Separator } from '@/components/ui/separator';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { useBusinessAuth } from '@/hooks/useBusinessAuth';
 import { Loader2, Building2, Save, Phone, Mail, Globe, MapPin, User, Lock, Eye, EyeOff, LogIn, AlertCircle, CheckCircle, IdCard } from 'lucide-react';
 
 interface CompanyProfileProps {
@@ -18,7 +19,11 @@ interface CompanyProfileProps {
 
 export function CompanyProfile({ readonly = false }: CompanyProfileProps) {
   const { company, profile, user, loading } = useAuth();
+  const { hasEditAccess } = useBusinessAuth();
   const { toast } = useToast();
+  
+  // Check if user has edit access for company profile
+  const canEdit = !readonly && hasEditAccess('company_profile');
 
   // Show loading state while auth is initializing
   if (loading) {
@@ -348,8 +353,8 @@ export function CompanyProfile({ readonly = false }: CompanyProfileProps) {
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">
-      {/* Sign In Section - Only show if not readonly */}
-      {!readonly && (
+      {/* Sign In Section - Only show if user can edit */}
+      {canEdit && (
         <Card>
           <CardHeader>
             <div className="flex items-center justify-between">
@@ -452,11 +457,11 @@ export function CompanyProfile({ readonly = false }: CompanyProfileProps) {
               <Input
                 id="company-name"
                 value={formData.name}
-                onChange={readonly ? undefined : (e) => handleInputChange('name', e.target.value)}
+                onChange={canEdit ? (e) => handleInputChange('name', e.target.value) : undefined}
                 placeholder="Your Company Ltd."
                 required
-                disabled={readonly}
-                className={readonly ? "bg-muted" : ""}
+                disabled={!canEdit}
+                className={!canEdit ? "bg-muted" : ""}
               />
             </div>
 
@@ -465,11 +470,11 @@ export function CompanyProfile({ readonly = false }: CompanyProfileProps) {
               <Input
                 id="gstn"
                 value={formData.gstn}
-                onChange={readonly ? undefined : (e) => handleInputChange('gstn', e.target.value)}
+                onChange={canEdit ? (e) => handleInputChange('gstn', e.target.value) : undefined}
                 placeholder="22AAAAA0000A1Z5"
                 maxLength={15}
-                disabled={readonly}
-                className={readonly ? "bg-muted" : ""}
+                disabled={!canEdit}
+                className={!canEdit ? "bg-muted" : ""}
               />
             </div>
 
@@ -482,10 +487,10 @@ export function CompanyProfile({ readonly = false }: CompanyProfileProps) {
               id="company-email"
               type="email"
               value={formData.email}
-              onChange={readonly ? undefined : (e) => handleInputChange('email', e.target.value)}
+              onChange={canEdit ? (e) => handleInputChange('email', e.target.value) : undefined}
               placeholder="contact@yourcompany.com"
-              disabled={readonly}
-              className={readonly ? "bg-muted" : ""}
+              disabled={!canEdit}
+              className={!canEdit ? "bg-muted" : ""}
             />
           </div>
 
@@ -498,13 +503,13 @@ export function CompanyProfile({ readonly = false }: CompanyProfileProps) {
               id="company-phone"
               type="tel"
               value={formData.phone}
-              onChange={readonly ? undefined : (e) => handleInputChange('phone', e.target.value)}
+              onChange={canEdit ? (e) => handleInputChange('phone', e.target.value) : undefined}
               placeholder="1234567890"
               pattern="\d{10}"
               maxLength={10}
               title="Please enter exactly 10 digits"
-              disabled={readonly}
-              className={readonly ? "bg-muted" : ""}
+              disabled={!canEdit}
+              className={!canEdit ? "bg-muted" : ""}
             />
           </div>
 
@@ -515,86 +520,86 @@ export function CompanyProfile({ readonly = false }: CompanyProfileProps) {
               </Label>
               
               <div className="grid grid-cols-1 gap-4">
-                <div>
-                  <Label htmlFor="address-line1">Address Line 1 *</Label>
-                  <Input
-                    id="address-line1"
-                    value={formData.addressLine1}
-                    onChange={readonly ? undefined : (e) => handleInputChange('addressLine1', e.target.value)}
-                    placeholder="Street address, building number"
-                    required={!readonly}
-                    disabled={readonly}
-                    className={readonly ? "bg-muted" : ""}
-                  />
-                </div>
-                
-                <div>
-                  <Label htmlFor="address-line2">Address Line 2</Label>
-                  <Input
-                    id="address-line2"
-                    value={formData.addressLine2}
-                    onChange={readonly ? undefined : (e) => handleInputChange('addressLine2', e.target.value)}
-                    placeholder="Apartment, suite, floor (optional)"
-                    disabled={readonly}
-                    className={readonly ? "bg-muted" : ""}
-                  />
-                </div>
-                
-                <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <Label htmlFor="city">City *</Label>
+                    <Label htmlFor="address-line1">Address Line 1 *</Label>
                     <Input
-                      id="city"
-                      value={formData.city}
-                      onChange={readonly ? undefined : (e) => handleInputChange('city', e.target.value)}
-                      placeholder="City"
-                      required={!readonly}
-                      disabled={readonly}
-                      className={readonly ? "bg-muted" : ""}
+                      id="address-line1"
+                      value={formData.addressLine1}
+                      onChange={canEdit ? (e) => handleInputChange('addressLine1', e.target.value) : undefined}
+                      placeholder="Street address, building number"
+                      required={canEdit}
+                      disabled={!canEdit}
+                      className={!canEdit ? "bg-muted" : ""}
                     />
                   </div>
                   
                   <div>
-                    <Label htmlFor="state">State *</Label>
+                    <Label htmlFor="address-line2">Address Line 2</Label>
                     <Input
-                      id="state"
-                      value={formData.state}
-                      onChange={readonly ? undefined : (e) => handleInputChange('state', e.target.value)}
-                      placeholder="State/Province"
-                      required={!readonly}
-                      disabled={readonly}
-                      className={readonly ? "bg-muted" : ""}
-                    />
-                  </div>
-                </div>
-                
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="country">Country *</Label>
-                    <Input
-                      id="country"
-                      value={formData.country}
-                      onChange={readonly ? undefined : (e) => handleInputChange('country', e.target.value)}
-                      placeholder="Country"
-                      required={!readonly}
-                      disabled={readonly}
-                      className={readonly ? "bg-muted" : ""}
+                      id="address-line2"
+                      value={formData.addressLine2}
+                      onChange={canEdit ? (e) => handleInputChange('addressLine2', e.target.value) : undefined}
+                      placeholder="Apartment, suite, floor (optional)"
+                      disabled={!canEdit}
+                      className={!canEdit ? "bg-muted" : ""}
                     />
                   </div>
                   
-                  <div>
-                    <Label htmlFor="postal-code">Postal Code *</Label>
-                    <Input
-                      id="postal-code"
-                      value={formData.postalCode}
-                      onChange={readonly ? undefined : (e) => handleInputChange('postalCode', e.target.value)}
-                      placeholder="Postal/ZIP code"
-                      required={!readonly}
-                      disabled={readonly}
-                      className={readonly ? "bg-muted" : ""}
-                    />
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="city">City *</Label>
+                      <Input
+                        id="city"
+                        value={formData.city}
+                        onChange={canEdit ? (e) => handleInputChange('city', e.target.value) : undefined}
+                        placeholder="City"
+                        required={canEdit}
+                        disabled={!canEdit}
+                        className={!canEdit ? "bg-muted" : ""}
+                      />
+                    </div>
+                    
+                    <div>
+                      <Label htmlFor="state">State *</Label>
+                      <Input
+                        id="state"
+                        value={formData.state}
+                        onChange={canEdit ? (e) => handleInputChange('state', e.target.value) : undefined}
+                        placeholder="State/Province"
+                        required={canEdit}
+                        disabled={!canEdit}
+                        className={!canEdit ? "bg-muted" : ""}
+                      />
+                    </div>
                   </div>
-                </div>
+                  
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="country">Country *</Label>
+                      <Input
+                        id="country"
+                        value={formData.country}
+                        onChange={canEdit ? (e) => handleInputChange('country', e.target.value) : undefined}
+                        placeholder="Country"
+                        required={canEdit}
+                        disabled={!canEdit}
+                        className={!canEdit ? "bg-muted" : ""}
+                      />
+                    </div>
+                    
+                    <div>
+                      <Label htmlFor="postal-code">Postal Code *</Label>
+                      <Input
+                        id="postal-code"
+                        value={formData.postalCode}
+                        onChange={canEdit ? (e) => handleInputChange('postalCode', e.target.value) : undefined}
+                        placeholder="Postal/ZIP code"
+                        required={canEdit}
+                        disabled={!canEdit}
+                        className={!canEdit ? "bg-muted" : ""}
+                      />
+                    </div>
+                  </div>
               </div>
             </div>
 
@@ -607,10 +612,10 @@ export function CompanyProfile({ readonly = false }: CompanyProfileProps) {
               id="company-website"
               type="url"
               value={formData.website}
-              onChange={readonly ? undefined : (e) => handleInputChange('website', e.target.value)}
+              onChange={canEdit ? (e) => handleInputChange('website', e.target.value) : undefined}
               placeholder="https://www.yourcompany.com"
-              disabled={readonly}
-              className={readonly ? "bg-muted" : ""}
+              disabled={!canEdit}
+              className={!canEdit ? "bg-muted" : ""}
             />
           </div>
 
@@ -619,9 +624,9 @@ export function CompanyProfile({ readonly = false }: CompanyProfileProps) {
               <select
                 id="company-status"
                 value={formData.status}
-                onChange={readonly ? undefined : (e) => handleInputChange('status', e.target.value)}
-                disabled={readonly}
-                className={`flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 ${readonly ? "bg-muted" : ""}`}
+                onChange={canEdit ? (e) => handleInputChange('status', e.target.value) : undefined}
+                disabled={!canEdit}
+                className={`flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 ${!canEdit ? "bg-muted" : ""}`}
               >
                 <option value="active">Active</option>
                 <option value="inactive">Inactive</option>
@@ -630,8 +635,8 @@ export function CompanyProfile({ readonly = false }: CompanyProfileProps) {
 
             <Separator />
 
-            {/* Authentication Section - Only show if not readonly */}
-            {!readonly && (
+            {/* Authentication Section - Only show if user can edit */}
+            {canEdit && (
               <div className="space-y-4">
                 <h3 className="text-lg font-medium">Authentication Details</h3>
                 
@@ -744,7 +749,7 @@ export function CompanyProfile({ readonly = false }: CompanyProfileProps) {
               </div>
             )}
 
-              {!readonly && (
+              {canEdit && (
                 <Button type="submit" className="w-full" disabled={isLoading}>
                   {isLoading ? (
                     <>
@@ -763,8 +768,8 @@ export function CompanyProfile({ readonly = false }: CompanyProfileProps) {
         </CardContent>
       </Card>
 
-      {/* Forgot Password Section - Only show if not readonly */}
-      {!readonly && (
+      {/* Forgot Password Section - Only show if user can edit */}
+      {canEdit && (
         <Card>
           <CardHeader>
             <CardTitle className="text-lg">Forgot Password?</CardTitle>
