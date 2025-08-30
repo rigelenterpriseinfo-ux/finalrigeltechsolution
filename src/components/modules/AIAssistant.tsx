@@ -65,16 +65,6 @@ export function AIAssistant() {
   const { hasAccess } = useBusinessAuth();
   const { toast } = useToast();
   
-  if (!hasAccess('ai')) {
-    return (
-      <div className="flex items-center justify-center h-96">
-        <div className="text-center">
-          <h2 className="text-2xl font-bold text-muted-foreground mb-2">Access Denied</h2>
-          <p className="text-muted-foreground">You don't have permission to use the AI Assistant.</p>
-        </div>
-      </div>
-    );
-  }
   
   const [messages, setMessages] = useState<Message[]>([
     {
@@ -86,6 +76,18 @@ export function AIAssistant() {
   ]);
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+
+  if (!hasAccess('ai')) {
+    return (
+      <div className="flex items-center justify-center h-96">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold text-muted-foreground mb-2">Access Denied</h2>
+          <p className="text-muted-foreground">You don't have permission to use the AI Assistant.</p>
+        </div>
+      </div>
+    );
+  }
+
 
   const handleSendMessage = async (message?: string) => {
     const messageText = message || inputValue.trim();
