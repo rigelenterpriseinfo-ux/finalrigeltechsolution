@@ -1,7 +1,7 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Bell, Search, Settings, User, LogOut } from 'lucide-react';
+import { Bell, Search, Settings, User, LogOut, LogIn } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -12,6 +12,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { useAuth } from '@/hooks/useAuth';
+import { useNavigate } from 'react-router-dom';
 
 interface HeaderProps {
   title: string;
@@ -26,10 +27,15 @@ export const Header: React.FC<HeaderProps> = ({
   actions, 
   showSearch = true 
 }) => {
-  const { signOut, profile, company } = useAuth();
+  const { user, signOut, profile, company } = useAuth();
+  const navigate = useNavigate();
 
   const handleSignOut = () => {
     signOut();
+  };
+
+  const handleSignIn = () => {
+    navigate('/auth');
   };
 
   return (
@@ -68,16 +74,31 @@ export const Header: React.FC<HeaderProps> = ({
           <div className="flex-1 flex justify-end items-center gap-4">
             {actions}
 
-            {/* Sign Out Button - More Prominent */}
-            <Button 
-              onClick={handleSignOut}
-              variant="secondary"
-              size="default"
-              className="bg-white/20 text-white border-white/30 hover:bg-white/30 hover:text-white font-medium shadow-lg backdrop-blur-sm"
-            >
-              <LogOut className="h-4 w-4 mr-2" />
-              Sign Out
-            </Button>
+            {/* Sign In Button - Only visible when signed out */}
+            {!user && (
+              <Button 
+                onClick={handleSignIn}
+                variant="secondary"
+                size="default"
+                className="bg-white/20 text-white border-white/30 hover:bg-white/30 hover:text-white font-medium shadow-lg backdrop-blur-sm"
+              >
+                <LogIn className="h-4 w-4 mr-2" />
+                Sign In
+              </Button>
+            )}
+
+            {/* Sign Out Button - Only visible when signed in */}
+            {user && (
+              <Button 
+                onClick={handleSignOut}
+                variant="secondary"
+                size="default"
+                className="bg-white/20 text-white border-white/30 hover:bg-white/30 hover:text-white font-medium shadow-lg backdrop-blur-sm"
+              >
+                <LogOut className="h-4 w-4 mr-2" />
+                Sign Out
+              </Button>
+            )}
           </div>
         </div>
       </div>
