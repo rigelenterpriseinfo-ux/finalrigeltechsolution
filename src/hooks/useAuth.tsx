@@ -162,9 +162,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const signIn = async (email: string, password: string) => {
     try {
-      // Validate input
-      const emailValidation = emailSchema.safeParse(email);
-      const passwordValidation = passwordSchema.safeParse(password);
+      // Normalize inputs
+      const normalizedEmail = email.trim().toLowerCase();
+      const trimmedPassword = password.trim();
+
+      // Validate normalized input
+      const emailValidation = emailSchema.safeParse(normalizedEmail);
+      const passwordValidation = passwordSchema.safeParse(trimmedPassword);
       
       if (!emailValidation.success) {
         toast({
@@ -184,8 +188,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         return { error: new Error(passwordValidation.error.errors[0].message) };
       }
 
-      // Check rate limiting
-      const rateLimit = await checkRateLimit(supabase, email);
+      // Check rate limiting using email
+      const rateLimit = await checkRateLimit(supabase, normalizedEmail);
       if (!rateLimit.allowed) {
         const resetTime = rateLimit.resetTime?.toLocaleTimeString() || 'later';
         toast({
@@ -196,15 +200,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         return { error: new Error('Rate limited') };
       }
 
+      console.log('Attempting regular Supabase auth for:', normalizedEmail);
+
       // First try regular Supabase authentication
       const { error: authError } = await supabase.auth.signInWithPassword({
-        email,
-        password,
+        email: normalizedEmail,
+        password: trimmedPassword,
       });
 
       if (!authError) {
         // Regular authentication successful
-        await logSecurityEvent(supabase, 'login_success', { email }, '127.0.0.1');
+        await logSecurityEvent(supabase, 'login_success', { email: normalizedEmail }, '127.0.0.1');
         toast({
           title: 'Welcome back!',
           description: 'You have been signed in successfully.',
@@ -212,38 +218,59 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         return { error: null };
       }
 
+      console.log('Regular auth failed, trying business user fallback:', authError.message);
+
       // Fallback: attempt business user sign-in (company_users) via edge function
-      console.log('Regular auth failed; attempting business user sign-in via edge function');
       const { data: bizData, error: bizError } = await supabase.functions.invoke('signin', {
-        body: { username: email, password }
+        body: { username: normalizedEmail, password: trimmedPassword }
       });
 
-      if (!bizError && (bizData as any)?.success) {
+      console.log('Business user signin result:', { success: bizData?.success, error: bizError?.message });
+
+      if (!bizError && bizData?.success) {
+        console.log('Business signin successful, retrying regular auth...');
         // Now that the auth user is provisioned, try normal auth again
-        const { error: secondAuthError } = await supabase.auth.signInWithPassword({ email, password });
+        const { error: secondAuthError } = await supabase.auth.signInWithPassword({ 
+          email: normalizedEmail, 
+          password: trimmedPassword 
+        });
         if (!secondAuthError) {
-          await logSecurityEvent(supabase, 'login_success', { email, type: 'business_user' }, '127.0.0.1');
+          await logSecurityEvent(supabase, 'login_success', { email: normalizedEmail, type: 'business_user' }, '127.0.0.1');
           toast({ title: 'Welcome back!', description: 'You have been signed in successfully.' });
           return { error: null };
+        } else {
+          console.error('Second auth attempt failed after business signin success:', secondAuthError);
         }
       }
 
-      // If email is unconfirmed, show generic login failed message (no email sending)
-      if (typeof authError.message === 'string' && authError.message.toLowerCase().includes('email not confirmed')) {
-        toast({
-          title: 'Sign in failed',
-          description: 'Please contact your administrator to activate your account.',
-          variant: 'destructive',
-        });
-        return { error: authError };
+      // Handle specific error cases with friendly messages
+      let errorMessage = 'Invalid email or password';
+      
+      if (typeof authError.message === 'string') {
+        if (authError.message.toLowerCase().includes('email not confirmed')) {
+          errorMessage = 'Please contact your administrator to activate your account.';
+        } else if (authError.message.toLowerCase().includes('invalid login credentials')) {
+          errorMessage = 'Invalid email or password';
+        }
       }
 
+      // Log detailed error for debugging
+      console.error('All signin attempts failed:', { 
+        authError: authError.message, 
+        bizError: bizError?.message,
+        email: normalizedEmail 
+      });
+
       // Log failed attempt
-      await logSecurityEvent(supabase, 'login_failed', { email, error: authError.message }, '127.0.0.1');
+      await logSecurityEvent(supabase, 'login_failed', { 
+        email: normalizedEmail, 
+        authError: authError.message,
+        bizError: bizError?.message 
+      }, '127.0.0.1');
       
       toast({
         title: 'Sign in failed',
-        description: authError.message,
+        description: errorMessage,
         variant: 'destructive',
       });
       return { error: authError };

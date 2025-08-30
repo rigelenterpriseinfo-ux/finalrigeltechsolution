@@ -21,6 +21,23 @@ async function hashPassword(password: string): Promise<string> {
   return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
+// Helper to check if stored value is SHA-256 hex (length 64, hex chars)
+function isHashedPassword(value: string): boolean {
+  return value.length === 64 && /^[a-fA-F0-9]+$/.test(value);
+}
+
+// Verify password with legacy compatibility
+async function verifyPassword(providedPassword: string, storedPasswordHash: string): Promise<boolean> {
+  if (isHashedPassword(storedPasswordHash)) {
+    // Modern hashed password - compare hashes
+    const providedHash = await hashPassword(providedPassword);
+    return providedHash === storedPasswordHash;
+  } else {
+    // Legacy plaintext password - direct comparison
+    return providedPassword === storedPasswordHash;
+  }
+}
+
 // Helper function to generate session token (kept for compatibility, unused now)
 function generateSessionToken(): string {
   const array = new Uint8Array(32);
@@ -42,11 +59,18 @@ serve(async (req) => {
     const { businessRefNo, username, password }: SigninRequest = await req.json();
 
     if (!username || !password) {
+      console.log("Missing username or password");
       return new Response(
         JSON.stringify({ error: "Username and password are required" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
+
+    // Normalize inputs
+    const normalizedUsername = username.trim().toLowerCase();
+    const trimmedPassword = password.trim();
+    
+    console.log(`Login attempt for: ${normalizedUsername}, business: ${businessRefNo || 'none'}`);
 
     // Initialize Supabase client with service role key
     const supabase = createClient(
@@ -55,16 +79,15 @@ serve(async (req) => {
       { auth: { persistSession: false } }
     );
 
-    // Hash the provided password
-    const passwordHash = await hashPassword(password);
-
-    // Build query to find the company user
+    // Query company_users with case-insensitive matching on both username and email
+    // Include password_hash in selection for verification
     let query = supabase
       .from("company_users")
       .select(`
         id,
         username,
         email,
+        password_hash,
         access_type,
         status,
         company_id,
@@ -83,12 +106,10 @@ serve(async (req) => {
           status
         )
       `)
-      .eq("username", username)
-      .eq("password_hash", passwordHash)
+      .or(`username.ilike.${normalizedUsername},email.ilike.${normalizedUsername}`)
       .eq("status", "ACTIVE");
 
     if (businessRefNo) {
-      // Narrow to specific business if provided
       // @ts-ignore - postgrest filter on related table
       query = query.eq("companies.business_ref_no", businessRefNo);
     }
@@ -96,23 +117,49 @@ serve(async (req) => {
     const { data: userData, error: userError } = await query.single();
 
     if (userError || !userData) {
-      // Log failed login attempt (you could implement rate limiting here)
-      console.log(`Failed login attempt - Business: ${businessRefNo}, Username: ${username}`);
-      
+      console.log(`User not found - Business: ${businessRefNo}, Username: ${normalizedUsername}, Error: ${userError?.message}`);
       return new Response(
         JSON.stringify({ error: "Invalid credentials" }),
         { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // Check if company status is valid (assuming companies have status instead of payment_status)
+    console.log(`User found: ${userData.email}, verifying password...`);
+
+    // Verify password with legacy compatibility
+    const passwordMatches = await verifyPassword(trimmedPassword, userData.password_hash);
+    if (!passwordMatches) {
+      console.log(`Password mismatch for user: ${userData.email}`);
+      return new Response(
+        JSON.stringify({ error: "Invalid credentials" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    console.log(`Password verified for user: ${userData.email}`);
+
+    // If password was stored as plaintext, upgrade it to hashed
+    if (!isHashedPassword(userData.password_hash)) {
+      console.log(`Upgrading legacy password for user: ${userData.email}`);
+      const newHash = await hashPassword(trimmedPassword);
+      await supabase
+        .from("company_users")
+        .update({ password_hash: newHash })
+        .eq("id", userData.id);
+      console.log(`Password upgraded to SHA-256 for user: ${userData.email}`);
+    }
+
+    // Check if company status is valid
     const company = userData.companies;
     if (company.status !== 'active') {
+      console.log(`Company inactive for user: ${userData.email}, status: ${company.status}`);
       return new Response(
         JSON.stringify({ error: "Company account suspended. Please contact support." }),
         { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
+
+    console.log(`Company active for user: ${userData.email}, provisioning auth user...`);
 
     // Ensure an auth user exists with this email and can sign in immediately
     const mapRoleToProfile = (accessType: string) => (accessType === 'ADMIN' || accessType === 'OWNER' ? 'admin' : 'staff');
@@ -122,7 +169,7 @@ serve(async (req) => {
     // Try creating the user first
     const { data: created, error: createErr } = await supabase.auth.admin.createUser({
       email: userData.email,
-      password,
+      password: trimmedPassword,
       email_confirm: true,
       user_metadata: {
         invited_via: 'business-signin',
@@ -133,8 +180,10 @@ serve(async (req) => {
 
     if (created?.user) {
       authUserId = created.user.id;
+      console.log(`Auth user created for: ${userData.email}`);
     } else if (createErr?.message?.includes('already been registered') || createErr?.message?.includes('already registered')) {
       // Find existing user by listing and matching email
+      console.log(`User already exists, finding and updating: ${userData.email}`);
       const { data: users, error: listErr } = await supabase.auth.admin.listUsers({ page: 1, perPage: 1000 });
       if (listErr) {
         console.error('Error listing users:', listErr);
@@ -142,26 +191,34 @@ serve(async (req) => {
       }
       const existing = users?.users?.find((u: any) => u.email === userData.email);
       if (!existing) {
+        console.error(`Auth user not found for: ${userData.email}`);
         return new Response(JSON.stringify({ error: 'Auth user not found and cannot be created' }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
       authUserId = existing.id;
-      const { error: updateErr } = await supabase.auth.admin.updateUserById(authUserId, { email_confirm: true, password });
+      const { error: updateErr } = await supabase.auth.admin.updateUserById(authUserId, { 
+        email_confirm: true, 
+        password: trimmedPassword 
+      });
       if (updateErr) {
         console.error('Error updating existing auth user:', updateErr);
         return new Response(JSON.stringify({ error: 'Failed to update auth user' }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
+      console.log(`Auth user updated for: ${userData.email}`);
     } else if (createErr) {
       console.error('Unexpected error creating auth user:', createErr);
       return new Response(JSON.stringify({ error: createErr.message || 'Failed to create auth user' }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
     // Ensure profile is linked
+    console.log(`Upserting profile for user: ${userData.email}`);
     await supabase.from('profiles').upsert({
       user_id: authUserId!,
       company_id: userData.company_id,
       role: mapRoleToProfile(userData.access_type),
       is_active: true,
     }, { onConflict: 'user_id' });
+
+    console.log(`Signin successful for: ${userData.email}`);
 
     // Return success; frontend should now sign in via auth API
     const responseData = {

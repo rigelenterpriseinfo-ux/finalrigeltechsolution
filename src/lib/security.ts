@@ -57,11 +57,12 @@ export const checkRateLimit = async (
     const { data, error } = await supabase
       .from('auth_rate_limits')
       .select('*')
-      .eq('ip_address', identifier)
+      .eq('email', identifier)
       .gte('last_attempt', windowStart.toISOString())
       .single();
 
     if (error && error.code !== 'PGRST116') { // Not found is ok
+      console.warn('Rate limit check failed, allowing request:', error);
       return { allowed: true };
     }
 
@@ -70,7 +71,7 @@ export const checkRateLimit = async (
       await supabase
         .from('auth_rate_limits')
         .insert({
-          ip_address: identifier,
+          email: identifier,
           attempt_count: 1,
           last_attempt: new Date().toISOString()
         });
@@ -96,6 +97,7 @@ export const checkRateLimit = async (
     return { allowed: true };
   } catch (error) {
     // On error, allow the request (fail open)
+    console.warn('Rate limiting error, allowing request:', error);
     return { allowed: true };
   }
 };
