@@ -1065,7 +1065,9 @@ export type Database = {
           created_at: string
           created_by: string
           id: string
+          invoice_no: string | null
           notes: string | null
+          payment_due_date: string | null
           place_of_supply: string | null
           purchase_invoice_date: string
           purchase_invoice_number: string
@@ -1088,7 +1090,9 @@ export type Database = {
           created_at?: string
           created_by: string
           id?: string
+          invoice_no?: string | null
           notes?: string | null
+          payment_due_date?: string | null
           place_of_supply?: string | null
           purchase_invoice_date?: string
           purchase_invoice_number: string
@@ -1111,7 +1115,9 @@ export type Database = {
           created_at?: string
           created_by?: string
           id?: string
+          invoice_no?: string | null
           notes?: string | null
+          payment_due_date?: string | null
           place_of_supply?: string | null
           purchase_invoice_date?: string
           purchase_invoice_number?: string
