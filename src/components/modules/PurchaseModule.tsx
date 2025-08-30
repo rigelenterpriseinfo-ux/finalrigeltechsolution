@@ -132,6 +132,10 @@ export function PurchaseModule() {
   // Supplier Management Functions
   const handleAddSupplier = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if (!canEdit) {
+      toast({ title: "Permission denied", description: "You don't have edit access to Purchases.", variant: "destructive" });
+      return;
+    }
     const formData = new FormData(e.currentTarget);
     
     try {
@@ -179,6 +183,10 @@ export function PurchaseModule() {
 
   // Purchase Invoice CRUD Functions
   const handleAddPurchaseInvoice = async (invoiceData: any) => {
+    if (!canEdit) {
+      toast({ title: "Permission denied", description: "You don't have edit access to Purchases.", variant: "destructive" });
+      return;
+    }
     try {
       const { data: invoice, error: piError } = await supabase
         .from('purchase_invoices')
@@ -255,7 +263,10 @@ export function PurchaseModule() {
 
   function handleUpdatePurchaseInvoice(invoiceData: any) {
     if (!selectedPI) return;
-    
+    if (!canEdit) {
+      toast({ title: "Permission denied", description: "You don't have edit access to Purchases.", variant: "destructive" });
+      return;
+    }
     const updateInvoice = async () => {
       try {
         const { error: piError } = await supabase
@@ -352,6 +363,10 @@ export function PurchaseModule() {
   }
 
   async function handleDeletePI(invoiceId: string) {
+    if (!canEdit) {
+      toast({ title: "Permission denied", description: "You don't have edit access to Purchases.", variant: "destructive" });
+      return;
+    }
     try {
       // First delete all related items
       const { error: itemsError } = await supabase
@@ -682,9 +697,9 @@ export function PurchaseModule() {
               <PurchaseInvoiceTable
                 invoices={purchaseInvoices}
                 onView={handleViewPI}
-                onEdit={handleEditPI}
-                onDelete={handleDeletePI}
-                onCreate={() => setShowAddPIDialog(true)}
+                onEdit={(inv) => { if (!canEdit) { toast({ title: 'Permission denied', description: "You don't have edit access to Purchases.", variant: 'destructive' }); return; } handleEditPI(inv); }}
+                onDelete={(id) => { if (!canEdit) { toast({ title: 'Permission denied', description: "You don't have edit access to Purchases.", variant: 'destructive' }); return; } handleDeletePI(id); }}
+                onCreate={() => { if (!canEdit) { toast({ title: 'Permission denied', description: "You don't have edit access to Purchases.", variant: 'destructive' }); return; } setShowAddPIDialog(true); }}
                 loading={loading}
               />
             </CardContent>

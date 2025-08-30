@@ -12,6 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
+import { useBusinessAuth } from '@/hooks/useBusinessAuth';
 import { Plus, Search, Package, AlertTriangle, Edit, Trash2, Download, ArrowUpDown, ArrowUp, ArrowDown, ChevronLeft, ChevronRight, MapPin, TrendingUp } from 'lucide-react';
 import { WarehouseBinForm } from '@/components/forms/WarehouseBinForm';
 import { WarehouseBinTable } from '@/components/tables/WarehouseBinTable';
@@ -46,6 +47,8 @@ interface Product {
 export function InventoryModule() {
   const { profile } = useAuth();
   const { toast } = useToast();
+  const { hasEditAccess } = useBusinessAuth();
+  const canEdit = hasEditAccess('inventory');
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -175,6 +178,10 @@ export function InventoryModule() {
   const handleAddProduct = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     
+    if (!canEdit) {
+      toast({ title: 'Permission denied', description: "You don't have edit access to Inventory.", variant: 'destructive' });
+      return;
+    }
     // Check if user has company_id
     if (!profile?.company_id) {
       toast({
@@ -254,6 +261,10 @@ export function InventoryModule() {
   const handleUpdateProduct = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     
+    if (!canEdit) {
+      toast({ title: 'Permission denied', description: "You don't have edit access to Inventory.", variant: 'destructive' });
+      return;
+    }
     if (!editingProduct) return;
     
     const formData = new FormData(e.currentTarget);
@@ -318,6 +329,10 @@ export function InventoryModule() {
   };
 
   const handleDeleteProduct = async (productId: string) => {
+    if (!canEdit) {
+      toast({ title: 'Permission denied', description: "You don't have edit access to Inventory.", variant: 'destructive' });
+      return;
+    }
     if (!window.confirm('Are you sure you want to delete this product?')) {
       return;
     }
@@ -1323,6 +1338,7 @@ export function InventoryModule() {
                             variant="outline"
                             size="sm"
                             onClick={() => handleEditProduct(product)}
+                            disabled={!canEdit}
                           >
                             <Edit className="h-4 w-4" />
                           </Button>
@@ -1330,6 +1346,7 @@ export function InventoryModule() {
                             variant="destructive"
                             size="sm"
                             onClick={() => handleDeleteProduct(product.id)}
+                            disabled={!canEdit}
                           >
                             <Trash2 className="h-4 w-4" />
                           </Button>

@@ -157,6 +157,10 @@ export default function SalesModule() {
 
   // Customer handlers
   const handleOpenCustomerDialog = () => {
+    if (!canEdit) {
+      toast({ title: 'Permission denied', description: "You don't have edit access to Sales.", variant: 'destructive' });
+      return;
+    }
     setEditingCustomer(null);
     setShowCustomerDialog(true);
   };
@@ -168,6 +172,10 @@ export default function SalesModule() {
 
   const handleDeleteCustomer = async (customer: any) => {
     if (!profile?.company_id) return;
+    if (!canEdit) {
+      toast({ title: 'Permission denied', description: "You don't have edit access to Sales.", variant: 'destructive' });
+      return;
+    }
 
     try {
       setLoading(true);
@@ -197,6 +205,10 @@ export default function SalesModule() {
 
   const handleCustomerSubmit = async (customerData: any) => {
     if (!profile?.company_id) return;
+    if (!canEdit) {
+      toast({ title: 'Permission denied', description: "You don't have edit access to Sales.", variant: 'destructive' });
+      return;
+    }
 
     try {
       setLoading(true);
@@ -256,6 +268,10 @@ export default function SalesModule() {
 
   const handleDeleteSalesOrder = async (salesOrder: any) => {
     if (!profile?.company_id) return;
+    if (!canEdit) {
+      toast({ title: 'Permission denied', description: "You don't have edit access to Sales.", variant: 'destructive' });
+      return;
+    }
 
     try {
       setLoading(true);
@@ -285,6 +301,10 @@ export default function SalesModule() {
 
   const handleSalesOrderSubmit = async (data: any) => {
     if (!profile?.company_id) return;
+    if (!canEdit) {
+      toast({ title: 'Permission denied', description: "You don't have edit access to Sales.", variant: 'destructive' });
+      return;
+    }
 
     try {
       setLoading(true);
@@ -385,6 +405,10 @@ export default function SalesModule() {
 
   const handleDeleteInvoice = async (invoiceId: string) => {
     if (!profile?.company_id) return;
+    if (!canEdit) {
+      toast({ title: 'Permission denied', description: "You don't have edit access to Sales.", variant: 'destructive' });
+      return;
+    }
 
     try {
       setLoading(true);
@@ -419,6 +443,10 @@ export default function SalesModule() {
         description: "Company information not found",
         variant: "destructive",
       });
+      return;
+    }
+    if (!canEdit) {
+      toast({ title: 'Permission denied', description: "You don't have edit access to Sales.", variant: 'destructive' });
       return;
     }
 
@@ -575,8 +603,8 @@ export default function SalesModule() {
           <SalesOrderTable
             salesOrders={salesOrders}
             onView={(order) => {/* Implement view logic */}}
-            onEdit={handleEditSalesOrder}
-            onDelete={handleDeleteSalesOrder}
+            onEdit={(order) => { if (!canEdit) { toast({ title: 'Permission denied', description: "You don't have edit access to Sales.", variant: 'destructive' }); return; } handleEditSalesOrder(order);} }
+            onDelete={(order) => { if (!canEdit) { toast({ title: 'Permission denied', description: "You don't have edit access to Sales.", variant: 'destructive' }); return; } handleDeleteSalesOrder(order);} }
             loading={loading}
           />
         </TabsContent>
@@ -592,8 +620,8 @@ export default function SalesModule() {
           </div>
           <InvoiceTable
             invoices={invoices}
-            onEdit={handleEditInvoice}
-            onDelete={handleDeleteInvoice}
+            onEdit={(inv) => { if (!canEdit) { toast({ title: 'Permission denied', description: "You don't have edit access to Sales.", variant: 'destructive' }); return; } handleEditInvoice(inv);} }
+            onDelete={(id) => { if (!canEdit) { toast({ title: 'Permission denied', description: "You don't have edit access to Sales.", variant: 'destructive' }); return; } handleDeleteInvoice(id);} }
           />
         </TabsContent>
       </Tabs>
