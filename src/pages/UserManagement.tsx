@@ -475,8 +475,7 @@ const UserManagement = () => {
                               </div>
                             </TableCell>
                           </TableRow>
-                        );
-                      })}
+                        ))}
                     </TableBody>
                   </Table>
                 )}

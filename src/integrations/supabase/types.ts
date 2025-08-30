@@ -141,7 +141,6 @@ export type Database = {
           full_name: string | null
           id: string
           password_hash: string
-          role: string | null
           status: string | null
           updated_at: string | null
           user_id: string | null
@@ -156,7 +155,6 @@ export type Database = {
           full_name?: string | null
           id?: string
           password_hash: string
-          role?: string | null
           status?: string | null
           updated_at?: string | null
           user_id?: string | null
@@ -171,7 +169,6 @@ export type Database = {
           full_name?: string | null
           id?: string
           password_hash?: string
-          role?: string | null
           status?: string | null
           updated_at?: string | null
           user_id?: string | null
