@@ -11,7 +11,7 @@ import { Switch } from '@/components/ui/switch';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Loader2, Plus, Edit, Trash2, Users, Shield, Eye, ArrowLeft, Clock, CheckCircle } from 'lucide-react';
+import { Loader2, Plus, Edit, Trash2, Users, Shield, Eye, ArrowLeft, Clock, CheckCircle, User, Settings, Database, FileText, CreditCard, MapPin, Bot, Package } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -54,13 +54,13 @@ const UserManagement = () => {
   });
 
   const availableSections = [
-    { key: 'inventory', label: 'Inventory' },
-    { key: 'sales', label: 'Sales' },
-    { key: 'purchases', label: 'Purchases' },
-    { key: 'reports', label: 'Reports' },
-    { key: 'payments', label: 'Payments' },
-    { key: 'tracking', label: 'Tracking' },
-    { key: 'ai', label: 'AI Assistant' }
+    { key: 'inventory', label: 'Inventory Management', icon: Package, description: 'Manage products, stock levels, and warehouse operations' },
+    { key: 'sales', label: 'Sales Orders', icon: FileText, description: 'Create and manage sales orders and customer invoices' },
+    { key: 'purchases', label: 'Purchase Management', icon: Database, description: 'Handle purchase orders, supplier invoices, and procurement' },
+    { key: 'reports', label: 'Reports & Analytics', icon: Settings, description: 'View business reports and analytics dashboards' },
+    { key: 'payments', label: 'Payment Processing', icon: CreditCard, description: 'Process payments and manage financial transactions' },
+    { key: 'tracking', label: 'Order Tracking', icon: MapPin, description: 'Track order status and delivery management' },
+    { key: 'ai', label: 'AI Assistant', icon: Bot, description: 'Access AI-powered business insights and automation' }
   ];
 
   const roleIcons = {
@@ -389,8 +389,9 @@ const UserManagement = () => {
                                 <Badge>Full Access</Badge>
                               ) : Object.keys(user.access_sections || {}).length ? (
                                 <div className="flex flex-wrap gap-1">
-                                  {Object.entries(user.access_sections || {}).slice(0, 2).map(([section, permission]) => {
-                                    const sectionLabel = availableSections.find(s => s.key === section)?.label || section;
+                                   {Object.entries(user.access_sections || {}).slice(0, 2).map(([section, permission]) => {
+                                     const sectionData = availableSections.find(s => s.key === section);
+                                     const sectionLabel = sectionData?.label || section;
                                     return (
                                       <Badge key={section} variant="outline" className="text-xs">
                                         {sectionLabel}: {permission}
@@ -455,150 +456,235 @@ const UserManagement = () => {
         </Tabs>
 
         <Dialog open={isDialogOpen} onOpenChange={handleCloseDialog}>
-          <DialogContent className="max-w-md">
+          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>
-                {editingUser ? 'Edit User' : 'Add New User'}
+              <DialogTitle className="flex items-center gap-2 text-xl">
+                <User className="h-5 w-5" />
+                {editingUser ? 'Edit Team Member' : 'Add New Team Member'}
               </DialogTitle>
               <DialogDescription>
                 {editingUser 
-                  ? 'Update user information and permissions'
-                  : 'Create a new team member with appropriate access'
+                  ? 'Update user information and access permissions'
+                  : 'Create a new team member with appropriate role and access permissions'
                 }
               </DialogDescription>
             </DialogHeader>
 
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="name">Full Name</Label>
-                <Input
-                  id="name"
-                  value={formData.name}
-                  onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                  required
-                />
+            <form onSubmit={handleSubmit} className="space-y-6">
+              {/* Basic Information Section */}
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 pb-2 border-b border-border">
+                  <User className="h-4 w-4 text-primary" />
+                  <h3 className="text-lg font-semibold">Basic Information</h3>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="name">Full Name *</Label>
+                    <Input
+                      id="name"
+                      value={formData.name}
+                      onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                      placeholder="Enter full name"
+                      required
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="email">Email Address (Login ID) *</Label>
+                    <Input
+                      id="email"
+                      type="email"
+                      value={formData.email}
+                      onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
+                      placeholder="user@company.com"
+                      disabled={!!editingUser}
+                      required
+                    />
+                    {editingUser && (
+                      <p className="text-xs text-muted-foreground">Email cannot be changed after creation</p>
+                    )}
+                  </div>
+                </div>
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="email">Email Address (Login ID)</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  value={formData.email}
-                  onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
-                  disabled={!!editingUser}
-                  required
-                />
-                {editingUser && (
-                  <p className="text-xs text-muted-foreground">Email cannot be changed after creation</p>
-                )}
+              {/* Password Section */}
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 pb-2 border-b border-border">
+                  <Shield className="h-4 w-4 text-primary" />
+                  <h3 className="text-lg font-semibold">Security</h3>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="password">Password {!editingUser && '*'}</Label>
+                    <Input
+                      id="password"
+                      type="password"
+                      value={formData.password}
+                      onChange={(e) => setFormData(prev => ({ ...prev, password: e.target.value }))}
+                      placeholder={editingUser ? "Leave blank to keep current" : "Enter password"}
+                      required={!editingUser}
+                      minLength={8}
+                    />
+                    {!editingUser && (
+                      <p className="text-xs text-muted-foreground">Must be at least 8 characters long</p>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="confirmPassword">Confirm Password {!editingUser && '*'}</Label>
+                    <Input
+                      id="confirmPassword"
+                      type="password"
+                      value={formData.confirmPassword}
+                      onChange={(e) => setFormData(prev => ({ ...prev, confirmPassword: e.target.value }))}
+                      placeholder={editingUser ? "Confirm new password" : "Confirm password"}
+                      required={!editingUser || (editingUser && !!formData.password)}
+                    />
+                  </div>
+                </div>
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  value={formData.password}
-                  onChange={(e) => setFormData(prev => ({ ...prev, password: e.target.value }))}
-                  placeholder={editingUser ? "Leave blank to keep current password" : "Enter password"}
-                  required={!editingUser}
-                  minLength={8}
-                />
-                {!editingUser && (
-                  <p className="text-xs text-muted-foreground">Must be at least 8 characters long</p>
-                )}
+              {/* Role Selection */}
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 pb-2 border-b border-border">
+                  <Settings className="h-4 w-4 text-primary" />
+                  <h3 className="text-lg font-semibold">Role & Permissions</h3>
+                </div>
+                
+                <div className="space-y-3">
+                  <Label>User Role *</Label>
+                  <Select
+                    value={formData.role}
+                    onValueChange={(value: BusinessUser['role']) => 
+                      setFormData(prev => ({ ...prev, role: value }))
+                    }
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Admin">
+                        <div className="flex items-center gap-2">
+                          <Shield className="h-4 w-4" />
+                          <div>
+                            <div className="font-medium">Administrator</div>
+                            <div className="text-xs text-muted-foreground">Full access to all features and settings</div>
+                          </div>
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="User">
+                        <div className="flex items-center gap-2">
+                          <Users className="h-4 w-4" />
+                          <div>
+                            <div className="font-medium">Standard User</div>
+                            <div className="text-xs text-muted-foreground">Configurable access to specific sections</div>
+                          </div>
+                        </div>
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="confirmPassword">Confirm Password</Label>
-                <Input
-                  id="confirmPassword"
-                  type="password"
-                  value={formData.confirmPassword}
-                  onChange={(e) => setFormData(prev => ({ ...prev, confirmPassword: e.target.value }))}
-                  placeholder={editingUser ? "Confirm new password (if changing)" : "Confirm password"}
-                  required={!editingUser || (editingUser && !!formData.password)}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label>Role</Label>
-                <Select
-                  value={formData.role}
-                  onValueChange={(value: BusinessUser['role']) => 
-                    setFormData(prev => ({ ...prev, role: value }))
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Admin">Admin - Full Access to Everything</SelectItem>
-                    <SelectItem value="User">User - Restricted Access (Configurable)</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
+              {/* Section Permissions - Only for Users */}
               {formData.role !== 'Admin' && (
                 <div className="space-y-4">
-                  <Label>Section Access & Permissions</Label>
-                  <div className="space-y-4 border rounded-lg p-4">
+                  <div className="flex items-center gap-2 pb-2 border-b border-border">
+                    <Eye className="h-4 w-4 text-primary" />
+                    <h3 className="text-lg font-semibold">Section Access Permissions</h3>
+                  </div>
+                  
+                  <div className="text-sm text-muted-foreground mb-4">
+                    Configure which sections this user can access and their permission level for each section.
+                  </div>
+                  
+                  <div className="grid gap-4">
                     {availableSections.map((section) => {
                       const hasAccess = formData.access_sections[section.key];
+                      const SectionIcon = section.icon;
+                      
                       return (
-                        <div key={section.key} className="space-y-2">
-                          <div className="flex items-center justify-between">
-                            <Label className="text-sm font-medium">{section.label}</Label>
-                            {hasAccess && (
-                              <Button 
-                                type="button" 
-                                variant="ghost" 
-                                size="sm"
-                                onClick={() => removeSectionAccess(section.key)}
-                              >
-                                <Trash2 className="h-3 w-3" />
-                              </Button>
-                            )}
-                          </div>
-                          
-                          <RadioGroup
-                            value={hasAccess || ''}
-                            onValueChange={(value: 'read' | 'edit') => handleSectionPermission(section.key, value)}
-                            className="flex space-x-4"
-                          >
-                            <div className="flex items-center space-x-2">
-                              <RadioGroupItem value="read" id={`${section.key}-read`} />
-                              <Label htmlFor={`${section.key}-read`} className="text-sm">Read Only</Label>
+                        <Card key={section.key} className={`transition-all duration-200 ${hasAccess ? 'ring-2 ring-primary/20 bg-primary/5' : ''}`}>
+                          <CardContent className="p-4">
+                            <div className="flex items-start justify-between mb-3">
+                              <div className="flex items-start gap-3">
+                                <SectionIcon className="h-5 w-5 text-primary mt-0.5" />
+                                <div>
+                                  <h4 className="font-medium text-sm">{section.label}</h4>
+                                  <p className="text-xs text-muted-foreground">{section.description}</p>
+                                </div>
+                              </div>
+                              {hasAccess && (
+                                <Button 
+                                  type="button" 
+                                  variant="ghost" 
+                                  size="sm"
+                                  onClick={() => removeSectionAccess(section.key)}
+                                  className="h-8 w-8 p-0 text-destructive hover:text-destructive"
+                                >
+                                  <Trash2 className="h-3 w-3" />
+                                </Button>
+                              )}
                             </div>
-                            <div className="flex items-center space-x-2">
-                              <RadioGroupItem value="edit" id={`${section.key}-edit`} />
-                              <Label htmlFor={`${section.key}-edit`} className="text-sm">Read + Edit</Label>
-                            </div>
-                          </RadioGroup>
-                          
-                          {section.key !== availableSections[availableSections.length - 1].key && <Separator />}
-                        </div>
+                            
+                            <RadioGroup
+                              value={hasAccess || ''}
+                              onValueChange={(value: 'read' | 'edit') => handleSectionPermission(section.key, value)}
+                              className="flex gap-6"
+                            >
+                              <div className="flex items-center space-x-2">
+                                <RadioGroupItem value="read" id={`${section.key}-read`} />
+                                <Label htmlFor={`${section.key}-read`} className="text-sm font-medium">
+                                  Read Only
+                                </Label>
+                              </div>
+                              <div className="flex items-center space-x-2">
+                                <RadioGroupItem value="edit" id={`${section.key}-edit`} />
+                                <Label htmlFor={`${section.key}-edit`} className="text-sm font-medium">
+                                  Full Access
+                                </Label>
+                              </div>
+                            </RadioGroup>
+                          </CardContent>
+                        </Card>
                       );
                     })}
-                    
-                    <div className="text-xs text-muted-foreground mt-2">
-                      <p>• <strong>Read Only:</strong> Can view data but cannot create, edit, or delete</p>
-                      <p>• <strong>Read + Edit:</strong> Full access to create, update, and delete records</p>
+                  </div>
+                  
+                  <div className="bg-muted/50 rounded-lg p-4">
+                    <h4 className="text-sm font-medium mb-2">Permission Levels:</h4>
+                    <div className="text-xs text-muted-foreground space-y-1">
+                      <div>• <strong>Read Only:</strong> View data, reports, and information without making changes</div>
+                      <div>• <strong>Full Access:</strong> Complete access to create, read, update, and delete records</div>
                     </div>
                   </div>
                 </div>
               )}
 
-              <div className="flex items-center space-x-2">
-                <Switch
-                  id="is_active"
-                  checked={formData.is_active}
-                  onCheckedChange={(checked) => 
-                    setFormData(prev => ({ ...prev, is_active: checked }))
-                  }
-                />
-                <Label htmlFor="is_active">Active User</Label>
+              {/* Account Status */}
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 pb-2 border-b border-border">
+                  <CheckCircle className="h-4 w-4 text-primary" />
+                  <h3 className="text-lg font-semibold">Account Status</h3>
+                </div>
+                
+                <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg">
+                  <div>
+                    <Label htmlFor="is_active" className="text-sm font-medium">Account Status</Label>
+                    <p className="text-xs text-muted-foreground">
+                      {formData.is_active ? 'User can log in and access assigned sections' : 'User cannot log in or access the system'}
+                    </p>
+                  </div>
+                  <Switch
+                    id="is_active"
+                    checked={formData.is_active}
+                    onCheckedChange={(checked) => 
+                      setFormData(prev => ({ ...prev, is_active: checked }))
+                    }
+                  />
+                </div>
               </div>
 
               <DialogFooter>
