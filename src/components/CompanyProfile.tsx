@@ -12,7 +12,11 @@ import { Separator } from '@/components/ui/separator';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Loader2, Building2, Save, Phone, Mail, Globe, MapPin, User, Lock, Eye, EyeOff, LogIn, AlertCircle, CheckCircle, IdCard } from 'lucide-react';
 
-export function CompanyProfile() {
+interface CompanyProfileProps {
+  readonly?: boolean;
+}
+
+export function CompanyProfile({ readonly = false }: CompanyProfileProps) {
   const { company, profile, user, loading } = useAuth();
   const { toast } = useToast();
 
@@ -344,65 +348,67 @@ export function CompanyProfile() {
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">
-      {/* Sign In Section */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="p-3 rounded-xl bg-primary/10 text-primary">
-                <LogIn className="h-6 w-6" />
+      {/* Sign In Section - Only show if not readonly */}
+      {!readonly && (
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="p-3 rounded-xl bg-primary/10 text-primary">
+                  <LogIn className="h-6 w-6" />
+                </div>
+                <div>
+                  <CardTitle>Sign In</CardTitle>
+                  <CardDescription>Access with your business credentials</CardDescription>
+                </div>
               </div>
-              <div>
-                <CardTitle>Sign In</CardTitle>
-                <CardDescription>Access with your business credentials</CardDescription>
-              </div>
-            </div>
-            <Button 
-              variant="outline" 
-              onClick={() => setShowSignIn(!showSignIn)}
-            >
-              {showSignIn ? 'Cancel' : 'Sign In'}
-            </Button>
-          </div>
-        </CardHeader>
-        {showSignIn && (
-          <CardContent>
-            <form onSubmit={handleSignIn} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="signin-username">Username</Label>
-                <Input
-                  id="signin-username"
-                  value={signInData.username}
-                  onChange={(e) => setSignInData(prev => ({ ...prev, username: e.target.value }))}
-                  placeholder="Enter your username"
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="signin-password">Password</Label>
-                <Input
-                  id="signin-password"
-                  type="password"
-                  value={signInData.password}
-                  onChange={(e) => setSignInData(prev => ({ ...prev, password: e.target.value }))}
-                  placeholder="Enter your password"
-                  required
-                />
-              </div>
-              <Button type="submit" className="w-full" disabled={isSigningIn}>
-                {isSigningIn ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Signing In...
-                  </>
-                ) : (
-                  'Sign In'
-                )}
+              <Button 
+                variant="outline" 
+                onClick={() => setShowSignIn(!showSignIn)}
+              >
+                {showSignIn ? 'Cancel' : 'Sign In'}
               </Button>
-            </form>
-          </CardContent>
-        )}
-      </Card>
+            </div>
+          </CardHeader>
+          {showSignIn && (
+            <CardContent>
+              <form onSubmit={handleSignIn} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="signin-username">Username</Label>
+                  <Input
+                    id="signin-username"
+                    value={signInData.username}
+                    onChange={(e) => setSignInData(prev => ({ ...prev, username: e.target.value }))}
+                    placeholder="Enter your username"
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="signin-password">Password</Label>
+                  <Input
+                    id="signin-password"
+                    type="password"
+                    value={signInData.password}
+                    onChange={(e) => setSignInData(prev => ({ ...prev, password: e.target.value }))}
+                    placeholder="Enter your password"
+                    required
+                  />
+                </div>
+                <Button type="submit" className="w-full" disabled={isSigningIn}>
+                  {isSigningIn ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Signing In...
+                    </>
+                  ) : (
+                    'Sign In'
+                  )}
+                </Button>
+              </form>
+            </CardContent>
+          )}
+        </Card>
+      )}
 
       {/* Company Profile Section */}
       <Card>
@@ -446,9 +452,11 @@ export function CompanyProfile() {
               <Input
                 id="company-name"
                 value={formData.name}
-                onChange={(e) => handleInputChange('name', e.target.value)}
+                onChange={readonly ? undefined : (e) => handleInputChange('name', e.target.value)}
                 placeholder="Your Company Ltd."
                 required
+                disabled={readonly}
+                className={readonly ? "bg-muted" : ""}
               />
             </div>
 
@@ -457,9 +465,11 @@ export function CompanyProfile() {
               <Input
                 id="gstn"
                 value={formData.gstn}
-                onChange={(e) => handleInputChange('gstn', e.target.value)}
+                onChange={readonly ? undefined : (e) => handleInputChange('gstn', e.target.value)}
                 placeholder="22AAAAA0000A1Z5"
                 maxLength={15}
+                disabled={readonly}
+                className={readonly ? "bg-muted" : ""}
               />
             </div>
 
@@ -472,8 +482,10 @@ export function CompanyProfile() {
               id="company-email"
               type="email"
               value={formData.email}
-              onChange={(e) => handleInputChange('email', e.target.value)}
+              onChange={readonly ? undefined : (e) => handleInputChange('email', e.target.value)}
               placeholder="contact@yourcompany.com"
+              disabled={readonly}
+              className={readonly ? "bg-muted" : ""}
             />
           </div>
 
@@ -486,11 +498,13 @@ export function CompanyProfile() {
               id="company-phone"
               type="tel"
               value={formData.phone}
-              onChange={(e) => handleInputChange('phone', e.target.value)}
+              onChange={readonly ? undefined : (e) => handleInputChange('phone', e.target.value)}
               placeholder="1234567890"
               pattern="\d{10}"
               maxLength={10}
               title="Please enter exactly 10 digits"
+              disabled={readonly}
+              className={readonly ? "bg-muted" : ""}
             />
           </div>
 
@@ -506,9 +520,11 @@ export function CompanyProfile() {
                   <Input
                     id="address-line1"
                     value={formData.addressLine1}
-                    onChange={(e) => handleInputChange('addressLine1', e.target.value)}
+                    onChange={readonly ? undefined : (e) => handleInputChange('addressLine1', e.target.value)}
                     placeholder="Street address, building number"
-                    required
+                    required={!readonly}
+                    disabled={readonly}
+                    className={readonly ? "bg-muted" : ""}
                   />
                 </div>
                 
@@ -517,8 +533,10 @@ export function CompanyProfile() {
                   <Input
                     id="address-line2"
                     value={formData.addressLine2}
-                    onChange={(e) => handleInputChange('addressLine2', e.target.value)}
+                    onChange={readonly ? undefined : (e) => handleInputChange('addressLine2', e.target.value)}
                     placeholder="Apartment, suite, floor (optional)"
+                    disabled={readonly}
+                    className={readonly ? "bg-muted" : ""}
                   />
                 </div>
                 
@@ -528,9 +546,11 @@ export function CompanyProfile() {
                     <Input
                       id="city"
                       value={formData.city}
-                      onChange={(e) => handleInputChange('city', e.target.value)}
+                      onChange={readonly ? undefined : (e) => handleInputChange('city', e.target.value)}
                       placeholder="City"
-                      required
+                      required={!readonly}
+                      disabled={readonly}
+                      className={readonly ? "bg-muted" : ""}
                     />
                   </div>
                   
@@ -539,9 +559,11 @@ export function CompanyProfile() {
                     <Input
                       id="state"
                       value={formData.state}
-                      onChange={(e) => handleInputChange('state', e.target.value)}
+                      onChange={readonly ? undefined : (e) => handleInputChange('state', e.target.value)}
                       placeholder="State/Province"
-                      required
+                      required={!readonly}
+                      disabled={readonly}
+                      className={readonly ? "bg-muted" : ""}
                     />
                   </div>
                 </div>
@@ -552,9 +574,11 @@ export function CompanyProfile() {
                     <Input
                       id="country"
                       value={formData.country}
-                      onChange={(e) => handleInputChange('country', e.target.value)}
+                      onChange={readonly ? undefined : (e) => handleInputChange('country', e.target.value)}
                       placeholder="Country"
-                      required
+                      required={!readonly}
+                      disabled={readonly}
+                      className={readonly ? "bg-muted" : ""}
                     />
                   </div>
                   
@@ -563,9 +587,11 @@ export function CompanyProfile() {
                     <Input
                       id="postal-code"
                       value={formData.postalCode}
-                      onChange={(e) => handleInputChange('postalCode', e.target.value)}
+                      onChange={readonly ? undefined : (e) => handleInputChange('postalCode', e.target.value)}
                       placeholder="Postal/ZIP code"
-                      required
+                      required={!readonly}
+                      disabled={readonly}
+                      className={readonly ? "bg-muted" : ""}
                     />
                   </div>
                 </div>
@@ -581,8 +607,10 @@ export function CompanyProfile() {
               id="company-website"
               type="url"
               value={formData.website}
-              onChange={(e) => handleInputChange('website', e.target.value)}
+              onChange={readonly ? undefined : (e) => handleInputChange('website', e.target.value)}
               placeholder="https://www.yourcompany.com"
+              disabled={readonly}
+              className={readonly ? "bg-muted" : ""}
             />
           </div>
 
@@ -591,8 +619,9 @@ export function CompanyProfile() {
               <select
                 id="company-status"
                 value={formData.status}
-                onChange={(e) => handleInputChange('status', e.target.value)}
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                onChange={readonly ? undefined : (e) => handleInputChange('status', e.target.value)}
+                disabled={readonly}
+                className={`flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 ${readonly ? "bg-muted" : ""}`}
               >
                 <option value="active">Active</option>
                 <option value="inactive">Inactive</option>
@@ -601,153 +630,159 @@ export function CompanyProfile() {
 
             <Separator />
 
-            {/* Authentication Section */}
-            <div className="space-y-4">
-              <h3 className="text-lg font-medium">Authentication Details</h3>
-              
-              <div className="space-y-2">
-                <Label htmlFor="username" className="flex items-center gap-2">
-                  <User className="h-4 w-4" />
-                  Username *
-                </Label>
-                <Input
-                  id="username"
-                  value={formData.username}
-                  onChange={(e) => handleInputChange('username', e.target.value)}
-                  placeholder="Enter username"
-                  required
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="password" className="flex items-center gap-2">
-                  <Lock className="h-4 w-4" />
-                  Password *
-                </Label>
-                <div className="relative">
+            {/* Authentication Section - Only show if not readonly */}
+            {!readonly && (
+              <div className="space-y-4">
+                <h3 className="text-lg font-medium">Authentication Details</h3>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="username" className="flex items-center gap-2">
+                    <User className="h-4 w-4" />
+                    Username *
+                  </Label>
                   <Input
-                    id="password"
-                    type={showPassword ? "text" : "password"}
-                    value={formData.password}
-                    onChange={(e) => handleInputChange('password', e.target.value)}
-                    placeholder="Enter password"
+                    id="username"
+                    value={formData.username}
+                    onChange={(e) => handleInputChange('username', e.target.value)}
+                    placeholder="Enter username"
                     required
                   />
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="absolute right-2 top-1/2 -translate-y-1/2 h-auto p-1"
-                    onClick={() => setShowPassword(!showPassword)}
-                  >
-                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                  </Button>
                 </div>
-                
-                {formData.password && (
-                  <div className="space-y-2 p-3 bg-muted rounded-md">
-                    <p className="text-sm font-medium">Password Requirements:</p>
-                    <div className="space-y-1 text-sm">
-                      <div className={`flex items-center gap-2 ${passwordValidation.minLength ? 'text-green-600' : 'text-red-600'}`}>
-                        {passwordValidation.minLength ? <CheckCircle className="h-3 w-3" /> : <AlertCircle className="h-3 w-3" />}
-                        At least 8 characters
-                      </div>
-                      <div className={`flex items-center gap-2 ${passwordValidation.hasUpperCase ? 'text-green-600' : 'text-red-600'}`}>
-                        {passwordValidation.hasUpperCase ? <CheckCircle className="h-3 w-3" /> : <AlertCircle className="h-3 w-3" />}
-                        One uppercase letter
-                      </div>
-                      <div className={`flex items-center gap-2 ${passwordValidation.hasLowerCase ? 'text-green-600' : 'text-red-600'}`}>
-                        {passwordValidation.hasLowerCase ? <CheckCircle className="h-3 w-3" /> : <AlertCircle className="h-3 w-3" />}
-                        One lowercase letter
-                      </div>
-                      <div className={`flex items-center gap-2 ${passwordValidation.hasNumbers ? 'text-green-600' : 'text-red-600'}`}>
-                        {passwordValidation.hasNumbers ? <CheckCircle className="h-3 w-3" /> : <AlertCircle className="h-3 w-3" />}
-                        One number
-                      </div>
-                      <div className={`flex items-center gap-2 ${passwordValidation.hasSpecialChar ? 'text-green-600' : 'text-red-600'}`}>
-                        {passwordValidation.hasSpecialChar ? <CheckCircle className="h-3 w-3" /> : <AlertCircle className="h-3 w-3" />}
-                        One special character
+
+                <div className="space-y-2">
+                  <Label htmlFor="password" className="flex items-center gap-2">
+                    <Lock className="h-4 w-4" />
+                    Password *
+                  </Label>
+                  <div className="relative">
+                    <Input
+                      id="password"
+                      type={showPassword ? "text" : "password"}
+                      value={formData.password}
+                      onChange={(e) => handleInputChange('password', e.target.value)}
+                      placeholder="Enter password"
+                      required
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="absolute right-2 top-1/2 -translate-y-1/2 h-auto p-1"
+                      onClick={() => setShowPassword(!showPassword)}
+                    >
+                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </Button>
+                  </div>
+                  
+                  {formData.password && (
+                    <div className="space-y-2 p-3 bg-muted rounded-md">
+                      <p className="text-sm font-medium">Password Requirements:</p>
+                      <div className="space-y-1 text-sm">
+                        <div className={`flex items-center gap-2 ${passwordValidation.minLength ? 'text-green-600' : 'text-red-600'}`}>
+                          {passwordValidation.minLength ? <CheckCircle className="h-3 w-3" /> : <AlertCircle className="h-3 w-3" />}
+                          At least 8 characters
+                        </div>
+                        <div className={`flex items-center gap-2 ${passwordValidation.hasUpperCase ? 'text-green-600' : 'text-red-600'}`}>
+                          {passwordValidation.hasUpperCase ? <CheckCircle className="h-3 w-3" /> : <AlertCircle className="h-3 w-3" />}
+                          One uppercase letter
+                        </div>
+                        <div className={`flex items-center gap-2 ${passwordValidation.hasLowerCase ? 'text-green-600' : 'text-red-600'}`}>
+                          {passwordValidation.hasLowerCase ? <CheckCircle className="h-3 w-3" /> : <AlertCircle className="h-3 w-3" />}
+                          One lowercase letter
+                        </div>
+                        <div className={`flex items-center gap-2 ${passwordValidation.hasNumbers ? 'text-green-600' : 'text-red-600'}`}>
+                          {passwordValidation.hasNumbers ? <CheckCircle className="h-3 w-3" /> : <AlertCircle className="h-3 w-3" />}
+                          One number
+                        </div>
+                        <div className={`flex items-center gap-2 ${passwordValidation.hasSpecialChar ? 'text-green-600' : 'text-red-600'}`}>
+                          {passwordValidation.hasSpecialChar ? <CheckCircle className="h-3 w-3" /> : <AlertCircle className="h-3 w-3" />}
+                          One special character
+                        </div>
                       </div>
                     </div>
-                  </div>
-                )}
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="confirm-password">Reconfirm Password *</Label>
-                <div className="relative">
-                  <Input
-                    id="confirm-password"
-                    type={showConfirmPassword ? "text" : "password"}
-                    value={formData.confirmPassword}
-                    onChange={(e) => handleInputChange('confirmPassword', e.target.value)}
-                    placeholder="Reconfirm password"
-                    required
-                  />
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="absolute right-2 top-1/2 -translate-y-1/2 h-auto p-1"
-                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                  >
-                    {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                  </Button>
+                  )}
                 </div>
-                
-                {formData.confirmPassword && (
-                  <Alert className={passwordsMatch ? "border-green-500" : "border-red-500"}>
-                    <AlertCircle className="h-4 w-4" />
-                    <AlertDescription className={passwordsMatch ? "text-green-600" : "text-red-600"}>
-                      {passwordsMatch ? (
-                        <span className="flex items-center gap-2">
-                          <CheckCircle className="h-3 w-3" />
-                          Passwords match
-                        </span>
-                      ) : (
-                        "Passwords do not match"
-                      )}
-                    </AlertDescription>
-                  </Alert>
-                )}
-              </div>
-            </div>
 
-            <Button type="submit" className="w-full" disabled={isLoading}>
-              {isLoading ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Updating...
-                </>
-              ) : (
-                <>
-                  <Save className="mr-2 h-4 w-4" />
-                  Update Company Profile
-                </>
+                <div className="space-y-2">
+                  <Label htmlFor="confirm-password">Reconfirm Password *</Label>
+                  <div className="relative">
+                    <Input
+                      id="confirm-password"
+                      type={showConfirmPassword ? "text" : "password"}
+                      value={formData.confirmPassword}
+                      onChange={(e) => handleInputChange('confirmPassword', e.target.value)}
+                      placeholder="Reconfirm password"
+                      required
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="absolute right-2 top-1/2 -translate-y-1/2 h-auto p-1"
+                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    >
+                      {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </Button>
+                  </div>
+                  
+                  {formData.confirmPassword && (
+                    <Alert className={passwordsMatch ? "border-green-500" : "border-red-500"}>
+                      <AlertCircle className="h-4 w-4" />
+                      <AlertDescription className={passwordsMatch ? "text-green-600" : "text-red-600"}>
+                        {passwordsMatch ? (
+                          <span className="flex items-center gap-2">
+                            <CheckCircle className="h-3 w-3" />
+                            Passwords match
+                          </span>
+                        ) : (
+                          "Passwords do not match"
+                        )}
+                      </AlertDescription>
+                    </Alert>
+                  )}
+                </div>
+              </div>
+            )}
+
+              {!readonly && (
+                <Button type="submit" className="w-full" disabled={isLoading}>
+                  {isLoading ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Updating...
+                    </>
+                  ) : (
+                    <>
+                      <Save className="mr-2 h-4 w-4" />
+                      Update Company Profile
+                    </>
+                  )}
+                </Button>
               )}
-            </Button>
           </form>
         </CardContent>
       </Card>
 
-      {/* Forgot Password Section */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Forgot Password?</CardTitle>
-          <CardDescription>
-            Reset your password if you've forgotten it
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Button 
-            variant="outline" 
-            onClick={handleForgotPassword}
-            className="w-full"
-          >
-            Send Password Reset Instructions
-          </Button>
-        </CardContent>
-      </Card>
+      {/* Forgot Password Section - Only show if not readonly */}
+      {!readonly && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Forgot Password?</CardTitle>
+            <CardDescription>
+              Reset your password if you've forgotten it
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button 
+              variant="outline" 
+              onClick={handleForgotPassword}
+              className="w-full"
+            >
+              Send Password Reset Instructions
+            </Button>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

@@ -15,6 +15,7 @@ import { Loader2, Plus, Edit, Trash2, Users, Shield, Eye, ArrowLeft, Clock, Chec
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import { useBusinessAuth } from '@/hooks/useBusinessAuth';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { AuditLogViewer } from '@/components/AuditLogViewer';
 import { CompanyProfile } from '@/components/CompanyProfile';
@@ -36,6 +37,7 @@ interface BusinessUser {
 
 const UserManagement = () => {
   const { company, profile, user } = useAuth();
+  const { businessUser, canManageCompany, hasEditAccess } = useBusinessAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
   const [users, setUsers] = useState<BusinessUser[]>([]);
@@ -370,7 +372,11 @@ const UserManagement = () => {
                   Manage users and their access to different sections
                 </p>
               </div>
-              <Button onClick={() => handleOpenDialog()} className="btn-gradient">
+              <Button 
+                onClick={() => handleOpenDialog()} 
+                className="btn-gradient"
+                disabled={!hasEditAccess('user_management')}
+              >
                 <Plus className="mr-2 h-4 w-4" />
                 Add User
               </Button>
@@ -389,7 +395,11 @@ const UserManagement = () => {
                     <p className="text-muted-foreground mb-4">
                       Start by adding your first team member
                     </p>
-                    <Button onClick={() => handleOpenDialog()} className="btn-gradient">
+                    <Button 
+                      onClick={() => handleOpenDialog()} 
+                      className="btn-gradient"
+                      disabled={!hasEditAccess('user_management')}
+                    >
                       <Plus className="mr-2 h-4 w-4" />
                       Add First User
                     </Button>
@@ -461,20 +471,22 @@ const UserManagement = () => {
                             </TableCell>
                             <TableCell>
                               <div className="flex gap-2">
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => handleOpenDialog(user)}
-                                >
-                                  <Edit className="h-4 w-4" />
-                                </Button>
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => handleDeleteUser(user.id, user.name)}
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
+                                 <Button
+                                   variant="outline"
+                                   size="sm"
+                                   onClick={() => handleOpenDialog(user)}
+                                   disabled={!hasEditAccess('user_management')}
+                                 >
+                                   <Edit className="h-4 w-4" />
+                                 </Button>
+                                 <Button
+                                   variant="outline"
+                                   size="sm"
+                                   onClick={() => handleDeleteUser(user.id, user.name)}
+                                   disabled={!hasEditAccess('user_management')}
+                                 >
+                                   <Trash2 className="h-4 w-4" />
+                                 </Button>
                               </div>
                             </TableCell>
                           </TableRow>
@@ -487,20 +499,25 @@ const UserManagement = () => {
             </Card>
           </TabsContent>
 
-          <TabsContent value="company" className="space-y-6">
-            <div className="flex justify-between items-center">
-              <div>
-                <h2 className="text-2xl font-bold">Company Profile</h2>
-                <p className="text-muted-foreground">
-                  {profile?.role === 'owner' || profile?.role === 'admin' 
-                    ? 'View and manage your company information' 
-                    : 'View company information (read-only access)'}
-                </p>
+            <TabsContent value="company" className="space-y-6">
+              <div className="space-y-4">
+                <div className="flex justify-between items-center">
+                  <div>
+                    <h2 className="text-2xl font-bold">Company Profile</h2>
+                    <p className="text-muted-foreground">
+                      {canManageCompany() ? 'View and edit company information' : 'View company information'}
+                    </p>
+                  </div>
+                  {!canManageCompany() && (
+                    <Badge variant="secondary" className="flex items-center gap-2">
+                      <Eye className="h-4 w-4" />
+                      Read Only
+                    </Badge>
+                  )}
+                </div>
+                <CompanyProfile readonly={!canManageCompany()} />
               </div>
-            </div>
-            
-            <CompanyProfile />
-          </TabsContent>
+            </TabsContent>
           <TabsContent value="audit" className="space-y-6">
             <div className="flex justify-between items-center">
               <div>
