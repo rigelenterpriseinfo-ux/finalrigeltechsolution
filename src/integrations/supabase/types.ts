@@ -255,6 +255,50 @@ export type Database = {
         }
         Relationships: []
       }
+      company_users: {
+        Row: {
+          access_type: string | null
+          company_id: string
+          created_at: string | null
+          email: string
+          id: string
+          password_hash: string
+          status: string | null
+          updated_at: string | null
+          username: string
+        }
+        Insert: {
+          access_type?: string | null
+          company_id: string
+          created_at?: string | null
+          email: string
+          id?: string
+          password_hash: string
+          status?: string | null
+          updated_at?: string | null
+          username: string
+        }
+        Update: {
+          access_type?: string | null
+          company_id?: string
+          created_at?: string | null
+          email?: string
+          id?: string
+          password_hash?: string
+          status?: string | null
+          updated_at?: string | null
+          username?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "company_users_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       customers: {
         Row: {
           account_number: string | null
@@ -929,7 +973,7 @@ export type Database = {
         Row: {
           avatar_url: string | null
           city: string | null
-          company_id: string
+          company_id: string | null
           country: string | null
           created_at: string
           first_name: string | null
@@ -948,7 +992,7 @@ export type Database = {
         Insert: {
           avatar_url?: string | null
           city?: string | null
-          company_id: string
+          company_id?: string | null
           country?: string | null
           created_at?: string
           first_name?: string | null
@@ -967,7 +1011,7 @@ export type Database = {
         Update: {
           avatar_url?: string | null
           city?: string | null
-          company_id?: string
+          company_id?: string | null
           country?: string | null
           created_at?: string
           first_name?: string | null
@@ -1805,6 +1849,44 @@ export type Database = {
           },
         ]
       }
+      user_company_access: {
+        Row: {
+          company_id: string
+          granted_at: string | null
+          granted_by: string | null
+          id: string
+          is_active: boolean | null
+          role: string
+          user_id: string
+        }
+        Insert: {
+          company_id: string
+          granted_at?: string | null
+          granted_by?: string | null
+          id?: string
+          is_active?: boolean | null
+          role?: string
+          user_id: string
+        }
+        Update: {
+          company_id?: string
+          granted_at?: string | null
+          granted_by?: string | null
+          id?: string
+          is_active?: boolean | null
+          role?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_company_access_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       warehouse_bins: {
         Row: {
           bin_name: string
@@ -1898,6 +1980,10 @@ export type Database = {
       }
       generate_user_ref: {
         Args: { comp_id: string }
+        Returns: string
+      }
+      get_current_company_context: {
+        Args: Record<PropertyKey, never>
         Returns: string
       }
       get_current_user_role: {

@@ -58,36 +58,34 @@ serve(async (req) => {
     // Hash the provided password
     const passwordHash = await hashPassword(password);
 
-    // Find the business and user
+    // Find the company and user
     const { data: userData, error: userError } = await supabase
-      .from("gated_business_users")
+      .from("company_users")
       .select(`
         id,
         username,
         email,
         access_type,
         status,
-        business_id,
-        gated_businesses!inner (
+        company_id,
+        companies!inner (
           id,
           business_ref_no,
           name,
           email,
           phone,
-          addr_line1,
-          addr_line2,
+          address_line1,
+          address_line2,
           state,
-          pin_code,
+          postal_code,
           country,
-          business_type,
-          industry_type,
-          gstin,
-          payment_status
+          gstn,
+          status
         )
       `)
       .eq("username", username)
       .eq("password_hash", passwordHash)
-      .eq("gated_businesses.business_ref_no", businessRefNo)
+      .eq("companies.business_ref_no", businessRefNo)
       .eq("status", "ACTIVE")
       .single();
 
@@ -101,11 +99,11 @@ serve(async (req) => {
       );
     }
 
-    // Check if business payment status is valid
-    const business = userData.gated_businesses;
-    if (business.payment_status !== 'PAID') {
+    // Check if company status is valid (assuming companies have status instead of payment_status)
+    const company = userData.companies;
+    if (company.status !== 'active') {
       return new Response(
-        JSON.stringify({ error: "Business account suspended. Please contact support." }),
+        JSON.stringify({ error: "Company account suspended. Please contact support." }),
         { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -113,7 +111,7 @@ serve(async (req) => {
     // Generate session token (in a real app, you'd store this in a sessions table)
     const sessionToken = generateSessionToken();
 
-    // Return user and business data
+    // Return user and company data
     const responseData = {
       success: true,
       sessionToken,
@@ -124,23 +122,21 @@ serve(async (req) => {
         accessType: userData.access_type,
         status: userData.status
       },
-      business: {
-        id: business.id,
-        businessRefNo: business.business_ref_no,
-        name: business.name,
-        email: business.email,
-        phone: business.phone,
+      company: {
+        id: company.id,
+        businessRefNo: company.business_ref_no,
+        name: company.name,
+        email: company.email,
+        phone: company.phone,
         address: {
-          line1: business.addr_line1,
-          line2: business.addr_line2,
-          state: business.state,
-          pin: business.pin_code,
-          country: business.country
+          line1: company.address_line1,
+          line2: company.address_line2,
+          state: company.state,
+          postal: company.postal_code,
+          country: company.country
         },
-        businessType: business.business_type,
-        industryType: business.industry_type,
-        gstin: business.gstin,
-        paymentStatus: business.payment_status
+        gstin: company.gstin,
+        status: company.status
       }
     };
 

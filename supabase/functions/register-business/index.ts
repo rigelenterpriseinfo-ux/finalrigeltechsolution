@@ -158,24 +158,24 @@ serve(async (req) => {
       );
     }
 
-    // Check if business email already exists
-    const { data: existingBusiness, error: checkError } = await supabase
-      .from("gated_businesses")
+    // Check if company email already exists
+    const { data: existingCompany, error: checkError } = await supabase
+      .from("companies")
       .select("id")
       .eq("email", email)
       .limit(1);
 
     if (checkError) {
-      console.error("Business check error:", checkError);
+      console.error("Company check error:", checkError);
       return new Response(
         JSON.stringify({ error: "Registration validation failed" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    if (existingBusiness && existingBusiness.length > 0) {
+    if (existingCompany && existingCompany.length > 0) {
       return new Response(
-        JSON.stringify({ error: "A business with this email is already registered" }),
+        JSON.stringify({ error: "A company with this email is already registered" }),
         { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -183,39 +183,37 @@ serve(async (req) => {
     // Hash password
     const passwordHash = await hashPassword(password);
 
-    // Create business record (business_ref_no will be auto-generated)
-    const { data: businessData, error: businessError } = await supabase
-      .from("gated_businesses")
+    // Create company record (business_ref_no will be auto-generated)
+    const { data: companyData, error: companyError } = await supabase
+      .from("companies")
       .insert({
         name,
         email,
         phone,
-        addr_line1: addrLine1,
-        addr_line2: addrLine2 || null,
+        address_line1: addrLine1,
+        address_line2: addrLine2 || null,
         state,
-        pin_code: pinCode,
+        postal_code: pinCode,
         country,
-        business_type: businessType,
-        industry_type: industryType,
-        gstin: gstin || null,
-        payment_status: 'PAID'
+        gstn: gstin || null,
+        status: 'active'
       })
       .select()
       .single();
 
-    if (businessError) {
-      console.error("Business creation error:", businessError);
+    if (companyError) {
+      console.error("Company creation error:", companyError);
       return new Response(
-        JSON.stringify({ error: "Failed to register business" }),
+        JSON.stringify({ error: "Failed to register company" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
     // Create primary admin user
     const { error: userError } = await supabase
-      .from("gated_business_users")
+      .from("company_users")
       .insert({
-        business_id: businessData.id,
+        company_id: companyData.id,
         username,
         email,
         password_hash: passwordHash,
@@ -225,8 +223,8 @@ serve(async (req) => {
 
     if (userError) {
       console.error("User creation error:", userError);
-      // Rollback business creation
-      await supabase.from("gated_businesses").delete().eq("id", businessData.id);
+      // Rollback company creation
+      await supabase.from("companies").delete().eq("id", companyData.id);
       
       return new Response(
         JSON.stringify({ error: "Failed to create admin user" }),
@@ -237,8 +235,8 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({ 
         success: true,
-        businessRefNo: businessData.business_ref_no,
-        message: "Business registered successfully"
+        businessRefNo: companyData.business_ref_no,
+        message: "Company registered successfully"
       }),
       { status: 201, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
