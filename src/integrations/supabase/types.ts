@@ -82,7 +82,7 @@ export type Database = {
       business_users: {
         Row: {
           access_sections: Json | null
-          business_id: string | null
+          company_id: string | null
           created_at: string
           created_by: string | null
           email: string | null
@@ -97,7 +97,7 @@ export type Database = {
         }
         Insert: {
           access_sections?: Json | null
-          business_id?: string | null
+          company_id?: string | null
           created_at?: string
           created_by?: string | null
           email?: string | null
@@ -112,7 +112,7 @@ export type Database = {
         }
         Update: {
           access_sections?: Json | null
-          business_id?: string | null
+          company_id?: string | null
           created_at?: string
           created_by?: string | null
           email?: string | null
@@ -127,10 +127,10 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "business_users_business_id_fkey"
-            columns: ["business_id"]
+            foreignKeyName: "business_users_company_id_fkey"
+            columns: ["company_id"]
             isOneToOne: false
-            referencedRelation: "businesses"
+            referencedRelation: "companies"
             referencedColumns: ["id"]
           },
         ]
@@ -1897,7 +1897,7 @@ export type Database = {
         Returns: string
       }
       generate_user_ref: {
-        Args: { bus_id: string }
+        Args: { comp_id: string }
         Returns: string
       }
       get_current_user_role: {

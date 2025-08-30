@@ -79,7 +79,7 @@ const UserManagement = () => {
       const { data, error } = await supabase
         .from('business_users')
         .select('*')
-        .eq('business_id', company?.id)
+        .eq('company_id', company?.id)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -166,7 +166,7 @@ const UserManagement = () => {
           .from('business_users')
           .select('email')
           .eq('email', formData.email)
-          .eq('business_id', company?.id)
+          .eq('company_id', company?.id)
           .single();
 
         if (existingUser) {
@@ -180,7 +180,7 @@ const UserManagement = () => {
         role: formData.role,
         access_sections: formData.role === 'Admin' ? null : formData.access_sections,
         is_active: formData.is_active,
-        business_id: company?.id,
+        company_id: company?.id,
         created_by: user?.id
       };
 
