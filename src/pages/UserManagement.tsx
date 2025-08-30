@@ -4,7 +4,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
@@ -28,7 +28,7 @@ interface BusinessUser {
   name: string;
   full_name?: string;
   email: string;
-  role: 'Admin' | 'Editor' | 'Viewer';
+  access_type: 'OWNER' | 'ADMIN' | 'USER';
   access_sections: Record<string, 'read' | 'edit'>;
   is_active: boolean;
   password_hash?: string;
@@ -53,7 +53,6 @@ const UserManagement = () => {
     email: '',
     password: '',
     confirmPassword: '',
-    role: 'Editor' as BusinessUser['role'],
     access_sections: {} as Record<string, 'read' | 'edit'>,
     is_active: true
   });
@@ -69,11 +68,6 @@ const UserManagement = () => {
     { key: 'company_profile', label: 'Company Profile', icon: Building2, description: 'Manage company information and business settings' }
   ];
 
-  const roleIcons = {
-    Admin: Shield,
-    Editor: Edit,
-    Viewer: Eye
-  };
 
   useEffect(() => {
     if (company?.id) {
@@ -111,7 +105,7 @@ const UserManagement = () => {
         ...user,
         user_ref: user.username, // Use username as user_ref for display
         name: user.full_name || user.username, // Use full_name if available
-        role: user.role === 'admin' ? 'Admin' : user.role === 'editor' ? 'Editor' : 'Viewer',
+        access_type: user.access_type || 'USER',
         access_sections: permissionsMap[user.email] || {}
       } as BusinessUser)));
     } catch (error: any) {
@@ -131,7 +125,6 @@ const UserManagement = () => {
       email: '',
       password: '',
       confirmPassword: '',
-      role: 'Editor',
       access_sections: {},
       is_active: true
     });
@@ -146,7 +139,6 @@ const UserManagement = () => {
         email: user.email,
         password: '',
         confirmPassword: '',
-        role: user.role,
         access_sections: user.access_sections || {},
         is_active: user.is_active
       });
@@ -192,7 +184,6 @@ const UserManagement = () => {
             email: formData.email,
             password: formData.password,
             name: formData.name,
-            role: formData.role,
             company_id: company?.id,
             created_by: user?.id
           }
@@ -207,10 +198,9 @@ const UserManagement = () => {
           throw new Error(inviteData?.error || 'Failed to create user');
         }
 
-        // Save section permissions for new user (only for non-Admin roles)
-        if (formData.role !== 'Admin' && Object.keys(formData.access_sections).length > 0) {
-          await updateSectionPermissions(formData.email, formData.access_sections);
-        }
+          if (Object.keys(formData.access_sections).length > 0) {
+            await updateSectionPermissions(formData.email, formData.access_sections);
+          }
 
         toast({
           title: "User created successfully",
@@ -222,8 +212,6 @@ const UserManagement = () => {
           username: formData.email,
           email: formData.email,
           full_name: formData.name,
-          role: formData.role === 'Admin' ? 'admin' : formData.role === 'Editor' ? 'editor' : 'viewer',
-          access_type: formData.role === 'Admin' ? 'ADMIN' : 'USER',
           status: 'ACTIVE'
         };
 
@@ -240,7 +228,7 @@ const UserManagement = () => {
         if (error) throw error;
 
         // Update section permissions for this user
-        if (formData.role !== 'Admin' && Object.keys(formData.access_sections).length > 0) {
+        if (Object.keys(formData.access_sections).length > 0) {
           await updateSectionPermissions(formData.email, formData.access_sections);
         }
 
@@ -252,7 +240,6 @@ const UserManagement = () => {
                 email: formData.email,
                 password: formData.password,
                 name: formData.name,
-                role: formData.role,
                 company_id: company?.id,
               }
             });
@@ -419,16 +406,13 @@ const UserManagement = () => {
                       <TableRow>
                         <TableHead>User</TableHead>
                         <TableHead>Reference</TableHead>
-                        <TableHead>Role</TableHead>
                         <TableHead>Access Sections</TableHead>
                         <TableHead>Status</TableHead>
                         <TableHead>Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {users.map((user) => {
-                        const RoleIcon = roleIcons[user.role];
-                        return (
+                      {users.map((user) => (
                           <TableRow key={user.id}>
                             <TableCell>
                               <div>
@@ -442,15 +426,7 @@ const UserManagement = () => {
                               </Badge>
                             </TableCell>
                             <TableCell>
-                              <div className="flex items-center gap-2">
-                                <RoleIcon className="h-4 w-4" />
-                                <Badge variant={user.role === 'Admin' ? 'default' : 'secondary'}>
-                                  {user.role}
-                                </Badge>
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              {user.role === 'Admin' ? (
+                              {['OWNER','ADMIN'].includes(user.access_type) ? (
                                 <Badge>Full Access</Badge>
                               ) : Object.keys(user.access_sections || {}).length ? (
                                 <div className="flex flex-wrap gap-1">
@@ -632,131 +608,79 @@ const UserManagement = () => {
                 </div>
               </div>
 
-              {/* Role Selection */}
+
+              {/* Section Permissions */}
               <div className="space-y-4">
                 <div className="flex items-center gap-2 pb-2 border-b border-border">
-                  <Settings className="h-4 w-4 text-primary" />
-                  <h3 className="text-lg font-semibold">Role & Permissions</h3>
+                  <Eye className="h-4 w-4 text-primary" />
+                  <h3 className="text-lg font-semibold">Section Access Permissions</h3>
                 </div>
                 
-                <div className="space-y-3">
-                  <Label>User Role *</Label>
-                  <Select
-                    value={formData.role}
-                    onValueChange={(value: BusinessUser['role']) => 
-                      setFormData(prev => ({ ...prev, role: value }))
-                    }
-                  >
-                    <SelectTrigger className="w-full">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Admin">
-                        <div className="flex items-center gap-2">
-                          <Shield className="h-4 w-4" />
-                          <div>
-                            <div className="font-medium">Administrator</div>
-                            <div className="text-xs text-muted-foreground">Full access to all features and settings</div>
+                <div className="text-sm text-muted-foreground mb-4">
+                  Configure which sections this user can access and their permission level for each section.
+                </div>
+                
+                <div className="grid gap-4">
+                  {availableSections.map((section) => {
+                    const hasAccess = formData.access_sections[section.key];
+                    const SectionIcon = section.icon;
+                    
+                    return (
+                      <Card key={section.key} className={`transition-all duration-200 ${hasAccess ? 'ring-2 ring-primary/20 bg-primary/5' : ''}`}>
+                        <CardContent className="p-4">
+                          <div className="flex items-start justify-between mb-3">
+                            <div className="flex items-start gap-3">
+                              <SectionIcon className="h-5 w-5 text-primary mt-0.5" />
+                              <div>
+                                <h4 className="font-medium text-sm">{section.label}</h4>
+                                <p className="text-xs text-muted-foreground">{section.description}</p>
+                              </div>
+                            </div>
+                            {hasAccess && (
+                              <Button 
+                                type="button" 
+                                variant="ghost" 
+                                size="sm"
+                                onClick={() => removeSectionAccess(section.key)}
+                                className="h-8 w-8 p-0 text-destructive hover:text-destructive"
+                              >
+                                <Trash2 className="h-3 w-3" />
+                              </Button>
+                            )}
                           </div>
-                        </div>
-                      </SelectItem>
-                      <SelectItem value="Editor">
-                        <div className="flex items-center gap-2">
-                          <Edit className="h-4 w-4" />
-                          <div>
-                            <div className="font-medium">Editor</div>
-                            <div className="text-xs text-muted-foreground">Can create and modify data in assigned sections</div>
-                          </div>
-                        </div>
-                      </SelectItem>
-                      <SelectItem value="Viewer">
-                        <div className="flex items-center gap-2">
-                          <Eye className="h-4 w-4" />
-                          <div>
-                            <div className="font-medium">Viewer</div>
-                            <div className="text-xs text-muted-foreground">Read-only access to assigned sections</div>
-                          </div>
-                        </div>
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
+                          
+                          <RadioGroup
+                            value={hasAccess || ''}
+                            onValueChange={(value: 'read' | 'edit') => handleSectionPermission(section.key, value)}
+                            className="flex gap-6"
+                          >
+                            <div className="flex items-center space-x-2">
+                              <RadioGroupItem value="read" id={`${section.key}-read`} />
+                              <Label htmlFor={`${section.key}-read`} className="text-sm font-medium">
+                                Read Only
+                              </Label>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                              <RadioGroupItem value="edit" id={`${section.key}-edit`} />
+                              <Label htmlFor={`${section.key}-edit`} className="text-sm font-medium">
+                                Full Access
+                              </Label>
+                            </div>
+                          </RadioGroup>
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                </div>
+                
+                <div className="bg-muted/50 rounded-lg p-4">
+                  <h4 className="text-sm font-medium mb-2">Permission Levels:</h4>
+                  <div className="text-xs text-muted-foreground space-y-1">
+                    <div>• <strong>Read Only:</strong> View data, reports, and information without making changes</div>
+                    <div>• <strong>Full Access:</strong> Complete access to create, read, update, and delete records</div>
+                  </div>
                 </div>
               </div>
-
-              {/* Section Permissions - Only for Users */}
-              {formData.role !== 'Admin' && (
-                <div className="space-y-4">
-                  <div className="flex items-center gap-2 pb-2 border-b border-border">
-                    <Eye className="h-4 w-4 text-primary" />
-                    <h3 className="text-lg font-semibold">Section Access Permissions</h3>
-                  </div>
-                  
-                  <div className="text-sm text-muted-foreground mb-4">
-                    Configure which sections this user can access and their permission level for each section.
-                  </div>
-                  
-                  <div className="grid gap-4">
-                    {availableSections.map((section) => {
-                      const hasAccess = formData.access_sections[section.key];
-                      const SectionIcon = section.icon;
-                      
-                      return (
-                        <Card key={section.key} className={`transition-all duration-200 ${hasAccess ? 'ring-2 ring-primary/20 bg-primary/5' : ''}`}>
-                          <CardContent className="p-4">
-                            <div className="flex items-start justify-between mb-3">
-                              <div className="flex items-start gap-3">
-                                <SectionIcon className="h-5 w-5 text-primary mt-0.5" />
-                                <div>
-                                  <h4 className="font-medium text-sm">{section.label}</h4>
-                                  <p className="text-xs text-muted-foreground">{section.description}</p>
-                                </div>
-                              </div>
-                              {hasAccess && (
-                                <Button 
-                                  type="button" 
-                                  variant="ghost" 
-                                  size="sm"
-                                  onClick={() => removeSectionAccess(section.key)}
-                                  className="h-8 w-8 p-0 text-destructive hover:text-destructive"
-                                >
-                                  <Trash2 className="h-3 w-3" />
-                                </Button>
-                              )}
-                            </div>
-                            
-                            <RadioGroup
-                              value={hasAccess || ''}
-                              onValueChange={(value: 'read' | 'edit') => handleSectionPermission(section.key, value)}
-                              className="flex gap-6"
-                            >
-                              <div className="flex items-center space-x-2">
-                                <RadioGroupItem value="read" id={`${section.key}-read`} />
-                                <Label htmlFor={`${section.key}-read`} className="text-sm font-medium">
-                                  Read Only
-                                </Label>
-                              </div>
-                              <div className="flex items-center space-x-2">
-                                <RadioGroupItem value="edit" id={`${section.key}-edit`} />
-                                <Label htmlFor={`${section.key}-edit`} className="text-sm font-medium">
-                                  Full Access
-                                </Label>
-                              </div>
-                            </RadioGroup>
-                          </CardContent>
-                        </Card>
-                      );
-                    })}
-                  </div>
-                  
-                  <div className="bg-muted/50 rounded-lg p-4">
-                    <h4 className="text-sm font-medium mb-2">Permission Levels:</h4>
-                    <div className="text-xs text-muted-foreground space-y-1">
-                      <div>• <strong>Read Only:</strong> View data, reports, and information without making changes</div>
-                      <div>• <strong>Full Access:</strong> Complete access to create, read, update, and delete records</div>
-                    </div>
-                  </div>
-                </div>
-              )}
 
               {/* Account Status */}
               <div className="space-y-4">
