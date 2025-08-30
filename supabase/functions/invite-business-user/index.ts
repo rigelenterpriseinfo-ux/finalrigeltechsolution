@@ -82,46 +82,82 @@ serve(async (req) => {
       return new Response(JSON.stringify({ error: 'Forbidden' }), { status: 403, headers: { "Content-Type": "application/json", ...corsHeaders } });
     }
 
-    // Check if auth user already exists
-    const { data: existingUser } = await admin.auth.admin.getUserByEmail(email);
+    // Try to create auth user first, then handle existing user case
+    let authUserId: string | null = null;
+    let existingUser: any = null;
 
-    let authUserId: string | null = existingUser?.user?.id ?? null;
+    const tempPassword = password || crypto.randomUUID().replace(/-/g, '').slice(0, 16);
+    
+    // Try creating the user first
+    const { data: created, error: createErr } = await admin.auth.admin.createUser({
+      email,
+      password: tempPassword,
+      email_confirm: true, // Force email confirmation to true
+      user_metadata: {
+        name,
+        invited_via: 'invite-business-user',
+        company_id,
+        app_role: mapRoleToProfile(role),
+      },
+    });
 
-    if (!authUserId) {
-      // Create auth user, mark as confirmed to avoid any email verification issues
-      const tempPassword = password || crypto.randomUUID().replace(/-/g, '').slice(0, 16);
-      const { data: created, error: createErr } = await admin.auth.admin.createUser({
-        email,
-        password: tempPassword,
-        email_confirm: true, // Force email confirmation to true
-        user_metadata: {
-          name,
-          invited_via: 'invite-business-user',
-          company_id,
-          app_role: mapRoleToProfile(role),
-        },
-      });
-      if (createErr) {
-        return new Response(JSON.stringify({ error: createErr.message }), { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } });
-      }
-      authUserId = created.user?.id ?? null;
-      if (!authUserId) {
-        return new Response(JSON.stringify({ error: 'Failed to create user' }), { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } });
-      }
-
-      // Optionally send invite to set their own password
-      await admin.auth.admin.inviteUserByEmail(email, { redirectTo: `${new URL(req.url).origin}/auth?tab=reset` });
-    } else {
-      // Handle existing user: force-confirm and optionally set password
-      if (!existingUser?.user?.email_confirmed_at) {
-        await admin.auth.admin.updateUserById(authUserId, { email_confirm: true });
-      }
-      if (password) {
-        await admin.auth.admin.updateUserById(authUserId, { password });
-      } else {
-        // Send invite/reset link for existing users without password provided
+    if (created?.user) {
+      // User created successfully
+      authUserId = created.user.id;
+      console.log(`Created new auth user: ${authUserId} for email: ${email}`);
+      
+      // Send invite to set their own password if no password was provided
+      if (!password) {
         await admin.auth.admin.inviteUserByEmail(email, { redirectTo: `${new URL(req.url).origin}/auth?tab=reset` });
       }
+    } else if (createErr?.message?.includes('already registered') || createErr?.message?.includes('User already registered')) {
+      // User already exists, find them by listing users and matching email
+      console.log(`User already exists for email: ${email}, searching for existing user`);
+      
+      const { data: users, error: listErr } = await admin.auth.admin.listUsers({
+        page: 1,
+        perPage: 1000 // Adjust if you have more users
+      });
+      
+      if (listErr) {
+        console.error('Error listing users:', listErr);
+        return new Response(JSON.stringify({ error: `Failed to find existing user: ${listErr.message}` }), { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } });
+      }
+      
+      // Find user by email
+      existingUser = users?.users?.find(u => u.email === email);
+      
+      if (!existingUser) {
+        return new Response(JSON.stringify({ error: 'User exists but could not be found' }), { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } });
+      }
+      
+      authUserId = existingUser.id;
+      console.log(`Found existing auth user: ${authUserId} for email: ${email}`);
+      
+      // Handle existing user: force-confirm email and set password
+      const updateData: any = { email_confirm: true };
+      if (password) {
+        updateData.password = password;
+      }
+      
+      const { error: updateErr } = await admin.auth.admin.updateUserById(authUserId, updateData);
+      if (updateErr) {
+        console.error('Error updating existing user:', updateErr);
+        return new Response(JSON.stringify({ error: `Failed to update existing user: ${updateErr.message}` }), { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } });
+      }
+      
+      // Send invite/reset link if no password was provided
+      if (!password) {
+        await admin.auth.admin.inviteUserByEmail(email, { redirectTo: `${new URL(req.url).origin}/auth?tab=reset` });
+      }
+    } else {
+      // Unexpected error during user creation
+      console.error('Error creating user:', createErr);
+      return new Response(JSON.stringify({ error: createErr?.message || 'Failed to create user' }), { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } });
+    }
+
+    if (!authUserId) {
+      return new Response(JSON.stringify({ error: 'Failed to create or find user' }), { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } });
     }
 
     // Ensure profile exists and is linked to company
