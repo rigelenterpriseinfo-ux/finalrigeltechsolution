@@ -84,10 +84,13 @@ export type Database = {
           access_sections: Json | null
           business_id: string | null
           created_at: string
+          created_by: string | null
           email: string | null
           id: string
           is_active: boolean | null
+          last_login: string | null
           name: string
+          password_hash: string | null
           role: Database["public"]["Enums"]["user_role"] | null
           updated_at: string
           user_ref: string
@@ -96,10 +99,13 @@ export type Database = {
           access_sections?: Json | null
           business_id?: string | null
           created_at?: string
+          created_by?: string | null
           email?: string | null
           id?: string
           is_active?: boolean | null
+          last_login?: string | null
           name: string
+          password_hash?: string | null
           role?: Database["public"]["Enums"]["user_role"] | null
           updated_at?: string
           user_ref: string
@@ -108,10 +114,13 @@ export type Database = {
           access_sections?: Json | null
           business_id?: string | null
           created_at?: string
+          created_by?: string | null
           email?: string | null
           id?: string
           is_active?: boolean | null
+          last_login?: string | null
           name?: string
+          password_hash?: string | null
           role?: Database["public"]["Enums"]["user_role"] | null
           updated_at?: string
           user_ref?: string
@@ -1745,6 +1754,50 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "suppliers_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      transaction_audit_log: {
+        Row: {
+          action: string
+          company_id: string | null
+          created_at: string | null
+          id: string
+          new_values: Json | null
+          old_values: Json | null
+          record_id: string
+          table_name: string
+          user_id: string | null
+        }
+        Insert: {
+          action: string
+          company_id?: string | null
+          created_at?: string | null
+          id?: string
+          new_values?: Json | null
+          old_values?: Json | null
+          record_id: string
+          table_name: string
+          user_id?: string | null
+        }
+        Update: {
+          action?: string
+          company_id?: string | null
+          created_at?: string | null
+          id?: string
+          new_values?: Json | null
+          old_values?: Json | null
+          record_id?: string
+          table_name?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "transaction_audit_log_company_id_fkey"
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
