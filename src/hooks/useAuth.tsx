@@ -364,37 +364,74 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const signOut = async () => {
-    try {
-      const { error } = await supabase.auth.signOut();
-      if (error) {
-        toast({
-          title: "Sign out failed",
-          description: error.message,
-          variant: "destructive",
-        });
-      } else {
-        // Clear state immediately
-        setUser(null);
-        setSession(null);
-        setProfile(null);
-        setCompany(null);
-        
-        toast({
-          title: "Signed out successfully",
-          description: "You have been signed out.",
-        });
-      }
-    } catch (error: any) {
-      // Force clear state even if logout fails
+    // Always clear local state first for immediate UI feedback
+    const clearLocalState = () => {
       setUser(null);
       setSession(null);
       setProfile(null);
       setCompany(null);
       
+      // Clear any stored auth data from localStorage
+      localStorage.removeItem('supabase.auth.token');
+      sessionStorage.removeItem('pendingVerificationEmail');
+    };
+
+    try {
+      // Check if we have a valid session before attempting sign out
+      const { data: currentSession } = await supabase.auth.getSession();
+      
+      if (currentSession?.session) {
+        // We have a valid session, attempt proper sign out
+        const { error } = await supabase.auth.signOut();
+        
+        // Handle session mismatch errors gracefully
+        if (error && error.message.includes('Auth session missing')) {
+          console.log('Session already invalid, clearing local state');
+          clearLocalState();
+          toast({
+            title: "Signed out",
+            description: "You have been signed out successfully.",
+          });
+          return;
+        }
+        
+        if (error) {
+          console.error('Sign out error:', error);
+          // For other errors, still clear local state but show a generic message
+          clearLocalState();
+          toast({
+            title: "Signed out",
+            description: "You have been signed out.",
+          });
+          return;
+        }
+      }
+      
+      // Clear state regardless of API call result
+      clearLocalState();
+      
       toast({
-        title: "Signed out",
+        title: "Signed out successfully",
         description: "You have been signed out.",
       });
+      
+    } catch (error: any) {
+      console.error('Sign out catch error:', error);
+      // Always clear local state even if everything fails
+      clearLocalState();
+      
+      // Don't show error for session mismatch issues
+      if (error.message && error.message.includes('Auth session missing')) {
+        toast({
+          title: "Signed out",
+          description: "You have been signed out successfully.",
+        });
+      } else {
+        toast({
+          title: "Signed out",
+          description: "You have been signed out.",
+        });
+      }
     }
   };
 
