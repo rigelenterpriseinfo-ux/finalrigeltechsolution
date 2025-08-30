@@ -37,7 +37,7 @@ interface BusinessUser {
 
 const UserManagement = () => {
   const { company, profile, user } = useAuth();
-  const { businessUser, canManageCompany, hasEditAccess } = useBusinessAuth();
+  const { businessUser, canManageCompany, hasEditAccess, isOwnerOrAdmin } = useBusinessAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
   const [users, setUsers] = useState<BusinessUser[]>([]);
@@ -321,7 +321,7 @@ const UserManagement = () => {
     });
   };
 
-  if (profile?.role !== 'owner' && profile?.role !== 'admin') {
+  if (!isOwnerOrAdmin()) {
     return (
       <DashboardLayout title="User Management" subtitle="Access Denied">
         <Card className="max-w-md mx-auto">
