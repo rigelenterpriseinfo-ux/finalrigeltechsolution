@@ -111,6 +111,17 @@ serve(async (req) => {
 
       // Optionally send invite to set their own password
       await admin.auth.admin.inviteUserByEmail(email, { redirectTo: `${new URL(req.url).origin}/auth?tab=reset` });
+    } else {
+      // Handle existing user: force-confirm and optionally set password
+      if (!existingUser?.user?.email_confirmed_at) {
+        await admin.auth.admin.updateUserById(authUserId, { email_confirm: true });
+      }
+      if (password) {
+        await admin.auth.admin.updateUserById(authUserId, { password });
+      } else {
+        // Send invite/reset link for existing users without password provided
+        await admin.auth.admin.inviteUserByEmail(email, { redirectTo: `${new URL(req.url).origin}/auth?tab=reset` });
+      }
     }
 
     // Ensure profile exists and is linked to company
