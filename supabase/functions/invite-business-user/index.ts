@@ -14,13 +14,18 @@ interface InvitePayload {
   email: string;
   password?: string; // optional; if missing, we'll generate one
   name?: string;
-  role: 'Admin' | 'User';
+  role: 'Admin' | 'Editor' | 'Viewer';
   company_id: string;
   created_by?: string; // Track who created this user
 }
 
-function mapRoleToProfile(role: 'Admin' | 'User'): 'owner' | 'admin' | 'manager' | 'staff' {
-  return role === 'Admin' ? 'admin' : 'staff';
+function mapRoleToProfile(role: 'Admin' | 'Editor' | 'Viewer'): 'owner' | 'admin' | 'manager' | 'staff' {
+  switch (role) {
+    case 'Admin': return 'admin';
+    case 'Editor': return 'staff';
+    case 'Viewer': return 'staff';
+    default: return 'staff';
+  }
 }
 
 function splitName(name?: string) {
@@ -164,7 +169,7 @@ serve(async (req) => {
       .maybeSingle();
 
     // Map role to database values
-    const dbRole = role === 'Admin' ? 'admin' : 'editor'; // Admin -> admin, User -> editor
+    const dbRole = role === 'Admin' ? 'admin' : role === 'Editor' ? 'editor' : 'viewer';
     const accessType = role === 'Admin' ? 'ADMIN' : 'USER';
 
     if (existingCompanyUser) {
