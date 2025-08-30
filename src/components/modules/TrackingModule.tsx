@@ -26,21 +26,6 @@ export function TrackingModule() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   
-  if (!hasAccess('tracking')) {
-    return (
-      <div className="flex items-center justify-center h-96">
-        <div className="text-center">
-          <h2 className="text-2xl font-bold text-muted-foreground mb-2">Access Denied</h2>
-          <p className="text-muted-foreground">You don't have permission to view tracking.</p>
-        </div>
-      </div>
-    );
-  }
-
-  useEffect(() => {
-    fetchTrackableOrders();
-  }, []);
-
   const fetchTrackableOrders = async () => {
     try {
       // Fetch sales orders
@@ -112,6 +97,25 @@ export function TrackingModule() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (hasAccess('tracking')) {
+      fetchTrackableOrders();
+    } else {
+      setLoading(false);
+    }
+  }, [hasAccess]);
+
+  if (!hasAccess('tracking')) {
+    return (
+      <div className="flex items-center justify-center h-96">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold text-muted-foreground mb-2">Access Denied</h2>
+          <p className="text-muted-foreground">You don't have permission to view tracking.</p>
+        </div>
+      </div>
+    );
+  }
 
   const getStatusIcon = (status: string, type: string) => {
     if (type === 'sales') {
