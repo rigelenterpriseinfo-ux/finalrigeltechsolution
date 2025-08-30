@@ -576,12 +576,12 @@ export function InventoryModule() {
             Create Warehouse BIN
           </Button>
           <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
-            <DialogTrigger asChild>
-              <Button>
-                <Plus className="h-4 w-4 mr-2" />
-                Add Product
-              </Button>
-            </DialogTrigger>
+          <DialogTrigger asChild>
+            <Button disabled={!canEdit}>
+              <Plus className="h-4 w-4 mr-2" />
+              Add Product
+            </Button>
+          </DialogTrigger>
             <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>Add New Product</DialogTitle>

@@ -585,8 +585,20 @@ export default function SalesModule() {
           </div>
           <CustomerTable
             customers={customers}
-            onEdit={handleEditCustomer}
-            onDelete={handleDeleteCustomer}
+            onEdit={(customer) => { 
+              if (!canEdit) { 
+                toast({ title: 'Permission denied', description: "You don't have edit access to Sales.", variant: 'destructive' }); 
+                return; 
+              } 
+              handleEditCustomer(customer);
+            }}
+            onDelete={(customer) => { 
+              if (!canEdit) { 
+                toast({ title: 'Permission denied', description: "You don't have edit access to Sales.", variant: 'destructive' }); 
+                return; 
+              } 
+              handleDeleteCustomer(customer);
+            }}
             loading={loading}
           />
         </TabsContent>
@@ -620,8 +632,20 @@ export default function SalesModule() {
           </div>
           <InvoiceTable
             invoices={invoices}
-            onEdit={(inv) => { if (!canEdit) { toast({ title: 'Permission denied', description: "You don't have edit access to Sales.", variant: 'destructive' }); return; } handleEditInvoice(inv);} }
-            onDelete={(id) => { if (!canEdit) { toast({ title: 'Permission denied', description: "You don't have edit access to Sales.", variant: 'destructive' }); return; } handleDeleteInvoice(id);} }
+            onEdit={(inv) => { 
+              if (!canEdit) { 
+                toast({ title: 'Permission denied', description: "You don't have edit access to Sales.", variant: 'destructive' }); 
+                return; 
+              } 
+              handleEditInvoice(inv);
+            }}
+            onDelete={(id) => { 
+              if (!canEdit) { 
+                toast({ title: 'Permission denied', description: "You don't have edit access to Sales.", variant: 'destructive' }); 
+                return; 
+              } 
+              handleDeleteInvoice(id);
+            }}
           />
         </TabsContent>
       </Tabs>
