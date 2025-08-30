@@ -4,6 +4,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { supabase } from '@/integrations/supabase/client';
+import { useBusinessAuth } from '@/hooks/useBusinessAuth';
 import { Search, MapPin, Truck, Package, CheckCircle } from 'lucide-react';
 
 interface TrackableOrder {
@@ -20,9 +21,21 @@ interface TrackableOrder {
 }
 
 export function TrackingModule() {
+  const { hasAccess } = useBusinessAuth();
   const [orders, setOrders] = useState<TrackableOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  
+  if (!hasAccess('tracking')) {
+    return (
+      <div className="flex items-center justify-center h-96">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold text-muted-foreground mb-2">Access Denied</h2>
+          <p className="text-muted-foreground">You don't have permission to view tracking.</p>
+        </div>
+      </div>
+    );
+  }
 
   useEffect(() => {
     fetchTrackableOrders();

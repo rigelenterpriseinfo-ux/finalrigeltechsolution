@@ -6,6 +6,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
+import { useBusinessAuth } from '@/hooks/useBusinessAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { Bot, Send, User, Lightbulb, TrendingUp, Package, DollarSign, Table as TableIcon, FileText, BarChart3 } from 'lucide-react';
 
@@ -61,6 +62,20 @@ const quickActions = [
 
 export function AIAssistant() {
   const { profile } = useAuth();
+  const { hasAccess } = useBusinessAuth();
+  const { toast } = useToast();
+  
+  if (!hasAccess('ai')) {
+    return (
+      <div className="flex items-center justify-center h-96">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold text-muted-foreground mb-2">Access Denied</h2>
+          <p className="text-muted-foreground">You don't have permission to use the AI Assistant.</p>
+        </div>
+      </div>
+    );
+  }
+  
   const [messages, setMessages] = useState<Message[]>([
     {
       id: '1',
@@ -71,7 +86,6 @@ export function AIAssistant() {
   ]);
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const { toast } = useToast();
 
   const handleSendMessage = async (message?: string) => {
     const messageText = message || inputValue.trim();

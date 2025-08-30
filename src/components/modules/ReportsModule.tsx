@@ -3,6 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
+import { useBusinessAuth } from '@/hooks/useBusinessAuth';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from 'recharts';
 import { BarChart3, TrendingUp, Package, DollarSign } from 'lucide-react';
 
@@ -17,6 +18,7 @@ interface DashboardStats {
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8'];
 
 export function ReportsModule() {
+  const { hasAccess } = useBusinessAuth();
   const [stats, setStats] = useState<DashboardStats>({
     totalProducts: 0,
     totalSales: 0,
@@ -28,6 +30,17 @@ export function ReportsModule() {
   const [topProducts, setTopProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [timeRange, setTimeRange] = useState('30');
+  
+  if (!hasAccess('reports')) {
+    return (
+      <div className="flex items-center justify-center h-96">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold text-muted-foreground mb-2">Access Denied</h2>
+          <p className="text-muted-foreground">You don't have permission to view reports.</p>
+        </div>
+      </div>
+    );
+  }
 
   useEffect(() => {
     fetchReportData();

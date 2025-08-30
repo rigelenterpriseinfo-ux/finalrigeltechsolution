@@ -56,6 +56,8 @@ interface PurchaseOrder {
 export function PaymentsModule() {
   const { profile } = useAuth();
   const { toast } = useToast();
+  const { hasEditAccess } = useBusinessAuth();
+  const canEdit = hasEditAccess('payments');
   const [payments, setPayments] = useState<Payment[]>([]);
   const [salesOrders, setSalesOrders] = useState<SalesOrder[]>([]);
   const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>([]);
@@ -232,6 +234,10 @@ export function PaymentsModule() {
   const handleAddPayment = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     
+    if (!canEdit) {
+      toast({ title: 'Permission denied', description: "You don't have edit access to Payments.", variant: 'destructive' });
+      return;
+    }
     const formData = new FormData(e.currentTarget);
     const paymentType = formData.get('payment_type') as string;
     
@@ -331,7 +337,7 @@ export function PaymentsModule() {
         </div>
         <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
           <DialogTrigger asChild>
-            <Button>
+            <Button disabled={!canEdit}>
               <Plus className="h-4 w-4 mr-2" />
               Record Payment
             </Button>
