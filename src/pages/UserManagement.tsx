@@ -199,7 +199,7 @@ const UserManagement = () => {
         username: formData.email, // Use email as username
         email: formData.email,
         access_type: formData.role === 'Admin' ? 'ADMIN' : 'USER',
-        status: formData.is_active ? 'ACTIVE' : 'INACTIVE',
+        status: 'ACTIVE', // Always create as ACTIVE instead of checking formData.is_active
         company_id: company?.id
       };
 

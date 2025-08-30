@@ -196,48 +196,110 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         return { error: new Error('Rate limited') };
       }
 
-      const { error } = await supabase.auth.signInWithPassword({
+      // First try regular Supabase authentication
+      const { error: authError } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
-      if (error) {
-        // If email is unconfirmed, auto-send password reset to activate account (no verification needed)
-        if (typeof error.message === 'string' && error.message.toLowerCase().includes('email not confirmed')) {
-          try {
-            const redirectUrl = `${window.location.origin}/auth?tab=reset`;
-            await supabase.auth.resetPasswordForEmail(email, { redirectTo: redirectUrl });
-            sessionStorage.setItem('pendingVerificationEmail', email);
-            toast({
-              title: 'Activation link sent',
-              description: 'Check your inbox to set your password and activate your account.',
-            });
-          } catch (e: any) {
-            // fall through to generic error below
-          }
-        }
-
-        // Log failed attempt
-        await logSecurityEvent(supabase, 'login_failed', { email, error: error.message }, '127.0.0.1');
-        
+      if (!authError) {
+        // Regular authentication successful
+        await logSecurityEvent(supabase, 'login_success', { email }, '127.0.0.1');
         toast({
-          title: 'Sign in failed',
-          description: error.message,
-          variant: 'destructive',
+          title: 'Welcome back!',
+          description: 'You have been signed in successfully.',
         });
-        return { error };
+        return { error: null };
       }
 
-      // Log successful login
-      await logSecurityEvent(supabase, 'login_success', { email }, '127.0.0.1');
+      // If regular auth fails, try business user authentication
+      console.log('Regular auth failed, trying business user authentication...');
+      
+      // Get company business reference number for this user
+      const { data: companyUser } = await supabase
+        .from('company_users')
+        .select(`
+          *,
+          companies!inner(business_ref_no)
+        `)
+        .eq('email', email)
+        .eq('status', 'ACTIVE')
+        .single();
 
+      if (companyUser && companyUser.companies?.business_ref_no) {
+        // Try business authentication via edge function
+        const { data: businessAuthData, error: businessAuthError } = await supabase.functions.invoke('signin', {
+          body: {
+            businessRefNo: companyUser.companies.business_ref_no,
+            username: email,
+            password: password
+          }
+        });
+
+        if (!businessAuthError && businessAuthData?.success) {
+          // Business authentication successful - try to create auth user via invite function
+          console.log('Business auth successful, creating/updating auth user...');
+          
+          try {
+            await supabase.functions.invoke('invite-business-user', {
+              body: {
+                email: email,
+                password: password,
+                name: companyUser.username,
+                role: companyUser.access_type === 'ADMIN' ? 'Admin' : 'User',
+                company_id: companyUser.company_id,
+              }
+            });
+          } catch (inviteError) {
+            console.log('Invite function failed, but continuing with business auth');
+          }
+
+          // Now try regular signin again
+          const { error: secondAuthError } = await supabase.auth.signInWithPassword({
+            email,
+            password,
+          });
+
+          if (!secondAuthError) {
+            await logSecurityEvent(supabase, 'login_success', { email, type: 'business_user' }, '127.0.0.1');
+            toast({
+              title: 'Welcome back!',
+              description: 'You have been signed in successfully.',
+            });
+            return { error: null };
+          } else {
+            console.log('Second auth attempt failed:', secondAuthError);
+          }
+        }
+      }
+
+      // If email is unconfirmed, auto-send password reset to activate account
+      if (typeof authError.message === 'string' && authError.message.toLowerCase().includes('email not confirmed')) {
+        try {
+          const redirectUrl = `${window.location.origin}/auth?tab=reset`;
+          await supabase.auth.resetPasswordForEmail(email, { redirectTo: redirectUrl });
+          sessionStorage.setItem('pendingVerificationEmail', email);
+          toast({
+            title: 'Activation link sent',
+            description: 'Check your inbox to set your password and activate your account.',
+          });
+        } catch (e: any) {
+          // fall through to generic error below
+        }
+      }
+
+      // Log failed attempt
+      await logSecurityEvent(supabase, 'login_failed', { email, error: authError.message }, '127.0.0.1');
+      
       toast({
-        title: 'Welcome back!',
-        description: 'You have been signed in successfully.',
+        title: 'Sign in failed',
+        description: authError.message,
+        variant: 'destructive',
       });
+      return { error: authError };
 
-      return { error };
     } catch (error: any) {
+      console.error('Sign in error:', error);
       toast({
         title: "Sign in failed",
         description: "An unexpected error occurred",
