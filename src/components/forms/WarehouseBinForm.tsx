@@ -126,11 +126,20 @@ export function WarehouseBinForm({ open, onOpenChange, onSuccess, editingBin }: 
 
       if (error) {
         if (error.code === '23505') {
-          toast({
-            title: "Error",
-            description: "A bin with this code already exists",
-            variant: "destructive",
-          });
+          // Check which constraint was violated
+          if (error.message?.includes('warehouse_bins_unique_warehouse_bin')) {
+            toast({
+              title: "Error",
+              description: "This BIN code already exists in this warehouse. Please use a different BIN code for this warehouse.",
+              variant: "destructive",
+            });
+          } else {
+            toast({
+              title: "Error",
+              description: "A duplicate entry was detected. Please check your warehouse and BIN details.",
+              variant: "destructive",
+            });
+          }
         } else {
           toast({
             title: "Error",
