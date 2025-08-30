@@ -44,157 +44,6 @@ export type Database = {
         }
         Relationships: []
       }
-      business_credentials: {
-        Row: {
-          company_id: string
-          created_at: string
-          id: string
-          password_hash: string
-          updated_at: string
-          username: string
-        }
-        Insert: {
-          company_id: string
-          created_at?: string
-          id?: string
-          password_hash: string
-          updated_at?: string
-          username: string
-        }
-        Update: {
-          company_id?: string
-          created_at?: string
-          id?: string
-          password_hash?: string
-          updated_at?: string
-          username?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "business_credentials_company_id_fkey"
-            columns: ["company_id"]
-            isOneToOne: false
-            referencedRelation: "companies"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      business_users: {
-        Row: {
-          access_sections: Json | null
-          company_id: string | null
-          created_at: string
-          created_by: string | null
-          email: string | null
-          id: string
-          is_active: boolean | null
-          last_login: string | null
-          name: string
-          password_hash: string | null
-          role: Database["public"]["Enums"]["user_role"] | null
-          updated_at: string
-          user_ref: string
-        }
-        Insert: {
-          access_sections?: Json | null
-          company_id?: string | null
-          created_at?: string
-          created_by?: string | null
-          email?: string | null
-          id?: string
-          is_active?: boolean | null
-          last_login?: string | null
-          name: string
-          password_hash?: string | null
-          role?: Database["public"]["Enums"]["user_role"] | null
-          updated_at?: string
-          user_ref: string
-        }
-        Update: {
-          access_sections?: Json | null
-          company_id?: string | null
-          created_at?: string
-          created_by?: string | null
-          email?: string | null
-          id?: string
-          is_active?: boolean | null
-          last_login?: string | null
-          name?: string
-          password_hash?: string | null
-          role?: Database["public"]["Enums"]["user_role"] | null
-          updated_at?: string
-          user_ref?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "business_users_company_id_fkey"
-            columns: ["company_id"]
-            isOneToOne: false
-            referencedRelation: "companies"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      businesses: {
-        Row: {
-          business_name: string
-          business_ref: string
-          created_at: string
-          email: string | null
-          full_address: string | null
-          gstn_number: string | null
-          id: string
-          industry_type: string | null
-          owner_name: string | null
-          phone: string | null
-          subscription_plan:
-            | Database["public"]["Enums"]["subscription_plan"]
-            | null
-          subscription_status:
-            | Database["public"]["Enums"]["business_status"]
-            | null
-          updated_at: string
-        }
-        Insert: {
-          business_name: string
-          business_ref: string
-          created_at?: string
-          email?: string | null
-          full_address?: string | null
-          gstn_number?: string | null
-          id?: string
-          industry_type?: string | null
-          owner_name?: string | null
-          phone?: string | null
-          subscription_plan?:
-            | Database["public"]["Enums"]["subscription_plan"]
-            | null
-          subscription_status?:
-            | Database["public"]["Enums"]["business_status"]
-            | null
-          updated_at?: string
-        }
-        Update: {
-          business_name?: string
-          business_ref?: string
-          created_at?: string
-          email?: string | null
-          full_address?: string | null
-          gstn_number?: string | null
-          id?: string
-          industry_type?: string | null
-          owner_name?: string | null
-          phone?: string | null
-          subscription_plan?:
-            | Database["public"]["Enums"]["subscription_plan"]
-            | null
-          subscription_status?:
-            | Database["public"]["Enums"]["business_status"]
-            | null
-          updated_at?: string
-        }
-        Relationships: []
-      }
       companies: {
         Row: {
           address: string | null
@@ -505,107 +354,6 @@ export type Database = {
         }
         Relationships: []
       }
-      gated_business_users: {
-        Row: {
-          access_type: string | null
-          business_id: string
-          created_at: string | null
-          email: string
-          id: string
-          password_hash: string
-          status: string | null
-          updated_at: string | null
-          username: string
-        }
-        Insert: {
-          access_type?: string | null
-          business_id: string
-          created_at?: string | null
-          email: string
-          id?: string
-          password_hash: string
-          status?: string | null
-          updated_at?: string | null
-          username: string
-        }
-        Update: {
-          access_type?: string | null
-          business_id?: string
-          created_at?: string | null
-          email?: string
-          id?: string
-          password_hash?: string
-          status?: string | null
-          updated_at?: string | null
-          username?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "gated_business_users_business_id_fkey"
-            columns: ["business_id"]
-            isOneToOne: false
-            referencedRelation: "gated_businesses"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      gated_businesses: {
-        Row: {
-          addr_line1: string
-          addr_line2: string | null
-          business_ref_no: string
-          business_type: string
-          country: string
-          created_at: string | null
-          email: string
-          gstin: string | null
-          id: string
-          industry_type: string
-          name: string
-          payment_status: string | null
-          phone: string
-          pin_code: string
-          state: string
-          updated_at: string | null
-        }
-        Insert: {
-          addr_line1: string
-          addr_line2?: string | null
-          business_ref_no: string
-          business_type: string
-          country: string
-          created_at?: string | null
-          email: string
-          gstin?: string | null
-          id?: string
-          industry_type: string
-          name: string
-          payment_status?: string | null
-          phone: string
-          pin_code: string
-          state: string
-          updated_at?: string | null
-        }
-        Update: {
-          addr_line1?: string
-          addr_line2?: string | null
-          business_ref_no?: string
-          business_type?: string
-          country?: string
-          created_at?: string | null
-          email?: string
-          gstin?: string | null
-          id?: string
-          industry_type?: string
-          name?: string
-          payment_status?: string | null
-          phone?: string
-          pin_code?: string
-          state?: string
-          updated_at?: string | null
-        }
-        Relationships: []
-      }
       password_resets: {
         Row: {
           created_at: string | null
@@ -631,15 +379,7 @@ export type Database = {
           used_at?: string | null
           user_id?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "password_resets_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "gated_business_users"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       payments: {
         Row: {
@@ -1676,15 +1416,7 @@ export type Database = {
           stripe_subscription_id?: string | null
           updated_at?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "subscriptions_business_id_fkey"
-            columns: ["business_id"]
-            isOneToOne: false
-            referencedRelation: "businesses"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       suppliers: {
         Row: {

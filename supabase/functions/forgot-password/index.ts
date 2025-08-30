@@ -60,19 +60,19 @@ serve(async (req) => {
 
     // Find the user with matching credentials
     const { data: userData, error: userError } = await supabase
-      .from("gated_business_users")
+      .from("company_users")
       .select(`
         id,
         username,
         email,
-        gated_businesses!inner (
+        companies!inner (
           business_ref_no,
           name
         )
       `)
       .eq("username", username)
       .eq("email", email)
-      .eq("gated_businesses.business_ref_no", businessRefNo)
+      .eq("companies.business_ref_no", businessRefNo)
       .eq("status", "ACTIVE")
       .single();
 
@@ -144,7 +144,7 @@ serve(async (req) => {
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
             <h2 style="color: #333;">Password Reset Request</h2>
             <p>Hello ${username},</p>
-            <p>We received a request to reset the password for your account at <strong>${userData.gated_businesses.name}</strong>.</p>
+            <p>We received a request to reset the password for your account at <strong>${userData.companies.name}</strong>.</p>
             <p>Click the link below to reset your password:</p>
             <div style="margin: 30px 0;">
               <a href="${resetUrl}" style="background: #007bff; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; display: inline-block;">

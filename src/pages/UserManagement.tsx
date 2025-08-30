@@ -11,12 +11,13 @@ import { Switch } from '@/components/ui/switch';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Loader2, Plus, Edit, Trash2, Users, Shield, Eye, ArrowLeft, Clock, CheckCircle, User, Settings, Database, FileText, CreditCard, MapPin, Bot, Package } from 'lucide-react';
+import { Loader2, Plus, Edit, Trash2, Users, Shield, Eye, ArrowLeft, Clock, CheckCircle, User, Settings, Database, FileText, CreditCard, MapPin, Bot, Package, Building2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { AuditLogViewer } from '@/components/AuditLogViewer';
+import { CompanyProfile } from '@/components/CompanyProfile';
 import { useNavigate } from 'react-router-dom';
 
 interface BusinessUser {
@@ -77,7 +78,7 @@ const UserManagement = () => {
   const fetchUsers = async () => {
     try {
       const { data, error } = await supabase
-        .from('business_users')
+        .from('company_users')
         .select('*')
         .eq('company_id', company?.id)
         .order('created_at', { ascending: false });
@@ -85,10 +86,10 @@ const UserManagement = () => {
       if (error) throw error;
       setUsers((data || []).map((user: any) => ({
         ...user,
-        role: user.role === 'ViewOnly' ? 'User' : user.role, // Convert ViewOnly to User
-        access_sections: typeof user.access_sections === 'object' && user.access_sections !== null 
-          ? user.access_sections 
-          : {}
+        user_ref: user.username, // Use username as user_ref for display
+        name: user.username, // Use username as name for display
+        role: user.access_type === 'ADMIN' ? 'Admin' : 'User',
+        access_sections: {} // Company users don't have granular section access yet
       } as BusinessUser)));
     } catch (error: any) {
       toast({
@@ -160,12 +161,12 @@ const UserManagement = () => {
         throw new Error('Passwords do not match');
       }
 
-      // Check if email already exists (for new users)
+      // Check if username already exists (for new users)
       if (!editingUser) {
         const { data: existingUser } = await supabase
-          .from('business_users')
-          .select('email')
-          .eq('email', formData.email)
+          .from('company_users')
+          .select('username')
+          .eq('username', formData.email) // Use email as username
           .eq('company_id', company?.id)
           .single();
 
@@ -175,13 +176,11 @@ const UserManagement = () => {
       }
 
       const userData: any = {
-        name: formData.name,
+        username: formData.email, // Use email as username
         email: formData.email,
-        role: formData.role,
-        access_sections: formData.role === 'Admin' ? null : formData.access_sections,
-        is_active: formData.is_active,
-        company_id: company?.id,
-        created_by: user?.id
+        access_type: formData.role === 'Admin' ? 'ADMIN' : 'USER',
+        status: formData.is_active ? 'ACTIVE' : 'INACTIVE',
+        company_id: company?.id
       };
 
       // Hash password for new users or if password is being updated
@@ -191,7 +190,7 @@ const UserManagement = () => {
 
       if (editingUser) {
         const { error } = await supabase
-          .from('business_users')
+          .from('company_users')
           .update(userData)
           .eq('id', editingUser.id);
 
@@ -220,7 +219,7 @@ const UserManagement = () => {
         });
       } else {
         const { error } = await supabase
-          .from('business_users')
+          .from('company_users')
           .insert(userData);
 
         if (error) throw error;
@@ -278,7 +277,7 @@ const UserManagement = () => {
 
     try {
       const { error } = await supabase
-        .from('business_users')
+        .from('company_users')
         .delete()
         .eq('id', userId);
 
@@ -348,10 +347,14 @@ const UserManagement = () => {
       }
       >
         <Tabs defaultValue="users" className="w-full">
-          <TabsList className="grid w-full grid-cols-2">
+          <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="users" className="flex items-center gap-2">
               <Users className="h-4 w-4" />
               Team Members
+            </TabsTrigger>
+            <TabsTrigger value="company" className="flex items-center gap-2">
+              <Building2 className="h-4 w-4" />
+              Company Profile
             </TabsTrigger>
             <TabsTrigger value="audit" className="flex items-center gap-2">
               <Clock className="h-4 w-4" />
@@ -484,6 +487,20 @@ const UserManagement = () => {
             </Card>
           </TabsContent>
 
+          <TabsContent value="company" className="space-y-6">
+            <div className="flex justify-between items-center">
+              <div>
+                <h2 className="text-2xl font-bold">Company Profile</h2>
+                <p className="text-muted-foreground">
+                  {profile?.role === 'owner' || profile?.role === 'admin' 
+                    ? 'View and manage your company information' 
+                    : 'View company information (read-only access)'}
+                </p>
+              </div>
+            </div>
+            
+            <CompanyProfile />
+          </TabsContent>
           <TabsContent value="audit" className="space-y-6">
             <div className="flex justify-between items-center">
               <div>

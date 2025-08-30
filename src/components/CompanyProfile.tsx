@@ -300,52 +300,8 @@ export function CompanyProfile() {
           }
         }
 
-        // Handle authentication credentials if provided
-        if (formData.username && formData.password && passwordValidation.isValid && passwordsMatch) {
-          try {
-            // Hash password before storing
-            const encoder = new TextEncoder();
-            const data = encoder.encode(formData.password);
-            const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-            const hashArray = Array.from(new Uint8Array(hashBuffer));
-            const passwordHash = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-
-            // Check if credentials already exist
-            const { data: existingCreds } = await supabase
-              .from('business_credentials')
-              .select('id')
-              .eq('company_id', targetCompanyId)
-              .single();
-
-            if (existingCreds) {
-              // Update existing credentials
-              await supabase
-                .from('business_credentials')
-                .update({
-                  username: formData.username,
-                  password_hash: passwordHash,
-                  updated_at: new Date().toISOString(),
-                })
-                .eq('company_id', targetCompanyId);
-            } else {
-              // Insert new credentials
-              await supabase
-                .from('business_credentials')
-                .insert({
-                  company_id: targetCompanyId,
-                  username: formData.username,
-                  password_hash: passwordHash,
-                });
-            }
-          } catch (credError: any) {
-            console.error('Credential save error:', credError);
-            toast({
-              title: "Credentials not saved",
-              description: "Company details saved but credentials could not be updated",
-              variant: "destructive",
-            });
-          }
-        }
+        // Note: Authentication credentials are now handled via Supabase Auth
+        // The business_credentials table has been removed in favor of using Supabase's built-in auth system
 
       toast({
         title: "Company saved",

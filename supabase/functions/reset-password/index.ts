@@ -82,7 +82,7 @@ serve(async (req) => {
         user_id,
         expires_at,
         used_at,
-        gated_business_users!inner (
+        company_users!inner (
           id,
           username,
           email
@@ -117,7 +117,7 @@ serve(async (req) => {
 
     // Update the user's password
     const { error: updateError } = await supabase
-      .from("gated_business_users")
+      .from("company_users")
       .update({ 
         password_hash: newPasswordHash,
         updated_at: now.toISOString()
