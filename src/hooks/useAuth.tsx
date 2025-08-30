@@ -215,61 +215,34 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       // If regular auth fails, try business user authentication
       console.log('Regular auth failed, trying business user authentication...');
       
-      // Get company business reference number for this user
+      // Check if this is a business user
       const { data: companyUser } = await supabase
         .from('company_users')
         .select(`
           *,
-          companies!inner(business_ref_no)
+          companies!inner(business_ref_no, name, status)
         `)
         .eq('email', email)
         .eq('status', 'ACTIVE')
         .single();
 
       if (companyUser && companyUser.companies?.business_ref_no) {
-        // Try business authentication via edge function
-        const { data: businessAuthData, error: businessAuthError } = await supabase.functions.invoke('signin', {
-          body: {
-            businessRefNo: companyUser.companies.business_ref_no,
-            username: email,
-            password: password
-          }
-        });
-
-        if (!businessAuthError && businessAuthData?.success) {
-          // Business authentication successful - try to create auth user via invite function
-          console.log('Business auth successful, creating/updating auth user...');
+        // Business user exists, but auth failed - they likely need their auth account activated
+        console.log('Business user found, attempting to activate auth account...');
+        
+        // Try to reset/activate their password via password reset flow
+        try {
+          const redirectUrl = `${window.location.origin}/auth?tab=reset&email=${encodeURIComponent(email)}`;
+          await supabase.auth.resetPasswordForEmail(email, { redirectTo: redirectUrl });
           
-          try {
-            await supabase.functions.invoke('invite-business-user', {
-              body: {
-                email: email,
-                password: password,
-                name: companyUser.username,
-                role: companyUser.access_type === 'ADMIN' ? 'Admin' : 'User',
-                company_id: companyUser.company_id,
-              }
-            });
-          } catch (inviteError) {
-            console.log('Invite function failed, but continuing with business auth');
-          }
-
-          // Now try regular signin again
-          const { error: secondAuthError } = await supabase.auth.signInWithPassword({
-            email,
-            password,
+          toast({
+            title: 'Account activation required',
+            description: 'Please check your email to activate your account and set your password.',
           });
-
-          if (!secondAuthError) {
-            await logSecurityEvent(supabase, 'login_success', { email, type: 'business_user' }, '127.0.0.1');
-            toast({
-              title: 'Welcome back!',
-              description: 'You have been signed in successfully.',
-            });
-            return { error: null };
-          } else {
-            console.log('Second auth attempt failed:', secondAuthError);
-          }
+          
+          return { error: new Error('Account activation required') };
+        } catch (resetError) {
+          console.error('Failed to send password reset:', resetError);
         }
       }
 

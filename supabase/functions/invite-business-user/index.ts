@@ -108,7 +108,11 @@ serve(async (req) => {
       
       // Send invite to set their own password if no password was provided
       if (!password) {
-        await admin.auth.admin.inviteUserByEmail(email, { redirectTo: `${new URL(req.url).origin}/auth?tab=reset` });
+        try {
+          await admin.auth.admin.inviteUserByEmail(email, { redirectTo: `${new URL(req.url).origin}/auth?tab=reset` });
+        } catch (inviteErr) {
+          console.log('Invite email failed, but user was created successfully:', inviteErr);
+        }
       }
     } else if (createErr?.message?.includes('already registered') || createErr?.message?.includes('User already registered')) {
       // User already exists, find them by listing users and matching email
@@ -148,7 +152,11 @@ serve(async (req) => {
       
       // Send invite/reset link if no password was provided
       if (!password) {
-        await admin.auth.admin.inviteUserByEmail(email, { redirectTo: `${new URL(req.url).origin}/auth?tab=reset` });
+        try {
+          await admin.auth.admin.inviteUserByEmail(email, { redirectTo: `${new URL(req.url).origin}/auth?tab=reset` });
+        } catch (inviteErr) {
+          console.log('Invite email failed for existing user:', inviteErr);
+        }
       }
     } else {
       // Unexpected error during user creation
