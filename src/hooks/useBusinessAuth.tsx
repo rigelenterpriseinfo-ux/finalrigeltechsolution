@@ -12,7 +12,7 @@ interface BusinessUser {
 }
 
 export const useBusinessAuth = () => {
-  const { user, company } = useAuth();
+  const { user, company, profile } = useAuth();
   const [businessUser, setBusinessUser] = useState<BusinessUser | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -46,22 +46,16 @@ export const useBusinessAuth = () => {
   };
 
   const hasAccess = (section: string): boolean => {
-    if (!businessUser) return false;
-    if (businessUser.access_type === 'OWNER' || businessUser.access_type === 'ADMIN') {
-      return true;
-    }
-    // For regular users, check if they have any access to the section
-    // This would require extending the company_users table with access_sections
-    // For now, return false for non-admin users
-    return false;
+    // Owners/Admins always have access
+    if (businessUser?.access_type === 'OWNER' || businessUser?.access_type === 'ADMIN') return true;
+    if (profile?.role === 'owner' || profile?.role === 'admin') return true;
+    // For regular users, allow read by default (RLS enforces write restrictions)
+    return true;
   };
 
   const hasEditAccess = (section: string): boolean => {
-    if (!businessUser) return false;
-    if (businessUser.access_type === 'OWNER' || businessUser.access_type === 'ADMIN') {
-      return true;
-    }
-    // For regular users, check if they have edit access to the section
+    if (businessUser?.access_type === 'OWNER' || businessUser?.access_type === 'ADMIN') return true;
+    if (profile?.role === 'owner' || profile?.role === 'admin') return true;
     return false;
   };
 
@@ -73,11 +67,16 @@ export const useBusinessAuth = () => {
   };
 
   const isOwnerOrAdmin = (): boolean => {
-    return businessUser?.access_type === 'OWNER' || businessUser?.access_type === 'ADMIN';
+    return (
+      businessUser?.access_type === 'OWNER' ||
+      businessUser?.access_type === 'ADMIN' ||
+      profile?.role === 'owner' ||
+      profile?.role === 'admin'
+    );
   };
 
   const canManageCompany = (): boolean => {
-    return businessUser?.access_type === 'OWNER' || businessUser?.access_type === 'ADMIN';
+    return isOwnerOrAdmin();
   };
 
   return {
