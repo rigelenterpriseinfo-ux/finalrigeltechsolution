@@ -8,3 +8,6 @@ verify_jwt = false
 
 [functions.gemini-business-assistant]
 verify_jwt = false
+
+[functions.invite-business-user]
+verify_jwt = true

@@ -64,7 +64,14 @@ export default function EnhancedAuth() {
     
     const result = await signIn(email, password);
     
-    // If sign in successful but email not verified
+    // If email is not confirmed, redirect to verification helper page and offer resend
+    if (result?.error && typeof result.error.message === 'string' && result.error.message.toLowerCase().includes('email not confirmed')) {
+      sessionStorage.setItem('pendingVerificationEmail', email);
+      window.location.href = '/email-verification';
+      return;
+    }
+    
+    // If sign in successful but email not verified (edge case)
     if (!result?.error && user && !user.email_confirmed_at) {
       // Don't set loading to false, let the redirect handle it
       return;
