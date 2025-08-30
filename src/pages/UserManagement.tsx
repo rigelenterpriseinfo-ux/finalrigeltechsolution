@@ -197,6 +197,24 @@ const UserManagement = () => {
 
         if (error) throw error;
 
+        // Ensure the user also exists in Auth; send invite if needed
+        try {
+          const { error: inviteError } = await supabase.functions.invoke('invite-business-user', {
+            body: {
+              email: formData.email,
+              // no password provided when editing; function will generate one and send invite
+              name: formData.name,
+              role: formData.role,
+              company_id: company?.id,
+            }
+          });
+          if (inviteError) {
+            console.error('Invite function error:', inviteError);
+          }
+        } catch (e) {
+          console.error('Invite function exception:', e);
+        }
+
         toast({
           title: "User updated successfully",
           description: `${formData.name} has been updated.`
@@ -208,9 +226,27 @@ const UserManagement = () => {
 
         if (error) throw error;
 
+        // Also create an Auth user and profile via Edge Function so they can sign in
+        try {
+          const { error: inviteError } = await supabase.functions.invoke('invite-business-user', {
+            body: {
+              email: formData.email,
+              password: formData.password,
+              name: formData.name,
+              role: formData.role,
+              company_id: company?.id,
+            }
+          });
+          if (inviteError) {
+            console.error('Invite function error:', inviteError);
+          }
+        } catch (e) {
+          console.error('Invite function exception:', e);
+        }
+
         toast({
           title: "User created successfully", 
-          description: `${formData.name} has been added to your team.`
+          description: `${formData.name} has been added to your team. They will receive an invite email to set their password.`
         });
       }
 
