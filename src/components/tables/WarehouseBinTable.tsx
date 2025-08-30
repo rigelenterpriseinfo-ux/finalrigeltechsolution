@@ -3,10 +3,12 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
-import { Edit, Trash2, Search, Download, ArrowUpDown, ArrowUp, ArrowDown, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Edit, Trash2, Search, Download, ArrowUpDown, ArrowUp, ArrowDown, ChevronLeft, ChevronRight, Building2, MapPin, User, Phone, ChevronDown, ChevronRight as ChevronRightIcon } from 'lucide-react';
 import { WarehouseBinForm } from '@/components/forms/WarehouseBinForm';
 import * as XLSX from 'xlsx';
 
@@ -14,6 +16,16 @@ interface WarehouseBin {
   id: string;
   wh_bin_code: string;
   bin_name: string;
+  warehouse_name?: string;
+  warehouse_code?: string;
+  address_line1?: string;
+  address_line2?: string;
+  city?: string;
+  state?: string;
+  country?: string;
+  postal_code?: string;
+  contact_person_name?: string;
+  contact_person_phone?: string;
   is_active: boolean;
   created_at: string;
   updated_at: string;
@@ -27,6 +39,7 @@ export function WarehouseBinTable() {
   const [searchTerm, setSearchTerm] = useState('');
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [editingBin, setEditingBin] = useState<WarehouseBin | null>(null);
+  const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
   const [sortConfig, setSortConfig] = useState<{
     key: string;
     direction: 'asc' | 'desc';
@@ -58,6 +71,16 @@ export function WarehouseBinTable() {
     }
   };
 
+  const toggleRowExpansion = (binId: string) => {
+    const newExpanded = new Set(expandedRows);
+    if (newExpanded.has(binId)) {
+      newExpanded.delete(binId);
+    } else {
+      newExpanded.add(binId);
+    }
+    setExpandedRows(newExpanded);
+  };
+
   // Sort function
   const handleSort = (key: string) => {
     let direction: 'asc' | 'desc' = 'asc';
@@ -80,7 +103,11 @@ export function WarehouseBinTable() {
   const filteredBins = useMemo(() => {
     let filtered = bins.filter(bin =>
       bin.wh_bin_code.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      bin.bin_name.toLowerCase().includes(searchTerm.toLowerCase())
+      bin.bin_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      bin.warehouse_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      bin.warehouse_code?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      bin.city?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      bin.contact_person_name?.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
     // Apply sorting
@@ -97,6 +124,14 @@ export function WarehouseBinTable() {
           case 'bin_name':
             aValue = a.bin_name;
             bValue = b.bin_name;
+            break;
+          case 'warehouse_name':
+            aValue = a.warehouse_name || '';
+            bValue = b.warehouse_name || '';
+            break;
+          case 'warehouse_code':
+            aValue = a.warehouse_code || '';
+            bValue = b.warehouse_code || '';
             break;
           case 'is_active':
             aValue = a.is_active;
@@ -189,7 +224,7 @@ export function WarehouseBinTable() {
   };
 
   const handleDeleteBin = async (binId: string) => {
-    if (!window.confirm('Are you sure you want to delete this warehouse bin?')) {
+    if (!window.confirm('Are you sure you want to delete this warehouse and BIN location?')) {
       return;
     }
 
@@ -210,14 +245,14 @@ export function WarehouseBinTable() {
 
       toast({
         title: "Success",
-        description: "Warehouse bin deleted successfully",
+        description: "Warehouse and BIN location deleted successfully",
       });
 
       fetchBins();
     } catch (error: any) {
       toast({
         title: "Error",
-        description: "Failed to delete warehouse bin",
+        description: "Failed to delete warehouse and BIN location",
         variant: "destructive",
       });
     }
@@ -227,8 +262,18 @@ export function WarehouseBinTable() {
     try {
       // Prepare data for export
       const exportData = filteredBins.map(bin => ({
-        'WH BIN Code': bin.wh_bin_code,
-        'Bin Name': bin.bin_name,
+        'BIN Code': bin.wh_bin_code,
+        'BIN Name': bin.bin_name,
+        'Warehouse Name': bin.warehouse_name || '',
+        'Warehouse Code': bin.warehouse_code || '',
+        'Address Line 1': bin.address_line1 || '',
+        'Address Line 2': bin.address_line2 || '',
+        'City': bin.city || '',
+        'State': bin.state || '',
+        'Country': bin.country || '',
+        'PIN Code': bin.postal_code || '',
+        'Contact Person': bin.contact_person_name || '',
+        'Contact Phone': bin.contact_person_phone || '',
         'Status': bin.is_active ? 'Active' : 'Inactive',
         'Created Date': new Date(bin.created_at).toLocaleDateString('en-IN'),
         'Last Updated': new Date(bin.updated_at).toLocaleDateString('en-IN')
@@ -245,18 +290,18 @@ export function WarehouseBinTable() {
       worksheet['!cols'] = colWidths;
 
       // Add worksheet to workbook
-      XLSX.utils.book_append_sheet(workbook, worksheet, 'Warehouse_Bins');
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Warehouse_Locations');
 
       // Generate filename with current date
       const currentDate = new Date().toISOString().split('T')[0];
-      const filename = `Warehouse_Bins_Export_${currentDate}.xlsx`;
+      const filename = `Warehouse_BIN_Locations_${currentDate}.xlsx`;
 
       // Save file
       XLSX.writeFile(workbook, filename);
 
       toast({
         title: "Export Successful",
-        description: `${filteredBins.length} warehouse bins exported to ${filename}`,
+        description: `${filteredBins.length} warehouse locations exported to ${filename}`,
       });
     } catch (error) {
       console.error('Export error:', error);
@@ -277,13 +322,13 @@ export function WarehouseBinTable() {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       {/* Search and Export Controls */}
       <div className="flex items-center justify-between gap-4">
         <div className="relative flex-1 max-w-sm">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
-            placeholder="Search bins..."
+            placeholder="Search warehouses and bins..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="pl-10"
@@ -295,17 +340,18 @@ export function WarehouseBinTable() {
         </Button>
       </div>
 
-      {/* Bins Table */}
-      <div className="border rounded-md">
+      {/* Enhanced Table with Expandable Rows */}
+      <div className="border rounded-lg overflow-hidden">
         <Table>
           <TableHeader>
-            <TableRow>
+            <TableRow className="bg-muted/50">
+              <TableHead className="w-12"></TableHead>
               <TableHead 
                 className="cursor-pointer hover:bg-muted/50 select-none"
                 onClick={() => handleSort('wh_bin_code')}
               >
                 <div className="flex items-center gap-2">
-                  WH BIN Code
+                  BIN Code
                   {getSortIcon('wh_bin_code')}
                 </div>
               </TableHead>
@@ -314,8 +360,17 @@ export function WarehouseBinTable() {
                 onClick={() => handleSort('bin_name')}
               >
                 <div className="flex items-center gap-2">
-                  Bin Name
+                  BIN Name
                   {getSortIcon('bin_name')}
+                </div>
+              </TableHead>
+              <TableHead 
+                className="cursor-pointer hover:bg-muted/50 select-none"
+                onClick={() => handleSort('warehouse_name')}
+              >
+                <div className="flex items-center gap-2">
+                  Warehouse
+                  {getSortIcon('warehouse_name')}
                 </div>
               </TableHead>
               <TableHead 
@@ -327,60 +382,169 @@ export function WarehouseBinTable() {
                   {getSortIcon('is_active')}
                 </div>
               </TableHead>
-              <TableHead 
-                className="cursor-pointer hover:bg-muted/50 select-none"
-                onClick={() => handleSort('created_at')}
-              >
-                <div className="flex items-center gap-2">
-                  Created Date
-                  {getSortIcon('created_at')}
-                </div>
-              </TableHead>
               <TableHead>Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {currentBins.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
-                  {searchTerm ? 'No bins found matching your search.' : 'No warehouse bins found. Create your first bin to get started.'}
+                <TableCell colSpan={6} className="text-center py-12">
+                  <div className="flex flex-col items-center gap-2">
+                    <Building2 className="h-12 w-12 text-muted-foreground/50" />
+                    <h3 className="text-lg font-medium text-muted-foreground">
+                      {searchTerm ? 'No warehouses found' : 'No warehouse locations created'}
+                    </h3>
+                    <p className="text-sm text-muted-foreground">
+                      {searchTerm ? 'Try adjusting your search terms.' : 'Create your first warehouse and BIN location to get started.'}
+                    </p>
+                  </div>
                 </TableCell>
               </TableRow>
             ) : (
               currentBins.map((bin) => (
-                <TableRow key={bin.id}>
-                  <TableCell className="font-mono font-medium">
-                    {bin.wh_bin_code}
-                  </TableCell>
-                  <TableCell>{bin.bin_name}</TableCell>
-                  <TableCell>
-                    <Badge variant={bin.is_active ? "default" : "secondary"}>
-                      {bin.is_active ? 'Active' : 'Inactive'}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    {new Date(bin.created_at).toLocaleDateString('en-IN')}
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-2">
+                <React.Fragment key={bin.id}>
+                  <TableRow className="hover:bg-muted/50 transition-colors">
+                    <TableCell>
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => handleEditBin(bin)}
+                        onClick={() => toggleRowExpansion(bin.id)}
+                        className="h-6 w-6 p-0"
                       >
-                        <Edit className="h-4 w-4" />
+                        {expandedRows.has(bin.id) ? 
+                          <ChevronDown className="h-4 w-4" /> : 
+                          <ChevronRightIcon className="h-4 w-4" />
+                        }
                       </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleDeleteBin(bin.id)}
-                        className="text-destructive hover:text-destructive"
+                    </TableCell>
+                    <TableCell className="font-mono font-semibold text-primary">
+                      {bin.wh_bin_code}
+                    </TableCell>
+                    <TableCell className="font-medium">
+                      {bin.bin_name}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex flex-col">
+                        <span className="font-medium">
+                          {bin.warehouse_name || 'Unnamed Warehouse'}
+                        </span>
+                        {bin.warehouse_code && (
+                          <span className="text-xs text-muted-foreground">
+                            Code: {bin.warehouse_code}
+                          </span>
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <Badge 
+                        variant={bin.is_active ? "default" : "secondary"}
+                        className={bin.is_active ? "bg-green-100 text-green-800 border-green-200" : ""}
                       >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
+                        {bin.is_active ? 'Active' : 'Inactive'}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleEditBin(bin)}
+                          className="hover:bg-blue-50 hover:text-blue-600"
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleDeleteBin(bin.id)}
+                          className="hover:bg-red-50 hover:text-red-600"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                  
+                  {/* Expanded Row Content */}
+                  {expandedRows.has(bin.id) && (
+                    <TableRow>
+                      <TableCell colSpan={6} className="bg-muted/25 p-0">
+                        <div className="p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                          {/* Address Information */}
+                          {(bin.address_line1 || bin.city || bin.state || bin.country) && (
+                            <Card className="border-l-4 border-l-blue-500">
+                              <CardHeader className="pb-3">
+                                <CardTitle className="flex items-center gap-2 text-sm">
+                                  <MapPin className="h-4 w-4" />
+                                  Address
+                                </CardTitle>
+                              </CardHeader>
+                              <CardContent className="space-y-1 text-sm">
+                                {bin.address_line1 && <p>{bin.address_line1}</p>}
+                                {bin.address_line2 && <p>{bin.address_line2}</p>}
+                                <p>
+                                  {[bin.city, bin.state, bin.postal_code].filter(Boolean).join(', ')}
+                                </p>
+                                {bin.country && <p>{bin.country}</p>}
+                              </CardContent>
+                            </Card>
+                          )}
+
+                          {/* Contact Information */}
+                          {(bin.contact_person_name || bin.contact_person_phone) && (
+                            <Card className="border-l-4 border-l-green-500">
+                              <CardHeader className="pb-3">
+                                <CardTitle className="flex items-center gap-2 text-sm">
+                                  <User className="h-4 w-4" />
+                                  Contact
+                                </CardTitle>
+                              </CardHeader>
+                              <CardContent className="space-y-2 text-sm">
+                                {bin.contact_person_name && (
+                                  <div className="flex items-center gap-2">
+                                    <User className="h-3 w-3 text-muted-foreground" />
+                                    <span>{bin.contact_person_name}</span>
+                                  </div>
+                                )}
+                                {bin.contact_person_phone && (
+                                  <div className="flex items-center gap-2">
+                                    <Phone className="h-3 w-3 text-muted-foreground" />
+                                    <span>{bin.contact_person_phone}</span>
+                                  </div>
+                                )}
+                              </CardContent>
+                            </Card>
+                          )}
+
+                          {/* Metadata */}
+                          <Card className="border-l-4 border-l-purple-500">
+                            <CardHeader className="pb-3">
+                              <CardTitle className="text-sm">Details</CardTitle>
+                            </CardHeader>
+                            <CardContent className="space-y-2 text-sm">
+                              <div>
+                                <span className="text-muted-foreground">Created:</span>
+                                <p>{new Date(bin.created_at).toLocaleDateString('en-IN', {
+                                  day: 'numeric',
+                                  month: 'short',
+                                  year: 'numeric'
+                                })}</p>
+                              </div>
+                              <div>
+                                <span className="text-muted-foreground">Updated:</span>
+                                <p>{new Date(bin.updated_at).toLocaleDateString('en-IN', {
+                                  day: 'numeric',
+                                  month: 'short',
+                                  year: 'numeric'
+                                })}</p>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </React.Fragment>
               ))
             )}
           </TableBody>
@@ -389,9 +553,11 @@ export function WarehouseBinTable() {
 
       {/* Pagination */}
       {totalPages > 1 && (
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between bg-muted/25 p-4 rounded-lg">
           <div className="text-sm text-muted-foreground">
-            Showing {startIndex + 1} to {Math.min(endIndex, filteredBins.length)} of {filteredBins.length} entries
+            Showing <span className="font-medium">{startIndex + 1}</span> to{' '}
+            <span className="font-medium">{Math.min(endIndex, filteredBins.length)}</span> of{' '}
+            <span className="font-medium">{filteredBins.length}</span> warehouse locations
           </div>
           <div className="flex items-center gap-2">
             <Button

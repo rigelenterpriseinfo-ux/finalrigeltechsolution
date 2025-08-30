@@ -1657,30 +1657,60 @@ export type Database = {
       }
       warehouse_bins: {
         Row: {
+          address_line1: string | null
+          address_line2: string | null
           bin_name: string
+          city: string | null
           company_id: string
+          contact_person_name: string | null
+          contact_person_phone: string | null
+          country: string | null
           created_at: string
           id: string
           is_active: boolean
+          postal_code: string | null
+          state: string | null
           updated_at: string
+          warehouse_code: string | null
+          warehouse_name: string | null
           wh_bin_code: string
         }
         Insert: {
+          address_line1?: string | null
+          address_line2?: string | null
           bin_name: string
+          city?: string | null
           company_id: string
+          contact_person_name?: string | null
+          contact_person_phone?: string | null
+          country?: string | null
           created_at?: string
           id?: string
           is_active?: boolean
+          postal_code?: string | null
+          state?: string | null
           updated_at?: string
+          warehouse_code?: string | null
+          warehouse_name?: string | null
           wh_bin_code: string
         }
         Update: {
+          address_line1?: string | null
+          address_line2?: string | null
           bin_name?: string
+          city?: string | null
           company_id?: string
+          contact_person_name?: string | null
+          contact_person_phone?: string | null
+          country?: string | null
           created_at?: string
           id?: string
           is_active?: boolean
+          postal_code?: string | null
+          state?: string | null
           updated_at?: string
+          warehouse_code?: string | null
+          warehouse_name?: string | null
           wh_bin_code?: string
         }
         Relationships: [

@@ -571,9 +571,9 @@ export function InventoryModule() {
           <p className="text-muted-foreground">Manage your products, stock levels, and warehouse locations</p>
         </div>
         <div className="flex gap-2">
-          <Button onClick={() => setShowBinDialog(true)} variant="outline">
+          <Button onClick={() => setShowBinDialog(true)} variant="outline" disabled={!canEdit}>
             <MapPin className="h-4 w-4 mr-2" />
-            Create Warehouse BIN
+            Create Warehouse and BIN
           </Button>
           <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
           <DialogTrigger asChild>
