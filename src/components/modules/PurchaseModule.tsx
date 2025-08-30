@@ -888,7 +888,7 @@ export function PurchaseModule() {
   };
 
   // Enhanced Purchase Invoice CRUD Functions
-  const handleUpdatePurchaseInvoice = async (invoiceData: any) => {
+  async function handleUpdatePurchaseInvoice(invoiceData: any) {
     if (!selectedPI) return;
     try {
       const { error: piError } = await supabase
@@ -937,19 +937,19 @@ export function PurchaseModule() {
         variant: "destructive",
       });
     }
-  };
+  }
 
-  const handleViewPI = (invoice: any) => {
+  function handleViewPI(invoice: any) {
     setSelectedPI(invoice);
     setShowViewPIDialog(true);
-  };
+  }
 
-  const handleEditPI = (invoice: any) => {
+  function handleEditPI(invoice: any) {
     setSelectedPI(invoice);
     setShowEditPIDialog(true);
-  };
+  }
 
-  const handleDeletePI = async (invoiceId: string) => {
+  async function handleDeletePI(invoiceId: string) {
     try {
       // First delete all related items
       const { error: itemsError } = await supabase
@@ -981,7 +981,7 @@ export function PurchaseModule() {
         variant: "destructive",
       });
     }
-  };
+  }
 
   // UPDATE - Edit Purchase Order
   const handleEditPurchaseOrder = async (e: React.FormEvent<HTMLFormElement>) => {
