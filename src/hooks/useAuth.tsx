@@ -202,13 +202,28 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       });
 
       if (error) {
+        // If email is unconfirmed, auto-send password reset to activate account (no verification needed)
+        if (typeof error.message === 'string' && error.message.toLowerCase().includes('email not confirmed')) {
+          try {
+            const redirectUrl = `${window.location.origin}/auth?tab=reset`;
+            await supabase.auth.resetPasswordForEmail(email, { redirectTo: redirectUrl });
+            sessionStorage.setItem('pendingVerificationEmail', email);
+            toast({
+              title: 'Activation link sent',
+              description: 'Check your inbox to set your password and activate your account.',
+            });
+          } catch (e: any) {
+            // fall through to generic error below
+          }
+        }
+
         // Log failed attempt
         await logSecurityEvent(supabase, 'login_failed', { email, error: error.message }, '127.0.0.1');
         
         toast({
-          title: "Sign in failed",
+          title: 'Sign in failed',
           description: error.message,
-          variant: "destructive",
+          variant: 'destructive',
         });
         return { error };
       }
@@ -217,8 +232,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       await logSecurityEvent(supabase, 'login_success', { email }, '127.0.0.1');
 
       toast({
-        title: "Welcome back!",
-        description: "You have been signed in successfully.",
+        title: 'Welcome back!',
+        description: 'You have been signed in successfully.',
       });
 
       return { error };
