@@ -47,10 +47,6 @@ export default function EnhancedAuth() {
 
   // Redirect if already authenticated
   if (user && !loading) {
-    // Check if email is verified
-    if (!user.email_confirmed_at) {
-      return <Navigate to="/email-verification" replace />;
-    }
     return <Navigate to="/dashboard" replace />;
   }
 
@@ -63,20 +59,6 @@ export default function EnhancedAuth() {
     const password = formData.get('password') as string;
     
     const result = await signIn(email, password);
-    
-    // If email is not confirmed, redirect to verification helper page and offer resend
-    if (result?.error && typeof result.error.message === 'string' && result.error.message.toLowerCase().includes('email not confirmed')) {
-      sessionStorage.setItem('pendingVerificationEmail', email);
-      window.location.href = '/email-verification';
-      return;
-    }
-    
-    // If sign in successful but email not verified (edge case)
-    if (!result?.error && user && !user.email_confirmed_at) {
-      // Don't set loading to false, let the redirect handle it
-      return;
-    }
-    
     setIsLoading(false);
   };
 
@@ -431,13 +413,6 @@ export default function EnhancedAuth() {
                       'Create Account'
                     )}
                   </Button>
-                  
-                  <Alert className="bg-primary/5 border-primary/20">
-                    <CheckCircle className="h-4 w-4 text-primary" />
-                    <AlertDescription className="text-sm">
-                      You'll receive an email confirmation link to verify your account after signup.
-                    </AlertDescription>
-                  </Alert>
                 </form>
               </CardContent>
             </Card>

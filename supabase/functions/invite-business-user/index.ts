@@ -88,12 +88,12 @@ serve(async (req) => {
     let authUserId: string | null = existingUser?.user?.id ?? null;
 
     if (!authUserId) {
-      // Create auth user, mark as confirmed to avoid email confirmation blocking sign-in
+      // Create auth user, mark as confirmed to avoid any email verification issues
       const tempPassword = password || crypto.randomUUID().replace(/-/g, '').slice(0, 16);
       const { data: created, error: createErr } = await admin.auth.admin.createUser({
         email,
         password: tempPassword,
-        email_confirm: true,
+        email_confirm: true, // Force email confirmation to true
         user_metadata: {
           name,
           invited_via: 'invite-business-user',
