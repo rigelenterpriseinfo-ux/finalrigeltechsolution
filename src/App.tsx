@@ -4,6 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/hooks/useAuth";
+import { CompanyProvider } from "@/contexts/CompanyContext";
 import Dashboard from "@/components/Dashboard";
 import Auth from "@/pages/Auth";
 import Index from "@/pages/Index";
@@ -27,32 +28,34 @@ const queryClient = new QueryClient();
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <AuthProvider>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
-          <Routes>
-            <Route path="/" element={<Index />} />
-            <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/auth" element={<EnhancedAuth />} />
-            <Route path="/subscribe/:planType" element={<Subscribe />} />
-            <Route path="/business-registration" element={<BusinessRegistration />} />
-            <Route path="/user-management" element={<UserManagement />} />
-            <Route path="/email-verification" element={<EmailVerification />} />
-            <Route path="/password-reset" element={<PasswordReset />} />
-        <Route path="/checkout" element={<Checkout />} />
-        <Route path="/register/business" element={<GatedBusinessRegistration />} />
-        <Route path="/confirm-email" element={<EmailConfirmation />} />
-        <Route path="/signin" element={<Signin />} />
-        <Route path="/gated-signin" element={<GatedSignin />} />
-        <Route path="/forgot-password" element={<GatedForgotPassword />} />
-        <Route path="/gated-forgot-password" element={<GatedForgotPassword />} />
-        <Route path="/reset-password" element={<GatedResetPassword />} />
-        <Route path="/gated-reset-password" element={<GatedResetPassword />} />
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </BrowserRouter>
-      </TooltipProvider>
+      <CompanyProvider>
+        <TooltipProvider>
+          <Toaster />
+          <Sonner />
+          <BrowserRouter>
+            <Routes>
+              <Route path="/" element={<Index />} />
+              <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/auth" element={<EnhancedAuth />} />
+              <Route path="/subscribe/:planType" element={<Subscribe />} />
+              <Route path="/business-registration" element={<BusinessRegistration />} />
+              <Route path="/user-management" element={<UserManagement />} />
+              <Route path="/email-verification" element={<EmailVerification />} />
+              <Route path="/password-reset" element={<PasswordReset />} />
+          <Route path="/checkout" element={<Checkout />} />
+          <Route path="/register/business" element={<GatedBusinessRegistration />} />
+          <Route path="/confirm-email" element={<EmailConfirmation />} />
+          <Route path="/signin" element={<Signin />} />
+          <Route path="/gated-signin" element={<GatedSignin />} />
+          <Route path="/forgot-password" element={<GatedForgotPassword />} />
+          <Route path="/gated-forgot-password" element={<GatedForgotPassword />} />
+          <Route path="/reset-password" element={<GatedResetPassword />} />
+          <Route path="/gated-reset-password" element={<GatedResetPassword />} />
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </BrowserRouter>
+        </TooltipProvider>
+      </CompanyProvider>
     </AuthProvider>
   </QueryClientProvider>
 );
