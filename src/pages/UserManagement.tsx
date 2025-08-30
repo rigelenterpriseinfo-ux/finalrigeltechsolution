@@ -197,22 +197,21 @@ const UserManagement = () => {
 
         if (error) throw error;
 
-        // Ensure the user also exists in Auth; send invite if needed
+        // Update the Auth user via Edge Function
         try {
           const { error: inviteError } = await supabase.functions.invoke('invite-business-user', {
             body: {
               email: formData.email,
-              // no password provided when editing; function will generate one and send invite
               name: formData.name,
               role: formData.role,
               company_id: company?.id,
             }
           });
           if (inviteError) {
-            console.error('Invite function error:', inviteError);
+            console.error('Auth user update error:', inviteError);
           }
         } catch (e) {
-          console.error('Invite function exception:', e);
+          console.error('Auth user update exception:', e);
         }
 
         toast({
@@ -226,7 +225,7 @@ const UserManagement = () => {
 
         if (error) throw error;
 
-        // Also create an Auth user and profile via Edge Function so they can sign in
+        // Create Auth user and profile via Edge Function for email/password login
         try {
           const { error: inviteError } = await supabase.functions.invoke('invite-business-user', {
             body: {
@@ -238,16 +237,27 @@ const UserManagement = () => {
             }
           });
           if (inviteError) {
-            console.error('Invite function error:', inviteError);
+            console.error('Auth user creation error:', inviteError);
+            // Don't fail the whole operation if Auth creation fails
+            toast({
+              title: "User created with limited access",
+              description: `${formData.name} was added to business users but may need manual Auth setup for full system access.`,
+              variant: "destructive"
+            });
+          } else {
+            toast({
+              title: "User created successfully", 
+              description: `${formData.name} has been added to your team. They can now sign in with their email and password to access the system.`
+            });
           }
         } catch (e) {
-          console.error('Invite function exception:', e);
+          console.error('Auth user creation exception:', e);
+          toast({
+            title: "User created with limited access",
+            description: `${formData.name} was added to business users but Auth setup failed.`,
+            variant: "destructive"
+          });
         }
-
-        toast({
-          title: "User created successfully", 
-          description: `${formData.name} has been added to your team. They will receive an invite email to set their password.`
-        });
       }
 
       handleCloseDialog();
