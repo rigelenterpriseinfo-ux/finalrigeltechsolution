@@ -117,14 +117,6 @@ export function WarehouseBinTable() {
         let bValue: any;
 
         switch (sortConfig.key) {
-          case 'wh_bin_code':
-            aValue = a.wh_bin_code;
-            bValue = b.wh_bin_code;
-            break;
-          case 'bin_name':
-            aValue = a.bin_name;
-            bValue = b.bin_name;
-            break;
           case 'warehouse_name':
             aValue = a.warehouse_name || '';
             bValue = b.warehouse_name || '';
@@ -132,6 +124,14 @@ export function WarehouseBinTable() {
           case 'warehouse_code':
             aValue = a.warehouse_code || '';
             bValue = b.warehouse_code || '';
+            break;
+          case 'wh_bin_code':
+            aValue = a.wh_bin_code;
+            bValue = b.wh_bin_code;
+            break;
+          case 'bin_name':
+            aValue = a.bin_name;
+            bValue = b.bin_name;
             break;
           case 'is_active':
             aValue = a.is_active;
@@ -262,10 +262,10 @@ export function WarehouseBinTable() {
     try {
       // Prepare data for export
       const exportData = filteredBins.map(bin => ({
-        'BIN Code': bin.wh_bin_code,
-        'BIN Name': bin.bin_name,
         'Warehouse Name': bin.warehouse_name || '',
         'Warehouse Code': bin.warehouse_code || '',
+        'BIN Code': bin.wh_bin_code,
+        'BIN Name': bin.bin_name,
         'Address Line 1': bin.address_line1 || '',
         'Address Line 2': bin.address_line2 || '',
         'City': bin.city || '',
@@ -348,6 +348,24 @@ export function WarehouseBinTable() {
               <TableHead className="w-12"></TableHead>
               <TableHead 
                 className="cursor-pointer hover:bg-muted/50 select-none"
+                onClick={() => handleSort('warehouse_name')}
+              >
+                <div className="flex items-center gap-2">
+                  Warehouse Name
+                  {getSortIcon('warehouse_name')}
+                </div>
+              </TableHead>
+              <TableHead 
+                className="cursor-pointer hover:bg-muted/50 select-none"
+                onClick={() => handleSort('warehouse_code')}
+              >
+                <div className="flex items-center gap-2">
+                  Warehouse Code
+                  {getSortIcon('warehouse_code')}
+                </div>
+              </TableHead>
+              <TableHead 
+                className="cursor-pointer hover:bg-muted/50 select-none"
                 onClick={() => handleSort('wh_bin_code')}
               >
                 <div className="flex items-center gap-2">
@@ -366,15 +384,6 @@ export function WarehouseBinTable() {
               </TableHead>
               <TableHead 
                 className="cursor-pointer hover:bg-muted/50 select-none"
-                onClick={() => handleSort('warehouse_name')}
-              >
-                <div className="flex items-center gap-2">
-                  Warehouse
-                  {getSortIcon('warehouse_name')}
-                </div>
-              </TableHead>
-              <TableHead 
-                className="cursor-pointer hover:bg-muted/50 select-none"
                 onClick={() => handleSort('is_active')}
               >
                 <div className="flex items-center gap-2">
@@ -388,7 +397,7 @@ export function WarehouseBinTable() {
           <TableBody>
             {currentBins.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="text-center py-12">
+                <TableCell colSpan={7} className="text-center py-12">
                   <div className="flex flex-col items-center gap-2">
                     <Building2 className="h-12 w-12 text-muted-foreground/50" />
                     <h3 className="text-lg font-medium text-muted-foreground">
@@ -417,23 +426,17 @@ export function WarehouseBinTable() {
                         }
                       </Button>
                     </TableCell>
+                    <TableCell className="font-medium">
+                      {bin.warehouse_name || '-'}
+                    </TableCell>
+                    <TableCell className="font-mono">
+                      {bin.warehouse_code || '-'}
+                    </TableCell>
                     <TableCell className="font-mono font-semibold text-primary">
                       {bin.wh_bin_code}
                     </TableCell>
                     <TableCell className="font-medium">
                       {bin.bin_name}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex flex-col">
-                        <span className="font-medium">
-                          {bin.warehouse_name || 'Unnamed Warehouse'}
-                        </span>
-                        {bin.warehouse_code && (
-                          <span className="text-xs text-muted-foreground">
-                            Code: {bin.warehouse_code}
-                          </span>
-                        )}
-                      </div>
                     </TableCell>
                     <TableCell>
                       <Badge 
@@ -465,10 +468,10 @@ export function WarehouseBinTable() {
                     </TableCell>
                   </TableRow>
                   
-                  {/* Expanded Row Content */}
-                  {expandedRows.has(bin.id) && (
-                    <TableRow>
-                      <TableCell colSpan={6} className="bg-muted/25 p-0">
+                   {/* Expanded Row Content */}
+                   {expandedRows.has(bin.id) && (
+                     <TableRow>
+                       <TableCell colSpan={7} className="bg-muted/25 p-0">
                         <div className="p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                           {/* Address Information */}
                           {(bin.address_line1 || bin.city || bin.state || bin.country) && (
