@@ -65,6 +65,24 @@ type ActiveModule = 'dashboard' | 'inventory' | 'purchase' | 'sales' | 'payments
 
 export default function Dashboard() {
   const { user, profile, company, signOut, loading } = useAuth();
+  
+  // Early return for loading state before any other hooks
+  if (loading) {
+    console.log('Dashboard loading...');
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
+
+  // Early return for no user before any other hooks
+  if (!user) {
+    console.log('No user, redirecting to auth');
+    return <Navigate to="/auth" replace />;
+  }
+
+  // Now safe to call other hooks after user/loading checks
   const { hasAccess, isOwnerOrAdmin } = useBusinessAuth();
   const [activeModule, setActiveModule] = useState<ActiveModule>('dashboard');
   const [inventoryStats, setInventoryStats] = useState({
@@ -106,20 +124,6 @@ export default function Dashboard() {
   };
 
   console.log('Dashboard render:', { user: !!user, profile: !!profile, company: !!company, loading, activeModule });
-
-  if (loading) {
-    console.log('Dashboard loading...');
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-      </div>
-    );
-  }
-
-  if (!user) {
-    console.log('No user, redirecting to auth');
-    return <Navigate to="/auth" replace />;
-  }
 
   const renderActiveModule = () => {
     console.log('Rendering active module:', activeModule);
