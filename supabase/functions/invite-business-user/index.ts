@@ -106,14 +106,7 @@ serve(async (req) => {
       authUserId = created.user.id;
       console.log(`Created new auth user: ${authUserId} for email: ${email}`);
       
-      // Send invite to set their own password if no password was provided
-      if (!password) {
-        try {
-          await admin.auth.admin.inviteUserByEmail(email, { redirectTo: `${new URL(req.url).origin}/auth?tab=reset` });
-        } catch (inviteErr) {
-          console.log('Invite email failed, but user was created successfully:', inviteErr);
-        }
-      }
+      // No email sending - user is ready to log in immediately
     } else if (createErr?.message?.includes('already registered') || createErr?.message?.includes('User already registered')) {
       // User already exists, find them by listing users and matching email
       console.log(`User already exists for email: ${email}, searching for existing user`);
@@ -150,14 +143,7 @@ serve(async (req) => {
         return new Response(JSON.stringify({ error: `Failed to update existing user: ${updateErr.message}` }), { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } });
       }
       
-      // Send invite/reset link if no password was provided
-      if (!password) {
-        try {
-          await admin.auth.admin.inviteUserByEmail(email, { redirectTo: `${new URL(req.url).origin}/auth?tab=reset` });
-        } catch (inviteErr) {
-          console.log('Invite email failed for existing user:', inviteErr);
-        }
-      }
+      // No email sending - user can log in immediately
     } else {
       // Unexpected error during user creation
       console.error('Error creating user:', createErr);

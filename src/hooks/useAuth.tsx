@@ -215,7 +215,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       // If regular auth fails, try business user authentication
       console.log('Regular auth failed, trying business user authentication...');
       
-      // Check if this is a business user
+      // Check if this is a business user and try direct business authentication
       const { data: companyUser } = await supabase
         .from('company_users')
         .select(`
@@ -227,38 +227,60 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         .single();
 
       if (companyUser && companyUser.companies?.business_ref_no) {
-        // Business user exists, but auth failed - they likely need their auth account activated
-        console.log('Business user found, attempting to activate auth account...');
-        
-        // Try to reset/activate their password via password reset flow
-        try {
-          const redirectUrl = `${window.location.origin}/auth?tab=reset&email=${encodeURIComponent(email)}`;
-          await supabase.auth.resetPasswordForEmail(email, { redirectTo: redirectUrl });
+        // Try business authentication via edge function
+        const { data: businessAuthData, error: businessAuthError } = await supabase.functions.invoke('signin', {
+          body: {
+            businessRefNo: companyUser.companies.business_ref_no,
+            username: email,
+            password: password
+          }
+        });
+
+        if (!businessAuthError && businessAuthData?.success) {
+          // Business authentication successful - create/update auth user silently
+          console.log('Business auth successful, creating/updating auth user...');
           
-          toast({
-            title: 'Account activation required',
-            description: 'Please check your email to activate your account and set your password.',
-          });
-          
-          return { error: new Error('Account activation required') };
-        } catch (resetError) {
-          console.error('Failed to send password reset:', resetError);
+          try {
+            const { error: inviteError } = await supabase.functions.invoke('invite-business-user', {
+              body: {
+                email: email,
+                password: password,
+                name: companyUser.username,
+                role: companyUser.access_type === 'ADMIN' ? 'Admin' : 'User',
+                company_id: companyUser.company_id,
+              }
+            });
+
+            if (!inviteError) {
+              // Now try regular signin again
+              const { error: secondAuthError } = await supabase.auth.signInWithPassword({
+                email,
+                password,
+              });
+
+              if (!secondAuthError) {
+                await logSecurityEvent(supabase, 'login_success', { email, type: 'business_user' }, '127.0.0.1');
+                toast({
+                  title: 'Welcome back!',
+                  description: 'You have been signed in successfully.',
+                });
+                return { error: null };
+              }
+            }
+          } catch (inviteError) {
+            console.log('Auth user creation failed:', inviteError);
+          }
         }
       }
 
-      // If email is unconfirmed, auto-send password reset to activate account
+      // If email is unconfirmed, show generic login failed message (no email sending)
       if (typeof authError.message === 'string' && authError.message.toLowerCase().includes('email not confirmed')) {
-        try {
-          const redirectUrl = `${window.location.origin}/auth?tab=reset`;
-          await supabase.auth.resetPasswordForEmail(email, { redirectTo: redirectUrl });
-          sessionStorage.setItem('pendingVerificationEmail', email);
-          toast({
-            title: 'Activation link sent',
-            description: 'Check your inbox to set your password and activate your account.',
-          });
-        } catch (e: any) {
-          // fall through to generic error below
-        }
+        toast({
+          title: 'Sign in failed',
+          description: 'Please contact your administrator to activate your account.',
+          variant: 'destructive',
+        });
+        return { error: authError };
       }
 
       // Log failed attempt
