@@ -2111,15 +2111,6 @@ export function PurchaseModule() {
                 Create Purchase Order
               </Button>
             </DialogTrigger>
-          </Dialog>
-
-          <Dialog open={showAddPIDialog} onOpenChange={setShowAddPIDialog}>
-            <DialogTrigger asChild>
-              <Button className="shadow-sm bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white">
-                <FileDown className="h-4 w-4 mr-2" />
-                Purchase Invoice Entry
-              </Button>
-            </DialogTrigger>
             <DialogContent className="max-w-6xl max-h-[95vh] overflow-y-auto">
               <DialogHeader className="border-b pb-4">
                 <DialogTitle className="text-xl text-primary">Create Purchase Order</DialogTitle>
@@ -2872,11 +2863,17 @@ export function PurchaseModule() {
 
           {/* Purchase Invoice Dialog */}
           <Dialog open={showAddPIDialog} onOpenChange={setShowAddPIDialog}>
+            <DialogTrigger asChild>
+              <Button className="shadow-sm bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white">
+                <FileDown className="h-4 w-4 mr-2" />
+                Purchase Invoice Entry
+              </Button>
+            </DialogTrigger>
             <DialogContent className="max-w-6xl max-h-[95vh] overflow-y-auto">
-            <DialogHeader className="border-b pb-4">
-              <DialogTitle className="text-xl text-green-700">Purchase Invoice Entry</DialogTitle>
-              <DialogDescription>Create a purchase invoice with multiple items and automatic inventory updates</DialogDescription>
-            </DialogHeader>
+              <DialogHeader className="border-b pb-4">
+                <DialogTitle className="text-xl text-green-700">Purchase Invoice Entry</DialogTitle>
+                <DialogDescription>Create a purchase invoice with multiple items and automatic inventory updates</DialogDescription>
+              </DialogHeader>
             
             <Form {...invoiceForm}>
               <form onSubmit={invoiceForm.handleSubmit(handleAddPurchaseInvoice)} className="space-y-8">
