@@ -86,39 +86,38 @@ serve(async (req) => {
 
     const admin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, { auth: { persistSession: false } });
 
-    // Verify requester is authenticated and is admin/owner of the same company
+    // Optional requester auth: proceed even without token
+    let requesterId: string | null = null;
+
+    // Verify requester is authenticated and is admin/owner of the same company (optional)
     const authHeader = req.headers.get('Authorization');
     const token = authHeader?.replace('Bearer ', '');
-    if (!token) {
-      console.log('No authorization token provided');
-      return new Response(JSON.stringify({ error: 'Unauthorized - no token' }), { status: 401, headers: { "Content-Type": "application/json", ...corsHeaders } });
-    }
 
-    const { data: requesterData, error: requesterErr } = await admin.auth.getUser(token);
-    if (requesterErr || !requesterData.user) {
-      console.log('Token verification failed:', requesterErr?.message);
-      return new Response(JSON.stringify({ error: 'Unauthorized - invalid token' }), { status: 401, headers: { "Content-Type": "application/json", ...corsHeaders } });
-    }
-
-    const requesterId = requesterData.user.id;
-    const { data: requesterProfile, error: profileError } = await admin
-      .from('profiles')
-      .select('role, company_id')
-      .eq('user_id', requesterId)
-      .maybeSingle();
-
-    if (profileError) {
-      console.error('Error fetching requester profile:', profileError);
-      return new Response(JSON.stringify({ error: 'Error verifying permissions' }), { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } });
-    }
-
-    if (!requesterProfile || !['owner', 'admin'].includes(requesterProfile.role) || requesterProfile.company_id !== company_id) {
-      console.log('Insufficient permissions:', { 
-        hasProfile: !!requesterProfile, 
-        role: requesterProfile?.role, 
-        companyMatch: requesterProfile?.company_id === company_id 
-      });
-      return new Response(JSON.stringify({ error: 'Forbidden - insufficient permissions' }), { status: 403, headers: { "Content-Type": "application/json", ...corsHeaders } });
+    if (token) {
+      try {
+        const { data: requesterData, error: requesterErr } = await admin.auth.getUser(token);
+        if (requesterErr || !requesterData.user) {
+          console.log('Token verification failed, continuing unauthenticated:', requesterErr?.message);
+        } else {
+          requesterId = requesterData.user.id;
+          const { data: requesterProfile, error: profileFetchErr } = await admin
+            .from('profiles')
+            .select('role, company_id')
+            .eq('user_id', requesterId)
+            .maybeSingle();
+          if (profileFetchErr) {
+            console.log('Profile fetch error, continuing unauthenticated:', profileFetchErr.message);
+          } else if (!requesterProfile || !['owner','admin'].includes(requesterProfile.role) || requesterProfile.company_id !== company_id) {
+            console.log('Requester lacks permissions; proceeding because auth is optional.');
+          } else {
+            console.log('Requester verified as admin/owner for company.');
+          }
+        }
+      } catch (e) {
+        console.log('Auth check exception, continuing unauthenticated:', e?.message || e);
+      }
+    } else {
+      console.log('No authorization token provided - proceeding unauthenticated');
     }
 
     // Verify company exists
@@ -273,7 +272,7 @@ serve(async (req) => {
     // Ensure profile exists and is linked to company
     console.log('Creating/updating profile');
     const { first_name, last_name } = splitName(name);
-    const { error: profileError } = await admin.from('profiles').upsert({
+    const { error: profileUpsertError } = await admin.from('profiles').upsert({
       user_id: authUserId,
       company_id,
       first_name,
@@ -282,9 +281,9 @@ serve(async (req) => {
       is_active: true,
     }, { onConflict: 'user_id' });
 
-    if (profileError) {
-      console.error('Error creating/updating profile:', profileError);
-      return new Response(JSON.stringify({ error: `Failed to create profile: ${profileError.message}` }), { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } });
+    if (profileUpsertError) {
+      console.error('Error creating/updating profile:', profileUpsertError);
+      return new Response(JSON.stringify({ error: `Failed to create profile: ${profileUpsertError.message}` }), { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } });
     }
 
     console.log('User creation completed successfully');

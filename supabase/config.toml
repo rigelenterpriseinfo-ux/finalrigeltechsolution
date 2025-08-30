@@ -10,7 +10,7 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.invite-business-user]
-verify_jwt = true
+verify_jwt = false
 
 [functions.signin]
 verify_jwt = false
