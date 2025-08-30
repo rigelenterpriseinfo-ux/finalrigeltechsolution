@@ -9,6 +9,7 @@ import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
+import { useBusinessAuth } from '@/hooks/useBusinessAuth';
 
 interface Customer {
   id?: string;
@@ -48,15 +49,19 @@ interface CustomerFormProps {
   customer?: Customer;
   onSubmit: (data: Customer) => Promise<void>;
   onCancel: () => void;
+  readOnly?: boolean;
 }
 
 export const CustomerForm: React.FC<CustomerFormProps> = ({
   customer,
   onSubmit,
   onCancel,
+  readOnly = false,
 }) => {
+  const { hasEditAccess } = useBusinessAuth();
   const [loading, setLoading] = useState(false);
   const [sameAsRegistered, setSameAsRegistered] = useState(customer?.same_as_registered_address || false);
+  const canEdit = hasEditAccess('sales') && !readOnly;
 
   const {
     register,
@@ -114,6 +119,7 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({
                 id="name"
                 {...register('name', { required: 'Customer name is required' })}
                 className={errors.name ? 'border-destructive' : ''}
+                disabled={!canEdit}
               />
               {errors.name && (
                 <p className="text-sm text-destructive mt-1">{errors.name.message}</p>
@@ -124,6 +130,7 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({
               <Input
                 id="customer_ref"
                 {...register('customer_ref')}
+                disabled={!canEdit}
               />
             </div>
             <div>
@@ -132,6 +139,7 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({
                 id="email"
                 type="email"
                 {...register('email')}
+                disabled={!canEdit}
               />
             </div>
             <div>
@@ -139,6 +147,7 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({
               <Input
                 id="phone"
                 {...register('phone')}
+                disabled={!canEdit}
               />
             </div>
             <div>
@@ -146,6 +155,7 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({
               <Input
                 id="contact_person"
                 {...register('contact_person')}
+                disabled={!canEdit}
               />
             </div>
             <div>
@@ -153,6 +163,7 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({
               <Select
                 defaultValue={customer?.customer_type || 'Business'}
                 onValueChange={(value) => setValue('customer_type', value)}
+                disabled={!canEdit}
               >
                 <SelectTrigger>
                   <SelectValue />
@@ -178,6 +189,7 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({
               <Input
                 id="address_line1"
                 {...register('address_line1')}
+                disabled={!canEdit}
               />
             </div>
             <div className="md:col-span-2">
@@ -185,6 +197,7 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({
               <Input
                 id="address_line2"
                 {...register('address_line2')}
+                disabled={!canEdit}
               />
             </div>
             <div>
@@ -192,6 +205,7 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({
               <Input
                 id="city"
                 {...register('city')}
+                disabled={!canEdit}
               />
             </div>
             <div>
@@ -199,6 +213,7 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({
               <Input
                 id="state"
                 {...register('state')}
+                disabled={!canEdit}
               />
             </div>
             <div>
@@ -207,6 +222,7 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({
                 id="country"
                 {...register('country')}
                 defaultValue="India"
+                disabled={!canEdit}
               />
             </div>
             <div>
@@ -214,6 +230,7 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({
               <Input
                 id="pin_code"
                 {...register('pin_code')}
+                disabled={!canEdit}
               />
             </div>
           </div>
@@ -230,6 +247,7 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({
               id="same_as_registered"
               checked={sameAsRegistered}
               onCheckedChange={setSameAsRegistered}
+              disabled={!canEdit}
             />
             <Label htmlFor="same_as_registered">Same as registered address</Label>
           </div>
@@ -240,7 +258,7 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({
               <Input
                 id="shipping_address_line1"
                 {...register('shipping_address_line1')}
-                disabled={sameAsRegistered}
+                disabled={sameAsRegistered || !canEdit}
               />
             </div>
             <div className="md:col-span-2">
@@ -248,7 +266,7 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({
               <Input
                 id="shipping_address_line2"
                 {...register('shipping_address_line2')}
-                disabled={sameAsRegistered}
+                disabled={sameAsRegistered || !canEdit}
               />
             </div>
             <div>
@@ -256,7 +274,7 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({
               <Input
                 id="shipping_city"
                 {...register('shipping_city')}
-                disabled={sameAsRegistered}
+                disabled={sameAsRegistered || !canEdit}
               />
             </div>
             <div>
@@ -264,7 +282,7 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({
               <Input
                 id="shipping_state"
                 {...register('shipping_state')}
-                disabled={sameAsRegistered}
+                disabled={sameAsRegistered || !canEdit}
               />
             </div>
             <div>
@@ -272,7 +290,7 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({
               <Input
                 id="shipping_country"
                 {...register('shipping_country')}
-                disabled={sameAsRegistered}
+                disabled={sameAsRegistered || !canEdit}
               />
             </div>
             <div>
@@ -280,7 +298,7 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({
               <Input
                 id="shipping_pin_code"
                 {...register('shipping_pin_code')}
-                disabled={sameAsRegistered}
+                disabled={sameAsRegistered || !canEdit}
               />
             </div>
           </div>
@@ -298,6 +316,7 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({
               <Input
                 id="gstin"
                 {...register('gstin')}
+                disabled={!canEdit}
               />
             </div>
             <div>
@@ -305,6 +324,7 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({
               <Input
                 id="pan_number"
                 {...register('pan_number')}
+                disabled={!canEdit}
               />
             </div>
           </div>
@@ -322,6 +342,7 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({
               <Input
                 id="bank_name"
                 {...register('bank_name')}
+                disabled={!canEdit}
               />
             </div>
             <div>
@@ -329,6 +350,7 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({
               <Input
                 id="branch_name"
                 {...register('branch_name')}
+                disabled={!canEdit}
               />
             </div>
             <div>
@@ -336,6 +358,7 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({
               <Select
                 defaultValue={customer?.account_type || ''}
                 onValueChange={(value) => setValue('account_type', value)}
+                disabled={!canEdit}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select account type" />
@@ -353,6 +376,7 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({
               <Input
                 id="account_number"
                 {...register('account_number')}
+                disabled={!canEdit}
               />
             </div>
             <div>
@@ -360,6 +384,7 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({
               <Input
                 id="ifsc_code"
                 {...register('ifsc_code')}
+                disabled={!canEdit}
               />
             </div>
             <div>
@@ -368,6 +393,7 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({
                 id="payment_terms"
                 {...register('payment_terms')}
                 placeholder="e.g., Net 30"
+                disabled={!canEdit}
               />
             </div>
             <div>
@@ -375,6 +401,7 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({
               <Select
                 defaultValue={customer?.preferred_currency || 'INR'}
                 onValueChange={(value) => setValue('preferred_currency', value)}
+                disabled={!canEdit}
               >
                 <SelectTrigger>
                   <SelectValue />
@@ -393,6 +420,7 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({
                 type="number"
                 step="0.01"
                 {...register('credit_limit', { valueAsNumber: true })}
+                disabled={!canEdit}
               />
             </div>
           </div>
@@ -403,7 +431,7 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({
         <Button type="button" variant="outline" onClick={onCancel}>
           Cancel
         </Button>
-        <Button type="submit" disabled={loading}>
+        <Button type="submit" disabled={loading || !canEdit}>
           {loading ? 'Saving...' : customer ? 'Update Customer' : 'Create Customer'}
         </Button>
       </div>

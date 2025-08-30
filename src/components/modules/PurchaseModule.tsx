@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import { useBusinessAuth } from '@/hooks/useBusinessAuth';
 import { useToast } from '@/hooks/use-toast';
 import { Plus, Truck, ShoppingCart, FileText, Building2, Package, TrendingUp } from 'lucide-react';
 import { EnhancedPurchaseInvoiceForm } from '@/components/forms/EnhancedPurchaseInvoiceForm';
@@ -40,7 +41,9 @@ interface PurchaseOrder {
 
 export function PurchaseModule() {
   const { profile } = useAuth();
+  const { hasEditAccess } = useBusinessAuth();
   const { toast } = useToast();
+  const canEdit = hasEditAccess('purchases');
   
   // State management
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
@@ -461,10 +464,10 @@ export function PurchaseModule() {
                 </div>
                 <Dialog open={showAddSupplierDialog} onOpenChange={setShowAddSupplierDialog}>
                   <DialogTrigger asChild>
-                    <Button className="bg-blue-600 hover:bg-blue-700">
-                      <Plus className="h-4 w-4 mr-2" />
-                      Add Supplier
-                    </Button>
+                 <Button className="bg-blue-600 hover:bg-blue-700" disabled={!canEdit}>
+                   <Plus className="h-4 w-4 mr-2" />
+                   Add Supplier
+                 </Button>
                   </DialogTrigger>
                   <DialogContent className="max-w-4xl max-h-[95vh] overflow-y-auto">
                     <DialogHeader>
@@ -610,10 +613,10 @@ export function PurchaseModule() {
                   <CardTitle className="text-xl text-green-800">Purchase Orders</CardTitle>
                   <CardDescription>Create and manage purchase orders</CardDescription>
                 </div>
-                <Button className="bg-green-600 hover:bg-green-700">
-                  <Plus className="h-4 w-4 mr-2" />
-                  Create Purchase Order
-                </Button>
+                 <Button className="bg-green-600 hover:bg-green-700" disabled={!canEdit}>
+                   <Plus className="h-4 w-4 mr-2" />
+                   Create Purchase Order
+                 </Button>
               </div>
             </CardHeader>
             <CardContent className="p-6">
@@ -665,10 +668,11 @@ export function PurchaseModule() {
                   <CardTitle className="text-xl text-purple-800">Purchase Invoices</CardTitle>
                   <CardDescription>Manage purchase invoice entries</CardDescription>
                 </div>
-                <Button 
-                  className="bg-purple-600 hover:bg-purple-700"
-                  onClick={() => setShowAddPIDialog(true)}
-                >
+                 <Button 
+                   className="bg-purple-600 hover:bg-purple-700"
+                   onClick={() => setShowAddPIDialog(true)}
+                   disabled={!canEdit}
+                 >
                   <Plus className="h-4 w-4 mr-2" />
                   Create Invoice
                 </Button>

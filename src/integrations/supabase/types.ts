@@ -104,6 +104,33 @@ export type Database = {
         }
         Relationships: []
       }
+      company_user_section_permissions: {
+        Row: {
+          access_sections: Json
+          company_id: string
+          created_at: string
+          id: string
+          updated_at: string
+          user_email: string
+        }
+        Insert: {
+          access_sections?: Json
+          company_id: string
+          created_at?: string
+          id?: string
+          updated_at?: string
+          user_email: string
+        }
+        Update: {
+          access_sections?: Json
+          company_id?: string
+          created_at?: string
+          id?: string
+          updated_at?: string
+          user_email?: string
+        }
+        Relationships: []
+      }
       company_users: {
         Row: {
           access_type: string | null

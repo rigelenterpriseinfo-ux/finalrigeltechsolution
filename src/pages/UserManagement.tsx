@@ -37,7 +37,7 @@ interface BusinessUser {
 
 const UserManagement = () => {
   const { company, profile, user } = useAuth();
-  const { businessUser, canManageCompany, hasEditAccess, isOwnerOrAdmin } = useBusinessAuth();
+  const { businessUser, canManageCompany, hasEditAccess, isOwnerOrAdmin, updateSectionPermissions } = useBusinessAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
   const [users, setUsers] = useState<BusinessUser[]>([]);
@@ -87,12 +87,29 @@ const UserManagement = () => {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
+      
+      // Fetch section permissions for all users
+      const { data: permissions, error: permError } = await supabase
+        .from('company_user_section_permissions')
+        .select('*')
+        .eq('company_id', company?.id);
+
+      if (permError) {
+        console.error('Error fetching permissions:', permError);
+      }
+
+      // Create a map of email to permissions
+      const permissionsMap = (permissions || []).reduce((map, perm) => {
+        map[perm.user_email] = perm.access_sections || {};
+        return map;
+      }, {} as Record<string, any>);
+
       setUsers((data || []).map((user: any) => ({
         ...user,
         user_ref: user.username, // Use username as user_ref for display
         name: user.username, // Use username as name for display
         role: user.access_type === 'ADMIN' ? 'Admin' : 'User',
-        access_sections: {} // Company users don't have granular section access yet
+        access_sections: permissionsMap[user.email] || {}
       } as BusinessUser)));
     } catch (error: any) {
       toast({
@@ -199,6 +216,11 @@ const UserManagement = () => {
 
         if (error) throw error;
 
+        // Update section permissions for this user
+        if (formData.role === 'User' && Object.keys(formData.access_sections).length > 0) {
+          await updateSectionPermissions(formData.email, formData.access_sections);
+        }
+
         // Update the Auth user via Edge Function
         try {
           const { error: inviteError } = await supabase.functions.invoke('invite-business-user', {
@@ -226,6 +248,11 @@ const UserManagement = () => {
           .insert(userData);
 
         if (error) throw error;
+
+        // Save section permissions for new user (only for Users, not Admins)
+        if (formData.role === 'User' && Object.keys(formData.access_sections).length > 0) {
+          await updateSectionPermissions(formData.email, formData.access_sections);
+        }
 
         // Create Auth user and profile via Edge Function for email/password login
         try {

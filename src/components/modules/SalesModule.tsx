@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Plus } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
+import { useBusinessAuth } from '@/hooks/useBusinessAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -17,7 +18,9 @@ import InvoiceForm from '@/components/forms/InvoiceForm';
 
 export default function SalesModule() {
   const { profile } = useAuth();
+  const { hasEditAccess } = useBusinessAuth();
   const { toast } = useToast();
+  const canEdit = hasEditAccess('sales');
   
   // State for all three modules
   const [customers, setCustomers] = useState([]);
@@ -547,7 +550,7 @@ export default function SalesModule() {
         <TabsContent value="customers" className="space-y-4">
           <div className="flex justify-between items-center">
             <h3 className="text-lg font-medium">Customer Management</h3>
-            <Button onClick={handleOpenCustomerDialog}>
+            <Button onClick={handleOpenCustomerDialog} disabled={!canEdit}>
               <Plus className="h-4 w-4 mr-2" />
               Add Customer
             </Button>
@@ -564,7 +567,7 @@ export default function SalesModule() {
         <TabsContent value="sales-orders" className="space-y-4">
           <div className="flex justify-between items-center">
             <h3 className="text-lg font-medium">Sales Order Management</h3>
-            <Button onClick={handleOpenSalesOrderDialog}>
+            <Button onClick={handleOpenSalesOrderDialog} disabled={!canEdit}>
               <Plus className="h-4 w-4 mr-2" />
               Create Sales Order
             </Button>
@@ -582,7 +585,7 @@ export default function SalesModule() {
         <TabsContent value="sales-invoices" className="space-y-4">
           <div className="flex justify-between items-center">
             <h3 className="text-lg font-medium">Sales Invoice Management</h3>
-            <Button onClick={handleOpenInvoiceDialog}>
+            <Button onClick={handleOpenInvoiceDialog} disabled={!canEdit}>
               <Plus className="h-4 w-4 mr-2" />
               Create Sales Invoice
             </Button>
@@ -608,6 +611,7 @@ export default function SalesModule() {
               setShowCustomerDialog(false);
               setEditingCustomer(null);
             }}
+            readOnly={!canEdit}
           />
         </DialogContent>
       </Dialog>
