@@ -901,13 +901,6 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "fk_products_warehouse_bin"
-            columns: ["wh_bin_code"]
-            isOneToOne: false
-            referencedRelation: "warehouse_bins"
-            referencedColumns: ["wh_bin_code"]
-          },
-          {
             foreignKeyName: "products_category_id_fkey"
             columns: ["category_id"]
             isOneToOne: false
