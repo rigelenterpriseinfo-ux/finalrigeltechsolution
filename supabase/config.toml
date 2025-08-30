@@ -11,3 +11,6 @@ verify_jwt = false
 
 [functions.invite-business-user]
 verify_jwt = true
+
+[functions.signin]
+verify_jwt = false

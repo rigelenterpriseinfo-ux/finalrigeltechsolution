@@ -7,7 +7,7 @@ const corsHeaders = {
 };
 
 interface SigninRequest {
-  businessRefNo: string;
+  businessRefNo?: string;
   username: string;
   password: string;
 }
@@ -21,7 +21,7 @@ async function hashPassword(password: string): Promise<string> {
   return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
-// Helper function to generate session token
+// Helper function to generate session token (kept for compatibility, unused now)
 function generateSessionToken(): string {
   const array = new Uint8Array(32);
   crypto.getRandomValues(array);
@@ -41,9 +41,9 @@ serve(async (req) => {
   try {
     const { businessRefNo, username, password }: SigninRequest = await req.json();
 
-    if (!businessRefNo || !username || !password) {
+    if (!username || !password) {
       return new Response(
-        JSON.stringify({ error: "Business ID, username, and password are required" }),
+        JSON.stringify({ error: "Username and password are required" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -58,8 +58,8 @@ serve(async (req) => {
     // Hash the provided password
     const passwordHash = await hashPassword(password);
 
-    // Find the company and user
-    const { data: userData, error: userError } = await supabase
+    // Build query to find the company user
+    let query = supabase
       .from("company_users")
       .select(`
         id,
@@ -85,9 +85,15 @@ serve(async (req) => {
       `)
       .eq("username", username)
       .eq("password_hash", passwordHash)
-      .eq("companies.business_ref_no", businessRefNo)
-      .eq("status", "ACTIVE")
-      .single();
+      .eq("status", "ACTIVE");
+
+    if (businessRefNo) {
+      // Narrow to specific business if provided
+      // @ts-ignore - postgrest filter on related table
+      query = query.eq("companies.business_ref_no", businessRefNo);
+    }
+
+    const { data: userData, error: userError } = await query.single();
 
     if (userError || !userData) {
       // Log failed login attempt (you could implement rate limiting here)
@@ -108,36 +114,60 @@ serve(async (req) => {
       );
     }
 
-    // Generate session token (in a real app, you'd store this in a sessions table)
-    const sessionToken = generateSessionToken();
+    // Ensure an auth user exists with this email and can sign in immediately
+    const mapRoleToProfile = (accessType: string) => (accessType === 'ADMIN' || accessType === 'OWNER' ? 'admin' : 'staff');
 
-    // Return user and company data
+    let authUserId: string | null = null;
+
+    // Try creating the user first
+    const { data: created, error: createErr } = await supabase.auth.admin.createUser({
+      email: userData.email,
+      password,
+      email_confirm: true,
+      user_metadata: {
+        invited_via: 'business-signin',
+        company_id: userData.company_id,
+        app_role: mapRoleToProfile(userData.access_type),
+      },
+    });
+
+    if (created?.user) {
+      authUserId = created.user.id;
+    } else if (createErr?.message?.includes('already been registered') || createErr?.message?.includes('already registered')) {
+      // Find existing user by listing and matching email
+      const { data: users, error: listErr } = await supabase.auth.admin.listUsers({ page: 1, perPage: 1000 });
+      if (listErr) {
+        console.error('Error listing users:', listErr);
+        return new Response(JSON.stringify({ error: 'Failed to access auth users' }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+      const existing = users?.users?.find((u: any) => u.email === userData.email);
+      if (!existing) {
+        return new Response(JSON.stringify({ error: 'Auth user not found and cannot be created' }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+      authUserId = existing.id;
+      const { error: updateErr } = await supabase.auth.admin.updateUserById(authUserId, { email_confirm: true, password });
+      if (updateErr) {
+        console.error('Error updating existing auth user:', updateErr);
+        return new Response(JSON.stringify({ error: 'Failed to update auth user' }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+    } else if (createErr) {
+      console.error('Unexpected error creating auth user:', createErr);
+      return new Response(JSON.stringify({ error: createErr.message || 'Failed to create auth user' }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
+    // Ensure profile is linked
+    await supabase.from('profiles').upsert({
+      user_id: authUserId!,
+      company_id: userData.company_id,
+      role: mapRoleToProfile(userData.access_type),
+      is_active: true,
+    }, { onConflict: 'user_id' });
+
+    // Return success; frontend should now sign in via auth API
     const responseData = {
       success: true,
-      sessionToken,
-      user: {
-        id: userData.id,
-        username: userData.username,
-        email: userData.email,
-        accessType: userData.access_type,
-        status: userData.status
-      },
-      company: {
-        id: company.id,
-        businessRefNo: company.business_ref_no,
-        name: company.name,
-        email: company.email,
-        phone: company.phone,
-        address: {
-          line1: company.address_line1,
-          line2: company.address_line2,
-          state: company.state,
-          postal: company.postal_code,
-          country: company.country
-        },
-        gstin: company.gstin,
-        status: company.status
-      }
+      user: { id: userData.id, email: userData.email },
+      company: { id: company.id, businessRefNo: company.business_ref_no, status: company.status }
     };
 
     return new Response(

@@ -212,64 +212,19 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         return { error: null };
       }
 
-      // If regular auth fails, try business user authentication
-      console.log('Regular auth failed, trying business user authentication...');
-      
-      // Check if this is a business user and try direct business authentication
-      const { data: companyUser } = await supabase
-        .from('company_users')
-        .select(`
-          *,
-          companies!inner(business_ref_no, name, status)
-        `)
-        .eq('email', email)
-        .eq('status', 'ACTIVE')
-        .single();
+      // Fallback: attempt business user sign-in (company_users) via edge function
+      console.log('Regular auth failed; attempting business user sign-in via edge function');
+      const { data: bizData, error: bizError } = await supabase.functions.invoke('signin', {
+        body: { username: email, password }
+      });
 
-      if (companyUser && companyUser.companies?.business_ref_no) {
-        // Try business authentication via edge function
-        const { data: businessAuthData, error: businessAuthError } = await supabase.functions.invoke('signin', {
-          body: {
-            businessRefNo: companyUser.companies.business_ref_no,
-            username: email,
-            password: password
-          }
-        });
-
-        if (!businessAuthError && businessAuthData?.success) {
-          // Business authentication successful - create/update auth user silently
-          console.log('Business auth successful, creating/updating auth user...');
-          
-          try {
-            const { error: inviteError } = await supabase.functions.invoke('invite-business-user', {
-              body: {
-                email: email,
-                password: password,
-                name: companyUser.username,
-                role: companyUser.access_type === 'ADMIN' ? 'Admin' : 'User',
-                company_id: companyUser.company_id,
-              }
-            });
-
-            if (!inviteError) {
-              // Now try regular signin again
-              const { error: secondAuthError } = await supabase.auth.signInWithPassword({
-                email,
-                password,
-              });
-
-              if (!secondAuthError) {
-                await logSecurityEvent(supabase, 'login_success', { email, type: 'business_user' }, '127.0.0.1');
-                toast({
-                  title: 'Welcome back!',
-                  description: 'You have been signed in successfully.',
-                });
-                return { error: null };
-              }
-            }
-          } catch (inviteError) {
-            console.log('Auth user creation failed:', inviteError);
-          }
+      if (!bizError && (bizData as any)?.success) {
+        // Now that the auth user is provisioned, try normal auth again
+        const { error: secondAuthError } = await supabase.auth.signInWithPassword({ email, password });
+        if (!secondAuthError) {
+          await logSecurityEvent(supabase, 'login_success', { email, type: 'business_user' }, '127.0.0.1');
+          toast({ title: 'Welcome back!', description: 'You have been signed in successfully.' });
+          return { error: null };
         }
       }
 
