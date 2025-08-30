@@ -887,6 +887,102 @@ export function PurchaseModule() {
     }
   };
 
+  // Enhanced Purchase Invoice CRUD Functions
+  const handleUpdatePurchaseInvoice = async (invoiceData: any) => {
+    if (!selectedPI) return;
+    try {
+      const { error: piError } = await supabase
+        .from('purchase_invoices')
+        .update({
+          ...invoiceData,
+          purchase_invoice_number: invoiceData.invoice_no, // Use manual invoice number
+        })
+        .eq('id', selectedPI.id);
+
+      if (piError) throw piError;
+
+      // Delete existing items
+      const { error: deleteError } = await supabase
+        .from('purchase_invoice_items')
+        .delete()
+        .eq('purchase_invoice_id', selectedPI.id);
+
+      if (deleteError) throw deleteError;
+
+      // Insert updated items
+      const { error: itemsError } = await supabase
+        .from('purchase_invoice_items')
+        .insert(
+          invoiceData.items.map((item: any) => ({
+            ...item,
+            purchase_invoice_id: selectedPI.id,
+          }))
+        );
+
+      if (itemsError) throw itemsError;
+
+      toast({
+        title: "Success",
+        description: "Purchase invoice updated successfully",
+      });
+
+      setShowEditPIDialog(false);
+      setSelectedPI(null);
+      fetchPurchaseInvoicesData();
+    } catch (error: any) {
+      console.error('Error updating purchase invoice:', error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update purchase invoice",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleViewPI = (invoice: any) => {
+    setSelectedPI(invoice);
+    setShowViewPIDialog(true);
+  };
+
+  const handleEditPI = (invoice: any) => {
+    setSelectedPI(invoice);
+    setShowEditPIDialog(true);
+  };
+
+  const handleDeletePI = async (invoiceId: string) => {
+    try {
+      // First delete all related items
+      const { error: itemsError } = await supabase
+        .from('purchase_invoice_items')
+        .delete()
+        .eq('purchase_invoice_id', invoiceId);
+
+      if (itemsError) throw itemsError;
+
+      // Then delete the invoice
+      const { error: invoiceError } = await supabase
+        .from('purchase_invoices')
+        .delete()
+        .eq('id', invoiceId);
+
+      if (invoiceError) throw invoiceError;
+
+      toast({
+        title: "Success",
+        description: "Purchase invoice deleted successfully",
+      });
+
+      fetchPurchaseInvoicesData();
+    } catch (error: any) {
+      console.error('Error deleting purchase invoice:', error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete purchase invoice",
+        variant: "destructive",
+      });
+    }
+  };
+
   // UPDATE - Edit Purchase Order
   const handleEditPurchaseOrder = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
