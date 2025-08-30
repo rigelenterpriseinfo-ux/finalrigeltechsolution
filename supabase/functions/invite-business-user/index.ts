@@ -16,6 +16,7 @@ interface InvitePayload {
   name?: string;
   role: 'Admin' | 'User';
   company_id: string;
+  created_by?: string; // Track who created this user
 }
 
 function mapRoleToProfile(role: 'Admin' | 'User'): 'owner' | 'admin' | 'manager' | 'staff' {
@@ -45,7 +46,7 @@ serve(async (req) => {
     }
 
     const payload: InvitePayload = await req.json();
-    const { email, password, name, role, company_id } = payload;
+    const { email, password, name, role, company_id, created_by } = payload;
 
     if (!email || !role || !company_id) {
       return new Response(JSON.stringify({ error: 'Missing required fields' }), {
@@ -154,6 +155,56 @@ serve(async (req) => {
       return new Response(JSON.stringify({ error: 'Failed to create or find user' }), { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } });
     }
 
+    // Check if user already exists in company_users
+    const { data: existingCompanyUser } = await admin
+      .from('company_users')
+      .select('*')
+      .eq('email', email)
+      .eq('company_id', company_id)
+      .maybeSingle();
+
+    // Map role to database values
+    const dbRole = role === 'Admin' ? 'admin' : 'editor'; // Admin -> admin, User -> editor
+    const accessType = role === 'Admin' ? 'ADMIN' : 'USER';
+
+    if (existingCompanyUser) {
+      // Update existing company_user record with auth user_id
+      const { error: updateError } = await admin
+        .from('company_users')
+        .update({
+          user_id: authUserId,
+          full_name: name || existingCompanyUser.username,
+          role: dbRole,
+          access_type: accessType,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', existingCompanyUser.id);
+
+      if (updateError) {
+        console.error('Error updating company user:', updateError);
+      }
+    } else {
+      // Create new company_user record linked to auth.users
+      const { error: insertError } = await admin
+        .from('company_users')
+        .insert({
+          user_id: authUserId,
+          company_id: company_id,
+          email: email,
+          username: email, // Keep for backward compatibility
+          full_name: name,
+          role: dbRole,
+          access_type: accessType,
+          status: 'ACTIVE',
+          password_hash: 'MANAGED_BY_AUTH', // Indicate this is managed by Supabase Auth
+          created_by: created_by || requesterId // Track who created this user
+        });
+
+      if (insertError) {
+        console.error('Error creating company user:', insertError);
+      }
+    }
+
     // Ensure profile exists and is linked to company
     const { first_name, last_name } = splitName(name);
     await admin.from('profiles').upsert({
@@ -165,7 +216,11 @@ serve(async (req) => {
       is_active: true,
     }, { onConflict: 'user_id' });
 
-    return new Response(JSON.stringify({ success: true, auth_user_id: authUserId }), {
+    return new Response(JSON.stringify({ 
+      success: true, 
+      auth_user_id: authUserId,
+      message: 'User created successfully and can now log in with email and password'
+    }), {
       status: 200,
       headers: { "Content-Type": "application/json", ...corsHeaders },
     });

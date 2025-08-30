@@ -23,10 +23,12 @@ import { useNavigate } from 'react-router-dom';
 
 interface BusinessUser {
   id: string;
+  user_id?: string; // Reference to auth.users.id
   user_ref: string;
   name: string;
+  full_name?: string;
   email: string;
-  role: 'Admin' | 'User';
+  role: 'Admin' | 'Editor' | 'Viewer';
   access_sections: Record<string, 'read' | 'edit'>;
   is_active: boolean;
   password_hash?: string;
@@ -51,7 +53,7 @@ const UserManagement = () => {
     email: '',
     password: '',
     confirmPassword: '',
-    role: 'User' as BusinessUser['role'],
+    role: 'Editor' as BusinessUser['role'],
     access_sections: {} as Record<string, 'read' | 'edit'>,
     is_active: true
   });
@@ -69,7 +71,8 @@ const UserManagement = () => {
 
   const roleIcons = {
     Admin: Shield,
-    User: Users
+    Editor: Edit,
+    Viewer: Eye
   };
 
   useEffect(() => {
@@ -107,8 +110,8 @@ const UserManagement = () => {
       setUsers((data || []).map((user: any) => ({
         ...user,
         user_ref: user.username, // Use username as user_ref for display
-        name: user.username, // Use username as name for display
-        role: user.access_type === 'ADMIN' ? 'Admin' : 'User',
+        name: user.full_name || user.username, // Use full_name if available
+        role: user.role === 'admin' ? 'Admin' : user.role === 'editor' ? 'Editor' : 'Viewer',
         access_sections: permissionsMap[user.email] || {}
       } as BusinessUser)));
     } catch (error: any) {
@@ -128,7 +131,7 @@ const UserManagement = () => {
       email: '',
       password: '',
       confirmPassword: '',
-      role: 'User',
+      role: 'Editor',
       access_sections: {},
       is_active: true
     });
@@ -181,34 +184,54 @@ const UserManagement = () => {
         throw new Error('Passwords do not match');
       }
 
-      // Check if username already exists (for new users)
+      // For new users, create in Supabase Auth first, then sync to company_users
       if (!editingUser) {
-        const { data: existingUser } = await supabase
-          .from('company_users')
-          .select('username')
-          .eq('username', formData.email) // Use email as username
-          .eq('company_id', company?.id)
-          .single();
+        // Create Auth user and company_user via Edge Function
+        const { data: inviteData, error: inviteError } = await supabase.functions.invoke('invite-business-user', {
+          body: {
+            email: formData.email,
+            password: formData.password,
+            name: formData.name,
+            role: formData.role,
+            company_id: company?.id,
+            created_by: user?.id
+          }
+        });
 
-        if (existingUser) {
-          throw new Error('A user with this email already exists');
+        if (inviteError) {
+          console.error('Error creating user:', inviteError);
+          throw new Error(inviteError.message || 'Failed to create user');
         }
-      }
 
-      const userData: any = {
-        username: formData.email, // Use email as username
-        email: formData.email,
-        access_type: formData.role === 'Admin' ? 'ADMIN' : 'USER',
-        status: 'ACTIVE', // Always create as ACTIVE instead of checking formData.is_active
-        company_id: company?.id
-      };
+        if (!inviteData?.success) {
+          throw new Error(inviteData?.error || 'Failed to create user');
+        }
 
-      // Hash password for new users or if password is being updated
-      if (!editingUser || (editingUser && formData.password)) {
-        userData.password_hash = await hashPassword(formData.password);
-      }
+        // Save section permissions for new user (only for non-Admin roles)
+        if (formData.role !== 'Admin' && Object.keys(formData.access_sections).length > 0) {
+          await updateSectionPermissions(formData.email, formData.access_sections);
+        }
 
-      if (editingUser) {
+        toast({
+          title: "User created successfully",
+          description: `${formData.name} has been added to your team and can now log in with their email and password.`
+        });
+      } else {
+        // For existing users, update company_users and optionally Auth user
+        const userData: any = {
+          username: formData.email,
+          email: formData.email,
+          full_name: formData.name,
+          role: formData.role === 'Admin' ? 'admin' : formData.role === 'Editor' ? 'editor' : 'viewer',
+          access_type: formData.role === 'Admin' ? 'ADMIN' : 'USER',
+          status: 'ACTIVE'
+        };
+
+        // Hash password for existing users if password is being updated
+        if (formData.password) {
+          userData.password_hash = await hashPassword(formData.password);
+        }
+
         const { error } = await supabase
           .from('company_users')
           .update(userData)
@@ -217,76 +240,34 @@ const UserManagement = () => {
         if (error) throw error;
 
         // Update section permissions for this user
-        if (formData.role === 'User' && Object.keys(formData.access_sections).length > 0) {
+        if (formData.role !== 'Admin' && Object.keys(formData.access_sections).length > 0) {
           await updateSectionPermissions(formData.email, formData.access_sections);
         }
 
-        // Update the Auth user via Edge Function
-        try {
-          const { error: inviteError } = await supabase.functions.invoke('invite-business-user', {
-            body: {
-              email: formData.email,
-              name: formData.name,
-              role: formData.role,
-              company_id: company?.id,
+        // Update the Auth user via Edge Function if password changed
+        if (formData.password) {
+          try {
+            const { error: inviteError } = await supabase.functions.invoke('invite-business-user', {
+              body: {
+                email: formData.email,
+                password: formData.password,
+                name: formData.name,
+                role: formData.role,
+                company_id: company?.id,
+              }
+            });
+            if (inviteError) {
+              console.error('Auth user update error:', inviteError);
             }
-          });
-          if (inviteError) {
-            console.error('Auth user update error:', inviteError);
+          } catch (e) {
+            console.error('Auth user update exception:', e);
           }
-        } catch (e) {
-          console.error('Auth user update exception:', e);
         }
 
         toast({
           title: "User updated successfully",
           description: `${formData.name} has been updated.`
         });
-      } else {
-        const { error } = await supabase
-          .from('company_users')
-          .insert(userData);
-
-        if (error) throw error;
-
-        // Save section permissions for new user (only for Users, not Admins)
-        if (formData.role === 'User' && Object.keys(formData.access_sections).length > 0) {
-          await updateSectionPermissions(formData.email, formData.access_sections);
-        }
-
-        // Create Auth user and profile via Edge Function for email/password login
-        try {
-          const { error: inviteError } = await supabase.functions.invoke('invite-business-user', {
-            body: {
-              email: formData.email,
-              password: formData.password,
-              name: formData.name,
-              role: formData.role,
-              company_id: company?.id,
-            }
-          });
-          if (inviteError) {
-            console.error('Auth user creation error:', inviteError);
-            // Don't fail the whole operation if Auth creation fails
-            toast({
-              title: "User created with limited access",
-              description: `${formData.name} was added to business users but may need manual Auth setup for full system access.`,
-              variant: "destructive"
-            });
-          } else {
-            toast({
-              title: "User created successfully", 
-              description: `${formData.name} has been added to your team. They can now sign in with their email and password to access the system.`
-            });
-          }
-        } catch (e) {
-          console.error('Auth user creation exception:', e);
-          toast({
-            title: "User created with limited access",
-            description: `${formData.name} was added to business users but Auth setup failed.`,
-            variant: "destructive"
-          });
-        }
       }
 
       handleCloseDialog();
@@ -679,12 +660,21 @@ const UserManagement = () => {
                           </div>
                         </div>
                       </SelectItem>
-                      <SelectItem value="User">
+                      <SelectItem value="Editor">
                         <div className="flex items-center gap-2">
-                          <Users className="h-4 w-4" />
+                          <Edit className="h-4 w-4" />
                           <div>
-                            <div className="font-medium">Standard User</div>
-                            <div className="text-xs text-muted-foreground">Configurable access to specific sections</div>
+                            <div className="font-medium">Editor</div>
+                            <div className="text-xs text-muted-foreground">Can create and modify data in assigned sections</div>
+                          </div>
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="Viewer">
+                        <div className="flex items-center gap-2">
+                          <Eye className="h-4 w-4" />
+                          <div>
+                            <div className="font-medium">Viewer</div>
+                            <div className="text-xs text-muted-foreground">Read-only access to assigned sections</div>
                           </div>
                         </div>
                       </SelectItem>

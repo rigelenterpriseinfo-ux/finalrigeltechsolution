@@ -136,33 +136,45 @@ export type Database = {
           access_type: string | null
           company_id: string
           created_at: string | null
+          created_by: string | null
           email: string
+          full_name: string | null
           id: string
           password_hash: string
+          role: string | null
           status: string | null
           updated_at: string | null
+          user_id: string | null
           username: string
         }
         Insert: {
           access_type?: string | null
           company_id: string
           created_at?: string | null
+          created_by?: string | null
           email: string
+          full_name?: string | null
           id?: string
           password_hash: string
+          role?: string | null
           status?: string | null
           updated_at?: string | null
+          user_id?: string | null
           username: string
         }
         Update: {
           access_type?: string | null
           company_id?: string
           created_at?: string | null
+          created_by?: string | null
           email?: string
+          full_name?: string | null
           id?: string
           password_hash?: string
+          role?: string | null
           status?: string | null
           updated_at?: string | null
+          user_id?: string | null
           username?: string
         }
         Relationships: [
