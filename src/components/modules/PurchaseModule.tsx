@@ -286,7 +286,7 @@ export function PurchaseModule() {
           total_discount_amount: poData.total_discount_amount,
           total_tax_amount: poData.total_tax_amount,
           total_amount: poData.total_amount,
-          created_by: profile?.user_id,
+          created_by: profile?.id,
         } as any)
         .select()
         .single();
@@ -331,7 +331,6 @@ export function PurchaseModule() {
         description: `Purchase order created successfully (PO: ${po.po_number})`,
       });
 
-      setShowAddPODialog(false);
       fetchPurchaseOrders();
       return po;
     } catch (error) {
