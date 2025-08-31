@@ -397,6 +397,7 @@ export type Database = {
           created_by: string
           grn_date: string
           grn_number: string
+          grn_reference_no: string | null
           id: string
           purchase_order_id: string
           remarks: string | null
@@ -421,6 +422,7 @@ export type Database = {
           created_by: string
           grn_date?: string
           grn_number: string
+          grn_reference_no?: string | null
           id?: string
           purchase_order_id: string
           remarks?: string | null
@@ -445,6 +447,7 @@ export type Database = {
           created_by?: string
           grn_date?: string
           grn_number?: string
+          grn_reference_no?: string | null
           id?: string
           purchase_order_id?: string
           remarks?: string | null

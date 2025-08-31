@@ -21,11 +21,15 @@ const grnFormSchema = z.object({
   purchase_order_id: z.string().min(1, 'Please select a purchase order'),
   supplier_id: z.string().min(1, 'Supplier is required'),
   supplier_name: z.string().min(1, 'Supplier name is required'),
+  grn_reference_no: z.string().optional(),
   grn_date: z.string().min(1, 'GRN date is required'),
   supplier_invoice_number: z.string().optional(),
   supplier_invoice_date: z.string().optional(),
   remarks: z.string().optional(),
   status: z.enum(['received', 'partially_received']),
+  // Consolidated warehouse & bin at form level
+  default_warehouse_id: z.string().min(1, 'Default warehouse is required'),
+  default_bin_id: z.string().min(1, 'Default bin is required'),
   items: z.array(z.object({
     product_id: z.string().min(1, 'Product is required'),
     product_name: z.string(),
@@ -38,8 +42,8 @@ const grnFormSchema = z.object({
     unit_price: z.number().min(0.01, 'Unit price must be greater than 0'),
     discount_percentage: z.number().min(0).max(100).optional(),
     discount_amount: z.number().min(0).optional(),
-    warehouse_id: z.string().min(1, 'Warehouse is required'),
-    bin_id: z.string().min(1, 'Bin is required'),
+    warehouse_id: z.string().optional(),
+    bin_id: z.string().optional(),
     hsn_sac_code: z.string().optional(),
     cgst_rate: z.number().min(0).optional(),
     cgst_amount: z.number().min(0).optional(),
@@ -78,11 +82,14 @@ export function GRNForm({ grn, onSubmit, onCancel, readOnly = false, mode }: GRN
       purchase_order_id: grn?.purchase_order_id || '',
       supplier_id: grn?.supplier_id || '',
       supplier_name: grn?.supplier_name || '',
+      grn_reference_no: grn?.grn_reference_no || '',
       grn_date: grn?.grn_date ? new Date(grn.grn_date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
       supplier_invoice_number: grn?.supplier_invoice_number || '',
       supplier_invoice_date: grn?.supplier_invoice_date ? new Date(grn.supplier_invoice_date).toISOString().split('T')[0] : '',
       remarks: grn?.remarks || '',
       status: grn?.status || 'received',
+      default_warehouse_id: '',
+      default_bin_id: '',
       items: grn?.grn_line_items?.map((item: any) => ({
         product_id: item.product_id,
         product_name: item.product_name,
@@ -95,8 +102,8 @@ export function GRNForm({ grn, onSubmit, onCancel, readOnly = false, mode }: GRN
         unit_price: item.unit_price,
         discount_percentage: item.discount_percentage || 0,
         discount_amount: item.discount_amount || 0,
-        warehouse_id: item.warehouse_id,
-        bin_id: item.bin_id,
+        warehouse_id: item.warehouse_id || '',
+        bin_id: item.bin_id || '',
         hsn_sac_code: item.hsn_sac_code,
         cgst_rate: item.cgst_rate || 0,
         cgst_amount: item.cgst_amount || 0,
@@ -239,8 +246,8 @@ export function GRNForm({ grn, onSubmit, onCancel, readOnly = false, mode }: GRN
       unit_price: item.unit_price,
       discount_percentage: item.discount_percentage || 0,
       discount_amount: item.discount_amount || 0,
-      warehouse_id: '',
-      bin_id: '',
+      warehouse_id: form.getValues('default_warehouse_id') || '',
+      bin_id: form.getValues('default_bin_id') || '',
       hsn_sac_code: item.hsn_sac_code || '',
       cgst_rate: item.cgst_rate || 0,
       cgst_amount: 0,
@@ -292,9 +299,25 @@ export function GRNForm({ grn, onSubmit, onCancel, readOnly = false, mode }: GRN
     const discountAmount = item.discount_amount || ((item.discount_percentage || 0) * subtotal / 100);
     const afterDiscount = subtotal - discountAmount;
     
-    const cgstAmount = (item.cgst_rate || 0) * afterDiscount / 100;
-    const sgstAmount = (item.sgst_rate || 0) * afterDiscount / 100;
-    const igstAmount = (item.igst_rate || 0) * afterDiscount / 100;
+    // GST Logic: Either CGST+SGST OR IGST, but not both
+    let cgstAmount = 0;
+    let sgstAmount = 0; 
+    let igstAmount = 0;
+    
+    if (item.igst_rate && item.igst_rate > 0) {
+      // If IGST is provided, use only IGST
+      igstAmount = (item.igst_rate || 0) * afterDiscount / 100;
+      // Clear CGST/SGST rates if IGST is used
+      form.setValue(`items.${index}.cgst_rate`, 0);
+      form.setValue(`items.${index}.sgst_rate`, 0);
+    } else if ((item.cgst_rate && item.cgst_rate > 0) || (item.sgst_rate && item.sgst_rate > 0)) {
+      // If CGST or SGST is provided, use CGST+SGST
+      cgstAmount = (item.cgst_rate || 0) * afterDiscount / 100;
+      sgstAmount = (item.sgst_rate || 0) * afterDiscount / 100;
+      // Clear IGST rate if CGST/SGST is used
+      form.setValue(`items.${index}.igst_rate`, 0);
+    }
+    
     const totalTaxAmount = cgstAmount + sgstAmount + igstAmount;
     const lineTotal = afterDiscount + totalTaxAmount;
 
@@ -307,30 +330,47 @@ export function GRNForm({ grn, onSubmit, onCancel, readOnly = false, mode }: GRN
     form.setValue(`items.${index}.line_total`, lineTotal);
   };
 
+  // Apply default warehouse/bin to all items
+  const applyDefaultWarehouseBin = () => {
+    const defaultWarehouseId = form.getValues('default_warehouse_id');
+    const defaultBinId = form.getValues('default_bin_id');
+    const items = form.getValues('items');
+    
+    if (defaultWarehouseId && defaultBinId) {
+      const updatedItems = items.map(item => ({
+        ...item,
+        warehouse_id: defaultWarehouseId,
+        bin_id: defaultBinId
+      }));
+      form.setValue('items', updatedItems);
+    }
+  };
+
   // Validation function for all mandatory fields
   const validateAllFields = () => {
     const items = form.getValues('items');
+    const defaultWarehouse = form.getValues('default_warehouse_id');
+    const defaultBin = form.getValues('default_bin_id');
     let hasErrors = false;
 
-    items.forEach((item, index) => {
-      // Check warehouse selection
-      if (!item.warehouse_id) {
-        form.setError(`items.${index}.warehouse_id`, {
-          type: 'manual',
-          message: 'Warehouse selection is required'
-        });
-        hasErrors = true;
-      }
-      
-      // Check bin selection
-      if (!item.bin_id) {
-        form.setError(`items.${index}.bin_id`, {
-          type: 'manual',
-          message: 'Bin selection is required'
-        });
-        hasErrors = true;
-      }
+    // Check default warehouse and bin
+    if (!defaultWarehouse) {
+      form.setError('default_warehouse_id', {
+        type: 'manual',
+        message: 'Default warehouse is required'
+      });
+      hasErrors = true;
+    }
 
+    if (!defaultBin) {
+      form.setError('default_bin_id', {
+        type: 'manual',
+        message: 'Default bin is required'
+      });
+      hasErrors = true;
+    }
+
+    items.forEach((item, index) => {
       // Check unit price
       if (!item.unit_price || item.unit_price <= 0) {
         form.setError(`items.${index}.unit_price`, {
@@ -431,6 +471,30 @@ export function GRNForm({ grn, onSubmit, onCancel, readOnly = false, mode }: GRN
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
+        {/* GRN Reference Number - Top Section */}
+        <Card className="bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-950 dark:to-pink-950 border-purple-200">
+          <CardContent className="pt-6">
+            <FormField
+              control={form.control}
+              name="grn_reference_no"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="text-purple-700 dark:text-purple-300 font-semibold">GRN Reference No.</FormLabel>
+                  <FormControl>
+                    <Input 
+                      {...field} 
+                      disabled 
+                      placeholder="Auto-generated after creation"
+                      className="bg-purple-100/50 dark:bg-purple-900/30 border-purple-200 text-purple-800 dark:text-purple-200 font-medium text-center"
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </CardContent>
+        </Card>
+
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Purchase Order Selection */}
           <FormField
@@ -564,6 +628,88 @@ export function GRNForm({ grn, onSubmit, onCancel, readOnly = false, mode }: GRN
           />
         </div>
 
+        {/* Consolidated Warehouse & Bin Selection */}
+        <Card className="bg-gradient-to-r from-blue-50 to-cyan-50 dark:from-blue-950 dark:to-cyan-950 border-blue-200">
+          <CardHeader>
+            <CardTitle className="text-blue-700 dark:text-blue-300 text-lg">Default Warehouse & Bin</CardTitle>
+            <p className="text-sm text-blue-600 dark:text-blue-400">Select default warehouse and bin for all items (can be overridden per item if needed)</p>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="default_warehouse_id"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Default Warehouse *</FormLabel>
+                    <Select
+                      value={field.value}
+                      onValueChange={(value) => {
+                        field.onChange(value);
+                        form.setValue('default_bin_id', '');
+                        applyDefaultWarehouseBin();
+                      }}
+                      disabled={readOnly}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select warehouse" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {warehouses.map((warehouse) => (
+                          <SelectItem key={warehouse.id} value={warehouse.id}>
+                            {warehouse.name} ({warehouse.warehouse_code})
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="default_bin_id"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Default Bin *</FormLabel>
+                    <Select
+                      value={field.value}
+                      onValueChange={(value) => {
+                        field.onChange(value);
+                        applyDefaultWarehouseBin();
+                      }}
+                      disabled={readOnly || !form.watch('default_warehouse_id')}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select bin" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {bins
+                          .filter(bin => {
+                            const selectedWarehouse = warehouses.find(w => w.id === form.watch('default_warehouse_id'));
+                            return bin.warehouse_name === selectedWarehouse?.name;
+                          })
+                          .map((bin) => (
+                            <SelectItem key={bin.id} value={bin.id}>
+                              {bin.bin_name} ({bin.wh_bin_code})
+                            </SelectItem>
+                          ))
+                        }
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+          </CardContent>
+        </Card>
+
         {/* Remarks */}
         <FormField
           control={form.control}
@@ -598,7 +744,6 @@ export function GRNForm({ grn, onSubmit, onCancel, readOnly = false, mode }: GRN
                         <th className="border-r border-border p-4 text-left text-sm font-semibold text-foreground">Product Details</th>
                         <th className="border-r border-border p-4 text-center text-sm font-semibold text-foreground">Quantities</th>
                         <th className="border-r border-border p-4 text-center text-sm font-semibold text-foreground">Unit Price</th>
-                        <th className="border-r border-border p-4 text-center text-sm font-semibold text-foreground">Warehouse & Bin</th>
                         <th className="p-4 text-center text-sm font-semibold text-foreground">Line Total</th>
                       </tr>
                     </thead>
@@ -731,73 +876,6 @@ export function GRNForm({ grn, onSubmit, onCancel, readOnly = false, mode }: GRN
                               </div>
                             </td>
                             
-                            {/* Warehouse & Bin */}
-                            <td className="border-r border-border p-4">
-                              <div className="space-y-3">
-                                <div className="grid grid-cols-2 gap-2">
-                                  <div>
-                                    <label className="text-xs font-medium text-muted-foreground mb-1 block">Warehouse ID</label>
-                                    <Input
-                                      value={selectedWarehouse?.warehouse_code || ''}
-                                      disabled
-                                      className="bg-muted/30 text-xs"
-                                    />
-                                  </div>
-                                  <div>
-                                    <label className="text-xs font-medium text-muted-foreground mb-1 block">Bin Code</label>
-                                    <Input
-                                      value={selectedBin?.wh_bin_code || ''}
-                                      disabled
-                                      className="bg-muted/30 text-xs"
-                                    />
-                                  </div>
-                                </div>
-                                <div>
-                                  <label className="text-xs font-medium text-muted-foreground mb-1 block">Warehouse Name</label>
-                                  <Select
-                                    value={item.warehouse_id || ''}
-                                    onValueChange={(value) => {
-                                      form.setValue(`items.${index}.warehouse_id`, value);
-                                      form.setValue(`items.${index}.bin_id`, '');
-                                    }}
-                                    disabled={readOnly}
-                                  >
-                                    <SelectTrigger className="text-sm">
-                                      <SelectValue placeholder="Select warehouse" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      {warehouses.map((warehouse) => (
-                                        <SelectItem key={warehouse.id} value={warehouse.id}>
-                                          {warehouse.name}
-                                        </SelectItem>
-                                      ))}
-                                    </SelectContent>
-                                  </Select>
-                                </div>
-                                <div>
-                                  <label className="text-xs font-medium text-muted-foreground mb-1 block">Bin Name</label>
-                                  <Select
-                                    value={item.bin_id || ''}
-                                    onValueChange={(value) => form.setValue(`items.${index}.bin_id`, value)}
-                                    disabled={readOnly || !item.warehouse_id}
-                                  >
-                                    <SelectTrigger className="text-sm">
-                                      <SelectValue placeholder="Select bin" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      {bins
-                                        .filter(bin => bin.warehouse_name === selectedWarehouse?.name)
-                                        .map((bin) => (
-                                          <SelectItem key={bin.id} value={bin.id}>
-                                            {bin.bin_name}
-                                          </SelectItem>
-                                        ))
-                                      }
-                                    </SelectContent>
-                                  </Select>
-                                </div>
-                              </div>
-                            </td>
                             
                             {/* Line Total */}
                             <td className="p-4">
@@ -850,20 +928,25 @@ export function GRNForm({ grn, onSubmit, onCancel, readOnly = false, mode }: GRN
                               </td>
                               
                               <td className="border border-orange-200 p-2">
-                                <Input
-                                  type="number"
-                                  step="0.01"
-                                  min="0"
-                                  max="100"
-                                  value={item.cgst_rate || 0}
-                                  onChange={(e) => {
-                                    const rate = parseFloat(e.target.value) || 0;
-                                    form.setValue(`items.${index}.cgst_rate`, rate);
-                                    calculateItemTotals(index);
-                                  }}
-                                  disabled={readOnly}
-                                  className="text-sm text-center border-orange-200 focus:border-orange-400"
-                                />
+                              <Input
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                max="100"
+                                value={item.cgst_rate || 0}
+                                onChange={(e) => {
+                                  const rate = parseFloat(e.target.value) || 0;
+                                  form.setValue(`items.${index}.cgst_rate`, rate);
+                                  // Clear IGST if CGST is being set
+                                  if (rate > 0) {
+                                    form.setValue(`items.${index}.igst_rate`, 0);
+                                  }
+                                  calculateItemTotals(index);
+                                }}
+                                disabled={readOnly || (item.igst_rate > 0)}
+                                className="text-sm text-center border-orange-200 focus:border-orange-400"
+                                placeholder={item.igst_rate > 0 ? "Disabled (IGST active)" : "0.00"}
+                              />
                               </td>
                               
                               <td className="border border-orange-200 p-2">
@@ -876,20 +959,25 @@ export function GRNForm({ grn, onSubmit, onCancel, readOnly = false, mode }: GRN
                               </td>
                               
                               <td className="border border-orange-200 p-2">
-                                <Input
-                                  type="number"
-                                  step="0.01"
-                                  min="0"
-                                  max="100"
-                                  value={item.sgst_rate || 0}
-                                  onChange={(e) => {
-                                    const rate = parseFloat(e.target.value) || 0;
-                                    form.setValue(`items.${index}.sgst_rate`, rate);
-                                    calculateItemTotals(index);
-                                  }}
-                                  disabled={readOnly}
-                                  className="text-sm text-center border-orange-200 focus:border-orange-400"
-                                />
+                              <Input
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                max="100"
+                                value={item.sgst_rate || 0}
+                                onChange={(e) => {
+                                  const rate = parseFloat(e.target.value) || 0;
+                                  form.setValue(`items.${index}.sgst_rate`, rate);
+                                  // Clear IGST if SGST is being set
+                                  if (rate > 0) {
+                                    form.setValue(`items.${index}.igst_rate`, 0);
+                                  }
+                                  calculateItemTotals(index);
+                                }}
+                                disabled={readOnly || (item.igst_rate > 0)}
+                                className="text-sm text-center border-orange-200 focus:border-orange-400"
+                                placeholder={item.igst_rate > 0 ? "Disabled (IGST active)" : "0.00"}
+                              />
                               </td>
                               
                               <td className="border border-orange-200 p-2">
@@ -902,20 +990,26 @@ export function GRNForm({ grn, onSubmit, onCancel, readOnly = false, mode }: GRN
                               </td>
                               
                               <td className="border border-orange-200 p-2">
-                                <Input
-                                  type="number"
-                                  step="0.01"
-                                  min="0"
-                                  max="100"
-                                  value={item.igst_rate || 0}
-                                  onChange={(e) => {
-                                    const rate = parseFloat(e.target.value) || 0;
-                                    form.setValue(`items.${index}.igst_rate`, rate);
-                                    calculateItemTotals(index);
-                                  }}
-                                  disabled={readOnly}
-                                  className="text-sm text-center border-orange-200 focus:border-orange-400"
-                                />
+                              <Input
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                max="100"
+                                value={item.igst_rate || 0}
+                                onChange={(e) => {
+                                  const rate = parseFloat(e.target.value) || 0;
+                                  form.setValue(`items.${index}.igst_rate`, rate);
+                                  // Clear CGST/SGST if IGST is being set
+                                  if (rate > 0) {
+                                    form.setValue(`items.${index}.cgst_rate`, 0);
+                                    form.setValue(`items.${index}.sgst_rate`, 0);
+                                  }
+                                  calculateItemTotals(index);
+                                }}
+                                disabled={readOnly || ((item.cgst_rate > 0) || (item.sgst_rate > 0))}
+                                className="text-sm text-center border-orange-200 focus:border-orange-400"
+                                placeholder={((item.cgst_rate > 0) || (item.sgst_rate > 0)) ? "Disabled (CGST/SGST active)" : "0.00"}
+                              />
                               </td>
                               
                               <td className="border border-orange-200 p-2">
