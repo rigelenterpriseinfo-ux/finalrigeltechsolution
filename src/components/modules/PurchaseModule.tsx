@@ -977,31 +977,31 @@ export function PurchaseModule() {
                           if (error) throw error;
 
                           if (data.items?.length > 0) {
-                            const itemsToInsert = data.items.map((item) => ({
-                              grn_header_id: grn.id,
-                              product_id: item.product_id,
-                              product_name: item.product_name,
-                              product_sku: item.product_sku,
-                              unit_of_measure: item.unit_of_measure,
-                              ordered_quantity: item.ordered_quantity,
-                              received_quantity: item.received_quantity,
-                              accepted_quantity: item.accepted_quantity,
-                              rejected_quantity: item.rejected_quantity,
-                              unit_price: item.unit_price,
-                              discount_percentage: item.discount_percentage,
-                              discount_amount: item.discount_amount,
-                              warehouse_id: item.warehouse_id,
-                              bin_id: item.bin_id,
-                              hsn_sac_code: item.hsn_sac_code,
-                              cgst_rate: item.cgst_rate,
-                              cgst_amount: item.cgst_amount,
-                              sgst_rate: item.sgst_rate,
-                              sgst_amount: item.sgst_amount,
-                              igst_rate: item.igst_rate,
-                              igst_amount: item.igst_amount,
-                              total_tax_amount: item.total_tax_amount,
-                              line_total: item.line_total,
-                            }));
+                             const itemsToInsert = data.items.map((item) => ({
+                               grn_header_id: grn.id,
+                               product_id: item.product_id,
+                               product_name: item.product_name,
+                               product_sku: item.product_sku,
+                               unit_of_measure: item.unit_of_measure,
+                               ordered_quantity: item.ordered_quantity,
+                               received_quantity: item.received_quantity,
+                               accepted_quantity: item.accepted_quantity,
+                               rejected_quantity: item.rejected_quantity,
+                               unit_price: item.unit_price,
+                               discount_percentage: item.discount_percentage,
+                               discount_amount: item.discount_amount,
+                               warehouse_id: item.warehouse_id,
+                               bin_id: item.bin_id,
+                               hsn_sac_code: item.hsn_sac_code,
+                               cgst_rate: item.cgst_rate,
+                               cgst_amount: item.cgst_amount,
+                               sgst_rate: item.sgst_rate,
+                               sgst_amount: item.sgst_amount,
+                               igst_rate: item.igst_rate,
+                               igst_amount: item.igst_amount,
+                               total_tax_amount: item.total_tax_amount,
+                               line_total: item.line_total,
+                             }));
                             
                             const { error: itemsError } = await supabase
                               .from('grn_line_items')

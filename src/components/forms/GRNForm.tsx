@@ -28,8 +28,12 @@ const grnLineItemSchema = z.object({
   unit_price: z.number().min(0, 'Unit price cannot be negative'),
   discount_percentage: z.number().min(0).max(100).default(0),
   discount_amount: z.number().min(0).default(0),
-  warehouse_id: z.string().optional(),
+  warehouse_id: z.string().min(1, 'Warehouse is required'),
   bin_id: z.string().optional(),
+  warehouse_code: z.string().optional(),
+  warehouse_name: z.string().optional(),
+  bin_code: z.string().optional(),
+  bin_name: z.string().optional(),
   hsn_sac_code: z.string().optional(),
   cgst_rate: z.number().min(0).max(100).default(0),
   cgst_amount: z.number().min(0).default(0),
@@ -39,6 +43,18 @@ const grnLineItemSchema = z.object({
   igst_amount: z.number().min(0).default(0),
   total_tax_amount: z.number().min(0).default(0),
   line_total: z.number().min(0).default(0),
+}).refine((data) => {
+  // Received quantity should not exceed ordered quantity
+  if (data.received_quantity > data.ordered_quantity) {
+    return false;
+  }
+  // Sum of accepted and rejected quantities should not exceed received quantity
+  if ((data.accepted_quantity + data.rejected_quantity) > data.received_quantity) {
+    return false;
+  }
+  return true;
+}, {
+  message: "Invalid quantities: Check received, accepted, and rejected quantities",
 });
 
 const grnSchema = z.object({
@@ -97,6 +113,10 @@ export function GRNForm({ grn, onSubmit, onCancel, readOnly = false, mode }: GRN
         discount_amount: item.discount_amount || 0,
         warehouse_id: item.warehouse_id || '',
         bin_id: item.bin_id || '',
+        warehouse_code: item.warehouse_code || '',
+        warehouse_name: item.warehouse_name || '',
+        bin_code: item.bin_code || '',
+        bin_name: item.bin_name || '',
         hsn_sac_code: item.hsn_sac_code || '',
         cgst_rate: item.cgst_rate || 0,
         cgst_amount: item.cgst_amount || 0,
@@ -197,6 +217,10 @@ export function GRNForm({ grn, onSubmit, onCancel, readOnly = false, mode }: GRN
         discount_amount: item.discount_amount || 0,
         warehouse_id: '',
         bin_id: '',
+        warehouse_code: '',
+        warehouse_name: '',
+        bin_code: '',
+        bin_name: '',
         hsn_sac_code: item.hsn_sac_code || '',
         cgst_rate: item.cgst_rate || 0,
         cgst_amount: 0,
@@ -255,6 +279,10 @@ export function GRNForm({ grn, onSubmit, onCancel, readOnly = false, mode }: GRN
       discount_amount: 0,
       warehouse_id: '',
       bin_id: '',
+      warehouse_code: '',
+      warehouse_name: '',
+      bin_code: '',
+      bin_name: '',
       hsn_sac_code: '',
       cgst_rate: 0,
       cgst_amount: 0,
@@ -580,15 +608,25 @@ export function GRNForm({ grn, onSubmit, onCancel, readOnly = false, mode }: GRN
                         <FormItem>
                           <FormLabel>Received Qty</FormLabel>
                           <FormControl>
-                            <Input 
-                              type="number" 
-                              {...field}
-                              onChange={(e) => {
-                                field.onChange(parseInt(e.target.value) || 0);
-                                calculateLineAmounts(index);
-                              }}
-                              disabled={readOnly}
-                            />
+                             <Input 
+                               type="number" 
+                               {...field}
+                               onChange={(e) => {
+                                 const value = parseInt(e.target.value) || 0;
+                                 const orderedQty = form.getValues(`items.${index}.ordered_quantity`);
+                                 if (value <= orderedQty && value >= 0) {
+                                   field.onChange(value);
+                                   calculateLineAmounts(index);
+                                 } else {
+                                   toast({
+                                     title: "Invalid Quantity",
+                                     description: "Received quantity cannot exceed ordered quantity or be negative",
+                                     variant: "destructive",
+                                   });
+                                 }
+                               }}
+                               disabled={readOnly}
+                             />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -602,15 +640,26 @@ export function GRNForm({ grn, onSubmit, onCancel, readOnly = false, mode }: GRN
                         <FormItem>
                           <FormLabel>Accepted Qty</FormLabel>
                           <FormControl>
-                            <Input 
-                              type="number" 
-                              {...field}
-                              onChange={(e) => {
-                                field.onChange(parseInt(e.target.value) || 0);
-                                calculateLineAmounts(index);
-                              }}
-                              disabled={readOnly}
-                            />
+                             <Input 
+                               type="number" 
+                               {...field}
+                               onChange={(e) => {
+                                 const value = parseInt(e.target.value) || 0;
+                                 const receivedQty = form.getValues(`items.${index}.received_quantity`);
+                                 const rejectedQty = form.getValues(`items.${index}.rejected_quantity`);
+                                 if ((value + rejectedQty) <= receivedQty && value >= 0) {
+                                   field.onChange(value);
+                                   calculateLineAmounts(index);
+                                 } else {
+                                   toast({
+                                     title: "Invalid Quantity",
+                                     description: "Accepted + Rejected quantity cannot exceed received quantity",
+                                     variant: "destructive",
+                                   });
+                                 }
+                               }}
+                               disabled={readOnly}
+                             />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -624,15 +673,26 @@ export function GRNForm({ grn, onSubmit, onCancel, readOnly = false, mode }: GRN
                         <FormItem>
                           <FormLabel>Rejected Qty</FormLabel>
                           <FormControl>
-                            <Input 
-                              type="number" 
-                              {...field}
-                              onChange={(e) => {
-                                field.onChange(parseInt(e.target.value) || 0);
-                                calculateLineAmounts(index);
-                              }}
-                              disabled={readOnly}
-                            />
+                             <Input 
+                               type="number" 
+                               {...field}
+                               onChange={(e) => {
+                                 const value = parseInt(e.target.value) || 0;
+                                 const receivedQty = form.getValues(`items.${index}.received_quantity`);
+                                 const acceptedQty = form.getValues(`items.${index}.accepted_quantity`);
+                                 if ((value + acceptedQty) <= receivedQty && value >= 0) {
+                                   field.onChange(value);
+                                   calculateLineAmounts(index);
+                                 } else {
+                                   toast({
+                                     title: "Invalid Quantity",
+                                     description: "Accepted + Rejected quantity cannot exceed received quantity",
+                                     variant: "destructive",
+                                   });
+                                 }
+                               }}
+                               disabled={readOnly}
+                             />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -774,44 +834,58 @@ export function GRNForm({ grn, onSubmit, onCancel, readOnly = false, mode }: GRN
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <FormField
-                      control={form.control}
-                      name={`items.${index}.warehouse_id`}
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Warehouse</FormLabel>
-                          <FormControl>
-                            <Select value={field.value} onValueChange={field.onChange} disabled={readOnly}>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select warehouse" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {warehouses.map((warehouse) => (
-                                  <SelectItem key={warehouse.id} value={warehouse.id}>
-                                    {warehouse.warehouse_name}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+                     <FormField
+                       control={form.control}
+                       name={`items.${index}.warehouse_id`}
+                       render={({ field }) => (
+                         <FormItem>
+                           <FormLabel>Warehouse *</FormLabel>
+                           <FormControl>
+                             <Select 
+                               value={field.value} 
+                               onValueChange={(value) => {
+                                 const selectedWarehouse = warehouses.find(w => w.id === value);
+                                 field.onChange(value);
+                                 if (selectedWarehouse) {
+                                   form.setValue(`items.${index}.warehouse_code`, selectedWarehouse.warehouse_code || '');
+                                   form.setValue(`items.${index}.warehouse_name`, selectedWarehouse.warehouse_name || '');
+                                   form.setValue(`items.${index}.bin_code`, selectedWarehouse.wh_bin_code || '');
+                                   form.setValue(`items.${index}.bin_name`, selectedWarehouse.bin_name || '');
+                                   form.setValue(`items.${index}.bin_id`, selectedWarehouse.id);
+                                 }
+                               }} 
+                               disabled={readOnly}
+                             >
+                               <SelectTrigger>
+                                 <SelectValue placeholder="Select warehouse" />
+                               </SelectTrigger>
+                               <SelectContent>
+                                 {warehouses.map((warehouse) => (
+                                   <SelectItem key={warehouse.id} value={warehouse.id}>
+                                     {warehouse.warehouse_code} - {warehouse.warehouse_name} / {warehouse.bin_name}
+                                   </SelectItem>
+                                 ))}
+                               </SelectContent>
+                             </Select>
+                           </FormControl>
+                           <FormMessage />
+                         </FormItem>
+                       )}
+                     />
 
-                    <FormField
-                      control={form.control}
-                      name={`items.${index}.hsn_sac_code`}
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>HSN/SAC Code</FormLabel>
-                          <FormControl>
-                            <Input {...field} disabled={readOnly} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+                     <FormField
+                       control={form.control}
+                       name={`items.${index}.hsn_sac_code`}
+                       render={({ field }) => (
+                         <FormItem>
+                           <FormLabel>HSN/SAC Code</FormLabel>
+                           <FormControl>
+                             <Input {...field} disabled={readOnly} />
+                           </FormControl>
+                           <FormMessage />
+                         </FormItem>
+                       )}
+                     />
                   </div>
                 </div>
               ))}
