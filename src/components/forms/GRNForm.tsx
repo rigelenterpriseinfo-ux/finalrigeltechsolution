@@ -174,13 +174,25 @@ export function GRNForm({ grn, onSubmit, onCancel, readOnly = false, mode }: GRN
   const fetchWarehouses = async () => {
     try {
       const { data, error } = await supabase
-        .from('warehouses')
-        .select('*')
+        .from('warehouse_bins')
+        .select('id, warehouse_name, warehouse_code')
         .eq('company_id', profile?.company_id)
-        .order('name');
+        .order('warehouse_name');
 
       if (error) throw error;
-      setWarehouses(data || []);
+      // Group by warehouse_name to avoid duplicates
+      const uniqueWarehouses = data?.reduce((acc: any[], curr) => {
+        const existing = acc.find(w => w.warehouse_name === curr.warehouse_name);
+        if (!existing) {
+          acc.push({
+            id: curr.id,
+            name: curr.warehouse_name,
+            warehouse_code: curr.warehouse_code
+          });
+        }
+        return acc;
+      }, []) || [];
+      setWarehouses(uniqueWarehouses);
     } catch (error) {
       console.error('Error fetching warehouses:', error);
     }
