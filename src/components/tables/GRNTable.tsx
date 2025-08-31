@@ -196,8 +196,19 @@ export function GRNTable({ refreshTrigger, onView, onEdit, onDelete }: GRNTableP
         ['Product Name', 'SKU', 'UOM', 'Ordered Qty', 'Received Qty', 'Accepted Qty', 'Rejected Qty', 'Unit Price', 'Line Total']
       ];
 
-      // Add line items
+      // Add line items with GST details
+      let subtotal = 0;
+      let totalTax = 0;
+      
       grnDetail.grn_line_items?.forEach((item: any) => {
+        const lineSubtotal = item.accepted_quantity * item.unit_price;
+        const lineTaxRate = item.tax_rate || 0;
+        const lineTax = (lineSubtotal * lineTaxRate) / 100;
+        const lineTotal = lineSubtotal + lineTax;
+        
+        subtotal += lineSubtotal;
+        totalTax += lineTax;
+        
         headerData.push([
           item.product_name,
           item.product_sku,
@@ -206,12 +217,19 @@ export function GRNTable({ refreshTrigger, onView, onEdit, onDelete }: GRNTableP
           item.received_quantity,
           item.accepted_quantity,
           item.rejected_quantity,
-          item.unit_price,
-          item.line_total
+          `₹${item.unit_price.toFixed(2)}`,
+          `₹${lineSubtotal.toFixed(2)}`,
+          `${lineTaxRate}%`,
+          `₹${lineTax.toFixed(2)}`,
+          `₹${lineTotal.toFixed(2)}`
         ]);
       });
 
-      // Add totals
+      // Update headers to include GST columns
+      const gstHeaders = ['Product Name', 'SKU', 'UOM', 'Ordered Qty', 'Received Qty', 'Accepted Qty', 'Rejected Qty', 'Unit Price', 'Subtotal', 'Tax Rate', 'Tax Amount', 'Line Total'];
+      headerData[16] = gstHeaders;
+
+      // Add totals with GST breakdown
       headerData.push(
         [''],
         ['SUMMARY:'],
@@ -219,15 +237,20 @@ export function GRNTable({ refreshTrigger, onView, onEdit, onDelete }: GRNTableP
         ['Total Received Quantity:', grnDetail.total_received_quantity],
         ['Total Accepted Quantity:', grnDetail.total_accepted_quantity],
         ['Total Rejected Quantity:', grnDetail.total_rejected_quantity],
-        ['Total Amount:', `₹${grnDetail.total_amount.toFixed(2)}`]
+        [''],
+        ['FINANCIAL SUMMARY:'],
+        ['Taxable Amount:', `₹${subtotal.toFixed(2)}`],
+        ['Total Tax Amount:', `₹${totalTax.toFixed(2)}`],
+        ['Total Amount (Including Tax):', `₹${(subtotal + totalTax).toFixed(2)}`]
       );
 
       const worksheet = XLSX.utils.aoa_to_sheet(headerData);
       
-      // Set column widths
+      // Set column widths for GST report
       const colWidths = [
-        { wch: 20 }, { wch: 15 }, { wch: 10 }, { wch: 12 }, 
-        { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 15 }
+        { wch: 25 }, { wch: 15 }, { wch: 8 }, { wch: 12 }, 
+        { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, 
+        { wch: 12 }, { wch: 10 }, { wch: 12 }, { wch: 15 }
       ];
       worksheet['!cols'] = colWidths;
 
@@ -305,10 +328,10 @@ export function GRNTable({ refreshTrigger, onView, onEdit, onDelete }: GRNTableP
       pdf.text('LINE ITEMS:', 20, yPosition);
       yPosition += 10;
 
-      // Table headers
-      const headers = ['Product', 'Ordered', 'Received', 'Accepted', 'Rejected', 'Unit Price', 'Total'];
+      // Table headers with GST
+      const headers = ['Product', 'Acc.Qty', 'Unit Price', 'Subtotal', 'Tax%', 'Tax Amt', 'Total'];
       let xPos = 20;
-      const colWidths = [40, 20, 20, 20, 20, 25, 25];
+      const colWidths = [35, 18, 22, 22, 15, 20, 22];
       
       headers.forEach((header, index) => {
         pdf.text(header, xPos, yPosition);
@@ -316,23 +339,34 @@ export function GRNTable({ refreshTrigger, onView, onEdit, onDelete }: GRNTableP
       });
       yPosition += 7;
 
-      // Table rows
+      // Table rows with GST calculations
       pdf.setFont('helvetica', 'normal');
+      let subtotal = 0;
+      let totalTax = 0;
+      
       grnDetail.grn_line_items?.forEach((item: any) => {
         if (yPosition > 250) {
           pdf.addPage();
           yPosition = 20;
         }
 
+        const lineSubtotal = item.accepted_quantity * item.unit_price;
+        const lineTaxRate = item.tax_rate || 0;
+        const lineTax = (lineSubtotal * lineTaxRate) / 100;
+        const lineTotal = lineSubtotal + lineTax;
+        
+        subtotal += lineSubtotal;
+        totalTax += lineTax;
+
         xPos = 20;
         const rowData = [
-          item.product_name.substring(0, 15),
-          item.ordered_quantity.toString(),
-          item.received_quantity.toString(),
+          item.product_name.substring(0, 12),
           item.accepted_quantity.toString(),
-          item.rejected_quantity.toString(),
           `₹${item.unit_price.toFixed(2)}`,
-          `₹${item.line_total.toFixed(2)}`
+          `₹${lineSubtotal.toFixed(2)}`,
+          `${lineTaxRate}%`,
+          `₹${lineTax.toFixed(2)}`,
+          `₹${lineTotal.toFixed(2)}`
         ];
 
         rowData.forEach((data, index) => {
@@ -342,10 +376,10 @@ export function GRNTable({ refreshTrigger, onView, onEdit, onDelete }: GRNTableP
         yPosition += 7;
       });
 
-      // Summary
-      yPosition += 10;
+      // Summary with GST breakdown
+      yPosition += 15;
       pdf.setFont('helvetica', 'bold');
-      pdf.text('SUMMARY:', 20, yPosition);
+      pdf.text('QUANTITY SUMMARY:', 20, yPosition);
       yPosition += 10;
 
       pdf.setFont('helvetica', 'normal');
@@ -354,9 +388,19 @@ export function GRNTable({ refreshTrigger, onView, onEdit, onDelete }: GRNTableP
       yPosition += 7;
       pdf.text(`Total Accepted: ${grnDetail.total_accepted_quantity}`, 20, yPosition);
       pdf.text(`Total Rejected: ${grnDetail.total_rejected_quantity}`, 80, yPosition);
-      yPosition += 7;
+      yPosition += 15;
+      
       pdf.setFont('helvetica', 'bold');
-      pdf.text(`Total Amount: ₹${grnDetail.total_amount.toFixed(2)}`, 20, yPosition);
+      pdf.text('FINANCIAL SUMMARY:', 20, yPosition);
+      yPosition += 10;
+      
+      pdf.setFont('helvetica', 'normal');
+      pdf.text(`Taxable Amount: ₹${subtotal.toFixed(2)}`, 20, yPosition);
+      yPosition += 7;
+      pdf.text(`Total Tax Amount: ₹${totalTax.toFixed(2)}`, 20, yPosition);
+      yPosition += 10;
+      pdf.setFont('helvetica', 'bold');
+      pdf.text(`Total Amount (Including Tax): ₹${(subtotal + totalTax).toFixed(2)}`, 20, yPosition);
 
       pdf.save(`GRN_${grnDetail.grn_number}.pdf`);
 

@@ -1242,6 +1242,63 @@ export function PurchaseModule() {
           />
         </DialogContent>
       </Dialog>
+
+      {/* GRN Dialogs */}
+      {/* Edit GRN Dialog */}
+      <Dialog open={showEditGRNDialog} onOpenChange={setShowEditGRNDialog}>
+        <DialogContent className="max-w-7xl max-h-[95vh] overflow-y-auto">
+          <GRNForm
+            grn={selectedGRN}
+            onSubmit={async (grnData) => {
+              try {
+                const { error } = await supabase
+                  .from('grn_header')
+                  .update(grnData)
+                  .eq('id', selectedGRN.id);
+                
+                if (error) throw error;
+                
+                toast({
+                  title: "Success", 
+                  description: "GRN updated successfully"
+                });
+                
+                setShowEditGRNDialog(false);
+                setSelectedGRN(null);
+                setRefreshGRNTrigger(prev => prev + 1);
+              } catch (error) {
+                console.error('Error updating GRN:', error);
+                toast({
+                  title: "Error",
+                  description: "Failed to update GRN",
+                  variant: "destructive",
+                });
+              }
+            }}
+            onCancel={() => {
+              setShowEditGRNDialog(false);
+              setSelectedGRN(null);
+            }}
+            mode="edit"
+          />
+        </DialogContent>
+      </Dialog>
+
+      {/* View GRN Dialog */}
+      <Dialog open={showViewGRNDialog} onOpenChange={setShowViewGRNDialog}>
+        <DialogContent className="max-w-7xl max-h-[95vh] overflow-y-auto">
+          <GRNForm
+            grn={selectedGRN}
+            onSubmit={() => Promise.resolve()}
+            onCancel={() => {
+              setShowViewGRNDialog(false);
+              setSelectedGRN(null);
+            }}
+            readOnly={true}
+            mode="view"
+          />
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
