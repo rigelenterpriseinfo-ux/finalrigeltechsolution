@@ -17,6 +17,7 @@ import { EnhancedPurchaseInvoiceForm } from '@/components/forms/EnhancedPurchase
 import { PurchaseInvoiceTable } from '@/components/tables/PurchaseInvoiceTable';
 import { SupplierForm } from '@/components/forms/SupplierForm';
 import { SupplierTable } from '@/components/tables/SupplierTable';
+import { PurchaseOrderForm } from '@/components/forms/PurchaseOrderForm';
 
 interface Supplier {
   id: string;
@@ -59,6 +60,9 @@ export function PurchaseModule() {
   const [showViewSupplierDialog, setShowViewSupplierDialog] = useState(false);
   const [selectedSupplier, setSelectedSupplier] = useState<any>(null);
   const [showAddPODialog, setShowAddPODialog] = useState(false);
+  const [showEditPODialog, setShowEditPODialog] = useState(false);
+  const [showViewPODialog, setShowViewPODialog] = useState(false);
+  const [selectedPO, setSelectedPO] = useState<any>(null);
   const [showAddPIDialog, setShowAddPIDialog] = useState(false);
   const [showEditPIDialog, setShowEditPIDialog] = useState(false);
   const [showViewPIDialog, setShowViewPIDialog] = useState(false);
@@ -99,7 +103,8 @@ export function PurchaseModule() {
         .from('purchase_orders')
         .select(`
           *,
-          supplier:suppliers(name)
+          supplier:suppliers(name),
+          purchase_order_items(*)
         `)
         .eq('company_id', profile?.company_id)
         .order('created_at', { ascending: false });
@@ -247,6 +252,222 @@ export function PurchaseModule() {
   const handleEditSupplierClick = (supplier: any) => {
     setSelectedSupplier(supplier);
     setShowEditSupplierDialog(true);
+  };
+
+  // Purchase Order CRUD Functions
+  const handleAddPurchaseOrder = async (poData: any) => {
+    if (!canEdit) {
+      toast({ title: "Permission denied", description: "You don't have edit access to Purchases.", variant: "destructive" });
+      return;
+    }
+    try {
+      const { data: po, error: poError } = await supabase
+        .from('purchase_orders')
+        .insert({
+          company_id: profile?.company_id,
+          supplier_id: poData.supplier_id,
+          order_date: poData.order_date,
+          currency: poData.currency,
+          payment_terms: poData.payment_terms,
+          expected_date: poData.expected_date,
+          status: poData.status,
+          notes: poData.notes,
+          subtotal_amount: poData.subtotal_amount,
+          total_discount_amount: poData.total_discount_amount,
+          total_tax_amount: poData.total_tax_amount,
+          total_amount: poData.total_amount,
+          created_by: profile?.user_id,
+        } as any)
+        .select()
+        .single();
+
+      if (poError) throw poError;
+
+      // Insert PO items
+      if (poData.items && poData.items.length > 0) {
+        const itemsToInsert = poData.items.map((item: any) => ({
+          purchase_order_id: po.id,
+          product_id: item.product_id,
+          item_description: item.product_name,
+          item_code: item.item_code,
+          hsn_sac_code: item.hsn_sac_code,
+          quantity: item.quantity,
+          unit_of_measure: item.unit_of_measure,
+          unit_price: item.unit_price,
+          discount_percentage: item.discount_percentage || 0,
+          discount_amount: item.discount_amount || 0,
+          taxable_value: item.line_subtotal - (item.discount_amount || 0),
+          cgst_rate: item.cgst_rate || 0,
+          sgst_rate: item.sgst_rate || 0,
+          igst_rate: item.igst_rate || 0,
+          cgst_amount: item.cgst_amount || 0,
+          sgst_amount: item.sgst_amount || 0,
+          igst_amount: item.igst_amount || 0,
+          total_price: item.line_total,
+          received_quantity: 0,
+          pending_quantity: item.quantity,
+          remarks: item.remarks,
+        }));
+
+        const { error: itemsError } = await supabase
+          .from('purchase_order_items')
+          .insert(itemsToInsert);
+
+        if (itemsError) throw itemsError;
+      }
+
+      toast({
+        title: "Success",
+        description: "Purchase order created successfully",
+      });
+
+      setShowAddPODialog(false);
+      fetchPurchaseOrders();
+    } catch (error) {
+      console.error('Error creating purchase order:', error);
+      toast({
+        title: "Error",
+        description: "Failed to create purchase order",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleEditPurchaseOrder = async (poData: any) => {
+    if (!selectedPO || !canEdit) return;
+    
+    try {
+      const { error: poError } = await supabase
+        .from('purchase_orders')
+        .update({
+          supplier_id: poData.supplier_id,
+          order_date: poData.order_date,
+          currency: poData.currency,
+          payment_terms: poData.payment_terms,
+          expected_date: poData.expected_date,
+          status: poData.status,
+          notes: poData.notes,
+          subtotal_amount: poData.subtotal_amount,
+          total_discount_amount: poData.total_discount_amount,
+          total_tax_amount: poData.total_tax_amount,
+          total_amount: poData.total_amount,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', selectedPO.id);
+
+      if (poError) throw poError;
+
+      // Update PO items
+      if (poData.items && poData.items.length > 0) {
+        // Delete existing items
+        const { error: deleteError } = await supabase
+          .from('purchase_order_items')
+          .delete()
+          .eq('purchase_order_id', selectedPO.id);
+
+        if (deleteError) throw deleteError;
+
+        // Insert new items
+        const itemsToInsert = poData.items.map((item: any) => ({
+          purchase_order_id: selectedPO.id,
+          product_id: item.product_id,
+          item_description: item.product_name,
+          item_code: item.item_code,
+          hsn_sac_code: item.hsn_sac_code,
+          quantity: item.quantity,
+          unit_of_measure: item.unit_of_measure,
+          unit_price: item.unit_price,
+          discount_percentage: item.discount_percentage || 0,
+          discount_amount: item.discount_amount || 0,
+          taxable_value: item.line_subtotal - (item.discount_amount || 0),
+          cgst_rate: item.cgst_rate || 0,
+          sgst_rate: item.sgst_rate || 0,
+          igst_rate: item.igst_rate || 0,
+          cgst_amount: item.cgst_amount || 0,
+          sgst_amount: item.sgst_amount || 0,
+          igst_amount: item.igst_amount || 0,
+          total_price: item.line_total,
+          received_quantity: item.received_quantity || 0,
+          pending_quantity: item.quantity - (item.received_quantity || 0),
+          remarks: item.remarks,
+        }));
+
+        const { error: itemsError } = await supabase
+          .from('purchase_order_items')
+          .insert(itemsToInsert);
+
+        if (itemsError) throw itemsError;
+      }
+
+      toast({
+        title: "Success",
+        description: "Purchase order updated successfully",
+      });
+
+      setShowEditPODialog(false);
+      setSelectedPO(null);
+      fetchPurchaseOrders();
+    } catch (error) {
+      console.error('Error updating purchase order:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update purchase order",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleDeletePurchaseOrder = async (poId: string) => {
+    if (!canEdit) {
+      toast({ title: "Permission denied", description: "You don't have edit access to Purchases.", variant: "destructive" });
+      return;
+    }
+
+    if (!confirm('Are you sure you want to delete this purchase order?')) {
+      return;
+    }
+    
+    try {
+      // First delete all related items
+      const { error: itemsError } = await supabase
+        .from('purchase_order_items')
+        .delete()
+        .eq('purchase_order_id', poId);
+
+      if (itemsError) throw itemsError;
+
+      // Then delete the purchase order
+      const { error: poError } = await supabase
+        .from('purchase_orders')
+        .delete()
+        .eq('id', poId);
+
+      if (poError) throw poError;
+
+      toast({
+        title: "Success",
+        description: "Purchase order deleted successfully",
+      });
+
+      fetchPurchaseOrders();
+    } catch (error) {
+      console.error('Error deleting purchase order:', error);
+      toast({
+        title: "Error",
+        description: "Failed to delete purchase order",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleViewPurchaseOrder = (po: any) => {
+    setSelectedPO(po);
+    setShowViewPODialog(true);
+  };
+
+  const handleEditPurchaseOrderClick = (po: any) => {
+    setSelectedPO(po);
+    setShowEditPODialog(true);
   };
 
   // Purchase Invoice CRUD Functions
@@ -624,10 +845,21 @@ export function PurchaseModule() {
                   <CardTitle className="text-xl text-green-800">Purchase Orders</CardTitle>
                   <CardDescription>Create and manage purchase orders</CardDescription>
                 </div>
-                 <Button className="bg-green-600 hover:bg-green-700" disabled={!canEdit}>
-                   <Plus className="h-4 w-4 mr-2" />
-                   Create Purchase Order
-                 </Button>
+                 <Dialog open={showAddPODialog} onOpenChange={setShowAddPODialog}>
+                   <DialogTrigger asChild>
+                     <Button className="bg-green-600 hover:bg-green-700" disabled={!canEdit}>
+                       <Plus className="h-4 w-4 mr-2" />
+                       Create Purchase Order
+                     </Button>
+                   </DialogTrigger>
+                   <DialogContent className="max-w-7xl max-h-[95vh] overflow-y-auto">
+                     <PurchaseOrderForm
+                       onSubmit={handleAddPurchaseOrder}
+                       onCancel={() => setShowAddPODialog(false)}
+                       mode="create"
+                     />
+                   </DialogContent>
+                 </Dialog>
               </div>
             </CardHeader>
             <CardContent className="p-6">
@@ -643,23 +875,36 @@ export function PurchaseModule() {
                     {purchaseOrders.slice(0, 5).map((po) => (
                       <Card key={po.id} className="border-l-4 border-l-green-500">
                         <CardContent className="p-4">
-                          <div className="flex justify-between items-center">
-                            <div className="space-y-1">
-                              <h4 className="font-semibold">{po.po_number}</h4>
-                              <p className="text-sm text-muted-foreground">
-                                Supplier: {po.supplier.name}
-                              </p>
-                              <p className="text-sm text-muted-foreground">
-                                Date: {new Date(po.order_date).toLocaleDateString()}
-                              </p>
-                            </div>
-                            <div className="text-right">
-                              <Badge variant="outline">{po.status}</Badge>
-                              <p className="text-lg font-bold text-green-600 mt-1">
-                                ₹{po.total_amount.toFixed(2)}
-                              </p>
-                            </div>
-                          </div>
+                           <div className="flex justify-between items-center">
+                             <div className="space-y-1">
+                               <h4 className="font-semibold">{po.po_number}</h4>
+                               <p className="text-sm text-muted-foreground">
+                                 Supplier: {po.supplier.name}
+                               </p>
+                               <p className="text-sm text-muted-foreground">
+                                 Date: {new Date(po.order_date).toLocaleDateString()}
+                               </p>
+                             </div>
+                             <div className="flex items-center gap-2">
+                               <div className="text-right">
+                                 <Badge variant="outline">{po.status}</Badge>
+                                 <p className="text-lg font-bold text-green-600 mt-1">
+                                   ₹{po.total_amount.toFixed(2)}
+                                 </p>
+                               </div>
+                               <div className="flex gap-1">
+                                 <Button variant="ghost" size="sm" onClick={() => handleViewPurchaseOrder(po)}>
+                                   View
+                                 </Button>
+                                 <Button variant="ghost" size="sm" onClick={() => handleEditPurchaseOrderClick(po)} disabled={!canEdit}>
+                                   Edit
+                                 </Button>
+                                 <Button variant="ghost" size="sm" onClick={() => handleDeletePurchaseOrder(po.id)} disabled={!canEdit}>
+                                   Delete
+                                 </Button>
+                               </div>
+                             </div>
+                           </div>
                         </CardContent>
                       </Card>
                     ))}
@@ -787,6 +1032,38 @@ export function PurchaseModule() {
               )}
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Purchase Order Dialogs */}
+      {/* Edit Purchase Order Dialog */}
+      <Dialog open={showEditPODialog} onOpenChange={setShowEditPODialog}>
+        <DialogContent className="max-w-7xl max-h-[95vh] overflow-y-auto">
+          <PurchaseOrderForm
+            purchaseOrder={selectedPO}
+            onSubmit={handleEditPurchaseOrder}
+            onCancel={() => {
+              setShowEditPODialog(false);
+              setSelectedPO(null);
+            }}
+            mode="edit"
+          />
+        </DialogContent>
+      </Dialog>
+
+      {/* View Purchase Order Dialog */}
+      <Dialog open={showViewPODialog} onOpenChange={setShowViewPODialog}>
+        <DialogContent className="max-w-7xl max-h-[95vh] overflow-y-auto">
+          <PurchaseOrderForm
+            purchaseOrder={selectedPO}
+            onSubmit={() => Promise.resolve()}
+            onCancel={() => {
+              setShowViewPODialog(false);
+              setSelectedPO(null);
+            }}
+            readOnly={true}
+            mode="view"
+          />
         </DialogContent>
       </Dialog>
     </div>

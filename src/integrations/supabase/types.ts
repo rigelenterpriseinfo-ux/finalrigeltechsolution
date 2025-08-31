@@ -1146,6 +1146,7 @@ export type Database = {
           is_taxable: boolean | null
           item_code: string | null
           item_description: string
+          pending_quantity: number | null
           product_id: string | null
           purchase_order_id: string
           quantity: number
@@ -1172,6 +1173,7 @@ export type Database = {
           is_taxable?: boolean | null
           item_code?: string | null
           item_description?: string
+          pending_quantity?: number | null
           product_id?: string | null
           purchase_order_id: string
           quantity: number
@@ -1198,6 +1200,7 @@ export type Database = {
           is_taxable?: boolean | null
           item_code?: string | null
           item_description?: string
+          pending_quantity?: number | null
           product_id?: string | null
           purchase_order_id?: string
           quantity?: number
@@ -1233,6 +1236,7 @@ export type Database = {
           company_place_of_supply: string | null
           created_at: string
           created_by: string
+          currency: string | null
           delivery_address_line1: string | null
           delivery_address_line2: string | null
           delivery_city: string | null
@@ -1244,6 +1248,7 @@ export type Database = {
           id: string
           notes: string | null
           order_date: string
+          payment_terms: string | null
           po_number: string
           same_as_registered_address: boolean | null
           status: string
@@ -1264,6 +1269,7 @@ export type Database = {
           company_place_of_supply?: string | null
           created_at?: string
           created_by: string
+          currency?: string | null
           delivery_address_line1?: string | null
           delivery_address_line2?: string | null
           delivery_city?: string | null
@@ -1275,6 +1281,7 @@ export type Database = {
           id?: string
           notes?: string | null
           order_date?: string
+          payment_terms?: string | null
           po_number: string
           same_as_registered_address?: boolean | null
           status?: string
@@ -1295,6 +1302,7 @@ export type Database = {
           company_place_of_supply?: string | null
           created_at?: string
           created_by?: string
+          currency?: string | null
           delivery_address_line1?: string | null
           delivery_address_line2?: string | null
           delivery_city?: string | null
@@ -1306,6 +1314,7 @@ export type Database = {
           id?: string
           notes?: string | null
           order_date?: string
+          payment_terms?: string | null
           po_number?: string
           same_as_registered_address?: boolean | null
           status?: string
