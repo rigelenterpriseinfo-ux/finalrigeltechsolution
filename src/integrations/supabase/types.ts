@@ -669,6 +669,8 @@ export type Database = {
           max_stock_level: number | null
           min_stock_level: number
           name: string
+          product_category: string | null
+          product_type: string | null
           sku: string
           stock_quantity: number
           unit: string | null
@@ -694,6 +696,8 @@ export type Database = {
           max_stock_level?: number | null
           min_stock_level?: number
           name: string
+          product_category?: string | null
+          product_type?: string | null
           sku: string
           stock_quantity?: number
           unit?: string | null
@@ -719,6 +723,8 @@ export type Database = {
           max_stock_level?: number | null
           min_stock_level?: number
           name?: string
+          product_category?: string | null
+          product_type?: string | null
           sku?: string
           stock_quantity?: number
           unit?: string | null
