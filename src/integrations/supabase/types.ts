@@ -390,6 +390,79 @@ export type Database = {
         }
         Relationships: []
       }
+      inventory_adjustments: {
+        Row: {
+          adjustment_amount: number | null
+          adjustment_quantity: number
+          adjustment_type: string
+          company_id: string
+          created_at: string
+          created_by: string
+          current_stock_after: number
+          current_stock_before: number
+          id: string
+          product_id: string
+          reason: string
+          remarks: string | null
+          updated_at: string
+          warehouse_id: string
+        }
+        Insert: {
+          adjustment_amount?: number | null
+          adjustment_quantity: number
+          adjustment_type: string
+          company_id: string
+          created_at?: string
+          created_by: string
+          current_stock_after?: number
+          current_stock_before?: number
+          id?: string
+          product_id: string
+          reason: string
+          remarks?: string | null
+          updated_at?: string
+          warehouse_id: string
+        }
+        Update: {
+          adjustment_amount?: number | null
+          adjustment_quantity?: number
+          adjustment_type?: string
+          company_id?: string
+          created_at?: string
+          created_by?: string
+          current_stock_after?: number
+          current_stock_before?: number
+          id?: string
+          product_id?: string
+          reason?: string
+          remarks?: string | null
+          updated_at?: string
+          warehouse_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inventory_adjustments_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventory_adjustments_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventory_adjustments_warehouse_id_fkey"
+            columns: ["warehouse_id"]
+            isOneToOne: false
+            referencedRelation: "warehouse_bins"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       password_resets: {
         Row: {
           created_at: string | null
