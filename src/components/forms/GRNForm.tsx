@@ -127,7 +127,10 @@ export function GRNForm({ grn, onSubmit, onCancel, readOnly = false, mode }: GRN
         .select(`
           *,
           supplier:suppliers(name),
-          purchase_order_items(*)
+          purchase_order_items(
+            *,
+            product:products(name, sku)
+          )
         `)
         .eq('company_id', profile?.company_id)
         .in('status', ['open', 'partially_received'])
@@ -226,8 +229,8 @@ export function GRNForm({ grn, onSubmit, onCancel, readOnly = false, mode }: GRN
     // Auto-fill items from PO with pending quantities
     const items = po.purchase_order_items?.map((item: any) => ({
       product_id: item.product_id,
-      product_name: item.product_name,
-      product_sku: item.product_sku || '',
+      product_name: item.product?.name || item.item_description || 'Unknown Product',
+      product_sku: item.product?.sku || item.item_code || '',
       unit_of_measure: item.unit_of_measure || '',
       ordered_quantity: item.quantity,
       received_quantity: item.pending_quantity, // Set to pending quantity initially
