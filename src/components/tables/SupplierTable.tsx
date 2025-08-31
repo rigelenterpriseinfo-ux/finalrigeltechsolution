@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Eye, Edit, Trash2, Search, Plus } from 'lucide-react';
+import { Eye, Edit, Trash2, Search, Plus, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useBusinessAuth } from '@/hooks/useBusinessAuth';
 
 interface Supplier {
@@ -48,6 +48,8 @@ export const SupplierTable: React.FC<SupplierTableProps> = ({
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
   const [typeFilter, setTypeFilter] = useState<'all' | 'Manufacturer' | 'Distributor' | 'Service Provider' | 'Other'>('all');
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 5;
   
   const canEdit = hasEditAccess('purchase');
 
@@ -56,7 +58,8 @@ export const SupplierTable: React.FC<SupplierTableProps> = ({
       supplier.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       supplier.supplier_ref?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       supplier.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      supplier.contact_person?.toLowerCase().includes(searchTerm.toLowerCase());
+      supplier.contact_person?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      supplier.gst_number?.toLowerCase().includes(searchTerm.toLowerCase());
     
     const matchesStatus = statusFilter === 'all' || 
       (statusFilter === 'active' && supplier.is_active) ||
@@ -66,6 +69,16 @@ export const SupplierTable: React.FC<SupplierTableProps> = ({
     
     return matchesSearch && matchesStatus && matchesType;
   });
+
+  // Pagination calculations
+  const totalPages = Math.ceil(filteredSuppliers.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const paginatedSuppliers = filteredSuppliers.slice(startIndex, startIndex + itemsPerPage);
+
+  // Reset to first page when filters change
+  React.useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, statusFilter, typeFilter]);
 
   if (loading) {
     return (
@@ -97,7 +110,7 @@ export const SupplierTable: React.FC<SupplierTableProps> = ({
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
               <Input
-                placeholder="Search suppliers..."
+                placeholder="Search by supplier name or GST number..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-10"
@@ -145,7 +158,7 @@ export const SupplierTable: React.FC<SupplierTableProps> = ({
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredSuppliers.length === 0 ? (
+              {paginatedSuppliers.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={9} className="text-center py-8">
                     <div className="text-muted-foreground">
@@ -157,7 +170,7 @@ export const SupplierTable: React.FC<SupplierTableProps> = ({
                   </TableCell>
                 </TableRow>
               ) : (
-                filteredSuppliers.map((supplier) => (
+                paginatedSuppliers.map((supplier) => (
                   <TableRow key={supplier.id} className="hover:bg-muted/50">
                     <TableCell className="font-medium">
                       <div className="font-mono text-sm">
@@ -246,11 +259,53 @@ export const SupplierTable: React.FC<SupplierTableProps> = ({
           </Table>
         </div>
 
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between mt-4">
+            <div className="text-sm text-muted-foreground">
+              Showing {startIndex + 1} to {Math.min(startIndex + itemsPerPage, filteredSuppliers.length)} of {filteredSuppliers.length} results
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                disabled={currentPage === 1}
+              >
+                <ChevronLeft className="h-4 w-4" />
+                Previous
+              </Button>
+              <div className="flex items-center gap-1">
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                  <Button
+                    key={page}
+                    variant={currentPage === page ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setCurrentPage(page)}
+                    className="w-8"
+                  >
+                    {page}
+                  </Button>
+                ))}
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                disabled={currentPage === totalPages}
+              >
+                Next
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        )}
+
         {/* Summary */}
         {filteredSuppliers.length > 0 && (
           <div className="flex justify-between items-center mt-4 text-sm text-muted-foreground">
             <div>
-              Showing {filteredSuppliers.length} of {suppliers.length} suppliers
+              Total: {suppliers.length} suppliers | Filtered: {filteredSuppliers.length}
             </div>
             <div>
               Active: {suppliers.filter(s => s.is_active).length} | 

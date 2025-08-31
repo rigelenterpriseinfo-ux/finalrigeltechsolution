@@ -16,6 +16,7 @@ import { Plus, Truck, ShoppingCart, FileText, Building2, Package, TrendingUp } f
 import { EnhancedPurchaseInvoiceForm } from '@/components/forms/EnhancedPurchaseInvoiceForm';
 import { PurchaseInvoiceTable } from '@/components/tables/PurchaseInvoiceTable';
 import { SupplierForm } from '@/components/forms/SupplierForm';
+import { SupplierTable } from '@/components/tables/SupplierTable';
 
 interface Supplier {
   id: string;
@@ -54,6 +55,9 @@ export function PurchaseModule() {
   
   // Dialog states
   const [showAddSupplierDialog, setShowAddSupplierDialog] = useState(false);
+  const [showEditSupplierDialog, setShowEditSupplierDialog] = useState(false);
+  const [showViewSupplierDialog, setShowViewSupplierDialog] = useState(false);
+  const [selectedSupplier, setSelectedSupplier] = useState<any>(null);
   const [showAddPODialog, setShowAddPODialog] = useState(false);
   const [showAddPIDialog, setShowAddPIDialog] = useState(false);
   const [showEditPIDialog, setShowEditPIDialog] = useState(false);
@@ -75,8 +79,7 @@ export function PurchaseModule() {
         .from('suppliers')
         .select('*')
         .eq('company_id', profile?.company_id)
-        .eq('is_active', true)
-        .order('name');
+        .order('created_at', { ascending: false });
 
       if (error) throw error;
       setSuppliers(data || []);
@@ -165,6 +168,85 @@ export function PurchaseModule() {
         variant: "destructive",
       });
     }
+  };
+
+  const handleEditSupplier = async (data: any) => {
+    if (!canEdit) {
+      toast({ title: "Permission denied", description: "You don't have edit access to Purchases.", variant: "destructive" });
+      return;
+    }
+    
+    try {
+      const { error } = await supabase
+        .from('suppliers')
+        .update({
+          ...data,
+          is_active: data.is_active !== false,
+        })
+        .eq('id', selectedSupplier.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: "Supplier updated successfully",
+      });
+
+      setShowEditSupplierDialog(false);
+      setSelectedSupplier(null);
+      fetchSuppliers();
+    } catch (error) {
+      console.error('Error updating supplier:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update supplier",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleDeleteSupplier = async (supplierId: string) => {
+    if (!canEdit) {
+      toast({ title: "Permission denied", description: "You don't have edit access to Purchases.", variant: "destructive" });
+      return;
+    }
+
+    if (!confirm('Are you sure you want to delete this supplier?')) {
+      return;
+    }
+    
+    try {
+      const { error } = await supabase
+        .from('suppliers')
+        .delete()
+        .eq('id', supplierId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: "Supplier deleted successfully",
+      });
+
+      fetchSuppliers();
+    } catch (error) {
+      console.error('Error deleting supplier:', error);
+      toast({
+        title: "Error",
+        description: "Failed to delete supplier",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleViewSupplier = (supplier: any) => {
+    setSelectedSupplier(supplier);
+    setShowViewSupplierDialog(true);
+  };
+
+  const handleEditSupplierClick = (supplier: any) => {
+    setSelectedSupplier(supplier);
+    setShowEditSupplierDialog(true);
   };
 
   // Purchase Invoice CRUD Functions
@@ -483,40 +565,54 @@ export function PurchaseModule() {
                 </Dialog>
               </div>
             </CardHeader>
-            <CardContent className="p-6">
-              <div className="grid gap-4">
-                {suppliers.length === 0 ? (
-                  <div className="text-center py-12">
-                    <Building2 className="mx-auto h-12 w-12 text-muted-foreground" />
-                    <h3 className="mt-4 text-lg font-semibold">No suppliers found</h3>
-                    <p className="text-muted-foreground">Add your first supplier to get started</p>
-                  </div>
-                ) : (
-                  suppliers.map((supplier) => (
-                    <Card key={supplier.id} className="border-l-4 border-l-blue-500">
-                      <CardContent className="p-4">
-                        <div className="flex justify-between items-start">
-                          <div className="space-y-1">
-                            <h4 className="font-semibold">{supplier.name}</h4>
-                            <p className="text-sm text-muted-foreground">
-                              {supplier.contact_person && `Contact: ${supplier.contact_person}`}
-                            </p>
-                            <div className="flex gap-4 text-sm text-muted-foreground">
-                              {supplier.email && <span>{supplier.email}</span>}
-                              {supplier.phone && <span>{supplier.phone}</span>}
-                            </div>
-                          </div>
-                          <Badge variant={supplier.is_active ? "default" : "secondary"}>
-                            {supplier.is_active ? "Active" : "Inactive"}
-                          </Badge>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))
-                )}
-              </div>
+            <CardContent className="p-0">
+              <SupplierTable
+                suppliers={suppliers}
+                onView={handleViewSupplier}
+                onEdit={handleEditSupplierClick}
+                onDelete={handleDeleteSupplier}
+                onCreate={() => setShowAddSupplierDialog(true)}
+                loading={loading}
+              />
             </CardContent>
           </Card>
+
+          {/* Edit Supplier Dialog */}
+          <Dialog open={showEditSupplierDialog} onOpenChange={setShowEditSupplierDialog}>
+            <DialogContent className="max-w-4xl max-h-[95vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle className="text-xl text-blue-700">Edit Supplier</DialogTitle>
+                <DialogDescription>Update supplier details</DialogDescription>
+              </DialogHeader>
+              <SupplierForm
+                supplier={selectedSupplier}
+                onSubmit={handleEditSupplier}
+                onCancel={() => {
+                  setShowEditSupplierDialog(false);
+                  setSelectedSupplier(null);
+                }}
+              />
+            </DialogContent>
+          </Dialog>
+
+          {/* View Supplier Dialog */}
+          <Dialog open={showViewSupplierDialog} onOpenChange={setShowViewSupplierDialog}>
+            <DialogContent className="max-w-4xl max-h-[95vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle className="text-xl text-blue-700">Supplier Details</DialogTitle>
+                <DialogDescription>View supplier information</DialogDescription>
+              </DialogHeader>
+              <SupplierForm
+                supplier={selectedSupplier}
+                onSubmit={() => Promise.resolve()}
+                onCancel={() => {
+                  setShowViewSupplierDialog(false);
+                  setSelectedSupplier(null);
+                }}
+                readOnly={true}
+              />
+            </DialogContent>
+          </Dialog>
         </TabsContent>
 
         {/* Section 2: Purchase Orders */}
