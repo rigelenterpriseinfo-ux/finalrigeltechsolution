@@ -228,10 +228,28 @@ export function PurchaseOrderForm({
         total_tax_amount: totalTaxAmount,
         total_amount: totalAmount,
         items: data.items.map(item => ({
-          ...item,
+          product_id: item.product_id,
+          item_code: item.item_code,
+          item_description: item.product_name,
+          hsn_sac_code: item.hsn_sac_code,
+          quantity: item.quantity,
+          unit_of_measure: item.unit_of_measure,
+          unit_price: item.unit_price,
+          discount_percentage: item.discount_percentage || 0,
+          discount_amount: item.discount_amount || 0,
+          cgst_rate: item.cgst_rate || 0,
+          sgst_rate: item.sgst_rate || 0,
+          igst_rate: item.igst_rate || 0,
+          cgst_amount: item.cgst_amount || 0,
+          sgst_amount: item.sgst_amount || 0,
+          igst_amount: item.igst_amount || 0,
+          total_price: item.line_total || 0,
           received_quantity: 0,
           pending_quantity: item.quantity,
-          total_price: item.line_total
+          remarks: item.remarks || '',
+          is_taxable: true,
+          taxable_value: item.line_subtotal || 0,
+          gst_rate: (item.cgst_rate || 0) + (item.sgst_rate || 0) + (item.igst_rate || 0)
         }))
       };
 

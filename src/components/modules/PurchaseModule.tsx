@@ -318,7 +318,7 @@ export function PurchaseModule() {
         .insert({
           ...purchaseOrderData,
           company_id: profile?.company_id,
-          created_by: profile?.user_id,
+          created_by: user?.id,
         })
         .select()
         .single();
