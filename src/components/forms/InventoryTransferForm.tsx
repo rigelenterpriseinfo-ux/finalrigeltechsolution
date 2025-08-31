@@ -41,6 +41,8 @@ interface Product {
   id: string;
   name: string;
   sku: string;
+  stock_quantity: number;
+  cost_price: number;
 }
 
 interface WarehouseBin {
@@ -63,8 +65,6 @@ export const InventoryTransferForm: React.FC<InventoryTransferFormProps> = ({
   const { user, company } = useAuth();
   const [products, setProducts] = useState<Product[]>([]);
   const [warehouseBins, setWarehouseBins] = useState<WarehouseBin[]>([]);
-  const [fromWarehouseBins, setFromWarehouseBins] = useState<WarehouseBin[]>([]);
-  const [toWarehouseBins, setToWarehouseBins] = useState<WarehouseBin[]>([]);
   const [sourceStock, setSourceStock] = useState<number>(0);
   const [loading, setLoading] = useState(false);
 
@@ -78,6 +78,7 @@ export const InventoryTransferForm: React.FC<InventoryTransferFormProps> = ({
 
   const selectedProductId = form.watch('product_id');
   const selectedFromWarehouseId = form.watch('from_warehouse_id');
+  const selectedToWarehouseId = form.watch('to_warehouse_id');
   const quantity = form.watch('quantity');
 
   useEffect(() => {
@@ -89,30 +90,15 @@ export const InventoryTransferForm: React.FC<InventoryTransferFormProps> = ({
 
   useEffect(() => {
     if (selectedProductId && selectedFromWarehouseId) {
-      fetchSourceStock();
+      fetchSourceStock(selectedProductId, selectedFromWarehouseId);
     }
   }, [selectedProductId, selectedFromWarehouseId]);
-
-  useEffect(() => {
-    // Update available bins based on selected from warehouse
-    if (selectedFromWarehouseId) {
-      const selectedBin = warehouseBins.find(bin => bin.id === selectedFromWarehouseId);
-      if (selectedBin) {
-        setFromWarehouseBins([selectedBin]);
-        // Filter out the selected from warehouse from to warehouse options
-        setToWarehouseBins(warehouseBins.filter(bin => bin.id !== selectedFromWarehouseId));
-      }
-    } else {
-      setFromWarehouseBins(warehouseBins);
-      setToWarehouseBins(warehouseBins);
-    }
-  }, [selectedFromWarehouseId, warehouseBins]);
 
   const fetchProducts = async () => {
     try {
       const { data, error } = await supabase
         .from('products')
-        .select('id, name, sku')
+        .select('id, name, sku, stock_quantity, cost_price')
         .eq('company_id', company?.id)
         .eq('is_active', true)
         .order('name');
@@ -140,8 +126,6 @@ export const InventoryTransferForm: React.FC<InventoryTransferFormProps> = ({
 
       if (error) throw error;
       setWarehouseBins(data || []);
-      setFromWarehouseBins(data || []);
-      setToWarehouseBins(data || []);
     } catch (error) {
       console.error('Error fetching warehouse bins:', error);
       toast({
@@ -152,16 +136,16 @@ export const InventoryTransferForm: React.FC<InventoryTransferFormProps> = ({
     }
   };
 
-  const fetchSourceStock = async () => {
-    if (!selectedProductId || !selectedFromWarehouseId || !company) return;
+  const fetchSourceStock = async (productId: string, warehouseId: string) => {
+    if (!productId || !warehouseId || !company) return;
 
     try {
       const { data, error } = await supabase
         .from('current_stock_levels')
         .select('current_stock')
         .eq('company_id', company.id)
-        .eq('product_id', selectedProductId)
-        .eq('warehouse_id', selectedFromWarehouseId)
+        .eq('product_id', productId)
+        .eq('warehouse_id', warehouseId)
         .single();
 
       if (error && error.code !== 'PGRST116') {
@@ -180,21 +164,30 @@ export const InventoryTransferForm: React.FC<InventoryTransferFormProps> = ({
   const onSubmit = async (data: FormData) => {
     if (!user || !company) return;
 
-    // Validate source has enough stock
-    if (data.quantity > sourceStock) {
+    // Validate same warehouse/bin selection
+    if (data.from_warehouse_id === data.to_warehouse_id) {
       toast({
-        title: 'Insufficient Stock',
-        description: `Cannot transfer ${data.quantity} units. Only ${sourceStock} units available in source bin`,
+        title: 'Invalid Transfer',
+        description: 'Source and destination warehouse/bin cannot be the same',
         variant: 'destructive',
       });
       return;
     }
 
-    // Prevent transfer to same location
-    if (data.from_warehouse_id === data.to_warehouse_id) {
+    // Validate source stock
+    if (sourceStock === 0) {
       toast({
-        title: 'Invalid Transfer',
-        description: 'Cannot transfer to the same warehouse/bin',
+        title: 'No Stock Available',
+        description: 'No stock available in the source warehouse/bin',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (data.quantity > sourceStock) {
+      toast({
+        title: 'Insufficient Stock',
+        description: `Cannot transfer ${data.quantity} units. Only ${sourceStock} available in source warehouse/bin`,
         variant: 'destructive',
       });
       return;
@@ -204,15 +197,15 @@ export const InventoryTransferForm: React.FC<InventoryTransferFormProps> = ({
 
     try {
       // Create stock transfer record
-      const { data: transferData, error: transferError } = await supabase
+      const { data: transferData, error } = await supabase
         .from('stock_transfers')
         .insert({
           company_id: company.id,
           product_id: data.product_id,
           from_warehouse_id: data.from_warehouse_id,
-          from_bin_id: data.from_warehouse_id, // Using warehouse_id as bin_id
+          from_bin_id: data.from_warehouse_id, // Using warehouse_id as bin_id for now
           to_warehouse_id: data.to_warehouse_id,
-          to_bin_id: data.to_warehouse_id, // Using warehouse_id as bin_id
+          to_bin_id: data.to_warehouse_id, // Using warehouse_id as bin_id for now
           quantity: data.quantity,
           reason: data.reason,
           remarks: data.remarks,
@@ -221,57 +214,60 @@ export const InventoryTransferForm: React.FC<InventoryTransferFormProps> = ({
         .select()
         .single();
 
-      if (transferError) throw transferError;
+      if (error) throw error;
 
-      // Record transfer_out transaction (negative)
-      const { error: outTransactionError } = await supabase.rpc('record_inventory_transaction', {
+      const selectedProduct = products.find(p => p.id === data.product_id);
+      const transferNumber = `TRF-${transferData.id.substring(0, 8)}`;
+
+      // Record transfer_out transaction
+      const { error: transferOutError } = await supabase.rpc('record_inventory_transaction', {
         p_company_id: company.id,
         p_transaction_type: 'transfer_out',
         p_reference_id: transferData.id,
-        p_reference_number: transferData.transfer_number,
+        p_reference_number: transferNumber,
         p_product_id: data.product_id,
         p_warehouse_id: data.from_warehouse_id,
         p_bin_id: data.from_warehouse_id,
         p_quantity_change: -data.quantity,
-        p_unit_cost: 0,
-        p_notes: `Transfer out to ${data.to_warehouse_id}: ${data.remarks}`,
+        p_unit_cost: selectedProduct?.cost_price || 0,
+        p_notes: `Transfer Out - ${data.reason}: ${data.remarks}`,
         p_created_by: user.id
       });
 
-      if (outTransactionError) {
-        console.error('Error recording transfer out transaction:', outTransactionError);
+      if (transferOutError) {
+        console.error('Error recording transfer out transaction:', transferOutError);
       }
 
-      // Record transfer_in transaction (positive)
-      const { error: inTransactionError } = await supabase.rpc('record_inventory_transaction', {
+      // Record transfer_in transaction
+      const { error: transferInError } = await supabase.rpc('record_inventory_transaction', {
         p_company_id: company.id,
         p_transaction_type: 'transfer_in',
         p_reference_id: transferData.id,
-        p_reference_number: transferData.transfer_number,
+        p_reference_number: transferNumber,
         p_product_id: data.product_id,
         p_warehouse_id: data.to_warehouse_id,
         p_bin_id: data.to_warehouse_id,
         p_quantity_change: data.quantity,
-        p_unit_cost: 0,
-        p_notes: `Transfer in from ${data.from_warehouse_id}: ${data.remarks}`,
+        p_unit_cost: selectedProduct?.cost_price || 0,
+        p_notes: `Transfer In - ${data.reason}: ${data.remarks}`,
         p_created_by: user.id
       });
 
-      if (inTransactionError) {
-        console.error('Error recording transfer in transaction:', inTransactionError);
+      if (transferInError) {
+        console.error('Error recording transfer in transaction:', transferInError);
       }
 
       toast({
         title: 'Success',
-        description: `Stock transfer ${transferData.transfer_number} created successfully`,
+        description: 'Inventory transfer created successfully',
       });
 
       onSuccess();
     } catch (error) {
-      console.error('Error creating stock transfer:', error);
+      console.error('Error creating inventory transfer:', error);
       toast({
         title: 'Error',
-        description: 'Failed to create stock transfer',
+        description: 'Failed to create inventory transfer',
         variant: 'destructive',
       });
     } finally {
@@ -285,6 +281,11 @@ export const InventoryTransferForm: React.FC<InventoryTransferFormProps> = ({
     { value: 'customer_return', label: 'Customer Return' },
     { value: 'other', label: 'Other' },
   ];
+
+  // Filter out selected from warehouse from to warehouse options
+  const availableToWarehouses = warehouseBins.filter(
+    bin => bin.id !== selectedFromWarehouseId
+  );
 
   return (
     <Form {...form}>
@@ -305,7 +306,7 @@ export const InventoryTransferForm: React.FC<InventoryTransferFormProps> = ({
                   <SelectContent>
                     {products.map((product) => (
                       <SelectItem key={product.id} value={product.id}>
-                        {product.sku} - {product.name}
+                        {product.name} ({product.sku})
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -328,18 +329,13 @@ export const InventoryTransferForm: React.FC<InventoryTransferFormProps> = ({
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    {fromWarehouseBins.map((bin) => (
+                    {warehouseBins.map((bin) => (
                       <SelectItem key={bin.id} value={bin.id}>
                         {bin.warehouse_name} ({bin.warehouse_code}) - {bin.bin_name} ({bin.wh_bin_code})
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
-                {selectedProductId && selectedFromWarehouseId && (
-                  <p className="text-sm text-muted-foreground">
-                    Available stock: {sourceStock} units
-                  </p>
-                )}
                 <FormMessage />
               </FormItem>
             )}
@@ -358,7 +354,7 @@ export const InventoryTransferForm: React.FC<InventoryTransferFormProps> = ({
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    {toWarehouseBins.map((bin) => (
+                    {availableToWarehouses.map((bin) => (
                       <SelectItem key={bin.id} value={bin.id}>
                         {bin.warehouse_name} ({bin.warehouse_code}) - {bin.bin_name} ({bin.wh_bin_code})
                       </SelectItem>
@@ -375,7 +371,7 @@ export const InventoryTransferForm: React.FC<InventoryTransferFormProps> = ({
             name="quantity"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Transfer Quantity *</FormLabel>
+                <FormLabel>Quantity *</FormLabel>
                 <FormControl>
                   <Input 
                     type="number" 
@@ -384,12 +380,17 @@ export const InventoryTransferForm: React.FC<InventoryTransferFormProps> = ({
                     onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
                   />
                 </FormControl>
+                {selectedProductId && selectedFromWarehouseId && (
+                  <p className="text-sm text-muted-foreground">
+                    Available stock: {sourceStock}
+                  </p>
+                )}
                 {quantity > sourceStock && sourceStock > 0 && (
                   <p className="text-sm text-destructive">
                     Quantity exceeds available stock ({sourceStock})
                   </p>
                 )}
-                {sourceStock === 0 && selectedProductId && selectedFromWarehouseId && (
+                {sourceStock === 0 && selectedFromWarehouseId && (
                   <p className="text-sm text-destructive">
                     No stock available in source warehouse/bin
                   </p>
