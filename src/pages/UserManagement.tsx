@@ -429,21 +429,20 @@ const UserManagement = () => {
                               {['OWNER','ADMIN'].includes(user.access_type) ? (
                                 <Badge>Full Access</Badge>
                               ) : Object.keys(user.access_sections || {}).length ? (
-                                <div className="flex flex-wrap gap-1">
-                                   {Object.entries(user.access_sections || {}).slice(0, 2).map(([section, permission]) => {
+                                <div className="flex flex-wrap gap-1 max-w-sm">
+                                   {Object.entries(user.access_sections || {}).map(([section, permission]) => {
                                      const sectionData = availableSections.find(s => s.key === section);
                                      const sectionLabel = sectionData?.label || section;
                                     return (
-                                      <Badge key={section} variant="outline" className="text-xs">
+                                      <Badge 
+                                        key={section} 
+                                        variant={permission === 'edit' ? 'default' : 'outline'} 
+                                        className="text-xs"
+                                      >
                                         {sectionLabel}: {permission}
                                       </Badge>
                                     );
                                   })}
-                                  {Object.keys(user.access_sections || {}).length > 2 && (
-                                    <Badge variant="outline" className="text-xs">
-                                      +{Object.keys(user.access_sections || {}).length - 2} more
-                                    </Badge>
-                                  )}
                                 </div>
                               ) : (
                                 <span className="text-muted-foreground text-sm">No access</span>
