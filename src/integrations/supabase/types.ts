@@ -2088,6 +2088,10 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: Database["public"]["Enums"]["app_role"]
       }
+      get_purchase_order_status: {
+        Args: { po_id: string }
+        Returns: string
+      }
       get_user_company_id: {
         Args: Record<PropertyKey, never>
         Returns: string

@@ -19,6 +19,7 @@ import { PurchaseOrderForm } from '@/components/forms/PurchaseOrderForm';
 import { PurchaseOrderTable } from '@/components/tables/PurchaseOrderTable';
 import { GRNForm } from '@/components/forms/GRNForm';
 import { GRNTable } from '@/components/tables/GRNTable';
+import { PurchaseOrderDetailsDialog } from '@/components/dialogs/PurchaseOrderDetailsDialog';
 import { StatsCard } from '@/components/ui/stats-card';
 
 interface Supplier {
@@ -939,9 +940,16 @@ export function PurchaseModule() {
             mode="view"
           />
         </DialogContent>
-      </Dialog>
-    </div>
-  );
-}
+        </Dialog>
+
+        {/* Purchase Order Details Dialog */}
+        <PurchaseOrderDetailsDialog
+          purchaseOrder={selectedPO}
+          open={showViewPODialog}
+          onOpenChange={setShowViewPODialog}
+        />
+      </div>
+    );
+  }
 
 export default PurchaseModule;

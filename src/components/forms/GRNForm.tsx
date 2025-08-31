@@ -25,6 +25,7 @@ const grnLineItemSchema = z.object({
   received_quantity: z.number().min(0, 'Received quantity cannot be negative'),
   accepted_quantity: z.number().min(0, 'Accepted quantity cannot be negative'),
   rejected_quantity: z.number().min(0, 'Rejected quantity cannot be negative'),
+  pending_quantity: z.number().min(0).optional(), // Add pending quantity for validation
   unit_price: z.number().min(0, 'Unit price cannot be negative'),
   discount_percentage: z.number().min(0).max(100).default(0),
   discount_amount: z.number().min(0).default(0),
@@ -44,6 +45,10 @@ const grnLineItemSchema = z.object({
   total_tax_amount: z.number().min(0).default(0),
   line_total: z.number().min(0).default(0),
 }).refine((data) => {
+  // Received quantity should not exceed pending quantity
+  if (data.pending_quantity !== undefined && data.received_quantity > data.pending_quantity) {
+    return false;
+  }
   // Received quantity should not exceed ordered quantity
   if (data.received_quantity > data.ordered_quantity) {
     return false;
@@ -54,7 +59,7 @@ const grnLineItemSchema = z.object({
   }
   return true;
 }, {
-  message: "Invalid quantities: Check received, accepted, and rejected quantities",
+  message: "Invalid quantities: Received quantity cannot exceed pending quantity, and accepted + rejected cannot exceed received quantity",
 });
 
 const grnSchema = z.object({
@@ -213,6 +218,9 @@ export function GRNForm({ grn, onSubmit, onCancel, readOnly = false, mode }: GRN
           p.name === item.item_description
         );
         
+        // Calculate pending quantity (ordered - received)
+        const pendingQty = item.quantity - (item.received_quantity || 0);
+        
         return {
           product_id: matchedProduct?.id || '',
           product_name: item.item_description,
@@ -222,6 +230,7 @@ export function GRNForm({ grn, onSubmit, onCancel, readOnly = false, mode }: GRN
           received_quantity: 0,
           accepted_quantity: 0,
           rejected_quantity: 0,
+          pending_quantity: pendingQty, // Add pending quantity for validation
           unit_price: item.unit_price,
           discount_percentage: item.discount_percentage || 0,
           discount_amount: item.discount_amount || 0,
