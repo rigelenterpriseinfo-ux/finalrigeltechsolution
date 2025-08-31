@@ -18,6 +18,7 @@ import { PurchaseInvoiceTable } from '@/components/tables/PurchaseInvoiceTable';
 import { SupplierForm } from '@/components/forms/SupplierForm';
 import { SupplierTable } from '@/components/tables/SupplierTable';
 import { PurchaseOrderForm } from '@/components/forms/PurchaseOrderForm';
+import { PurchaseOrderTable } from '@/components/tables/PurchaseOrderTable';
 
 interface Supplier {
   id: string;
@@ -36,10 +37,14 @@ interface PurchaseOrder {
   po_number: string;
   status: string;
   order_date: string;
+  expected_date?: string;
   total_amount: number;
+  currency: string;
   supplier: {
     name: string;
   };
+  created_at: string;
+  notes?: string;
 }
 
 export function PurchaseModule() {
@@ -873,54 +878,19 @@ export function PurchaseModule() {
               </div>
             </CardHeader>
             <CardContent className="p-6">
-              <div className="space-y-4">
-                {purchaseOrders.length === 0 ? (
-                  <div className="text-center py-12">
-                    <ShoppingCart className="mx-auto h-12 w-12 text-muted-foreground" />
-                    <h3 className="mt-4 text-lg font-semibold">No purchase orders found</h3>
-                    <p className="text-muted-foreground">Create your first purchase order</p>
-                  </div>
-                ) : (
-                  <div className="grid gap-4">
-                    {purchaseOrders.slice(0, 5).map((po) => (
-                      <Card key={po.id} className="border-l-4 border-l-green-500">
-                        <CardContent className="p-4">
-                           <div className="flex justify-between items-center">
-                             <div className="space-y-1">
-                               <h4 className="font-semibold">{po.po_number}</h4>
-                               <p className="text-sm text-muted-foreground">
-                                 Supplier: {po.supplier.name}
-                               </p>
-                               <p className="text-sm text-muted-foreground">
-                                 Date: {new Date(po.order_date).toLocaleDateString()}
-                               </p>
-                             </div>
-                             <div className="flex items-center gap-2">
-                               <div className="text-right">
-                                 <Badge variant="outline">{po.status}</Badge>
-                                 <p className="text-lg font-bold text-green-600 mt-1">
-                                   ₹{po.total_amount.toFixed(2)}
-                                 </p>
-                               </div>
-                               <div className="flex gap-1">
-                                 <Button variant="ghost" size="sm" onClick={() => handleViewPurchaseOrder(po)}>
-                                   View
-                                 </Button>
-                                 <Button variant="ghost" size="sm" onClick={() => handleEditPurchaseOrderClick(po)} disabled={!canEdit}>
-                                   Edit
-                                 </Button>
-                                 <Button variant="ghost" size="sm" onClick={() => handleDeletePurchaseOrder(po.id)} disabled={!canEdit}>
-                                   Delete
-                                 </Button>
-                               </div>
-                             </div>
-                           </div>
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
-                )}
-              </div>
+              <PurchaseOrderTable
+                purchaseOrders={purchaseOrders}
+                onView={(po) => {
+                  setSelectedPO(po);
+                  setShowViewPODialog(true);
+                }}
+                onEdit={(po) => {
+                  setSelectedPO(po);
+                  setShowEditPODialog(true);
+                }}
+                onDelete={handleDeletePurchaseOrder}
+                loading={loading}
+              />
             </CardContent>
           </Card>
         </TabsContent>
