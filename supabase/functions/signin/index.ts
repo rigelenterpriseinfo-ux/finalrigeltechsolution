@@ -105,9 +105,8 @@ serve(async (req) => {
           gstn,
           status
         )
-      `)
-      .or(`username.ilike.${normalizedUsername},email.ilike.${normalizedUsername}`)
-      .eq("status", "ACTIVE");
+       `)
+      .or(`username.ilike.${normalizedUsername},email.ilike.${normalizedUsername}`);
 
     if (businessRefNo) {
       // @ts-ignore - postgrest filter on related table
@@ -121,6 +120,15 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({ error: "Invalid credentials" }),
         { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Check if user account is active (using status field)
+    if (userData.status !== 'ACTIVE') {
+      console.log(`User account blocked - User: ${userData.email}, Status: ${userData.status}`);
+      return new Response(
+        JSON.stringify({ error: "User account is blocked. Please contact your administrator." }),
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 

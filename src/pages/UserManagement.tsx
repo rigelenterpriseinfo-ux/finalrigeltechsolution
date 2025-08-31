@@ -106,7 +106,8 @@ const UserManagement = () => {
         user_ref: user.username, // Use username as user_ref for display
         name: user.full_name || user.username, // Use full_name if available
         access_type: user.access_type || 'USER',
-        access_sections: permissionsMap[user.email] || {}
+        access_sections: permissionsMap[user.email] || {},
+        is_active: user.status === 'ACTIVE' // Map status to is_active boolean
       } as BusinessUser)));
     } catch (error: any) {
       toast({
@@ -212,7 +213,7 @@ const UserManagement = () => {
           username: formData.email,
           email: formData.email,
           full_name: formData.name,
-          status: 'ACTIVE'
+          status: formData.is_active ? 'ACTIVE' : 'INACTIVE' // Map is_active to status
         };
 
         // Hash password for existing users if password is being updated
@@ -449,7 +450,10 @@ const UserManagement = () => {
                               )}
                             </TableCell>
                             <TableCell>
-                              <Badge variant={user.is_active ? 'default' : 'secondary'}>
+                              <Badge 
+                                variant={user.is_active ? 'default' : 'destructive'}
+                                className={user.is_active ? 'bg-green-500 hover:bg-green-600' : 'bg-red-500 hover:bg-red-600'}
+                              >
                                 {user.is_active ? 'Active' : 'Inactive'}
                               </Badge>
                             </TableCell>
