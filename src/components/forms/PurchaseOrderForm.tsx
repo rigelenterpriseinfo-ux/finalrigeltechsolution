@@ -37,6 +37,7 @@ const purchaseOrderItemSchema = z.object({
 });
 
 const purchaseOrderSchema = z.object({
+  po_number: z.string().optional(),
   supplier_id: z.string().min(1, 'Supplier is required'),
   order_date: z.string().min(1, 'Order date is required'),
   currency: z.string().min(1, 'Currency is required'),
@@ -51,7 +52,7 @@ type PurchaseOrderFormData = z.infer<typeof purchaseOrderSchema>;
 
 interface PurchaseOrderFormProps {
   purchaseOrder?: any;
-  onSubmit: (data: any) => Promise<void>;
+  onSubmit: (data: any) => Promise<any>;
   onCancel: () => void;
   readOnly?: boolean;
   mode?: 'create' | 'edit' | 'view';
@@ -73,6 +74,7 @@ export function PurchaseOrderForm({
   const form = useForm<PurchaseOrderFormData>({
     resolver: zodResolver(purchaseOrderSchema),
     defaultValues: {
+      po_number: purchaseOrder?.po_number || '',
       supplier_id: purchaseOrder?.supplier_id || '',
       order_date: purchaseOrder?.order_date || new Date().toISOString().split('T')[0],
       currency: purchaseOrder?.currency || 'INR',
@@ -233,7 +235,10 @@ export function PurchaseOrderForm({
         }))
       };
 
-      await onSubmit(purchaseOrderData);
+      const result = await onSubmit(purchaseOrderData);
+      if (result?.po_number) {
+        form.setValue('po_number', result.po_number);
+      }
     } catch (error) {
       console.error('Error submitting purchase order:', error);
       toast({
@@ -284,6 +289,20 @@ export function PurchaseOrderForm({
               <CardTitle>Purchase Order Information</CardTitle>
             </CardHeader>
             <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <FormField
+                control={form.control}
+                name="po_number"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>PO Number</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Will be generated on save" {...field} disabled readOnly />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
               <FormField
                 control={form.control}
                 name="supplier_id"

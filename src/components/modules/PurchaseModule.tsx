@@ -43,7 +43,7 @@ interface PurchaseOrder {
 }
 
 export function PurchaseModule() {
-  const { profile } = useAuth();
+  const { user, profile } = useAuth();
   const { hasEditAccess } = useBusinessAuth();
   const { toast } = useToast();
   const canEdit = hasEditAccess('purchases');
@@ -298,7 +298,7 @@ export function PurchaseModule() {
         const itemsToInsert = poData.items.map((item: any) => ({
           purchase_order_id: po.id,
           product_id: item.product_id,
-          item_description: item.product_name,
+          item_description: item.product_name || '',
           item_code: item.item_code,
           hsn_sac_code: item.hsn_sac_code,
           quantity: item.quantity,
@@ -306,14 +306,14 @@ export function PurchaseModule() {
           unit_price: item.unit_price,
           discount_percentage: item.discount_percentage || 0,
           discount_amount: item.discount_amount || 0,
-          taxable_value: item.line_subtotal - (item.discount_amount || 0),
+          taxable_value: (item.line_subtotal || 0) - (item.discount_amount || 0),
           cgst_rate: item.cgst_rate || 0,
           sgst_rate: item.sgst_rate || 0,
           igst_rate: item.igst_rate || 0,
           cgst_amount: item.cgst_amount || 0,
           sgst_amount: item.sgst_amount || 0,
           igst_amount: item.igst_amount || 0,
-          total_price: item.line_total,
+          total_price: item.line_total || 0,
           received_quantity: 0,
           pending_quantity: item.quantity,
           remarks: item.remarks,
@@ -328,11 +328,12 @@ export function PurchaseModule() {
 
       toast({
         title: "Success",
-        description: "Purchase order created successfully",
+        description: `Purchase order created successfully (PO: ${po.po_number})`,
       });
 
       setShowAddPODialog(false);
       fetchPurchaseOrders();
+      return po;
     } catch (error) {
       console.error('Error creating purchase order:', error);
       toast({
@@ -381,7 +382,7 @@ export function PurchaseModule() {
         const itemsToInsert = poData.items.map((item: any) => ({
           purchase_order_id: selectedPO.id,
           product_id: item.product_id,
-          item_description: item.product_name,
+          item_description: item.product_name || '',
           item_code: item.item_code,
           hsn_sac_code: item.hsn_sac_code,
           quantity: item.quantity,
@@ -389,14 +390,14 @@ export function PurchaseModule() {
           unit_price: item.unit_price,
           discount_percentage: item.discount_percentage || 0,
           discount_amount: item.discount_amount || 0,
-          taxable_value: item.line_subtotal - (item.discount_amount || 0),
+          taxable_value: (item.line_subtotal || 0) - (item.discount_amount || 0),
           cgst_rate: item.cgst_rate || 0,
           sgst_rate: item.sgst_rate || 0,
           igst_rate: item.igst_rate || 0,
           cgst_amount: item.cgst_amount || 0,
           sgst_amount: item.sgst_amount || 0,
           igst_amount: item.igst_amount || 0,
-          total_price: item.line_total,
+          total_price: item.line_total || 0,
           received_quantity: item.received_quantity || 0,
           pending_quantity: item.quantity - (item.received_quantity || 0),
           remarks: item.remarks,
