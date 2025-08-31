@@ -199,15 +199,23 @@ export function GRNTable({ refreshTrigger, onView, onEdit, onDelete }: GRNTableP
       // Add line items with GST details
       let subtotal = 0;
       let totalTax = 0;
+      let cgstTotal = 0;
+      let sgstTotal = 0;
+      let igstTotal = 0;
       
       grnDetail.grn_line_items?.forEach((item: any) => {
-        const lineSubtotal = item.accepted_quantity * item.unit_price;
-        const lineTaxRate = item.tax_rate || 0;
-        const lineTax = (lineSubtotal * lineTaxRate) / 100;
-        const lineTotal = lineSubtotal + lineTax;
+        const accQty = item.accepted_quantity || 0;
+        const unitPrice = item.unit_price || 0;
+        const lineSubtotal = accQty * unitPrice;
+        const lineTaxRate = (item.cgst_rate || 0) + (item.sgst_rate || 0) + (item.igst_rate || 0);
+        const lineTax = item.total_tax_amount ?? (lineSubtotal * lineTaxRate) / 100;
+        const lineTotal = item.line_total ?? (lineSubtotal + lineTax);
         
         subtotal += lineSubtotal;
         totalTax += lineTax;
+        cgstTotal += (item.cgst_amount || 0);
+        sgstTotal += (item.sgst_amount || 0);
+        igstTotal += (item.igst_amount || 0);
         
         headerData.push([
           item.product_name,
@@ -215,13 +223,13 @@ export function GRNTable({ refreshTrigger, onView, onEdit, onDelete }: GRNTableP
           item.unit_of_measure,
           item.ordered_quantity,
           item.received_quantity,
-          item.accepted_quantity,
+          accQty,
           item.rejected_quantity,
-          `₹${item.unit_price.toFixed(2)}`,
+          `₹${unitPrice.toFixed(2)}`,
           `₹${lineSubtotal.toFixed(2)}`,
           `${lineTaxRate}%`,
-          `₹${lineTax.toFixed(2)}`,
-          `₹${lineTotal.toFixed(2)}`
+          `₹${Number(lineTax).toFixed(2)}`,
+          `₹${Number(lineTotal).toFixed(2)}`
         ]);
       });
 
@@ -240,6 +248,9 @@ export function GRNTable({ refreshTrigger, onView, onEdit, onDelete }: GRNTableP
         [''],
         ['FINANCIAL SUMMARY:'],
         ['Taxable Amount:', `₹${subtotal.toFixed(2)}`],
+        ['CGST Amount:', `₹${cgstTotal.toFixed(2)}`],
+        ['SGST Amount:', `₹${sgstTotal.toFixed(2)}`],
+        ['IGST Amount:', `₹${igstTotal.toFixed(2)}`],
         ['Total Tax Amount:', `₹${totalTax.toFixed(2)}`],
         ['Total Amount (Including Tax):', `₹${(subtotal + totalTax).toFixed(2)}`]
       );
@@ -343,6 +354,9 @@ export function GRNTable({ refreshTrigger, onView, onEdit, onDelete }: GRNTableP
       pdf.setFont('helvetica', 'normal');
       let subtotal = 0;
       let totalTax = 0;
+      let cgstTotal = 0;
+      let sgstTotal = 0;
+      let igstTotal = 0;
       
       grnDetail.grn_line_items?.forEach((item: any) => {
         if (yPosition > 250) {
@@ -350,13 +364,15 @@ export function GRNTable({ refreshTrigger, onView, onEdit, onDelete }: GRNTableP
           yPosition = 20;
         }
 
-        const lineSubtotal = item.accepted_quantity * item.unit_price;
-        const lineTaxRate = item.tax_rate || 0;
-        const lineTax = (lineSubtotal * lineTaxRate) / 100;
-        const lineTotal = lineSubtotal + lineTax;
+        const accQty = item.accepted_quantity || 0;
+        const unitPrice = item.unit_price || 0;
+        const lineSubtotal = accQty * unitPrice;
+        const lineTaxRate = (item.cgst_rate || 0) + (item.sgst_rate || 0) + (item.igst_rate || 0);
+        const lineTax = item.total_tax_amount ?? (lineSubtotal * lineTaxRate) / 100;
+        const lineTotal = item.line_total ?? (lineSubtotal + lineTax);
         
         subtotal += lineSubtotal;
-        totalTax += lineTax;
+        totalTax += Number(lineTax);
 
         xPos = 20;
         const rowData = [
@@ -396,6 +412,12 @@ export function GRNTable({ refreshTrigger, onView, onEdit, onDelete }: GRNTableP
       
       pdf.setFont('helvetica', 'normal');
       pdf.text(`Taxable Amount: ₹${subtotal.toFixed(2)}`, 20, yPosition);
+      yPosition += 7;
+      pdf.text(`CGST Amount: ₹${cgstTotal.toFixed(2)}`, 20, yPosition);
+      yPosition += 7;
+      pdf.text(`SGST Amount: ₹${sgstTotal.toFixed(2)}`, 20, yPosition);
+      yPosition += 7;
+      pdf.text(`IGST Amount: ₹${igstTotal.toFixed(2)}`, 20, yPosition);
       yPosition += 7;
       pdf.text(`Total Tax Amount: ₹${totalTax.toFixed(2)}`, 20, yPosition);
       yPosition += 10;

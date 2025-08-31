@@ -953,6 +953,10 @@ export function PurchaseModule() {
                     </Button>
                   </DialogTrigger>
                   <DialogContent className="max-w-7xl max-h-[95vh] overflow-y-auto">
+                    <DialogHeader>
+                      <DialogTitle>Create GRN</DialogTitle>
+                      <DialogDescription>Record goods received against a purchase order</DialogDescription>
+                    </DialogHeader>
                     <GRNForm
                        onSubmit={async (data) => {
                          try {
@@ -1247,32 +1251,112 @@ export function PurchaseModule() {
       {/* Edit GRN Dialog */}
       <Dialog open={showEditGRNDialog} onOpenChange={setShowEditGRNDialog}>
         <DialogContent className="max-w-7xl max-h-[95vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Edit GRN</DialogTitle>
+            <DialogDescription>Update received quantities and details</DialogDescription>
+          </DialogHeader>
           <GRNForm
             grn={selectedGRN}
             onSubmit={async (grnData) => {
               try {
-                const { error } = await supabase
+                // 1) Recalculate totals from line items
+                const totals = (grnData.items || []).reduce(
+                  (acc: any, item: any) => ({
+                    totalOrderedQty: acc.totalOrderedQty + (item.ordered_quantity || 0),
+                    totalReceivedQty: acc.totalReceivedQty + (item.received_quantity || 0),
+                    totalAcceptedQty: acc.totalAcceptedQty + (item.accepted_quantity || 0),
+                    totalRejectedQty: acc.totalRejectedQty + (item.rejected_quantity || 0),
+                    subtotalAmount: acc.subtotalAmount + ((item.accepted_quantity || 0) * (item.unit_price || 0)),
+                    totalDiscountAmount: acc.totalDiscountAmount + (item.discount_amount || 0),
+                    totalTaxAmount: acc.totalTaxAmount + (item.total_tax_amount || 0),
+                    totalAmount: acc.totalAmount + (item.line_total || 0),
+                  }),
+                  {
+                    totalOrderedQty: 0,
+                    totalReceivedQty: 0,
+                    totalAcceptedQty: 0,
+                    totalRejectedQty: 0,
+                    subtotalAmount: 0,
+                    totalDiscountAmount: 0,
+                    totalTaxAmount: 0,
+                    totalAmount: 0,
+                  }
+                );
+
+                // 2) Update GRN header (exclude items array)
+                const { error: headerError } = await supabase
                   .from('grn_header')
-                  .update(grnData)
+                  .update({
+                    purchase_order_id: grnData.purchase_order_id,
+                    supplier_id: grnData.supplier_id,
+                    supplier_name: grnData.supplier_name,
+                    grn_date: grnData.grn_date,
+                    supplier_invoice_number: grnData.supplier_invoice_number,
+                    supplier_invoice_date: grnData.supplier_invoice_date,
+                    remarks: grnData.remarks,
+                    status: grnData.status,
+                    total_ordered_quantity: totals.totalOrderedQty,
+                    total_received_quantity: totals.totalReceivedQty,
+                    total_accepted_quantity: totals.totalAcceptedQty,
+                    total_rejected_quantity: totals.totalRejectedQty,
+                    subtotal_amount: totals.subtotalAmount,
+                    total_discount_amount: totals.totalDiscountAmount,
+                    total_tax_amount: totals.totalTaxAmount,
+                    total_amount: totals.totalAmount,
+                  } as any)
                   .eq('id', selectedGRN.id);
+
+                if (headerError) throw headerError;
+
+                // 3) Replace line items
+                if (Array.isArray(grnData.items)) {
+                  const { error: delErr } = await supabase
+                    .from('grn_line_items')
+                    .delete()
+                    .eq('grn_header_id', selectedGRN.id);
+                  if (delErr) throw delErr;
+
+                  const itemsToInsert = grnData.items.map((item: any) => ({
+                    grn_header_id: selectedGRN.id,
+                    product_id: item.product_id,
+                    product_name: item.product_name,
+                    product_sku: item.product_sku,
+                    unit_of_measure: item.unit_of_measure,
+                    ordered_quantity: item.ordered_quantity,
+                    received_quantity: item.received_quantity,
+                    accepted_quantity: item.accepted_quantity,
+                    rejected_quantity: item.rejected_quantity,
+                    unit_price: item.unit_price,
+                    discount_percentage: item.discount_percentage || 0,
+                    discount_amount: item.discount_amount || 0,
+                    warehouse_id: item.warehouse_id,
+                    bin_id: item.bin_id,
+                    hsn_sac_code: item.hsn_sac_code,
+                    cgst_rate: item.cgst_rate || 0,
+                    cgst_amount: item.cgst_amount || 0,
+                    sgst_rate: item.sgst_rate || 0,
+                    sgst_amount: item.sgst_amount || 0,
+                    igst_rate: item.igst_rate || 0,
+                    igst_amount: item.igst_amount || 0,
+                    total_tax_amount: item.total_tax_amount || 0,
+                    line_total: item.line_total || 0,
+                  }));
+
+                  if (itemsToInsert.length > 0) {
+                    const { error: insErr } = await supabase
+                      .from('grn_line_items')
+                      .insert(itemsToInsert);
+                    if (insErr) throw insErr;
+                  }
+                }
                 
-                if (error) throw error;
-                
-                toast({
-                  title: "Success", 
-                  description: "GRN updated successfully"
-                });
-                
+                toast({ title: 'Success', description: 'GRN updated successfully' });
                 setShowEditGRNDialog(false);
                 setSelectedGRN(null);
                 setRefreshGRNTrigger(prev => prev + 1);
               } catch (error) {
                 console.error('Error updating GRN:', error);
-                toast({
-                  title: "Error",
-                  description: "Failed to update GRN",
-                  variant: "destructive",
-                });
+                toast({ title: 'Error', description: 'Failed to update GRN', variant: 'destructive' });
               }
             }}
             onCancel={() => {
@@ -1287,6 +1371,10 @@ export function PurchaseModule() {
       {/* View GRN Dialog */}
       <Dialog open={showViewGRNDialog} onOpenChange={setShowViewGRNDialog}>
         <DialogContent className="max-w-7xl max-h-[95vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>GRN Details</DialogTitle>
+            <DialogDescription>Review received goods information</DialogDescription>
+          </DialogHeader>
           <GRNForm
             grn={selectedGRN}
             onSubmit={() => Promise.resolve()}
