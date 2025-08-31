@@ -160,7 +160,7 @@ export function GRNForm({ grn, onSubmit, onCancel, readOnly = false, mode }: GRN
           purchase_order_items(*)
         `)
         .eq('company_id', profile?.company_id)
-        .in('status', ['approved', 'open', 'confirmed', 'partially_received'])
+        .in('status', ['open', 'partially_received'])
         .order('created_at', { ascending: false });
 
       if (error) throw error;

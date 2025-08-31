@@ -163,7 +163,7 @@ export function PurchaseModule() {
         .from('purchase_orders')
         .select('total_amount')
         .eq('company_id', profile.company_id)
-        .in('status', ['draft', 'sent', 'partially_received']);
+        .in('status', ['draft', 'open', 'partially_received']);
 
       if (openPOError) throw openPOError;
 
@@ -313,12 +313,21 @@ export function PurchaseModule() {
       // Separate items from purchase order data
       const { items, ...purchaseOrderData } = poData;
       
+      // Generate PO number if not provided
+      if (!purchaseOrderData.po_number) {
+        const { data: poNumber, error: poNumberError } = await supabase
+          .rpc('generate_po_number', { comp_id: profile?.company_id });
+        
+        if (poNumberError) throw poNumberError;
+        purchaseOrderData.po_number = poNumber;
+      }
+
       const { data: po, error: poError } = await supabase
         .from('purchase_orders')
         .insert({
           ...purchaseOrderData,
           company_id: profile?.company_id,
-          created_by: user?.id,
+          created_by: profile?.id,
         })
         .select()
         .single();
@@ -637,7 +646,7 @@ export function PurchaseModule() {
                                 total_discount_amount: totals.totalDiscountAmount,
                                 total_tax_amount: totals.totalTaxAmount,
                                 total_amount: totals.totalAmount,
-                                created_by: profile?.user_id,
+                                created_by: profile?.id,
                               } as any)
                               .select()
                               .single();

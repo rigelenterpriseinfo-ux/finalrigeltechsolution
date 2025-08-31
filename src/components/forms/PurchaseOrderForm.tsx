@@ -424,13 +424,11 @@ export function PurchaseOrderForm({
                           <SelectValue />
                         </SelectTrigger>
                       </FormControl>
-                      <SelectContent>
-                        <SelectItem value="draft">Draft</SelectItem>
-                        <SelectItem value="open">Open</SelectItem>
-                        <SelectItem value="partially_received">Partially Received</SelectItem>
-                        <SelectItem value="closed">Closed</SelectItem>
-                        <SelectItem value="cancelled">Cancelled</SelectItem>
-                      </SelectContent>
+                       <SelectContent>
+                         <SelectItem value="draft">Draft</SelectItem>
+                         <SelectItem value="open">Open</SelectItem>
+                         <SelectItem value="cancelled">Cancelled</SelectItem>
+                       </SelectContent>
                     </Select>
                     <FormMessage />
                   </FormItem>
