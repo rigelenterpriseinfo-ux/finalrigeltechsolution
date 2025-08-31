@@ -19,6 +19,8 @@ import { SupplierForm } from '@/components/forms/SupplierForm';
 import { SupplierTable } from '@/components/tables/SupplierTable';
 import { PurchaseOrderForm } from '@/components/forms/PurchaseOrderForm';
 import { PurchaseOrderTable } from '@/components/tables/PurchaseOrderTable';
+import { GRNForm } from '@/components/forms/GRNForm';
+import { GRNTable } from '@/components/tables/GRNTable';
 
 interface Supplier {
   id: string;
@@ -57,6 +59,7 @@ export function PurchaseModule() {
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>([]);
   const [purchaseInvoices, setPurchaseInvoices] = useState<any[]>([]);
+  const [grns, setGRNs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   
   // Dialog states
@@ -72,6 +75,11 @@ export function PurchaseModule() {
   const [showEditPIDialog, setShowEditPIDialog] = useState(false);
   const [showViewPIDialog, setShowViewPIDialog] = useState(false);
   const [selectedPI, setSelectedPI] = useState<any>(null);
+  const [showAddGRNDialog, setShowAddGRNDialog] = useState(false);
+  const [showEditGRNDialog, setShowEditGRNDialog] = useState(false);
+  const [showViewGRNDialog, setShowViewGRNDialog] = useState(false);
+  const [selectedGRN, setSelectedGRN] = useState<any>(null);
+  const [refreshGRNTrigger, setRefreshGRNTrigger] = useState(0);
 
   // Fetch data
   useEffect(() => {
@@ -79,6 +87,7 @@ export function PurchaseModule() {
       fetchSuppliers();
       fetchPurchaseOrders();
       fetchPurchaseInvoicesData();
+      fetchGRNs();
     }
   }, [profile?.company_id]);
 
@@ -140,6 +149,24 @@ export function PurchaseModule() {
       console.error('Error fetching purchase invoices:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchGRNs = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('grn_header')
+        .select(`
+          *,
+          grn_line_items(*)
+        `)
+        .eq('company_id', profile?.company_id)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setGRNs(data || []);
+    } catch (error) {
+      console.error('Error fetching GRNs:', error);
     }
   };
 
@@ -765,9 +792,9 @@ export function PurchaseModule() {
         </div>
       </div>
 
-      {/* Three Main Sections */}
+        {/* Four Main Sections */}
       <Tabs defaultValue="suppliers" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="suppliers" className="flex items-center gap-2">
             <Building2 className="h-4 w-4" />
             Supplier Management
@@ -775,6 +802,10 @@ export function PurchaseModule() {
           <TabsTrigger value="orders" className="flex items-center gap-2">
             <ShoppingCart className="h-4 w-4" />
             Purchase Orders
+          </TabsTrigger>
+          <TabsTrigger value="grn" className="flex items-center gap-2">
+            <Package className="h-4 w-4" />
+            Purchase Receipt (GRN)
           </TabsTrigger>
           <TabsTrigger value="invoices" className="flex items-center gap-2">
             <FileText className="h-4 w-4" />
@@ -905,7 +936,123 @@ export function PurchaseModule() {
           </Card>
         </TabsContent>
 
-        {/* Section 3: Purchase Invoices */}
+        {/* Section 3: GRN Management */}
+        <TabsContent value="grn" className="space-y-6">
+          <Card>
+            <CardHeader className="border-b bg-gradient-to-r from-orange-50 to-orange-100">
+              <div className="flex justify-between items-center">
+                <div>
+                  <CardTitle className="text-xl text-orange-800">Purchase Receipt (GRN)</CardTitle>
+                  <CardDescription>Create and manage Goods Receipt Notes</CardDescription>
+                </div>
+                <Dialog open={showAddGRNDialog} onOpenChange={setShowAddGRNDialog}>
+                  <DialogTrigger asChild>
+                    <Button className="bg-orange-600 hover:bg-orange-700" disabled={!canEdit}>
+                      <Plus className="h-4 w-4 mr-2" />
+                      Create GRN
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="max-w-7xl max-h-[95vh] overflow-y-auto">
+                    <GRNForm
+                      onSubmit={async (data) => {
+                        try {
+                          const { data: grn, error } = await supabase
+                            .from('grn_header')
+                            .insert({
+                              company_id: profile?.company_id,
+                              purchase_order_id: data.purchase_order_id,
+                              supplier_id: data.supplier_id,
+                              supplier_name: data.supplier_name,
+                              grn_date: data.grn_date,
+                              supplier_invoice_number: data.supplier_invoice_number,
+                              supplier_invoice_date: data.supplier_invoice_date,
+                              remarks: data.remarks,
+                              status: data.status,
+                              created_by: profile?.user_id,
+                              grn_number: '', // Auto-generated by trigger
+                            })
+                            .select()
+                            .single();
+
+                          if (error) throw error;
+
+                          if (data.items?.length > 0) {
+                            const itemsToInsert = data.items.map((item) => ({
+                              grn_header_id: grn.id,
+                              product_id: item.product_id,
+                              product_name: item.product_name,
+                              product_sku: item.product_sku,
+                              unit_of_measure: item.unit_of_measure,
+                              ordered_quantity: item.ordered_quantity,
+                              received_quantity: item.received_quantity,
+                              accepted_quantity: item.accepted_quantity,
+                              rejected_quantity: item.rejected_quantity,
+                              unit_price: item.unit_price,
+                              discount_percentage: item.discount_percentage,
+                              discount_amount: item.discount_amount,
+                              warehouse_id: item.warehouse_id,
+                              bin_id: item.bin_id,
+                              hsn_sac_code: item.hsn_sac_code,
+                              cgst_rate: item.cgst_rate,
+                              cgst_amount: item.cgst_amount,
+                              sgst_rate: item.sgst_rate,
+                              sgst_amount: item.sgst_amount,
+                              igst_rate: item.igst_rate,
+                              igst_amount: item.igst_amount,
+                              total_tax_amount: item.total_tax_amount,
+                              line_total: item.line_total,
+                            }));
+                            
+                            const { error: itemsError } = await supabase
+                              .from('grn_line_items')
+                              .insert(itemsToInsert);
+                            if (itemsError) throw itemsError;
+                          }
+
+                          toast({ title: "Success", description: "GRN created successfully" });
+                          setShowAddGRNDialog(false);
+                          setRefreshGRNTrigger(prev => prev + 1);
+                        } catch (error) {
+                          console.error('Error creating GRN:', error);
+                          toast({ title: "Error", description: "Failed to create GRN", variant: "destructive" });
+                        }
+                      }}
+                      onCancel={() => setShowAddGRNDialog(false)}
+                      mode="create"
+                    />
+                  </DialogContent>
+                </Dialog>
+              </div>
+            </CardHeader>
+            <CardContent className="p-6">
+              <GRNTable
+                refreshTrigger={refreshGRNTrigger}
+                onView={(grn) => {
+                  setSelectedGRN(grn);
+                  setShowViewGRNDialog(true);
+                }}
+                onEdit={(grn) => {
+                  setSelectedGRN(grn);
+                  setShowEditGRNDialog(true);
+                }}
+                onDelete={async (grnId) => {
+                  if (!confirm('Are you sure you want to delete this GRN?')) return;
+                  try {
+                    const { error } = await supabase.from('grn_header').delete().eq('id', grnId);
+                    if (error) throw error;
+                    toast({ title: "Success", description: "GRN deleted successfully" });
+                    setRefreshGRNTrigger(prev => prev + 1);
+                  } catch (error) {
+                    console.error('Error deleting GRN:', error);
+                    toast({ title: "Error", description: "Failed to delete GRN", variant: "destructive" });
+                  }
+                }}
+              />
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Section 4: Purchase Invoices */}
         <TabsContent value="invoices" className="space-y-6">
           <Card>
             <CardHeader className="border-b bg-gradient-to-r from-purple-50 to-purple-100">

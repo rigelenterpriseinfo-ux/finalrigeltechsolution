@@ -390,6 +390,173 @@ export type Database = {
         }
         Relationships: []
       }
+      grn_header: {
+        Row: {
+          company_id: string
+          created_at: string
+          created_by: string
+          grn_date: string
+          grn_number: string
+          id: string
+          purchase_order_id: string
+          remarks: string | null
+          status: string
+          subtotal_amount: number
+          supplier_id: string
+          supplier_invoice_date: string | null
+          supplier_invoice_number: string | null
+          supplier_name: string
+          total_accepted_quantity: number
+          total_amount: number
+          total_discount_amount: number
+          total_ordered_quantity: number
+          total_received_quantity: number
+          total_rejected_quantity: number
+          total_tax_amount: number
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          created_by: string
+          grn_date?: string
+          grn_number: string
+          id?: string
+          purchase_order_id: string
+          remarks?: string | null
+          status?: string
+          subtotal_amount?: number
+          supplier_id: string
+          supplier_invoice_date?: string | null
+          supplier_invoice_number?: string | null
+          supplier_name: string
+          total_accepted_quantity?: number
+          total_amount?: number
+          total_discount_amount?: number
+          total_ordered_quantity?: number
+          total_received_quantity?: number
+          total_rejected_quantity?: number
+          total_tax_amount?: number
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          created_by?: string
+          grn_date?: string
+          grn_number?: string
+          id?: string
+          purchase_order_id?: string
+          remarks?: string | null
+          status?: string
+          subtotal_amount?: number
+          supplier_id?: string
+          supplier_invoice_date?: string | null
+          supplier_invoice_number?: string | null
+          supplier_name?: string
+          total_accepted_quantity?: number
+          total_amount?: number
+          total_discount_amount?: number
+          total_ordered_quantity?: number
+          total_received_quantity?: number
+          total_rejected_quantity?: number
+          total_tax_amount?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      grn_line_items: {
+        Row: {
+          accepted_quantity: number
+          bin_id: string | null
+          cgst_amount: number | null
+          cgst_rate: number | null
+          created_at: string
+          discount_amount: number | null
+          discount_percentage: number | null
+          grn_header_id: string
+          hsn_sac_code: string | null
+          id: string
+          igst_amount: number | null
+          igst_rate: number | null
+          line_total: number
+          ordered_quantity: number
+          product_id: string
+          product_name: string
+          product_sku: string
+          received_quantity: number
+          rejected_quantity: number
+          sgst_amount: number | null
+          sgst_rate: number | null
+          total_tax_amount: number | null
+          unit_of_measure: string
+          unit_price: number
+          warehouse_id: string | null
+        }
+        Insert: {
+          accepted_quantity?: number
+          bin_id?: string | null
+          cgst_amount?: number | null
+          cgst_rate?: number | null
+          created_at?: string
+          discount_amount?: number | null
+          discount_percentage?: number | null
+          grn_header_id: string
+          hsn_sac_code?: string | null
+          id?: string
+          igst_amount?: number | null
+          igst_rate?: number | null
+          line_total?: number
+          ordered_quantity: number
+          product_id: string
+          product_name: string
+          product_sku: string
+          received_quantity?: number
+          rejected_quantity?: number
+          sgst_amount?: number | null
+          sgst_rate?: number | null
+          total_tax_amount?: number | null
+          unit_of_measure?: string
+          unit_price?: number
+          warehouse_id?: string | null
+        }
+        Update: {
+          accepted_quantity?: number
+          bin_id?: string | null
+          cgst_amount?: number | null
+          cgst_rate?: number | null
+          created_at?: string
+          discount_amount?: number | null
+          discount_percentage?: number | null
+          grn_header_id?: string
+          hsn_sac_code?: string | null
+          id?: string
+          igst_amount?: number | null
+          igst_rate?: number | null
+          line_total?: number
+          ordered_quantity?: number
+          product_id?: string
+          product_name?: string
+          product_sku?: string
+          received_quantity?: number
+          rejected_quantity?: number
+          sgst_amount?: number | null
+          sgst_rate?: number | null
+          total_tax_amount?: number | null
+          unit_of_measure?: string
+          unit_price?: number
+          warehouse_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "grn_line_items_grn_header_id_fkey"
+            columns: ["grn_header_id"]
+            isOneToOne: false
+            referencedRelation: "grn_header"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       inventory_adjustments: {
         Row: {
           adjustment_amount: number | null
@@ -2036,6 +2203,10 @@ export type Database = {
       }
       generate_gated_business_ref_no: {
         Args: Record<PropertyKey, never>
+        Returns: string
+      }
+      generate_grn_number: {
+        Args: { comp_id: string }
         Returns: string
       }
       generate_performa_invoice_number: {
