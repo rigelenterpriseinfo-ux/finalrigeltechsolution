@@ -310,10 +310,13 @@ export function PurchaseModule() {
   // Purchase Order handlers
   const handleAddPurchaseOrder = async (poData: any) => {
     try {
+      // Separate items from purchase order data
+      const { items, ...purchaseOrderData } = poData;
+      
       const { data: po, error: poError } = await supabase
         .from('purchase_orders')
         .insert({
-          ...poData,
+          ...purchaseOrderData,
           company_id: profile?.company_id,
           created_by: profile?.user_id,
         })
@@ -322,11 +325,11 @@ export function PurchaseModule() {
 
       if (poError) throw poError;
 
-      if (poData.items && poData.items.length > 0) {
+      if (items && items.length > 0) {
         const { error: itemsError } = await supabase
           .from('purchase_order_items')
           .insert(
-            poData.items.map((item: any) => ({
+            items.map((item: any) => ({
               ...item,
               purchase_order_id: po.id,
             }))
@@ -356,14 +359,17 @@ export function PurchaseModule() {
     if (!selectedPO) return;
 
     try {
+      // Separate items from purchase order data
+      const { items, ...purchaseOrderData } = poData;
+      
       const { error: poError } = await supabase
         .from('purchase_orders')
-        .update(poData)
+        .update(purchaseOrderData)
         .eq('id', selectedPO.id);
 
       if (poError) throw poError;
 
-      if (poData.items && poData.items.length > 0) {
+      if (items && items.length > 0) {
         // Delete existing items
         const { error: deleteError } = await supabase
           .from('purchase_order_items')
@@ -376,7 +382,7 @@ export function PurchaseModule() {
         const { error: itemsError } = await supabase
           .from('purchase_order_items')
           .insert(
-            poData.items.map((item: any) => ({
+            items.map((item: any) => ({
               ...item,
               purchase_order_id: selectedPO.id,
             }))
