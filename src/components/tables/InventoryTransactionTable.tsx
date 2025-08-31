@@ -58,9 +58,10 @@ export const InventoryTransactionTable = ({ refreshTrigger }: InventoryTransacti
         .from('inventory_transactions')
         .select(`
           *,
-          products!inner(name, sku),
-          warehouse_bins!inner(warehouse_name, bin_name),
-          profiles!inner(first_name, last_name)
+          products!fk_inventory_transactions_product_id(name, sku),
+          warehouse_bins!fk_inventory_transactions_warehouse_id(warehouse_name, bin_name),
+          bin_info:warehouse_bins!fk_inventory_transactions_bin_id(warehouse_name, bin_name),
+          profiles!fk_inventory_transactions_created_by(first_name, last_name)
         `)
         .eq('company_id', company.id)
         .order('transaction_date', { ascending: false })
@@ -73,15 +74,15 @@ export const InventoryTransactionTable = ({ refreshTrigger }: InventoryTransacti
         transaction_date: transaction.transaction_date,
         transaction_type: transaction.transaction_type,
         reference_number: transaction.reference_number || 'N/A',
-        product_name: transaction.products.name,
-        product_sku: transaction.products.sku,
-        warehouse_name: transaction.warehouse_bins.warehouse_name || 'N/A',
-        bin_name: transaction.warehouse_bins.bin_name,
+        product_name: transaction.products?.name || 'Unknown Product',
+        product_sku: transaction.products?.sku || 'N/A',
+        warehouse_name: transaction.warehouse_bins?.warehouse_name || transaction.bin_info?.warehouse_name || 'N/A',
+        bin_name: transaction.warehouse_bins?.bin_name || transaction.bin_info?.bin_name || 'N/A',
         quantity_change: transaction.quantity_change,
         unit_cost: transaction.unit_cost,
         total_value: transaction.total_value,
         notes: transaction.notes || '',
-        created_by_name: `${transaction.profiles.first_name || ''} ${transaction.profiles.last_name || ''}`.trim() || 'Unknown'
+        created_by_name: `${transaction.profiles?.first_name || ''} ${transaction.profiles?.last_name || ''}`.trim() || 'Unknown'
       })) || [];
 
       setTransactions(formattedTransactions);
