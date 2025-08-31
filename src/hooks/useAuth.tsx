@@ -200,36 +200,52 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         return { error: new Error('Rate limited') };
       }
 
-      console.log('Attempting regular Supabase auth for:', normalizedEmail);
+      console.log('Pre-check via business signin function for:', normalizedEmail);
 
-      // First try regular Supabase authentication
+      // Call edge function first to enforce company user status (blocks inactive users)
+      const { data: precheck, error: precheckError } = await supabase.functions.invoke('signin', {
+        body: { username: normalizedEmail, password: trimmedPassword }
+      });
+
+      if (precheckError) {
+        const msg = (precheckError as any)?.message?.toLowerCase?.() || '';
+        console.log('Business signin precheck error:', precheckError);
+
+        // If explicitly blocked, stop here
+        if (msg.includes('blocked') || msg.includes('suspended')) {
+          await logSecurityEvent(supabase, 'login_blocked', { email: normalizedEmail }, '127.0.0.1');
+          toast({
+            title: 'Sign in blocked',
+            description: 'Your account is inactive. Please contact your administrator.',
+            variant: 'destructive',
+          });
+          return { error: new Error('Account blocked') };
+        }
+        // If invalid credentials from company_users, fall back to regular Supabase auth (for non-company users)
+        if (msg.includes('invalid credentials')) {
+          console.log('Falling back to regular Supabase auth…');
+        } else {
+          // Unknown error from function – still attempt regular auth as fallback
+          console.warn('Unknown precheck error; attempting regular auth fallback');
+        }
+      }
+
+      // Proceed with regular Supabase authentication
       const { error: authError } = await supabase.auth.signInWithPassword({
         email: normalizedEmail,
         password: trimmedPassword,
       });
 
       if (!authError) {
-        // Regular authentication successful
+        // Authentication successful
         await logSecurityEvent(supabase, 'login_success', { email: normalizedEmail }, '127.0.0.1');
-        toast({
-          title: 'Welcome back!',
-          description: 'You have been signed in successfully.',
-        });
+        toast({ title: 'Welcome back!', description: 'You have been signed in successfully.' });
         return { error: null };
       }
 
-      console.log('Regular auth failed, trying business user fallback:', authError.message);
-
-      // Fallback: attempt business user sign-in (company_users) via edge function
-      const { data: bizData, error: bizError } = await supabase.functions.invoke('signin', {
-        body: { username: normalizedEmail, password: trimmedPassword }
-      });
-
-      console.log('Business user signin result:', { success: bizData?.success, error: bizError?.message });
-
-      if (!bizError && bizData?.success) {
-        console.log('Business signin successful, retrying regular auth...');
-        // Now that the auth user is provisioned, try normal auth again
+      // If function indicated success (provisioned auth user), retry once
+      if (precheck?.success) {
+        console.log('Business precheck succeeded; retrying auth…');
         const { error: secondAuthError } = await supabase.auth.signInWithPassword({ 
           email: normalizedEmail, 
           password: trimmedPassword 
@@ -238,14 +254,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           await logSecurityEvent(supabase, 'login_success', { email: normalizedEmail, type: 'business_user' }, '127.0.0.1');
           toast({ title: 'Welcome back!', description: 'You have been signed in successfully.' });
           return { error: null };
-        } else {
-          console.error('Second auth attempt failed after business signin success:', secondAuthError);
         }
       }
 
-      // Handle specific error cases with friendly messages
+      // Handle failure
       let errorMessage = 'Invalid email or password';
-      
       if (typeof authError.message === 'string') {
         if (authError.message.toLowerCase().includes('email not confirmed')) {
           errorMessage = 'Please contact your administrator to activate your account.';
@@ -254,25 +267,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         }
       }
 
-      // Log detailed error for debugging
-      console.error('All signin attempts failed:', { 
-        authError: authError.message, 
-        bizError: bizError?.message,
-        email: normalizedEmail 
-      });
+      console.error('Sign in failed after precheck:', { authError: authError.message, precheckError });
+      await logSecurityEvent(supabase, 'login_failed', { email: normalizedEmail, authError: authError.message, precheckError }, '127.0.0.1');
 
-      // Log failed attempt
-      await logSecurityEvent(supabase, 'login_failed', { 
-        email: normalizedEmail, 
-        authError: authError.message,
-        bizError: bizError?.message 
-      }, '127.0.0.1');
-      
-      toast({
-        title: 'Sign in failed',
-        description: errorMessage,
-        variant: 'destructive',
-      });
+      toast({ title: 'Sign in failed', description: errorMessage, variant: 'destructive' });
       return { error: authError };
 
     } catch (error: any) {
