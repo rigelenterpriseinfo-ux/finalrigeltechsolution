@@ -48,7 +48,7 @@ interface PurchaseOrderTableProps {
   loading?: boolean;
 }
 
-type SortField = 'po_number' | 'supplier_name' | 'order_date' | 'total_amount' | 'status';
+type SortField = 'po_number' | 'supplier_name' | 'order_date' | 'expected_date' | 'total_amount' | 'status';
 type SortDirection = 'asc' | 'desc';
 
 export function PurchaseOrderTable({
@@ -112,6 +112,10 @@ export function PurchaseOrderTable({
       case 'order_date':
         aValue = new Date(a.order_date);
         bValue = new Date(b.order_date);
+        break;
+      case 'expected_date':
+        aValue = a.expected_date ? new Date(a.expected_date) : new Date('1900-01-01');
+        bValue = b.expected_date ? new Date(b.expected_date) : new Date('1900-01-01');
         break;
       case 'total_amount':
         aValue = a.total_amount;
@@ -517,6 +521,15 @@ export function PurchaseOrderTable({
                 </TableHead>
                 <TableHead 
                   className="font-semibold text-gray-700 cursor-pointer hover:bg-gray-100 transition-colors"
+                  onClick={() => handleSort('expected_date')}
+                >
+                  <div className="flex items-center gap-2">
+                    Expected Delivery
+                    {getSortIcon('expected_date')}
+                  </div>
+                </TableHead>
+                <TableHead 
+                  className="font-semibold text-gray-700 cursor-pointer hover:bg-gray-100 transition-colors"
                   onClick={() => handleSort('total_amount')}
                 >
                   <div className="flex items-center gap-2">
@@ -539,7 +552,7 @@ export function PurchaseOrderTable({
             <TableBody>
               {currentOrders.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                     {searchTerm ? 'No purchase orders found matching your search.' : 'No purchase orders found.'}
                   </TableCell>
                 </TableRow>
@@ -554,6 +567,12 @@ export function PurchaseOrderTable({
                     </TableCell>
                     <TableCell>
                       {new Date(order.order_date).toLocaleDateString()}
+                    </TableCell>
+                    <TableCell>
+                      {order.expected_date 
+                        ? new Date(order.expected_date).toLocaleDateString()
+                        : 'Not specified'
+                      }
                     </TableCell>
                     <TableCell className="font-semibold">
                       {order.currency} {order.total_amount.toLocaleString()}
