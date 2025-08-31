@@ -578,9 +578,9 @@ export function GRNForm({ grn, onSubmit, onCancel, readOnly = false, mode }: GRN
                                    form.setValue(`items.${index}.hsn_sac_code`, selectedProduct.hsn_code || '');
                                  }
                                }} 
-                               disabled={readOnly}
+                               disabled={true}
                              >
-                               <SelectTrigger>
+                               <SelectTrigger className="bg-muted">
                                  <SelectValue placeholder="Select product" />
                                </SelectTrigger>
                                <SelectContent>
