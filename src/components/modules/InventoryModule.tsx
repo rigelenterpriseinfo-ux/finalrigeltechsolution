@@ -18,6 +18,8 @@ import { WarehouseBinForm } from '@/components/forms/WarehouseBinForm';
 import { WarehouseBinTable } from '@/components/tables/WarehouseBinTable';
 import { InventoryAdjustmentForm } from '@/components/forms/InventoryAdjustmentForm';
 import { InventoryAdjustmentTable } from '@/components/tables/InventoryAdjustmentTable';
+import { InventoryTransactionTable } from '@/components/tables/InventoryTransactionTable';
+import { CurrentStockTable } from '@/components/tables/CurrentStockTable';
 import * as XLSX from 'xlsx';
 
 interface Product {
@@ -580,10 +582,12 @@ export function InventoryModule() {
       </div>
 
       <Tabs defaultValue="products" className="w-full">
-        <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="products">Products Management</TabsTrigger>
-          <TabsTrigger value="bins">Warehouse BIN Locations</TabsTrigger>
-          <TabsTrigger value="adjustments">Inventory Adjustments</TabsTrigger>
+        <TabsList className="grid w-full grid-cols-5">
+          <TabsTrigger value="products">Products</TabsTrigger>
+          <TabsTrigger value="bins">Warehouse BINs</TabsTrigger>
+          <TabsTrigger value="adjustments">Adjustments</TabsTrigger>
+          <TabsTrigger value="transactions">Transactions</TabsTrigger>
+          <TabsTrigger value="stock">Current Stock</TabsTrigger>
         </TabsList>
 
         <TabsContent value="products" className="space-y-6">
@@ -777,6 +781,40 @@ export function InventoryModule() {
             </CardHeader>
             <CardContent>
               <InventoryAdjustmentTable refreshTrigger={adjustmentRefreshTrigger} />
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="transactions" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center space-x-2">
+                <TrendingUp className="w-5 h-5" />
+                <span>Inventory Transactions</span>
+              </CardTitle>
+              <CardDescription>
+                Complete movement history for all inventory transactions
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <InventoryTransactionTable refreshTrigger={adjustmentRefreshTrigger} />
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="stock" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center space-x-2">
+                <Package className="w-5 h-5" />
+                <span>Current Stock Levels (SOH)</span>
+              </CardTitle>
+              <CardDescription>
+                Real-time stock on hand calculated from all inventory transactions
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <CurrentStockTable refreshTrigger={adjustmentRefreshTrigger} />
             </CardContent>
           </Card>
         </TabsContent>

@@ -463,6 +463,63 @@ export type Database = {
           },
         ]
       }
+      inventory_transactions: {
+        Row: {
+          bin_id: string | null
+          company_id: string
+          created_at: string
+          created_by: string
+          id: string
+          notes: string | null
+          product_id: string
+          quantity_change: number
+          reference_id: string | null
+          reference_number: string | null
+          total_value: number | null
+          transaction_date: string
+          transaction_type: Database["public"]["Enums"]["transaction_type"]
+          unit_cost: number | null
+          updated_at: string
+          warehouse_id: string
+        }
+        Insert: {
+          bin_id?: string | null
+          company_id: string
+          created_at?: string
+          created_by: string
+          id?: string
+          notes?: string | null
+          product_id: string
+          quantity_change: number
+          reference_id?: string | null
+          reference_number?: string | null
+          total_value?: number | null
+          transaction_date?: string
+          transaction_type: Database["public"]["Enums"]["transaction_type"]
+          unit_cost?: number | null
+          updated_at?: string
+          warehouse_id: string
+        }
+        Update: {
+          bin_id?: string | null
+          company_id?: string
+          created_at?: string
+          created_by?: string
+          id?: string
+          notes?: string | null
+          product_id?: string
+          quantity_change?: number
+          reference_id?: string | null
+          reference_number?: string | null
+          total_value?: number | null
+          transaction_date?: string
+          transaction_type?: Database["public"]["Enums"]["transaction_type"]
+          unit_cost?: number | null
+          updated_at?: string
+          warehouse_id?: string
+        }
+        Relationships: []
+      }
       password_resets: {
         Row: {
           created_at: string | null
@@ -1804,7 +1861,18 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      current_stock_levels: {
+        Row: {
+          bin_id: string | null
+          company_id: string | null
+          current_stock: number | null
+          last_transaction_date: string | null
+          product_id: string | null
+          transaction_count: number | null
+          warehouse_id: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       check_email_exists: {
@@ -1875,6 +1943,22 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: boolean
       }
+      record_inventory_transaction: {
+        Args: {
+          p_bin_id: string
+          p_company_id: string
+          p_created_by?: string
+          p_notes?: string
+          p_product_id: string
+          p_quantity_change: number
+          p_reference_id: string
+          p_reference_number: string
+          p_transaction_type: Database["public"]["Enums"]["transaction_type"]
+          p_unit_cost?: number
+          p_warehouse_id: string
+        }
+        Returns: string
+      }
       user_company_id: {
         Args: Record<PropertyKey, never>
         Returns: string
@@ -1886,6 +1970,13 @@ export type Database = {
       company_status: "active" | "inactive" | "suspended"
       payment_status: "pending" | "paid" | "failed" | "refunded"
       subscription_plan: "monthly" | "yearly"
+      transaction_type:
+        | "purchase_receipt"
+        | "sales_issue"
+        | "adjustment_positive"
+        | "adjustment_negative"
+        | "transfer_out"
+        | "transfer_in"
       user_role: "Admin" | "User" | "ViewOnly"
     }
     CompositeTypes: {
@@ -2019,6 +2110,14 @@ export const Constants = {
       company_status: ["active", "inactive", "suspended"],
       payment_status: ["pending", "paid", "failed", "refunded"],
       subscription_plan: ["monthly", "yearly"],
+      transaction_type: [
+        "purchase_receipt",
+        "sales_issue",
+        "adjustment_positive",
+        "adjustment_negative",
+        "transfer_out",
+        "transfer_in",
+      ],
       user_role: ["Admin", "User", "ViewOnly"],
     },
   },

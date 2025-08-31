@@ -45,6 +45,7 @@ interface Product {
   name: string;
   sku: string;
   stock_quantity: number;
+  cost_price: number;
 }
 
 interface WarehouseBin {
@@ -92,7 +93,7 @@ export const InventoryAdjustmentForm: React.FC<InventoryAdjustmentFormProps> = (
     try {
       const { data, error } = await supabase
         .from('products')
-        .select('id, name, sku, stock_quantity')
+        .select('id, name, sku, stock_quantity, cost_price')
         .eq('company_id', company?.id)
         .eq('is_active', true)
         .order('name');
@@ -153,7 +154,7 @@ export const InventoryAdjustmentForm: React.FC<InventoryAdjustmentFormProps> = (
         ? currentStockBefore + data.adjustment_quantity
         : currentStockBefore - data.adjustment_quantity;
 
-      const { error } = await supabase
+      const { data: adjustmentData, error } = await supabase
         .from('inventory_adjustments')
         .insert({
           company_id: company.id,
@@ -167,9 +168,34 @@ export const InventoryAdjustmentForm: React.FC<InventoryAdjustmentFormProps> = (
           current_stock_before: currentStockBefore,
           current_stock_after: currentStockAfter,
           created_by: user.id,
-        });
+        })
+        .select()
+        .single();
 
       if (error) throw error;
+
+      // Record inventory transaction
+      const quantityChange = data.adjustment_type === 'positive' ? data.adjustment_quantity : -data.adjustment_quantity;
+      const transactionType = data.adjustment_type === 'positive' ? 'adjustment_positive' : 'adjustment_negative';
+      
+      const { error: transactionError } = await supabase.rpc('record_inventory_transaction', {
+        p_company_id: company.id,
+        p_transaction_type: transactionType,
+        p_reference_id: adjustmentData.id,
+        p_reference_number: `ADJ-${adjustmentData.id.substring(0, 8)}`,
+        p_product_id: data.product_id,
+        p_warehouse_id: data.warehouse_id,
+        p_bin_id: data.warehouse_id, // Using warehouse_id as bin_id for now
+        p_quantity_change: quantityChange,
+        p_unit_cost: selectedProduct?.cost_price || 0,
+        p_notes: `${data.reason}: ${data.remarks || 'No remarks'}`,
+        p_created_by: user.id
+      });
+
+      if (transactionError) {
+        console.error('Error recording transaction:', transactionError);
+        // Don't throw here, adjustment was successful
+      }
 
       toast({
         title: 'Success',
