@@ -1,85 +1,60 @@
 import { useState, useEffect } from 'react';
-import { useFieldArray, useForm } from 'react-hook-form';
+import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
+import * as z from 'zod';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Separator } from '@/components/ui/separator';
-import { Badge } from '@/components/ui/badge';
+import { Textarea } from '@/components/ui/textarea';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
-import { Trash2, Plus, Package } from 'lucide-react';
+import { CalendarIcon, Plus, Trash2 } from 'lucide-react';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { format } from 'date-fns';
+import { cn } from '@/lib/utils';
 
-const grnLineItemSchema = z.object({
-  product_id: z.string().min(1, 'Product is required'),
-  product_name: z.string().min(1, 'Product name is required'),
-  product_sku: z.string().min(1, 'SKU is required'),
-  unit_of_measure: z.string().default('pcs'),
-  ordered_quantity: z.number().min(0, 'Ordered quantity cannot be negative'),
-  received_quantity: z.number().min(0, 'Received quantity cannot be negative'),
-  accepted_quantity: z.number().min(0, 'Accepted quantity cannot be negative'),
-  rejected_quantity: z.number().min(0, 'Rejected quantity cannot be negative'),
-  pending_quantity: z.number().min(0).optional(), // Add pending quantity for validation
-  unit_price: z.number().min(0, 'Unit price cannot be negative'),
-  discount_percentage: z.number().min(0).max(100).default(0),
-  discount_amount: z.number().min(0).default(0),
-  warehouse_id: z.string().min(1, 'Warehouse is required'),
-  bin_id: z.string().optional(),
-  warehouse_code: z.string().optional(),
-  warehouse_name: z.string().optional(),
-  bin_code: z.string().optional(),
-  bin_name: z.string().optional(),
-  hsn_sac_code: z.string().optional(),
-  cgst_rate: z.number().min(0).max(100).default(0),
-  cgst_amount: z.number().min(0).default(0),
-  sgst_rate: z.number().min(0).max(100).default(0),
-  sgst_amount: z.number().min(0).default(0),
-  igst_rate: z.number().min(0).max(100).default(0),
-  igst_amount: z.number().min(0).default(0),
-  total_tax_amount: z.number().min(0).default(0),
-  line_total: z.number().min(0).default(0),
-}).refine((data) => {
-  // Received quantity should not exceed pending quantity
-  if (data.pending_quantity !== undefined && data.received_quantity > data.pending_quantity) {
-    return false;
-  }
-  // Received quantity should not exceed ordered quantity
-  if (data.received_quantity > data.ordered_quantity) {
-    return false;
-  }
-  // Sum of accepted and rejected quantities should not exceed received quantity
-  if ((data.accepted_quantity + data.rejected_quantity) > data.received_quantity) {
-    return false;
-  }
-  return true;
-}, {
-  message: "Invalid quantities: Received quantity cannot exceed pending quantity, and accepted + rejected cannot exceed received quantity",
-});
-
-const grnSchema = z.object({
-  grn_number: z.string().optional(),
-  purchase_order_id: z.string().min(1, 'Purchase Order is required'),
+const grnFormSchema = z.object({
+  purchase_order_id: z.string().min(1, 'Please select a purchase order'),
   supplier_id: z.string().min(1, 'Supplier is required'),
   supplier_name: z.string().min(1, 'Supplier name is required'),
   grn_date: z.string().min(1, 'GRN date is required'),
   supplier_invoice_number: z.string().optional(),
   supplier_invoice_date: z.string().optional(),
   remarks: z.string().optional(),
-  status: z.enum(['draft', 'received', 'accepted', 'rejected']).default('draft'),
-  items: z.array(grnLineItemSchema).min(1, 'At least one item is required'),
+  status: z.enum(['received', 'partially_received']),
+  items: z.array(z.object({
+    product_id: z.string().min(1, 'Product is required'),
+    product_name: z.string(),
+    product_sku: z.string().optional(),
+    unit_of_measure: z.string().optional(),
+    ordered_quantity: z.number().min(0),
+    received_quantity: z.number().min(0),
+    accepted_quantity: z.number().min(0),
+    rejected_quantity: z.number().min(0),
+    unit_price: z.number().min(0),
+    discount_percentage: z.number().min(0).max(100).optional(),
+    discount_amount: z.number().min(0).optional(),
+    warehouse_id: z.string().optional(),
+    bin_id: z.string().optional(),
+    hsn_sac_code: z.string().optional(),
+    cgst_rate: z.number().min(0).optional(),
+    cgst_amount: z.number().min(0).optional(),
+    sgst_rate: z.number().min(0).optional(),
+    sgst_amount: z.number().min(0).optional(),
+    igst_rate: z.number().min(0).optional(),
+    igst_amount: z.number().min(0).optional(),
+    total_tax_amount: z.number().min(0).optional(),
+    line_total: z.number().min(0).optional(),
+  })).min(1, 'At least one item is required'),
 });
-
-type GRNFormData = z.infer<typeof grnSchema>;
 
 interface GRNFormProps {
   grn?: any;
-  onSubmit: (data: GRNFormData) => Promise<void>;
+  onSubmit: (data: any) => Promise<void>;
   onCancel: () => void;
   readOnly?: boolean;
   mode: 'create' | 'edit' | 'view';
@@ -88,24 +63,26 @@ interface GRNFormProps {
 export function GRNForm({ grn, onSubmit, onCancel, readOnly = false, mode }: GRNFormProps) {
   const { profile } = useAuth();
   const { toast } = useToast();
-  const [loading, setLoading] = useState(false);
+  
   const [purchaseOrders, setPurchaseOrders] = useState<any[]>([]);
+  const [suppliers, setSuppliers] = useState<any[]>([]);
   const [products, setProducts] = useState<any[]>([]);
   const [warehouses, setWarehouses] = useState<any[]>([]);
+  const [bins, setBins] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
   const [selectedPO, setSelectedPO] = useState<any>(null);
 
-  const form = useForm<GRNFormData>({
-    resolver: zodResolver(grnSchema),
+  const form = useForm<z.infer<typeof grnFormSchema>>({
+    resolver: zodResolver(grnFormSchema),
     defaultValues: {
-      grn_number: grn?.grn_number || '',
       purchase_order_id: grn?.purchase_order_id || '',
       supplier_id: grn?.supplier_id || '',
       supplier_name: grn?.supplier_name || '',
-      grn_date: grn?.grn_date || format(new Date(), 'yyyy-MM-dd'),
+      grn_date: grn?.grn_date ? new Date(grn.grn_date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
       supplier_invoice_number: grn?.supplier_invoice_number || '',
-      supplier_invoice_date: grn?.supplier_invoice_date || '',
+      supplier_invoice_date: grn?.supplier_invoice_date ? new Date(grn.supplier_invoice_date).toISOString().split('T')[0] : '',
       remarks: grn?.remarks || '',
-      status: grn?.status || 'draft',
+      status: grn?.status || 'received',
       items: grn?.grn_line_items?.map((item: any) => ({
         product_id: item.product_id,
         product_name: item.product_name,
@@ -118,13 +95,9 @@ export function GRNForm({ grn, onSubmit, onCancel, readOnly = false, mode }: GRN
         unit_price: item.unit_price,
         discount_percentage: item.discount_percentage || 0,
         discount_amount: item.discount_amount || 0,
-        warehouse_id: item.warehouse_id || '',
-        bin_id: item.bin_id || '',
-        warehouse_code: item.warehouse_code || '',
-        warehouse_name: item.warehouse_name || '',
-        bin_code: item.bin_code || '',
-        bin_name: item.bin_name || '',
-        hsn_sac_code: item.hsn_sac_code || '',
+        warehouse_id: item.warehouse_id,
+        bin_id: item.bin_id,
+        hsn_sac_code: item.hsn_sac_code,
         cgst_rate: item.cgst_rate || 0,
         cgst_amount: item.cgst_amount || 0,
         sgst_rate: item.sgst_rate || 0,
@@ -137,16 +110,13 @@ export function GRNForm({ grn, onSubmit, onCancel, readOnly = false, mode }: GRN
     },
   });
 
-  const { fields, append, remove } = useFieldArray({
-    control: form.control,
-    name: 'items',
-  });
-
   useEffect(() => {
     if (profile?.company_id) {
       fetchPurchaseOrders();
+      fetchSuppliers();
       fetchProducts();
       fetchWarehouses();
+      fetchBins();
     }
   }, [profile?.company_id]);
 
@@ -156,7 +126,7 @@ export function GRNForm({ grn, onSubmit, onCancel, readOnly = false, mode }: GRN
         .from('purchase_orders')
         .select(`
           *,
-          supplier:suppliers(id, name),
+          supplier:suppliers(name),
           purchase_order_items(*)
         `)
         .eq('company_id', profile?.company_id)
@@ -170,13 +140,28 @@ export function GRNForm({ grn, onSubmit, onCancel, readOnly = false, mode }: GRN
     }
   };
 
+  const fetchSuppliers = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('suppliers')
+        .select('*')
+        .eq('company_id', profile?.company_id)
+        .eq('is_active', true)
+        .order('name');
+
+      if (error) throw error;
+      setSuppliers(data || []);
+    } catch (error) {
+      console.error('Error fetching suppliers:', error);
+    }
+  };
+
   const fetchProducts = async () => {
     try {
       const { data, error } = await supabase
         .from('products')
         .select('*')
         .eq('company_id', profile?.company_id)
-        .eq('is_active', true)
         .order('name');
 
       if (error) throw error;
@@ -189,11 +174,10 @@ export function GRNForm({ grn, onSubmit, onCancel, readOnly = false, mode }: GRN
   const fetchWarehouses = async () => {
     try {
       const { data, error } = await supabase
-        .from('warehouse_bins')
+        .from('warehouses')
         .select('*')
         .eq('company_id', profile?.company_id)
-        .eq('is_active', true)
-        .order('warehouse_name');
+        .order('name');
 
       if (error) throw error;
       setWarehouses(data || []);
@@ -202,80 +186,104 @@ export function GRNForm({ grn, onSubmit, onCancel, readOnly = false, mode }: GRN
     }
   };
 
-  const handlePOSelect = (poId: string) => {
-    const po = purchaseOrders.find(p => p.id === poId);
-    if (po) {
-      setSelectedPO(po);
-      form.setValue('supplier_id', po.supplier.id);
-      form.setValue('supplier_name', po.supplier.name);
-      
-      // Populate items from PO and try to match with products
-      const poItems = po.purchase_order_items.map((item: any) => {
-        // Try to find matching product by id or code
-        const matchedProduct = products.find(p => 
-          p.id === item.product_id || 
-          p.sku === item.item_code ||
-          p.name === item.item_description
-        );
-        
-        // Calculate pending quantity (ordered - received)
-        const pendingQty = item.quantity - (item.received_quantity || 0);
-        
-        return {
-          product_id: matchedProduct?.id || '',
-          product_name: item.item_description,
-          product_sku: item.item_code || matchedProduct?.sku || '',
-          unit_of_measure: item.unit_of_measure,
-          ordered_quantity: item.quantity,
-          received_quantity: 0,
-          accepted_quantity: 0,
-          rejected_quantity: 0,
-          pending_quantity: pendingQty, // Add pending quantity for validation
-          unit_price: item.unit_price,
-          discount_percentage: item.discount_percentage || 0,
-          discount_amount: item.discount_amount || 0,
-          warehouse_id: '',
-          bin_id: '',
-          warehouse_code: '',
-          warehouse_name: '',
-          bin_code: '',
-          bin_name: '',
-          hsn_sac_code: item.hsn_sac_code || '',
-          cgst_rate: item.cgst_rate || 0,
-          cgst_amount: 0,
-          sgst_rate: item.sgst_rate || 0,
-          sgst_amount: 0,
-          igst_rate: item.igst_rate || 0,
-          igst_amount: 0,
-          total_tax_amount: 0,
-          line_total: 0,
-        };
-      });
-      
-      form.setValue('items', poItems);
+  const fetchBins = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('warehouse_bins')
+        .select('*')
+        .eq('company_id', profile?.company_id)
+        .order('bin_code');
+
+      if (error) throw error;
+      setBins(data || []);
+    } catch (error) {
+      console.error('Error fetching bins:', error);
     }
   };
 
-  const calculateLineAmounts = (index: number) => {
+  const handlePOSelection = (poId: string) => {
+    const po = purchaseOrders.find(p => p.id === poId);
+    if (!po) return;
+
+    setSelectedPO(po);
+    
+    // Auto-fill supplier details
+    form.setValue('supplier_id', po.supplier_id);
+    form.setValue('supplier_name', po.supplier?.name || '');
+    
+    // Auto-fill items from PO with pending quantities
+    const items = po.purchase_order_items?.map((item: any) => ({
+      product_id: item.product_id,
+      product_name: item.product_name,
+      product_sku: item.product_sku || '',
+      unit_of_measure: item.unit_of_measure || '',
+      ordered_quantity: item.quantity,
+      received_quantity: item.pending_quantity, // Set to pending quantity initially
+      accepted_quantity: 0, // Will be set based on status
+      rejected_quantity: 0,
+      unit_price: item.unit_price,
+      discount_percentage: item.discount_percentage || 0,
+      discount_amount: item.discount_amount || 0,
+      warehouse_id: '',
+      bin_id: '',
+      hsn_sac_code: item.hsn_sac_code || '',
+      cgst_rate: item.cgst_rate || 0,
+      cgst_amount: 0,
+      sgst_rate: item.sgst_rate || 0,
+      sgst_amount: 0,
+      igst_rate: item.igst_rate || 0,
+      igst_amount: 0,
+      total_tax_amount: 0,
+      line_total: 0,
+    })) || [];
+    
+    form.setValue('items', items);
+    
+    // Apply status-based logic to accepted quantities
+    const currentStatus = form.getValues('status');
+    handleStatusChange(currentStatus);
+  };
+
+  const handleStatusChange = (status: string) => {
+    const currentItems = form.getValues('items');
+    
+    const updatedItems = currentItems.map(item => {
+      if (status === 'received') {
+        // For "Received" status, set accepted_quantity = received_quantity (full receipt)
+        return {
+          ...item,
+          accepted_quantity: item.received_quantity,
+          rejected_quantity: 0,
+        };
+      } else if (status === 'partially_received') {
+        // For "Partially received" status, keep current accepted quantities
+        // User can manually adjust these
+        return item;
+      }
+      return item;
+    });
+    
+    form.setValue('items', updatedItems);
+    form.setValue('status', status as 'received' | 'partially_received');
+  };
+
+  const calculateItemTotals = (index: number) => {
     const items = form.getValues('items');
     const item = items[index];
     
     if (!item) return;
 
-    const subtotal = item.accepted_quantity * item.unit_price;
-    const discountAmount = item.discount_percentage > 0 
-      ? (subtotal * item.discount_percentage) / 100 
-      : item.discount_amount || 0;
+    const subtotal = (item.accepted_quantity || 0) * (item.unit_price || 0);
+    const discountAmount = item.discount_amount || ((item.discount_percentage || 0) * subtotal / 100);
+    const afterDiscount = subtotal - discountAmount;
     
-    const taxableAmount = subtotal - discountAmount;
-    
-    const cgstAmount = (taxableAmount * item.cgst_rate) / 100;
-    const sgstAmount = (taxableAmount * item.sgst_rate) / 100;
-    const igstAmount = (taxableAmount * item.igst_rate) / 100;
+    const cgstAmount = (item.cgst_rate || 0) * afterDiscount / 100;
+    const sgstAmount = (item.sgst_rate || 0) * afterDiscount / 100;
+    const igstAmount = (item.igst_rate || 0) * afterDiscount / 100;
     const totalTaxAmount = cgstAmount + sgstAmount + igstAmount;
-    
-    const lineTotal = taxableAmount + totalTaxAmount;
+    const lineTotal = afterDiscount + totalTaxAmount;
 
+    // Update the form values
     form.setValue(`items.${index}.discount_amount`, discountAmount);
     form.setValue(`items.${index}.cgst_amount`, cgstAmount);
     form.setValue(`items.${index}.sgst_amount`, sgstAmount);
@@ -284,789 +292,314 @@ export function GRNForm({ grn, onSubmit, onCancel, readOnly = false, mode }: GRN
     form.setValue(`items.${index}.line_total`, lineTotal);
   };
 
-  const addItem = () => {
-    append({
-      product_id: '',
-      product_name: '',
-      product_sku: '',
-      unit_of_measure: 'pcs',
-      ordered_quantity: 0,
-      received_quantity: 0,
-      accepted_quantity: 0,
-      rejected_quantity: 0,
-      unit_price: 0,
-      discount_percentage: 0,
-      discount_amount: 0,
-      warehouse_id: '',
-      bin_id: '',
-      warehouse_code: '',
-      warehouse_name: '',
-      bin_code: '',
-      bin_name: '',
-      hsn_sac_code: '',
-      cgst_rate: 0,
-      cgst_amount: 0,
-      sgst_rate: 0,
-      sgst_amount: 0,
-      igst_rate: 0,
-      igst_amount: 0,
-      total_tax_amount: 0,
-      line_total: 0,
-    });
-  };
-
-  const handleSubmit = async (data: GRNFormData) => {
-    // Validate all items have valid product_id
-    const invalidItems = data.items.filter(item => !item.product_id);
-    if (invalidItems.length > 0) {
-      toast({
-        title: "Validation Error",
-        description: "All items must have a valid product selected",
-        variant: "destructive",
-      });
-      return;
-    }
-
+  const handleSubmit = async (data: z.infer<typeof grnFormSchema>) => {
+    if (readOnly) return;
+    
     try {
       setLoading(true);
       await onSubmit(data);
     } catch (error) {
       console.error('Error submitting GRN:', error);
+      toast({
+        title: "Error",
+        description: "Failed to save GRN",
+        variant: "destructive",
+      });
     } finally {
       setLoading(false);
     }
   };
 
-  const calculateTotals = () => {
-    const items = form.watch('items');
-    const totals = items.reduce(
-      (acc, item) => ({
-        totalOrderedQty: acc.totalOrderedQty + (item.ordered_quantity || 0),
-        totalReceivedQty: acc.totalReceivedQty + (item.received_quantity || 0),
-        totalAcceptedQty: acc.totalAcceptedQty + (item.accepted_quantity || 0),
-        totalRejectedQty: acc.totalRejectedQty + (item.rejected_quantity || 0),
-        subtotalAmount: acc.subtotalAmount + ((item.accepted_quantity || 0) * (item.unit_price || 0)),
-        totalDiscountAmount: acc.totalDiscountAmount + (item.discount_amount || 0),
-        totalTaxAmount: acc.totalTaxAmount + (item.total_tax_amount || 0),
-        totalAmount: acc.totalAmount + (item.line_total || 0),
-      }),
-      {
-        totalOrderedQty: 0,
-        totalReceivedQty: 0,
-        totalAcceptedQty: 0,
-        totalRejectedQty: 0,
-        subtotalAmount: 0,
-        totalDiscountAmount: 0,
-        totalTaxAmount: 0,
-        totalAmount: 0,
-      }
-    );
-    return totals;
-  };
-
-  const totals = calculateTotals();
-
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
-        {/* GRN Header */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Purchase Order Selection */}
+          <FormField
+            control={form.control}
+            name="purchase_order_id"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Purchase Order *</FormLabel>
+                <Select
+                  value={field.value}
+                  onValueChange={(value) => {
+                    field.onChange(value);
+                    handlePOSelection(value);
+                  }}
+                  disabled={readOnly || mode === 'edit'}
+                >
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select purchase order" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    {purchaseOrders.map((po) => (
+                      <SelectItem key={po.id} value={po.id}>
+                        {po.po_number} - {po.supplier?.name} (₹{po.total_amount?.toLocaleString()})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          {/* Status Selection - Only "Received" and "Partially received" */}
+          <FormField
+            control={form.control}
+            name="status"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Status *</FormLabel>
+                <Select
+                  value={field.value}
+                  onValueChange={(value) => {
+                    field.onChange(value);
+                    handleStatusChange(value);
+                  }}
+                  disabled={readOnly}
+                >
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select status" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    <SelectItem value="received">Received</SelectItem>
+                    <SelectItem value="partially_received">Partially Received</SelectItem>
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          {/* Supplier Name (Auto-filled, read-only) */}
+          <FormField
+            control={form.control}
+            name="supplier_name"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Supplier Name</FormLabel>
+                <FormControl>
+                  <Input {...field} disabled />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          {/* GRN Date */}
+          <FormField
+            control={form.control}
+            name="grn_date"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>GRN Date *</FormLabel>
+                <FormControl>
+                  <Input
+                    type="date"
+                    {...field}
+                    disabled={readOnly}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          {/* Supplier Invoice Number */}
+          <FormField
+            control={form.control}
+            name="supplier_invoice_number"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Supplier Invoice Number</FormLabel>
+                <FormControl>
+                  <Input {...field} disabled={readOnly} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          {/* Supplier Invoice Date */}
+          <FormField
+            control={form.control}
+            name="supplier_invoice_date"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Supplier Invoice Date</FormLabel>
+                <FormControl>
+                  <Input
+                    type="date"
+                    {...field}
+                    disabled={readOnly}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
+
+        {/* Remarks */}
+        <FormField
+          control={form.control}
+          name="remarks"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Remarks</FormLabel>
+              <FormControl>
+                <Textarea {...field} disabled={readOnly} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        {/* Items Section */}
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Package className="h-5 w-5" />
-              GRN Header Information
-            </CardTitle>
-            <CardDescription>
-              {mode === 'create' ? 'Create a new Goods Receipt Note' : 
-               mode === 'edit' ? 'Edit GRN details' : 'View GRN details'}
-            </CardDescription>
+            <CardTitle>Items</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
-            {/* GRN Number Field */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <FormField
-                control={form.control}
-                name="grn_number"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>GRN Number</FormLabel>
-                    <FormControl>
-                      <Input 
-                        {...field} 
-                        placeholder="Auto-generated after submission"
-                        disabled 
-                        className="bg-muted"
+          <CardContent>
+            <div className="space-y-4">
+              {form.watch('items')?.map((item: any, index: number) => (
+                <div key={index} className="p-4 border rounded-lg">
+                  <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
+                    <div>
+                      <label className="text-sm font-medium">Product</label>
+                      <Input
+                        value={item.product_name}
+                        disabled
+                        className="mt-1"
                       />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <FormField
-                control={form.control}
-                name="purchase_order_id"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Purchase Order *</FormLabel>
-                    <FormControl>
-                      <Select 
-                        value={field.value} 
-                        onValueChange={(value) => {
-                          field.onChange(value);
-                          handlePOSelect(value);
+                    </div>
+
+                    <div>
+                      <label className="text-sm font-medium">Ordered Qty</label>
+                      <Input
+                        type="number"
+                        value={item.ordered_quantity}
+                        disabled
+                        className="mt-1"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-sm font-medium">Received Qty</label>
+                      <Input
+                        type="number"
+                        value={item.received_quantity}
+                        onChange={(e) => {
+                          const newValue = parseFloat(e.target.value) || 0;
+                          form.setValue(`items.${index}.received_quantity`, newValue);
+                          
+                          // Auto-update accepted quantity if status is "received"
+                          if (form.getValues('status') === 'received') {
+                            form.setValue(`items.${index}.accepted_quantity`, newValue);
+                            calculateItemTotals(index);
+                          }
                         }}
-                        disabled={readOnly || mode === 'edit'}
+                        disabled={readOnly}
+                        className="mt-1"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-sm font-medium">Accepted Qty</label>
+                      <Input
+                        type="number"
+                        value={item.accepted_quantity}
+                        onChange={(e) => {
+                          const newValue = parseFloat(e.target.value) || 0;
+                          form.setValue(`items.${index}.accepted_quantity`, newValue);
+                          calculateItemTotals(index);
+                        }}
+                        disabled={readOnly || form.getValues('status') === 'received'}
+                        className="mt-1"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-sm font-medium">Rejected Qty</label>
+                      <Input
+                        type="number"
+                        value={item.rejected_quantity}
+                        onChange={(e) => {
+                          const newValue = parseFloat(e.target.value) || 0;
+                          form.setValue(`items.${index}.rejected_quantity`, newValue);
+                        }}
+                        disabled={readOnly}
+                        className="mt-1"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-sm font-medium">Unit Price</label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        value={item.unit_price}
+                        disabled
+                        className="mt-1"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-sm font-medium">Warehouse</label>
+                      <Select
+                        value={item.warehouse_id}
+                        onValueChange={(value) => form.setValue(`items.${index}.warehouse_id`, value)}
+                        disabled={readOnly}
                       >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select PO" />
+                        <SelectTrigger className="mt-1">
+                          <SelectValue placeholder="Select warehouse" />
                         </SelectTrigger>
                         <SelectContent>
-                          {purchaseOrders.map((po) => (
-                            <SelectItem key={po.id} value={po.id}>
-                              {po.po_number} - {po.supplier?.name}
+                          {warehouses.map((warehouse) => (
+                            <SelectItem key={warehouse.id} value={warehouse.id}>
+                              {warehouse.name}
                             </SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+                    </div>
 
-              <FormField
-                control={form.control}
-                name="grn_date"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>GRN Date *</FormLabel>
-                    <FormControl>
-                      <Input type="date" {...field} disabled={readOnly} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="status"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Status</FormLabel>
-                    <FormControl>
-                      <Select value={field.value} onValueChange={field.onChange} disabled={readOnly}>
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="draft">Draft</SelectItem>
-                          <SelectItem value="received">Received</SelectItem>
-                          <SelectItem value="accepted">Accepted</SelectItem>
-                          <SelectItem value="rejected">Rejected</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="supplier_invoice_number"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Supplier Invoice Number</FormLabel>
-                    <FormControl>
-                      <Input {...field} disabled={readOnly} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="supplier_invoice_date"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Supplier Invoice Date</FormLabel>
-                    <FormControl>
-                      <Input type="date" {...field} disabled={readOnly} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-
-            <FormField
-              control={form.control}
-              name="remarks"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Remarks / Notes</FormLabel>
-                  <FormControl>
-                    <Textarea {...field} disabled={readOnly} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            {selectedPO && (
-              <div className="p-4 bg-muted rounded-lg">
-                <h4 className="font-medium mb-2">Selected PO Details:</h4>
-                <div className="grid grid-cols-2 gap-2 text-sm">
-                  <span>PO Number: <Badge variant="outline">{selectedPO.po_number}</Badge></span>
-                  <span>Supplier: <Badge variant="outline">{selectedPO.supplier?.name}</Badge></span>
-                  <span>PO Date: {format(new Date(selectedPO.order_date), 'dd/MM/yyyy')}</span>
-                  <span>Total Amount: ₹{selectedPO.total_amount?.toFixed(2)}</span>
-                </div>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* GRN Line Items */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
-            <div>
-              <CardTitle>GRN Line Items</CardTitle>
-              <CardDescription>Manage received products and quantities</CardDescription>
-            </div>
-            {!readOnly && (
-              <Button type="button" onClick={addItem} size="sm" variant="outline">
-                <Plus className="h-4 w-4 mr-2" />
-                Add Item
-              </Button>
-            )}
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {fields.map((field, index) => (
-                <div key={field.id} className="p-4 border rounded-lg space-y-4">
-                  <div className="flex justify-between items-start">
-                    <h4 className="font-medium">Item #{index + 1}</h4>
-                    {!readOnly && fields.length > 1 && (
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => remove(index)}
-                        className="text-destructive"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    )}
-                  </div>
-
-                   <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                     <FormField
-                       control={form.control}
-                       name={`items.${index}.product_id`}
-                       render={({ field }) => (
-                         <FormItem>
-                           <FormLabel>Product *</FormLabel>
-                           <FormControl>
-                             <Select 
-                               value={field.value} 
-                               onValueChange={(value) => {
-                                 const selectedProduct = products.find(p => p.id === value);
-                                 field.onChange(value);
-                                 if (selectedProduct) {
-                                   form.setValue(`items.${index}.product_name`, selectedProduct.name);
-                                   form.setValue(`items.${index}.product_sku`, selectedProduct.sku);
-                                   form.setValue(`items.${index}.unit_of_measure`, selectedProduct.unit || 'pcs');
-                                   form.setValue(`items.${index}.hsn_sac_code`, selectedProduct.hsn_code || '');
-                                 }
-                               }} 
-                               disabled={true}
-                             >
-                               <SelectTrigger className="bg-muted">
-                                 <SelectValue placeholder="Select product" />
-                               </SelectTrigger>
-                               <SelectContent>
-                                 {products.map((product) => (
-                                   <SelectItem key={product.id} value={product.id}>
-                                     {product.name} ({product.sku})
-                                   </SelectItem>
-                                 ))}
-                               </SelectContent>
-                             </Select>
-                           </FormControl>
-                           <FormMessage />
-                         </FormItem>
-                       )}
-                     />
-
-                     <FormField
-                       control={form.control}
-                       name={`items.${index}.product_name`}
-                       render={({ field }) => (
-                         <FormItem>
-                           <FormLabel>Product Name</FormLabel>
-                           <FormControl>
-                             <Input {...field} disabled className="bg-muted" />
-                           </FormControl>
-                           <FormMessage />
-                         </FormItem>
-                       )}
-                     />
-
-                     <FormField
-                       control={form.control}
-                       name={`items.${index}.product_sku`}
-                       render={({ field }) => (
-                         <FormItem>
-                           <FormLabel>SKU</FormLabel>
-                           <FormControl>
-                             <Input {...field} disabled className="bg-muted" />
-                           </FormControl>
-                           <FormMessage />
-                         </FormItem>
-                       )}
-                     />
-
-                     <FormField
-                       control={form.control}
-                       name={`items.${index}.unit_of_measure`}
-                       render={({ field }) => (
-                         <FormItem>
-                           <FormLabel>UOM</FormLabel>
-                           <FormControl>
-                             <Input {...field} disabled={readOnly} />
-                           </FormControl>
-                           <FormMessage />
-                         </FormItem>
-                       )}
-                     />
-                   </div>
-
-                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                     <FormField
-                       control={form.control}
-                       name={`items.${index}.unit_price`}
-                       render={({ field }) => (
-                         <FormItem>
-                           <FormLabel>Unit Price</FormLabel>
-                           <FormControl>
-                             <Input 
-                               type="number" 
-                               step="0.01"
-                               {...field}
-                               onChange={(e) => {
-                                 field.onChange(parseFloat(e.target.value) || 0);
-                                 calculateLineAmounts(index);
-                               }}
-                               disabled={readOnly}
-                             />
-                           </FormControl>
-                           <FormMessage />
-                         </FormItem>
-                       )}
-                     />
-
-                     <FormField
-                       control={form.control}
-                       name={`items.${index}.hsn_sac_code`}
-                       render={({ field }) => (
-                         <FormItem>
-                           <FormLabel>HSN/SAC Code</FormLabel>
-                           <FormControl>
-                             <Input {...field} disabled={readOnly} />
-                           </FormControl>
-                           <FormMessage />
-                         </FormItem>
-                       )}
-                     />
-                   </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                    <FormField
-                      control={form.control}
-                      name={`items.${index}.ordered_quantity`}
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Ordered Qty</FormLabel>
-                          <FormControl>
-                            <Input 
-                              type="number" 
-                              {...field}
-                              onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
-                              disabled={true}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={form.control}
-                      name={`items.${index}.received_quantity`}
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Received Qty</FormLabel>
-                          <FormControl>
-                             <Input 
-                               type="number" 
-                               {...field}
-                               onChange={(e) => {
-                                 const value = parseInt(e.target.value) || 0;
-                                 const orderedQty = form.getValues(`items.${index}.ordered_quantity`);
-                                 if (value <= orderedQty && value >= 0) {
-                                   field.onChange(value);
-                                   calculateLineAmounts(index);
-                                 } else {
-                                   toast({
-                                     title: "Invalid Quantity",
-                                     description: "Received quantity cannot exceed ordered quantity or be negative",
-                                     variant: "destructive",
-                                   });
-                                 }
-                               }}
-                               disabled={readOnly}
-                             />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={form.control}
-                      name={`items.${index}.accepted_quantity`}
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Accepted Qty</FormLabel>
-                          <FormControl>
-                             <Input 
-                               type="number" 
-                               {...field}
-                               onChange={(e) => {
-                                 const value = parseInt(e.target.value) || 0;
-                                 const receivedQty = form.getValues(`items.${index}.received_quantity`);
-                                 const rejectedQty = form.getValues(`items.${index}.rejected_quantity`);
-                                 if ((value + rejectedQty) <= receivedQty && value >= 0) {
-                                   field.onChange(value);
-                                   calculateLineAmounts(index);
-                                 } else {
-                                   toast({
-                                     title: "Invalid Quantity",
-                                     description: "Accepted + Rejected quantity cannot exceed received quantity",
-                                     variant: "destructive",
-                                   });
-                                 }
-                               }}
-                               disabled={readOnly}
-                             />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={form.control}
-                      name={`items.${index}.rejected_quantity`}
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Rejected Qty</FormLabel>
-                          <FormControl>
-                             <Input 
-                               type="number" 
-                               {...field}
-                               onChange={(e) => {
-                                 const value = parseInt(e.target.value) || 0;
-                                 const receivedQty = form.getValues(`items.${index}.received_quantity`);
-                                 const acceptedQty = form.getValues(`items.${index}.accepted_quantity`);
-                                 if ((value + acceptedQty) <= receivedQty && value >= 0) {
-                                   field.onChange(value);
-                                   calculateLineAmounts(index);
-                                 } else {
-                                   toast({
-                                     title: "Invalid Quantity",
-                                     description: "Accepted + Rejected quantity cannot exceed received quantity",
-                                     variant: "destructive",
-                                   });
-                                 }
-                               }}
-                               disabled={readOnly}
-                             />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-
-                  {/* GST Section */}
-                  <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
-                    <FormField
-                      control={form.control}
-                      name={`items.${index}.cgst_rate`}
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>CGST %</FormLabel>
-                          <FormControl>
-                            <Input 
-                              type="number" 
-                              step="0.01"
-                              {...field}
-                              onChange={(e) => {
-                                field.onChange(parseFloat(e.target.value) || 0);
-                                calculateLineAmounts(index);
-                              }}
-                              disabled={readOnly}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={form.control}
-                      name={`items.${index}.sgst_rate`}
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>SGST %</FormLabel>
-                          <FormControl>
-                            <Input 
-                              type="number" 
-                              step="0.01"
-                              {...field}
-                              onChange={(e) => {
-                                field.onChange(parseFloat(e.target.value) || 0);
-                                calculateLineAmounts(index);
-                              }}
-                              disabled={readOnly}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={form.control}
-                      name={`items.${index}.igst_rate`}
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>IGST %</FormLabel>
-                          <FormControl>
-                            <Input 
-                              type="number" 
-                              step="0.01"
-                              {...field}
-                              onChange={(e) => {
-                                field.onChange(parseFloat(e.target.value) || 0);
-                                calculateLineAmounts(index);
-                              }}
-                              disabled={readOnly}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={form.control}
-                      name={`items.${index}.discount_percentage`}
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Discount %</FormLabel>
-                          <FormControl>
-                            <Input 
-                              type="number" 
-                              step="0.01"
-                              {...field}
-                              onChange={(e) => {
-                                field.onChange(parseFloat(e.target.value) || 0);
-                                calculateLineAmounts(index);
-                              }}
-                              disabled={readOnly}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={form.control}
-                      name={`items.${index}.total_tax_amount`}
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Total Tax</FormLabel>
-                          <FormControl>
-                            <Input 
-                              type="number" 
-                              step="0.01"
-                              {...field}
-                              disabled={true}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={form.control}
-                      name={`items.${index}.line_total`}
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Line Total</FormLabel>
-                          <FormControl>
-                            <Input 
-                              type="number" 
-                              step="0.01"
-                              {...field}
-                              disabled={true}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-
-                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      <FormField
-                        control={form.control}
-                        name={`items.${index}.warehouse_id`}
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Warehouse *</FormLabel>
-                            <FormControl>
-                              <Select 
-                                value={field.value} 
-                                onValueChange={(value) => {
-                                  const selectedWarehouse = warehouses.find(w => w.id === value);
-                                  field.onChange(value);
-                                  if (selectedWarehouse) {
-                                    form.setValue(`items.${index}.warehouse_code`, selectedWarehouse.warehouse_code || '');
-                                    form.setValue(`items.${index}.warehouse_name`, selectedWarehouse.warehouse_name || '');
-                                    form.setValue(`items.${index}.bin_code`, selectedWarehouse.wh_bin_code || '');
-                                    form.setValue(`items.${index}.bin_name`, selectedWarehouse.bin_name || '');
-                                    form.setValue(`items.${index}.bin_id`, selectedWarehouse.id);
-                                  }
-                                }} 
-                                disabled={readOnly}
-                              >
-                                <SelectTrigger>
-                                  <SelectValue placeholder="Select warehouse" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {warehouses.map((warehouse) => (
-                                    <SelectItem key={warehouse.id} value={warehouse.id}>
-                                      {warehouse.warehouse_code} - {warehouse.warehouse_name} / {warehouse.bin_name}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
+                    <div>
+                      <label className="text-sm font-medium">Line Total</label>
+                      <Input
+                        type="number"
+                        value={item.line_total?.toFixed(2)}
+                        disabled
+                        className="mt-1"
                       />
-
-                      <FormField
-                        control={form.control}
-                        name={`items.${index}.warehouse_code`}
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Warehouse Code</FormLabel>
-                            <FormControl>
-                              <Input {...field} disabled className="bg-muted" />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={form.control}
-                        name={`items.${index}.bin_code`}
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Bin Code</FormLabel>
-                            <FormControl>
-                              <Input {...field} disabled className="bg-muted" />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                   </div>
+                    </div>
+                  </div>
                 </div>
               ))}
             </div>
           </CardContent>
         </Card>
 
-        {/* Totals Summary */}
-        <Card>
-          <CardHeader>
-            <CardTitle>GRN Summary</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div className="text-center">
-                <div className="text-2xl font-bold text-primary">{totals.totalOrderedQty}</div>
-                <div className="text-sm text-muted-foreground">Total Ordered</div>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-blue-600">{totals.totalReceivedQty}</div>
-                <div className="text-sm text-muted-foreground">Total Received</div>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-green-600">{totals.totalAcceptedQty}</div>
-                <div className="text-sm text-muted-foreground">Total Accepted</div>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-red-600">{totals.totalRejectedQty}</div>
-                <div className="text-sm text-muted-foreground">Total Rejected</div>
-              </div>
-            </div>
-            <Separator className="my-4" />
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div className="text-center">
-                <div className="text-lg font-semibold">₹{totals.subtotalAmount.toFixed(2)}</div>
-                <div className="text-sm text-muted-foreground">Subtotal</div>
-              </div>
-              <div className="text-center">
-                <div className="text-lg font-semibold">₹{totals.totalDiscountAmount.toFixed(2)}</div>
-                <div className="text-sm text-muted-foreground">Total Discount</div>
-              </div>
-              <div className="text-center">
-                <div className="text-lg font-semibold">₹{totals.totalTaxAmount.toFixed(2)}</div>
-                <div className="text-sm text-muted-foreground">Total Tax</div>
-              </div>
-              <div className="text-center">
-                <div className="text-xl font-bold text-primary">₹{totals.totalAmount.toFixed(2)}</div>
-                <div className="text-sm text-muted-foreground">Grand Total</div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Form Actions */}
-        <div className="flex justify-end space-x-2">
-          <Button type="button" variant="outline" onClick={onCancel}>
-            Cancel
+        {/* Action Buttons */}
+        <div className="flex justify-end space-x-4">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={onCancel}
+          >
+            {readOnly ? 'Close' : 'Cancel'}
           </Button>
           {!readOnly && (
-            <Button type="submit" disabled={loading}>
+            <Button
+              type="submit"
+              disabled={loading}
+            >
               {loading ? 'Saving...' : mode === 'create' ? 'Create GRN' : 'Update GRN'}
             </Button>
           )}
