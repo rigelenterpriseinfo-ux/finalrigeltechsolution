@@ -528,314 +528,368 @@ export function GRNForm({ grn, onSubmit, onCancel, readOnly = false, mode }: GRN
         />
 
         {/* Items Section */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Items</CardTitle>
+        <Card className="shadow-sm">
+          <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950 dark:to-indigo-950">
+            <CardTitle className="text-lg font-semibold text-primary flex items-center gap-2">
+              <div className="h-2 w-2 bg-primary rounded-full"></div>
+              Product Items
+            </CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="p-6">
             {form.watch('items')?.length > 0 ? (
-              <div className="overflow-x-auto">
-                <table className="w-full border-collapse border border-border">
-                  <thead>
-                    <tr className="bg-muted">
-                      <th className="border border-border p-3 text-left text-sm font-medium">Product Name</th>
-                      <th className="border border-border p-3 text-left text-sm font-medium">SKU</th>
-                      <th className="border border-border p-3 text-left text-sm font-medium">Ordered Qty</th>
-                      <th className="border border-border p-3 text-left text-sm font-medium">Received Qty</th>
-                      <th className="border border-border p-3 text-left text-sm font-medium">Accepted Qty</th>
-                      <th className="border border-border p-3 text-left text-sm font-medium">Rejected Qty</th>
-                      <th className="border border-border p-3 text-left text-sm font-medium">Unit Price</th>
-                      <th className="border border-border p-3 text-left text-sm font-medium">Warehouse ID</th>
-                      <th className="border border-border p-3 text-left text-sm font-medium">Warehouse Name</th>
-                      <th className="border border-border p-3 text-left text-sm font-medium">Bin Code</th>
-                      <th className="border border-border p-3 text-left text-sm font-medium">Bin Name</th>
-                      <th className="border border-border p-3 text-left text-sm font-medium">CGST %</th>
-                      <th className="border border-border p-3 text-left text-sm font-medium">CGST Amt</th>
-                      <th className="border border-border p-3 text-left text-sm font-medium">SGST %</th>
-                      <th className="border border-border p-3 text-left text-sm font-medium">SGST Amt</th>
-                      <th className="border border-border p-3 text-left text-sm font-medium">IGST %</th>
-                      <th className="border border-border p-3 text-left text-sm font-medium">IGST Amt</th>
-                      <th className="border border-border p-3 text-left text-sm font-medium">Line Total</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {form.watch('items').map((item: any, index: number) => {
-                      const selectedBin = bins.find(b => b.id === item.bin_id);
-                      const selectedWarehouse = warehouses.find(w => w.name === selectedBin?.warehouse_name);
-                      
-                      return (
-                        <tr key={index} className="hover:bg-muted/50">
-                          {/* Product Name - Read Only */}
-                          <td className="border border-border p-2">
-                            <Input
-                              value={item.product_name || ''}
-                              disabled
-                              className="min-w-[150px] text-sm"
-                            />
-                          </td>
-                          
-                          {/* SKU - Read Only */}
-                          <td className="border border-border p-2">
-                            <Input
-                              value={item.product_sku || ''}
-                              disabled
-                              className="min-w-[100px] text-sm"
-                            />
-                          </td>
-                          
-                          {/* Ordered Quantity - Read Only */}
-                          <td className="border border-border p-2">
-                            <Input
-                              type="number"
-                              value={item.ordered_quantity || 0}
-                              disabled
-                              className="min-w-[80px] text-sm"
-                            />
-                          </td>
-                          
-                          {/* Received Quantity */}
-                          <td className="border border-border p-2">
-                            <Input
-                              type="number"
-                              min="0"
-                              max={item.ordered_quantity}
-                              value={item.received_quantity || 0}
-                              onChange={(e) => {
-                                const newValue = Math.min(
-                                  parseFloat(e.target.value) || 0, 
-                                  item.ordered_quantity
-                                );
-                                form.setValue(`items.${index}.received_quantity`, newValue);
-                                
-                                // Auto-update accepted quantity if status is "received"
-                                if (form.getValues('status') === 'received') {
-                                  form.setValue(`items.${index}.accepted_quantity`, newValue);
-                                  form.setValue(`items.${index}.rejected_quantity`, 0);
-                                }
-                                
-                                validateQuantities(index);
-                                calculateItemTotals(index);
-                              }}
-                              disabled={readOnly}
-                              className="min-w-[80px] text-sm"
-                            />
-                          </td>
-                          
-                          {/* Accepted Quantity */}
-                          <td className="border border-border p-2">
-                            <Input
-                              type="number"
-                              min="0"
-                              value={item.accepted_quantity || 0}
-                              onChange={(e) => {
-                                const newValue = parseFloat(e.target.value) || 0;
-                                const maxAccepted = (item.received_quantity || 0) - (item.rejected_quantity || 0);
-                                const finalValue = Math.min(newValue, maxAccepted);
-                                form.setValue(`items.${index}.accepted_quantity`, finalValue);
-                                validateQuantities(index);
-                                calculateItemTotals(index);
-                              }}
-                              disabled={readOnly || form.getValues('status') === 'received'}
-                              className="min-w-[80px] text-sm"
-                            />
-                          </td>
-                          
-                          {/* Rejected Quantity */}
-                          <td className="border border-border p-2">
-                            <Input
-                              type="number"
-                              min="0"
-                              value={item.rejected_quantity || 0}
-                              onChange={(e) => {
-                                const newValue = parseFloat(e.target.value) || 0;
-                                const maxRejected = (item.received_quantity || 0) - (item.accepted_quantity || 0);
-                                const finalValue = Math.min(newValue, maxRejected);
-                                form.setValue(`items.${index}.rejected_quantity`, finalValue);
-                                validateQuantities(index);
-                              }}
-                              disabled={readOnly || form.getValues('status') === 'received'}
-                              className="min-w-[80px] text-sm"
-                            />
-                          </td>
-                          
-                          {/* Unit Price - Read Only */}
-                          <td className="border border-border p-2">
-                            <Input
-                              type="number"
-                              step="0.01"
-                              value={item.unit_price || 0}
-                              disabled
-                              className="min-w-[100px] text-sm"
-                            />
-                          </td>
-                          
-                          {/* Warehouse ID */}
-                          <td className="border border-border p-2">
-                            <Input
-                              value={selectedWarehouse?.warehouse_code || ''}
-                              disabled
-                              className="min-w-[100px] text-sm"
-                            />
-                          </td>
-                          
-                          {/* Warehouse Name */}
-                          <td className="border border-border p-2">
-                            <Select
-                              value={item.warehouse_id || ''}
-                              onValueChange={(value) => {
-                                form.setValue(`items.${index}.warehouse_id`, value);
-                                // Clear bin selection when warehouse changes
-                                form.setValue(`items.${index}.bin_id`, '');
-                              }}
-                              disabled={readOnly}
-                            >
-                              <SelectTrigger className="min-w-[150px] text-sm">
-                                <SelectValue placeholder="Select warehouse" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {warehouses.map((warehouse) => (
-                                  <SelectItem key={warehouse.id} value={warehouse.id}>
-                                    {warehouse.name}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          </td>
-                          
-                          {/* Bin Code */}
-                          <td className="border border-border p-2">
-                            <Input
-                              value={selectedBin?.wh_bin_code || ''}
-                              disabled
-                              className="min-w-[100px] text-sm"
-                            />
-                          </td>
-                          
-                          {/* Bin Name */}
-                          <td className="border border-border p-2">
-                            <Select
-                              value={item.bin_id || ''}
-                              onValueChange={(value) => form.setValue(`items.${index}.bin_id`, value)}
-                              disabled={readOnly || !item.warehouse_id}
-                            >
-                              <SelectTrigger className="min-w-[150px] text-sm">
-                                <SelectValue placeholder="Select bin" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {bins
-                                  .filter(bin => bin.warehouse_name === selectedWarehouse?.name)
-                                  .map((bin) => (
-                                    <SelectItem key={bin.id} value={bin.id}>
-                                      {bin.bin_name}
-                                    </SelectItem>
-                                  ))
-                                }
-                              </SelectContent>
-                            </Select>
-                          </td>
-                          
-                          {/* CGST % */}
-                          <td className="border border-border p-2">
-                            <Input
-                              type="number"
-                              step="0.01"
-                              min="0"
-                              max="100"
-                              value={item.cgst_rate || 0}
-                              onChange={(e) => {
-                                const rate = parseFloat(e.target.value) || 0;
-                                form.setValue(`items.${index}.cgst_rate`, rate);
-                                calculateItemTotals(index);
-                              }}
-                              disabled={readOnly}
-                              className="min-w-[80px] text-sm"
-                            />
-                          </td>
-                          
-                          {/* CGST Amount */}
-                          <td className="border border-border p-2">
-                            <Input
-                              type="number"
-                              value={item.cgst_amount?.toFixed(2) || '0.00'}
-                              disabled
-                              className="min-w-[100px] text-sm"
-                            />
-                          </td>
-                          
-                          {/* SGST % */}
-                          <td className="border border-border p-2">
-                            <Input
-                              type="number"
-                              step="0.01"
-                              min="0"
-                              max="100"
-                              value={item.sgst_rate || 0}
-                              onChange={(e) => {
-                                const rate = parseFloat(e.target.value) || 0;
-                                form.setValue(`items.${index}.sgst_rate`, rate);
-                                calculateItemTotals(index);
-                              }}
-                              disabled={readOnly}
-                              className="min-w-[80px] text-sm"
-                            />
-                          </td>
-                          
-                          {/* SGST Amount */}
-                          <td className="border border-border p-2">
-                            <Input
-                              type="number"
-                              value={item.sgst_amount?.toFixed(2) || '0.00'}
-                              disabled
-                              className="min-w-[100px] text-sm"
-                            />
-                          </td>
-                          
-                          {/* IGST % */}
-                          <td className="border border-border p-2">
-                            <Input
-                              type="number"
-                              step="0.01"
-                              min="0"
-                              max="100"
-                              value={item.igst_rate || 0}
-                              onChange={(e) => {
-                                const rate = parseFloat(e.target.value) || 0;
-                                form.setValue(`items.${index}.igst_rate`, rate);
-                                calculateItemTotals(index);
-                              }}
-                              disabled={readOnly}
-                              className="min-w-[80px] text-sm"
-                            />
-                          </td>
-                          
-                          {/* IGST Amount */}
-                          <td className="border border-border p-2">
-                            <Input
-                              type="number"
-                              value={item.igst_amount?.toFixed(2) || '0.00'}
-                              disabled
-                              className="min-w-[100px] text-sm"
-                            />
-                          </td>
-                          
-                          {/* Line Total */}
-                          <td className="border border-border p-2">
-                            <Input
-                              type="number"
-                              value={item.line_total?.toFixed(2) || '0.00'}
-                              disabled
-                              className="min-w-[120px] text-sm font-medium"
-                            />
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
+              <div className="space-y-6">
+                {/* Main Items Table */}
+                <div className="overflow-x-auto rounded-lg border border-border">
+                  <table className="w-full border-collapse">
+                    <thead>
+                      <tr className="bg-gradient-to-r from-muted/50 to-muted/30">
+                        <th className="border-r border-border p-4 text-left text-sm font-semibold text-foreground">Product Details</th>
+                        <th className="border-r border-border p-4 text-center text-sm font-semibold text-foreground">Quantities</th>
+                        <th className="border-r border-border p-4 text-center text-sm font-semibold text-foreground">Unit Price</th>
+                        <th className="border-r border-border p-4 text-center text-sm font-semibold text-foreground">Warehouse & Bin</th>
+                        <th className="p-4 text-center text-sm font-semibold text-foreground">Line Total</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {form.watch('items').map((item: any, index: number) => {
+                        const selectedBin = bins.find(b => b.id === item.bin_id);
+                        const selectedWarehouse = warehouses.find(w => w.name === selectedBin?.warehouse_name);
+                        
+                        return (
+                          <tr key={index} className="hover:bg-muted/30 transition-colors border-b border-border">
+                            {/* Product Details */}
+                            <td className="border-r border-border p-4">
+                              <div className="space-y-3">
+                                <div>
+                                  <label className="text-xs font-medium text-muted-foreground mb-1 block">Product Name</label>
+                                  <Input
+                                    value={item.product_name || ''}
+                                    disabled
+                                    className="bg-muted/30 text-sm font-medium"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="text-xs font-medium text-muted-foreground mb-1 block">SKU</label>
+                                  <Input
+                                    value={item.product_sku || ''}
+                                    disabled
+                                    className="bg-muted/30 text-sm"
+                                  />
+                                </div>
+                              </div>
+                            </td>
+                            
+                            {/* Quantities */}
+                            <td className="border-r border-border p-4">
+                              <div className="grid grid-cols-2 gap-3">
+                                <div>
+                                  <label className="text-xs font-medium text-muted-foreground mb-1 block">Ordered Qty</label>
+                                  <Input
+                                    type="number"
+                                    value={item.ordered_quantity || 0}
+                                    disabled
+                                    className="bg-muted/30 text-sm text-center"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="text-xs font-medium text-muted-foreground mb-1 block">Received Qty</label>
+                                  <Input
+                                    type="number"
+                                    min="0"
+                                    max={item.ordered_quantity}
+                                    value={item.received_quantity || 0}
+                                    onChange={(e) => {
+                                      const newValue = Math.min(
+                                        parseFloat(e.target.value) || 0, 
+                                        item.ordered_quantity
+                                      );
+                                      form.setValue(`items.${index}.received_quantity`, newValue);
+                                      
+                                      // Auto-update accepted quantity if status is "received"
+                                      if (form.getValues('status') === 'received') {
+                                        form.setValue(`items.${index}.accepted_quantity`, newValue);
+                                        form.setValue(`items.${index}.rejected_quantity`, 0);
+                                      }
+                                      
+                                      validateQuantities(index);
+                                      calculateItemTotals(index);
+                                    }}
+                                    disabled={readOnly}
+                                    className="text-sm text-center border-blue-200 focus:border-blue-400"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="text-xs font-medium text-green-600 mb-1 block">Accepted Qty *</label>
+                                  <Input
+                                    type="number"
+                                    min="0"
+                                    value={item.accepted_quantity || 0}
+                                    onChange={(e) => {
+                                      const newValue = parseFloat(e.target.value) || 0;
+                                      const maxAccepted = (item.received_quantity || 0) - (item.rejected_quantity || 0);
+                                      const finalValue = Math.min(newValue, maxAccepted);
+                                      form.setValue(`items.${index}.accepted_quantity`, finalValue);
+                                      validateQuantities(index);
+                                      calculateItemTotals(index);
+                                    }}
+                                    disabled={readOnly}
+                                    className="text-sm text-center border-green-200 focus:border-green-400 bg-green-50/50"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="text-xs font-medium text-red-600 mb-1 block">Rejected Qty *</label>
+                                  <Input
+                                    type="number"
+                                    min="0"
+                                    value={item.rejected_quantity || 0}
+                                    onChange={(e) => {
+                                      const newValue = parseFloat(e.target.value) || 0;
+                                      const maxRejected = (item.received_quantity || 0) - (item.accepted_quantity || 0);
+                                      const finalValue = Math.min(newValue, maxRejected);
+                                      form.setValue(`items.${index}.rejected_quantity`, finalValue);
+                                      validateQuantities(index);
+                                    }}
+                                    disabled={readOnly}
+                                    className="text-sm text-center border-red-200 focus:border-red-400 bg-red-50/50"
+                                  />
+                                </div>
+                              </div>
+                              <div className="mt-2 text-xs text-muted-foreground text-center">
+                                Pending: {(item.ordered_quantity || 0) - (item.received_quantity || 0)}
+                              </div>
+                            </td>
+                            
+                            {/* Unit Price */}
+                            <td className="border-r border-border p-4">
+                              <div>
+                                <label className="text-xs font-medium text-muted-foreground mb-1 block">Unit Price</label>
+                                <Input
+                                  type="number"
+                                  step="0.01"
+                                  value={item.unit_price || 0}
+                                  disabled
+                                  className="bg-muted/30 text-sm text-center font-medium"
+                                />
+                              </div>
+                            </td>
+                            
+                            {/* Warehouse & Bin */}
+                            <td className="border-r border-border p-4">
+                              <div className="space-y-3">
+                                <div className="grid grid-cols-2 gap-2">
+                                  <div>
+                                    <label className="text-xs font-medium text-muted-foreground mb-1 block">Warehouse ID</label>
+                                    <Input
+                                      value={selectedWarehouse?.warehouse_code || ''}
+                                      disabled
+                                      className="bg-muted/30 text-xs"
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="text-xs font-medium text-muted-foreground mb-1 block">Bin Code</label>
+                                    <Input
+                                      value={selectedBin?.wh_bin_code || ''}
+                                      disabled
+                                      className="bg-muted/30 text-xs"
+                                    />
+                                  </div>
+                                </div>
+                                <div>
+                                  <label className="text-xs font-medium text-muted-foreground mb-1 block">Warehouse Name</label>
+                                  <Select
+                                    value={item.warehouse_id || ''}
+                                    onValueChange={(value) => {
+                                      form.setValue(`items.${index}.warehouse_id`, value);
+                                      form.setValue(`items.${index}.bin_id`, '');
+                                    }}
+                                    disabled={readOnly}
+                                  >
+                                    <SelectTrigger className="text-sm">
+                                      <SelectValue placeholder="Select warehouse" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {warehouses.map((warehouse) => (
+                                        <SelectItem key={warehouse.id} value={warehouse.id}>
+                                          {warehouse.name}
+                                        </SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+                                <div>
+                                  <label className="text-xs font-medium text-muted-foreground mb-1 block">Bin Name</label>
+                                  <Select
+                                    value={item.bin_id || ''}
+                                    onValueChange={(value) => form.setValue(`items.${index}.bin_id`, value)}
+                                    disabled={readOnly || !item.warehouse_id}
+                                  >
+                                    <SelectTrigger className="text-sm">
+                                      <SelectValue placeholder="Select bin" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {bins
+                                        .filter(bin => bin.warehouse_name === selectedWarehouse?.name)
+                                        .map((bin) => (
+                                          <SelectItem key={bin.id} value={bin.id}>
+                                            {bin.bin_name}
+                                          </SelectItem>
+                                        ))
+                                      }
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+                              </div>
+                            </td>
+                            
+                            {/* Line Total */}
+                            <td className="p-4">
+                              <div>
+                                <label className="text-xs font-medium text-muted-foreground mb-1 block">Line Total</label>
+                                <Input
+                                  type="number"
+                                  value={item.line_total?.toFixed(2) || '0.00'}
+                                  disabled
+                                  className="bg-primary/10 text-sm text-center font-bold text-primary"
+                                />
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* GST Section - Moved to Bottom */}
+                <Card className="border-dashed border-2 border-orange-200 bg-orange-50/50 dark:bg-orange-950/20">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-base font-semibold text-orange-700 dark:text-orange-400 flex items-center gap-2">
+                      <div className="h-2 w-2 bg-orange-500 rounded-full"></div>
+                      GST Details
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="overflow-x-auto">
+                      <table className="w-full border-collapse border border-orange-200">
+                        <thead>
+                          <tr className="bg-orange-100 dark:bg-orange-900/30">
+                            <th className="border border-orange-200 p-3 text-left text-sm font-medium">Product</th>
+                            <th className="border border-orange-200 p-3 text-center text-sm font-medium">CGST %</th>
+                            <th className="border border-orange-200 p-3 text-center text-sm font-medium">CGST Amount</th>
+                            <th className="border border-orange-200 p-3 text-center text-sm font-medium">SGST %</th>
+                            <th className="border border-orange-200 p-3 text-center text-sm font-medium">SGST Amount</th>
+                            <th className="border border-orange-200 p-3 text-center text-sm font-medium">IGST %</th>
+                            <th className="border border-orange-200 p-3 text-center text-sm font-medium">IGST Amount</th>
+                            <th className="border border-orange-200 p-3 text-center text-sm font-medium">Total Tax</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {form.watch('items').map((item: any, index: number) => (
+                            <tr key={index} className="hover:bg-orange-50 dark:hover:bg-orange-950/20">
+                              <td className="border border-orange-200 p-2">
+                                <div className="text-sm font-medium">{item.product_name}</div>
+                                <div className="text-xs text-muted-foreground">{item.product_sku}</div>
+                              </td>
+                              
+                              <td className="border border-orange-200 p-2">
+                                <Input
+                                  type="number"
+                                  step="0.01"
+                                  min="0"
+                                  max="100"
+                                  value={item.cgst_rate || 0}
+                                  onChange={(e) => {
+                                    const rate = parseFloat(e.target.value) || 0;
+                                    form.setValue(`items.${index}.cgst_rate`, rate);
+                                    calculateItemTotals(index);
+                                  }}
+                                  disabled={readOnly}
+                                  className="text-sm text-center border-orange-200 focus:border-orange-400"
+                                />
+                              </td>
+                              
+                              <td className="border border-orange-200 p-2">
+                                <Input
+                                  type="number"
+                                  value={item.cgst_amount?.toFixed(2) || '0.00'}
+                                  disabled
+                                  className="text-sm text-center bg-muted/30 font-medium"
+                                />
+                              </td>
+                              
+                              <td className="border border-orange-200 p-2">
+                                <Input
+                                  type="number"
+                                  step="0.01"
+                                  min="0"
+                                  max="100"
+                                  value={item.sgst_rate || 0}
+                                  onChange={(e) => {
+                                    const rate = parseFloat(e.target.value) || 0;
+                                    form.setValue(`items.${index}.sgst_rate`, rate);
+                                    calculateItemTotals(index);
+                                  }}
+                                  disabled={readOnly}
+                                  className="text-sm text-center border-orange-200 focus:border-orange-400"
+                                />
+                              </td>
+                              
+                              <td className="border border-orange-200 p-2">
+                                <Input
+                                  type="number"
+                                  value={item.sgst_amount?.toFixed(2) || '0.00'}
+                                  disabled
+                                  className="text-sm text-center bg-muted/30 font-medium"
+                                />
+                              </td>
+                              
+                              <td className="border border-orange-200 p-2">
+                                <Input
+                                  type="number"
+                                  step="0.01"
+                                  min="0"
+                                  max="100"
+                                  value={item.igst_rate || 0}
+                                  onChange={(e) => {
+                                    const rate = parseFloat(e.target.value) || 0;
+                                    form.setValue(`items.${index}.igst_rate`, rate);
+                                    calculateItemTotals(index);
+                                  }}
+                                  disabled={readOnly}
+                                  className="text-sm text-center border-orange-200 focus:border-orange-400"
+                                />
+                              </td>
+                              
+                              <td className="border border-orange-200 p-2">
+                                <Input
+                                  type="number"
+                                  value={item.igst_amount?.toFixed(2) || '0.00'}
+                                  disabled
+                                  className="text-sm text-center bg-muted/30 font-medium"
+                                />
+                              </td>
+                              
+                              <td className="border border-orange-200 p-2">
+                                <Input
+                                  type="number"
+                                  value={((item.cgst_amount || 0) + (item.sgst_amount || 0) + (item.igst_amount || 0)).toFixed(2)}
+                                  disabled
+                                  className="text-sm text-center bg-orange-100 dark:bg-orange-900/30 font-bold text-orange-700 dark:text-orange-400"
+                                />
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </CardContent>
+                </Card>
               </div>
             ) : (
-              <div className="text-center py-8 text-muted-foreground">
-                Please select a Purchase Order to load items
+              <div className="text-center py-12 text-muted-foreground">
+                <div className="text-4xl mb-4">📦</div>
+                <p className="text-lg font-medium mb-2">No Purchase Order Selected</p>
+                <p className="text-sm">Please select a Purchase Order above to load items for GRN processing</p>
               </div>
             )}
           </CardContent>
