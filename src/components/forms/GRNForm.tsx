@@ -58,6 +58,7 @@ const grnLineItemSchema = z.object({
 });
 
 const grnSchema = z.object({
+  grn_number: z.string().optional(),
   purchase_order_id: z.string().min(1, 'Purchase Order is required'),
   supplier_id: z.string().min(1, 'Supplier is required'),
   supplier_name: z.string().min(1, 'Supplier name is required'),
@@ -91,6 +92,7 @@ export function GRNForm({ grn, onSubmit, onCancel, readOnly = false, mode }: GRN
   const form = useForm<GRNFormData>({
     resolver: zodResolver(grnSchema),
     defaultValues: {
+      grn_number: grn?.grn_number || '',
       purchase_order_id: grn?.purchase_order_id || '',
       supplier_id: grn?.supplier_id || '',
       supplier_name: grn?.supplier_name || '',
@@ -202,35 +204,44 @@ export function GRNForm({ grn, onSubmit, onCancel, readOnly = false, mode }: GRN
       form.setValue('supplier_id', po.supplier.id);
       form.setValue('supplier_name', po.supplier.name);
       
-      // Populate items from PO
-      const poItems = po.purchase_order_items.map((item: any) => ({
-        product_id: item.product_id || '',
-        product_name: item.item_description,
-        product_sku: item.item_code || '',
-        unit_of_measure: item.unit_of_measure,
-        ordered_quantity: item.quantity,
-        received_quantity: 0,
-        accepted_quantity: 0,
-        rejected_quantity: 0,
-        unit_price: item.unit_price,
-        discount_percentage: item.discount_percentage || 0,
-        discount_amount: item.discount_amount || 0,
-        warehouse_id: '',
-        bin_id: '',
-        warehouse_code: '',
-        warehouse_name: '',
-        bin_code: '',
-        bin_name: '',
-        hsn_sac_code: item.hsn_sac_code || '',
-        cgst_rate: item.cgst_rate || 0,
-        cgst_amount: 0,
-        sgst_rate: item.sgst_rate || 0,
-        sgst_amount: 0,
-        igst_rate: item.igst_rate || 0,
-        igst_amount: 0,
-        total_tax_amount: 0,
-        line_total: 0,
-      }));
+      // Populate items from PO and try to match with products
+      const poItems = po.purchase_order_items.map((item: any) => {
+        // Try to find matching product by id or code
+        const matchedProduct = products.find(p => 
+          p.id === item.product_id || 
+          p.sku === item.item_code ||
+          p.name === item.item_description
+        );
+        
+        return {
+          product_id: matchedProduct?.id || '',
+          product_name: item.item_description,
+          product_sku: item.item_code || matchedProduct?.sku || '',
+          unit_of_measure: item.unit_of_measure,
+          ordered_quantity: item.quantity,
+          received_quantity: 0,
+          accepted_quantity: 0,
+          rejected_quantity: 0,
+          unit_price: item.unit_price,
+          discount_percentage: item.discount_percentage || 0,
+          discount_amount: item.discount_amount || 0,
+          warehouse_id: '',
+          bin_id: '',
+          warehouse_code: '',
+          warehouse_name: '',
+          bin_code: '',
+          bin_name: '',
+          hsn_sac_code: item.hsn_sac_code || '',
+          cgst_rate: item.cgst_rate || 0,
+          cgst_amount: 0,
+          sgst_rate: item.sgst_rate || 0,
+          sgst_amount: 0,
+          igst_rate: item.igst_rate || 0,
+          igst_amount: 0,
+          total_tax_amount: 0,
+          line_total: 0,
+        };
+      });
       
       form.setValue('items', poItems);
     }
@@ -296,6 +307,17 @@ export function GRNForm({ grn, onSubmit, onCancel, readOnly = false, mode }: GRN
   };
 
   const handleSubmit = async (data: GRNFormData) => {
+    // Validate all items have valid product_id
+    const invalidItems = data.items.filter(item => !item.product_id);
+    if (invalidItems.length > 0) {
+      toast({
+        title: "Validation Error",
+        description: "All items must have a valid product selected",
+        variant: "destructive",
+      });
+      return;
+    }
+
     try {
       setLoading(true);
       await onSubmit(data);
@@ -351,6 +373,28 @@ export function GRNForm({ grn, onSubmit, onCancel, readOnly = false, mode }: GRN
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
+            {/* GRN Number Field */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <FormField
+                control={form.control}
+                name="grn_number"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>GRN Number</FormLabel>
+                    <FormControl>
+                      <Input 
+                        {...field} 
+                        placeholder="Auto-generated after submission"
+                        disabled 
+                        className="bg-muted"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+            
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <FormField
                 control={form.control}
@@ -514,72 +558,126 @@ export function GRNForm({ grn, onSubmit, onCancel, readOnly = false, mode }: GRN
                     )}
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                    <FormField
-                      control={form.control}
-                      name={`items.${index}.product_name`}
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Product Name *</FormLabel>
-                          <FormControl>
-                            <Input {...field} disabled={readOnly} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+                   <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                     <FormField
+                       control={form.control}
+                       name={`items.${index}.product_id`}
+                       render={({ field }) => (
+                         <FormItem>
+                           <FormLabel>Product *</FormLabel>
+                           <FormControl>
+                             <Select 
+                               value={field.value} 
+                               onValueChange={(value) => {
+                                 const selectedProduct = products.find(p => p.id === value);
+                                 field.onChange(value);
+                                 if (selectedProduct) {
+                                   form.setValue(`items.${index}.product_name`, selectedProduct.name);
+                                   form.setValue(`items.${index}.product_sku`, selectedProduct.sku);
+                                   form.setValue(`items.${index}.unit_of_measure`, selectedProduct.unit || 'pcs');
+                                   form.setValue(`items.${index}.hsn_sac_code`, selectedProduct.hsn_code || '');
+                                 }
+                               }} 
+                               disabled={readOnly}
+                             >
+                               <SelectTrigger>
+                                 <SelectValue placeholder="Select product" />
+                               </SelectTrigger>
+                               <SelectContent>
+                                 {products.map((product) => (
+                                   <SelectItem key={product.id} value={product.id}>
+                                     {product.name} ({product.sku})
+                                   </SelectItem>
+                                 ))}
+                               </SelectContent>
+                             </Select>
+                           </FormControl>
+                           <FormMessage />
+                         </FormItem>
+                       )}
+                     />
 
-                    <FormField
-                      control={form.control}
-                      name={`items.${index}.product_sku`}
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>SKU *</FormLabel>
-                          <FormControl>
-                            <Input {...field} disabled={readOnly} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+                     <FormField
+                       control={form.control}
+                       name={`items.${index}.product_name`}
+                       render={({ field }) => (
+                         <FormItem>
+                           <FormLabel>Product Name</FormLabel>
+                           <FormControl>
+                             <Input {...field} disabled className="bg-muted" />
+                           </FormControl>
+                           <FormMessage />
+                         </FormItem>
+                       )}
+                     />
 
-                    <FormField
-                      control={form.control}
-                      name={`items.${index}.unit_of_measure`}
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>UOM</FormLabel>
-                          <FormControl>
-                            <Input {...field} disabled={readOnly} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+                     <FormField
+                       control={form.control}
+                       name={`items.${index}.product_sku`}
+                       render={({ field }) => (
+                         <FormItem>
+                           <FormLabel>SKU</FormLabel>
+                           <FormControl>
+                             <Input {...field} disabled className="bg-muted" />
+                           </FormControl>
+                           <FormMessage />
+                         </FormItem>
+                       )}
+                     />
 
-                    <FormField
-                      control={form.control}
-                      name={`items.${index}.unit_price`}
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Unit Price</FormLabel>
-                          <FormControl>
-                            <Input 
-                              type="number" 
-                              step="0.01"
-                              {...field}
-                              onChange={(e) => {
-                                field.onChange(parseFloat(e.target.value) || 0);
-                                calculateLineAmounts(index);
-                              }}
-                              disabled={readOnly}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
+                     <FormField
+                       control={form.control}
+                       name={`items.${index}.unit_of_measure`}
+                       render={({ field }) => (
+                         <FormItem>
+                           <FormLabel>UOM</FormLabel>
+                           <FormControl>
+                             <Input {...field} disabled={readOnly} />
+                           </FormControl>
+                           <FormMessage />
+                         </FormItem>
+                       )}
+                     />
+                   </div>
+
+                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                     <FormField
+                       control={form.control}
+                       name={`items.${index}.unit_price`}
+                       render={({ field }) => (
+                         <FormItem>
+                           <FormLabel>Unit Price</FormLabel>
+                           <FormControl>
+                             <Input 
+                               type="number" 
+                               step="0.01"
+                               {...field}
+                               onChange={(e) => {
+                                 field.onChange(parseFloat(e.target.value) || 0);
+                                 calculateLineAmounts(index);
+                               }}
+                               disabled={readOnly}
+                             />
+                           </FormControl>
+                           <FormMessage />
+                         </FormItem>
+                       )}
+                     />
+
+                     <FormField
+                       control={form.control}
+                       name={`items.${index}.hsn_sac_code`}
+                       render={({ field }) => (
+                         <FormItem>
+                           <FormLabel>HSN/SAC Code</FormLabel>
+                           <FormControl>
+                             <Input {...field} disabled={readOnly} />
+                           </FormControl>
+                           <FormMessage />
+                         </FormItem>
+                       )}
+                     />
+                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                     <FormField
@@ -833,60 +931,74 @@ export function GRNForm({ grn, onSubmit, onCancel, readOnly = false, mode }: GRN
                     />
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                     <FormField
-                       control={form.control}
-                       name={`items.${index}.warehouse_id`}
-                       render={({ field }) => (
-                         <FormItem>
-                           <FormLabel>Warehouse *</FormLabel>
-                           <FormControl>
-                             <Select 
-                               value={field.value} 
-                               onValueChange={(value) => {
-                                 const selectedWarehouse = warehouses.find(w => w.id === value);
-                                 field.onChange(value);
-                                 if (selectedWarehouse) {
-                                   form.setValue(`items.${index}.warehouse_code`, selectedWarehouse.warehouse_code || '');
-                                   form.setValue(`items.${index}.warehouse_name`, selectedWarehouse.warehouse_name || '');
-                                   form.setValue(`items.${index}.bin_code`, selectedWarehouse.wh_bin_code || '');
-                                   form.setValue(`items.${index}.bin_name`, selectedWarehouse.bin_name || '');
-                                   form.setValue(`items.${index}.bin_id`, selectedWarehouse.id);
-                                 }
-                               }} 
-                               disabled={readOnly}
-                             >
-                               <SelectTrigger>
-                                 <SelectValue placeholder="Select warehouse" />
-                               </SelectTrigger>
-                               <SelectContent>
-                                 {warehouses.map((warehouse) => (
-                                   <SelectItem key={warehouse.id} value={warehouse.id}>
-                                     {warehouse.warehouse_code} - {warehouse.warehouse_name} / {warehouse.bin_name}
-                                   </SelectItem>
-                                 ))}
-                               </SelectContent>
-                             </Select>
-                           </FormControl>
-                           <FormMessage />
-                         </FormItem>
-                       )}
-                     />
+                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <FormField
+                        control={form.control}
+                        name={`items.${index}.warehouse_id`}
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Warehouse *</FormLabel>
+                            <FormControl>
+                              <Select 
+                                value={field.value} 
+                                onValueChange={(value) => {
+                                  const selectedWarehouse = warehouses.find(w => w.id === value);
+                                  field.onChange(value);
+                                  if (selectedWarehouse) {
+                                    form.setValue(`items.${index}.warehouse_code`, selectedWarehouse.warehouse_code || '');
+                                    form.setValue(`items.${index}.warehouse_name`, selectedWarehouse.warehouse_name || '');
+                                    form.setValue(`items.${index}.bin_code`, selectedWarehouse.wh_bin_code || '');
+                                    form.setValue(`items.${index}.bin_name`, selectedWarehouse.bin_name || '');
+                                    form.setValue(`items.${index}.bin_id`, selectedWarehouse.id);
+                                  }
+                                }} 
+                                disabled={readOnly}
+                              >
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select warehouse" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {warehouses.map((warehouse) => (
+                                    <SelectItem key={warehouse.id} value={warehouse.id}>
+                                      {warehouse.warehouse_code} - {warehouse.warehouse_name} / {warehouse.bin_name}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
 
-                     <FormField
-                       control={form.control}
-                       name={`items.${index}.hsn_sac_code`}
-                       render={({ field }) => (
-                         <FormItem>
-                           <FormLabel>HSN/SAC Code</FormLabel>
-                           <FormControl>
-                             <Input {...field} disabled={readOnly} />
-                           </FormControl>
-                           <FormMessage />
-                         </FormItem>
-                       )}
-                     />
-                  </div>
+                      <FormField
+                        control={form.control}
+                        name={`items.${index}.warehouse_code`}
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Warehouse Code</FormLabel>
+                            <FormControl>
+                              <Input {...field} disabled className="bg-muted" />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name={`items.${index}.bin_code`}
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Bin Code</FormLabel>
+                            <FormControl>
+                              <Input {...field} disabled className="bg-muted" />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                   </div>
                 </div>
               ))}
             </div>
