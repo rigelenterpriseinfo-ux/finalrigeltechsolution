@@ -32,14 +32,14 @@ const grnFormSchema = z.object({
     product_sku: z.string().optional(),
     unit_of_measure: z.string().optional(),
     ordered_quantity: z.number().min(0),
-    received_quantity: z.number().min(0),
-    accepted_quantity: z.number().min(0),
-    rejected_quantity: z.number().min(0),
-    unit_price: z.number().min(0),
+    received_quantity: z.number().min(0, 'Received quantity is required'),
+    accepted_quantity: z.number().min(0, 'Accepted quantity is required'),
+    rejected_quantity: z.number().min(0, 'Rejected quantity is required'),
+    unit_price: z.number().min(0.01, 'Unit price must be greater than 0'),
     discount_percentage: z.number().min(0).max(100).optional(),
     discount_amount: z.number().min(0).optional(),
-    warehouse_id: z.string().optional(),
-    bin_id: z.string().optional(),
+    warehouse_id: z.string().min(1, 'Warehouse is required'),
+    bin_id: z.string().min(1, 'Bin is required'),
     hsn_sac_code: z.string().optional(),
     cgst_rate: z.number().min(0).optional(),
     cgst_amount: z.number().min(0).optional(),
@@ -207,7 +207,7 @@ export function GRNForm({ grn, onSubmit, onCancel, readOnly = false, mode }: GRN
         .from('warehouse_bins')
         .select('*')
         .eq('company_id', profile?.company_id)
-        .order('bin_code');
+        .order('wh_bin_code');
 
       if (error) throw error;
       setBins(data || []);
@@ -307,8 +307,60 @@ export function GRNForm({ grn, onSubmit, onCancel, readOnly = false, mode }: GRN
     form.setValue(`items.${index}.line_total`, lineTotal);
   };
 
+  // Validation function for all mandatory fields
+  const validateAllFields = () => {
+    const items = form.getValues('items');
+    let hasErrors = false;
+
+    items.forEach((item, index) => {
+      // Check warehouse selection
+      if (!item.warehouse_id) {
+        form.setError(`items.${index}.warehouse_id`, {
+          type: 'manual',
+          message: 'Warehouse selection is required'
+        });
+        hasErrors = true;
+      }
+      
+      // Check bin selection
+      if (!item.bin_id) {
+        form.setError(`items.${index}.bin_id`, {
+          type: 'manual',
+          message: 'Bin selection is required'
+        });
+        hasErrors = true;
+      }
+
+      // Check unit price
+      if (!item.unit_price || item.unit_price <= 0) {
+        form.setError(`items.${index}.unit_price`, {
+          type: 'manual',
+          message: 'Valid unit price is required'
+        });
+        hasErrors = true;
+      }
+
+      // Validate quantities
+      if (!validateQuantities(index)) {
+        hasErrors = true;
+      }
+    });
+
+    return !hasErrors;
+  };
+
   const handleSubmit = async (data: z.infer<typeof grnFormSchema>) => {
     if (readOnly) return;
+    
+    // Validate all mandatory fields
+    if (!validateAllFields()) {
+      toast({
+        title: "Validation Error",
+        description: "Please fill in all mandatory fields and fix any errors before submitting.",
+        variant: "destructive",
+      });
+      return;
+    }
     
     try {
       setLoading(true);
@@ -662,13 +714,19 @@ export function GRNForm({ grn, onSubmit, onCancel, readOnly = false, mode }: GRN
                             {/* Unit Price */}
                             <td className="border-r border-border p-4">
                               <div>
-                                <label className="text-xs font-medium text-muted-foreground mb-1 block">Unit Price</label>
+                                <label className="text-xs font-medium text-muted-foreground mb-1 block">Unit Price *</label>
                                 <Input
                                   type="number"
                                   step="0.01"
+                                  min="0.01"
                                   value={item.unit_price || 0}
-                                  disabled
-                                  className="bg-muted/30 text-sm text-center font-medium"
+                                  onChange={(e) => {
+                                    const newPrice = parseFloat(e.target.value) || 0;
+                                    form.setValue(`items.${index}.unit_price`, newPrice);
+                                    calculateItemTotals(index);
+                                  }}
+                                  disabled={readOnly}
+                                  className="text-sm text-center font-medium border-blue-200 focus:border-blue-400"
                                 />
                               </div>
                             </td>
