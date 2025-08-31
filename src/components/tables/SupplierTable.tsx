@@ -94,9 +94,6 @@ export const SupplierTable: React.FC<SupplierTableProps> = ({
 
   return (
     <Card>
-      <CardHeader>
-        <CardTitle>Supplier Management</CardTitle>
-      </CardHeader>
       <CardContent>
         {/* Filters */}
         <div className="flex gap-4 mb-6">
