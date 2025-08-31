@@ -13,9 +13,11 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { useBusinessAuth } from '@/hooks/useBusinessAuth';
-import { Plus, Search, Package, AlertTriangle, Edit, Trash2, Download, ArrowUpDown, ArrowUp, ArrowDown, ChevronLeft, ChevronRight, MapPin, TrendingUp } from 'lucide-react';
+import { Plus, Search, Package, AlertTriangle, Edit, Trash2, Download, ArrowUpDown, ArrowUp, ArrowDown, ChevronLeft, ChevronRight, MapPin, TrendingUp, ClipboardList } from 'lucide-react';
 import { WarehouseBinForm } from '@/components/forms/WarehouseBinForm';
 import { WarehouseBinTable } from '@/components/tables/WarehouseBinTable';
+import { InventoryAdjustmentForm } from '@/components/forms/InventoryAdjustmentForm';
+import { InventoryAdjustmentTable } from '@/components/tables/InventoryAdjustmentTable';
 import * as XLSX from 'xlsx';
 
 interface Product {
@@ -54,7 +56,9 @@ export function InventoryModule() {
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [showBinDialog, setShowBinDialog] = useState(false);
+  const [showAdjustmentDialog, setShowAdjustmentDialog] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [adjustmentRefreshTrigger, setAdjustmentRefreshTrigger] = useState(0);
   const [warehouseBins, setWarehouseBins] = useState<any[]>([]);
   const [warehouseBinStats, setWarehouseBinStats] = useState<any[]>([]);
   const [sortConfig, setSortConfig] = useState<{
@@ -537,6 +541,31 @@ export function InventoryModule() {
                 Create Warehouse BIN
               </Button>
 
+              <Dialog open={showAdjustmentDialog} onOpenChange={setShowAdjustmentDialog}>
+                <DialogTrigger asChild>
+                  <Button variant="outline">
+                    <ClipboardList className="w-4 h-4 mr-2" />
+                    Inventory Adjustment
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+                  <DialogHeader>
+                    <DialogTitle>Create Inventory Adjustment</DialogTitle>
+                    <DialogDescription>
+                      Adjust stock levels with proper tracking and validation
+                    </DialogDescription>
+                  </DialogHeader>
+                  <InventoryAdjustmentForm
+                    onSuccess={() => {
+                      setShowAdjustmentDialog(false);
+                      setAdjustmentRefreshTrigger(prev => prev + 1);
+                      fetchProducts(); // Refresh products to show updated stock
+                    }}
+                    onCancel={() => setShowAdjustmentDialog(false)}
+                  />
+                </DialogContent>
+              </Dialog>
+
               <WarehouseBinForm 
                 open={showBinDialog}
                 onOpenChange={setShowBinDialog}
@@ -551,9 +580,10 @@ export function InventoryModule() {
       </div>
 
       <Tabs defaultValue="products" className="w-full">
-        <TabsList className="grid w-full grid-cols-2">
+        <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="products">Products Management</TabsTrigger>
           <TabsTrigger value="bins">Warehouse BIN Locations</TabsTrigger>
+          <TabsTrigger value="adjustments">Inventory Adjustments</TabsTrigger>
         </TabsList>
 
         <TabsContent value="products" className="space-y-6">
@@ -732,6 +762,23 @@ export function InventoryModule() {
 
         <TabsContent value="bins">
           <WarehouseBinTable />
+        </TabsContent>
+
+        <TabsContent value="adjustments" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center space-x-2">
+                <ClipboardList className="w-5 h-5" />
+                <span>Inventory Adjustments History</span>
+              </CardTitle>
+              <CardDescription>
+                Track all inventory adjustments with detailed audit trail
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <InventoryAdjustmentTable refreshTrigger={adjustmentRefreshTrigger} />
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
 
