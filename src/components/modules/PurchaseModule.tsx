@@ -261,11 +261,21 @@ export function PurchaseModule() {
       return;
     }
     try {
+      // Generate PO number using the database function
+      const { data: poNumberData, error: poNumberError } = await supabase
+        .rpc('generate_po_number', { comp_id: profile?.company_id });
+
+      if (poNumberError) {
+        console.error('Error generating PO number:', poNumberError);
+        throw poNumberError;
+      }
+
       const { data: po, error: poError } = await supabase
         .from('purchase_orders')
         .insert({
           company_id: profile?.company_id,
           supplier_id: poData.supplier_id,
+          po_number: poNumberData,
           order_date: poData.order_date,
           currency: poData.currency,
           payment_terms: poData.payment_terms,
