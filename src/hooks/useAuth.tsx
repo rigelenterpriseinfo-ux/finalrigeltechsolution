@@ -113,6 +113,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
               console.log('Profile resolved:', effectiveProfile);
               setProfile(effectiveProfile as any);
 
+              // If the user's profile is inactive, force sign-out
+              if (effectiveProfile && (effectiveProfile as any).is_active === false) {
+                console.warn('Profile is inactive; signing out');
+                toast({ title: 'Sign in blocked', description: 'Your account is inactive. Please contact your administrator.', variant: 'destructive' });
+                await supabase.auth.signOut();
+                setLoading(false);
+                return;
+              }
+
               if (effectiveProfile?.company_id) {
                 console.log('Fetching company data...');
                 const { data: companyData, error: companyError } = await supabase
@@ -207,26 +216,22 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         body: { username: normalizedEmail, password: trimmedPassword }
       });
 
+      // If function responded with a block flag, stop immediately
+      if (precheck?.blocked) {
+        await logSecurityEvent(supabase, 'login_blocked', { email: normalizedEmail }, '127.0.0.1');
+        toast({ title: 'Sign in blocked', description: precheck?.error || 'Your account is inactive. Please contact your administrator.', variant: 'destructive' });
+        return { error: new Error('Account blocked') };
+      }
+
       if (precheckError) {
         const msg = (precheckError as any)?.message?.toLowerCase?.() || '';
         console.log('Business signin precheck error:', precheckError);
-
-        // If explicitly blocked, stop here
-        if (msg.includes('blocked') || msg.includes('suspended')) {
-          await logSecurityEvent(supabase, 'login_blocked', { email: normalizedEmail }, '127.0.0.1');
-          toast({
-            title: 'Sign in blocked',
-            description: 'Your account is inactive. Please contact your administrator.',
-            variant: 'destructive',
-          });
-          return { error: new Error('Account blocked') };
-        }
-        // If invalid credentials from company_users, fall back to regular Supabase auth (for non-company users)
         if (msg.includes('invalid credentials')) {
           console.log('Falling back to regular Supabase auth…');
         } else {
-          // Unknown error from function – still attempt regular auth as fallback
-          console.warn('Unknown precheck error; attempting regular auth fallback');
+          console.warn('Precheck returned error; stopping sign-in');
+          toast({ title: 'Sign in blocked', description: 'Unable to sign in. Please contact your administrator.', variant: 'destructive' });
+          return { error: new Error('Precheck failed') };
         }
       }
 

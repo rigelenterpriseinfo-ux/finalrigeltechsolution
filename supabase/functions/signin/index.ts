@@ -118,17 +118,16 @@ serve(async (req) => {
     if (userError || !userData) {
       console.log(`User not found - Business: ${businessRefNo}, Username: ${normalizedUsername}, Error: ${userError?.message}`);
       return new Response(
-        JSON.stringify({ error: "Invalid credentials" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({ success: false, error: "Invalid credentials" }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // Check if user account is active (using status field)
     if (userData.status !== 'ACTIVE') {
       console.log(`User account blocked - User: ${userData.email}, Status: ${userData.status}`);
       return new Response(
-        JSON.stringify({ error: "User account is blocked. Please contact your administrator." }),
-        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({ success: false, blocked: true, error: "User account is blocked. Please contact your administrator." }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
@@ -139,8 +138,8 @@ serve(async (req) => {
     if (!passwordMatches) {
       console.log(`Password mismatch for user: ${userData.email}`);
       return new Response(
-        JSON.stringify({ error: "Invalid credentials" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({ success: false, error: "Invalid credentials" }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
@@ -162,8 +161,8 @@ serve(async (req) => {
     if (company.status !== 'active') {
       console.log(`Company inactive for user: ${userData.email}, status: ${company.status}`);
       return new Response(
-        JSON.stringify({ error: "Company account suspended. Please contact support." }),
-        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({ success: false, blocked: true, error: "Company account suspended. Please contact support." }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
