@@ -13,10 +13,11 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { useBusinessAuth } from '@/hooks/useBusinessAuth';
-import { Plus, Search, Package, AlertTriangle, Edit, Trash2, Download, ArrowUpDown, ArrowUp, ArrowDown, ChevronLeft, ChevronRight, MapPin, TrendingUp, ClipboardList } from 'lucide-react';
+import { Plus, Search, Package, AlertTriangle, Edit, Trash2, Download, ArrowUpDown, ArrowUp, ArrowDown, ChevronLeft, ChevronRight, MapPin, TrendingUp, ClipboardList, ArrowRightLeft } from 'lucide-react';
 import { WarehouseBinForm } from '@/components/forms/WarehouseBinForm';
 import { WarehouseBinTable } from '@/components/tables/WarehouseBinTable';
 import { InventoryAdjustmentForm } from '@/components/forms/InventoryAdjustmentForm';
+import { InventoryTransferForm } from '@/components/forms/InventoryTransferForm';
 import { InventoryAdjustmentTable } from '@/components/tables/InventoryAdjustmentTable';
 import { InventoryTransactionTable } from '@/components/tables/InventoryTransactionTable';
 import { CurrentStockTable } from '@/components/tables/CurrentStockTable';
@@ -59,6 +60,7 @@ export function InventoryModule() {
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [showBinDialog, setShowBinDialog] = useState(false);
   const [showAdjustmentDialog, setShowAdjustmentDialog] = useState(false);
+  const [showTransferDialog, setShowTransferDialog] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [adjustmentRefreshTrigger, setAdjustmentRefreshTrigger] = useState(0);
   const [warehouseBins, setWarehouseBins] = useState<any[]>([]);
@@ -564,6 +566,31 @@ export function InventoryModule() {
                       fetchProducts(); // Refresh products to show updated stock
                     }}
                     onCancel={() => setShowAdjustmentDialog(false)}
+                  />
+                </DialogContent>
+              </Dialog>
+
+              <Dialog open={showTransferDialog} onOpenChange={setShowTransferDialog}>
+                <DialogTrigger asChild>
+                  <Button variant="outline">
+                    <ArrowRightLeft className="w-4 h-4 mr-2" />
+                    Inventory Transfer
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+                  <DialogHeader>
+                    <DialogTitle>Create Inventory Transfer</DialogTitle>
+                    <DialogDescription>
+                      Transfer stock between warehouses and bins
+                    </DialogDescription>
+                  </DialogHeader>
+                  <InventoryTransferForm
+                    onSuccess={() => {
+                      setShowTransferDialog(false);
+                      setAdjustmentRefreshTrigger(prev => prev + 1);
+                      fetchProducts(); // Refresh products to show updated stock
+                    }}
+                    onCancel={() => setShowTransferDialog(false)}
                   />
                 </DialogContent>
               </Dialog>

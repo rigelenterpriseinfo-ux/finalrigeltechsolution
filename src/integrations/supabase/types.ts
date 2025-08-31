@@ -1545,6 +1545,57 @@ export type Database = {
         }
         Relationships: []
       }
+      stock_transfers: {
+        Row: {
+          company_id: string
+          created_at: string
+          created_by: string
+          from_bin_id: string
+          from_warehouse_id: string
+          id: string
+          product_id: string
+          quantity: number
+          reason: string
+          remarks: string | null
+          to_bin_id: string
+          to_warehouse_id: string
+          transfer_number: string | null
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          created_by: string
+          from_bin_id: string
+          from_warehouse_id: string
+          id?: string
+          product_id: string
+          quantity: number
+          reason: string
+          remarks?: string | null
+          to_bin_id: string
+          to_warehouse_id: string
+          transfer_number?: string | null
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          created_by?: string
+          from_bin_id?: string
+          from_warehouse_id?: string
+          id?: string
+          product_id?: string
+          quantity?: number
+          reason?: string
+          remarks?: string | null
+          to_bin_id?: string
+          to_warehouse_id?: string
+          transfer_number?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       subscriptions: {
         Row: {
           amount: number | null
@@ -1921,6 +1972,10 @@ export type Database = {
       }
       generate_supplier_ref: {
         Args: { company_name: string }
+        Returns: string
+      }
+      generate_transfer_number: {
+        Args: { comp_id: string }
         Returns: string
       }
       generate_user_ref: {
