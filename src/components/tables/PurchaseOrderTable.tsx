@@ -471,30 +471,6 @@ export function PurchaseOrderTable({
                 className="bg-white"
               />
             </div>
-            
-            <div className="flex items-center gap-2">
-              <Select value={`${sortField}-${sortDirection}`} onValueChange={(value) => {
-                const [field, direction] = value.split('-') as [SortField, SortDirection];
-                setSortField(field);
-                setSortDirection(direction);
-              }}>
-                <SelectTrigger className="w-48 bg-white">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="po_number-asc">PO Number (A-Z)</SelectItem>
-                  <SelectItem value="po_number-desc">PO Number (Z-A)</SelectItem>
-                  <SelectItem value="supplier_name-asc">Supplier (A-Z)</SelectItem>
-                  <SelectItem value="supplier_name-desc">Supplier (Z-A)</SelectItem>
-                  <SelectItem value="order_date-desc">Date (Newest)</SelectItem>
-                  <SelectItem value="order_date-asc">Date (Oldest)</SelectItem>
-                  <SelectItem value="total_amount-desc">Amount (High-Low)</SelectItem>
-                  <SelectItem value="total_amount-asc">Amount (Low-High)</SelectItem>
-                  <SelectItem value="status-asc">Status (A-Z)</SelectItem>
-                  <SelectItem value="status-desc">Status (Z-A)</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
           </div>
           
           <div className="flex justify-between items-center mt-4 text-sm text-muted-foreground">
