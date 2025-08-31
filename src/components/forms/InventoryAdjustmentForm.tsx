@@ -171,6 +171,15 @@ export const InventoryAdjustmentForm: React.FC<InventoryAdjustmentFormProps> = (
 
     // Validate negative adjustment against current stock in specific warehouse/bin
     if (data.adjustment_type === 'negative') {
+      if (currentStock === 0) {
+        toast({
+          title: 'No Stock Available',
+          description: 'No stock available in the selected warehouse/bin',
+          variant: 'destructive',
+        });
+        return;
+      }
+      
       if (data.adjustment_quantity > currentStock) {
         toast({
           title: 'Insufficient Stock',
@@ -273,7 +282,7 @@ export const InventoryAdjustmentForm: React.FC<InventoryAdjustmentFormProps> = (
             name="product_id"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Product</FormLabel>
+                <FormLabel>Product *</FormLabel>
                 <Select 
                   onValueChange={(value) => {
                     field.onChange(value);
@@ -304,7 +313,7 @@ export const InventoryAdjustmentForm: React.FC<InventoryAdjustmentFormProps> = (
             name="warehouse_id"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Warehouse & Bin</FormLabel>
+                <FormLabel>Warehouse & Bin *</FormLabel>
                 <Select onValueChange={field.onChange} defaultValue={field.value}>
                   <FormControl>
                     <SelectTrigger>
@@ -329,7 +338,7 @@ export const InventoryAdjustmentForm: React.FC<InventoryAdjustmentFormProps> = (
             name="adjustment_type"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Adjustment Type</FormLabel>
+                <FormLabel>Adjustment Type *</FormLabel>
                 <Select onValueChange={field.onChange} defaultValue={field.value}>
                   <FormControl>
                     <SelectTrigger>
@@ -351,7 +360,7 @@ export const InventoryAdjustmentForm: React.FC<InventoryAdjustmentFormProps> = (
             name="reason"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Reason</FormLabel>
+                <FormLabel>Reason *</FormLabel>
                 <Select onValueChange={field.onChange} defaultValue={field.value}>
                   <FormControl>
                     <SelectTrigger>
@@ -376,7 +385,7 @@ export const InventoryAdjustmentForm: React.FC<InventoryAdjustmentFormProps> = (
             name="adjustment_quantity"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Adjustment Quantity</FormLabel>
+                <FormLabel>Adjustment Quantity *</FormLabel>
                 <FormControl>
                   <Input 
                     type="number" 
@@ -385,7 +394,12 @@ export const InventoryAdjustmentForm: React.FC<InventoryAdjustmentFormProps> = (
                     onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
                   />
                 </FormControl>
-                 {adjustmentType === 'negative' && adjustmentQuantity > currentStock && (
+                 {adjustmentType === 'negative' && currentStock === 0 && (
+                   <p className="text-sm text-destructive">
+                     No stock available in selected warehouse/bin
+                   </p>
+                 )}
+                 {adjustmentType === 'negative' && currentStock > 0 && adjustmentQuantity > currentStock && (
                    <p className="text-sm text-destructive">
                      Quantity exceeds available stock in selected warehouse/bin ({currentStock})
                    </p>
@@ -400,7 +414,7 @@ export const InventoryAdjustmentForm: React.FC<InventoryAdjustmentFormProps> = (
             name="adjustment_amount"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Adjustment Amount</FormLabel>
+                <FormLabel>Adjustment Amount *</FormLabel>
                 <FormControl>
                   <Input 
                     type="number" 
@@ -421,7 +435,7 @@ export const InventoryAdjustmentForm: React.FC<InventoryAdjustmentFormProps> = (
           name="remarks"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Remarks</FormLabel>
+              <FormLabel>Remarks *</FormLabel>
               <FormControl>
                  <Textarea
                    placeholder="Enter remarks for this adjustment..."
