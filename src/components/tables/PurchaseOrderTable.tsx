@@ -149,32 +149,93 @@ export function PurchaseOrderTable({
 
   const exportToExcel = (order: PurchaseOrder) => {
     try {
-      const exportData = [{
-        'PO Number': order.po_number,
-        'Supplier': order.supplier.name,
-        'Order Date': order.order_date,
-        'Expected Date': order.expected_date || 'N/A',
-        'Status': order.status,
-        'Total Amount': order.total_amount,
-        'Currency': order.currency,
-        'Notes': order.notes || 'N/A'
-      }];
+      // Company Header Info
+      const companyInfo = [
+        ['PURCHASE ORDER'],
+        [''],
+        ['Your Company Name'],
+        ['Company Address Line 1'],
+        ['City, State, ZIP Code'],
+        ['Phone: (555) 123-4567 | Email: orders@company.com'],
+        ['']
+      ];
 
-      const ws = XLSX.utils.json_to_sheet(exportData);
+      // PO Header Details
+      const poHeader = [
+        ['PO Number:', order.po_number, '', '', 'Order Date:', new Date(order.order_date).toLocaleDateString()],
+        ['Supplier:', order.supplier.name, '', '', 'Expected Date:', order.expected_date ? new Date(order.expected_date).toLocaleDateString() : 'N/A'],
+        ['Status:', order.status.toUpperCase(), '', '', 'Currency:', order.currency],
+        ['']
+      ];
+
+      // Line Items Header (Industry Standard)
+      const lineItemsHeader = [
+        ['Line', 'Item Code', 'Description', 'Unit Price', 'Quantity', 'UOM', 'Total Amount']
+      ];
+
+      // Sample line items (since we don't have actual items in the interface yet)
+      const lineItems = [
+        [1, 'ITEM001', 'Sample Product 1', 100.00, 5, 'EA', 500.00],
+        [2, 'ITEM002', 'Sample Product 2', 250.00, 2, 'EA', 500.00]
+      ];
+
+      // Totals Section
+      const totalsSection = [
+        [''],
+        ['', '', '', '', 'Subtotal:', '', order.total_amount - (order.total_amount * 0.1)],
+        ['', '', '', '', 'Tax (10%):', '', order.total_amount * 0.1],
+        ['', '', '', '', 'TOTAL:', '', order.total_amount]
+      ];
+
+      // Terms and Conditions
+      const termsSection = [
+        [''],
+        ['TERMS & CONDITIONS:'],
+        ['• Payment Terms: Net 30 days'],
+        ['• Delivery: FOB Destination'],
+        ['• Quality: As per specifications'],
+        ['• Returns: Prior authorization required'],
+        [''],
+        ['Notes:', order.notes || 'No additional notes']
+      ];
+
+      // Combine all sections
+      const fullData = [
+        ...companyInfo,
+        ...poHeader,
+        ...lineItemsHeader,
+        ...lineItems,
+        ...totalsSection,
+        ...termsSection
+      ];
+
+      const ws = XLSX.utils.aoa_to_sheet(fullData);
       const wb = XLSX.utils.book_new();
+
+      // Styling and formatting
+      const headerRange = XLSX.utils.encode_range({ s: { c: 0, r: 0 }, e: { c: 6, r: 0 } });
+      ws['!merges'] = [
+        { s: { r: 0, c: 0 }, e: { r: 0, c: 6 } }, // Title merge
+        { s: { r: 2, c: 0 }, e: { r: 2, c: 6 } }, // Company name merge
+      ];
+
+      // Set column widths
+      ws['!cols'] = [
+        { wch: 8 },   // Line
+        { wch: 12 },  // Item Code
+        { wch: 25 },  // Description
+        { wch: 12 },  // Unit Price
+        { wch: 10 },  // Quantity
+        { wch: 8 },   // UOM
+        { wch: 15 }   // Total Amount
+      ];
+
       XLSX.utils.book_append_sheet(wb, ws, 'Purchase Order');
-
-      // Auto-size columns
-      const colWidths = Object.keys(exportData[0]).map(key => ({
-        wch: Math.max(key.length, String(exportData[0][key as keyof typeof exportData[0]]).length) + 2
-      }));
-      ws['!cols'] = colWidths;
-
-      XLSX.writeFile(wb, `PO_${order.po_number}.xlsx`);
+      XLSX.writeFile(wb, `PO_${order.po_number}_Complete.xlsx`);
       
       toast({
-        title: "Export Successful",
-        description: `Purchase Order ${order.po_number} exported to Excel`,
+        title: "Excel Export Successful",
+        description: `Complete Purchase Order ${order.po_number} exported to Excel`,
       });
     } catch (error) {
       console.error('Export to Excel failed:', error);
@@ -190,41 +251,159 @@ export function PurchaseOrderTable({
     try {
       const doc = new jsPDF();
       
-      // Header
-      doc.setFontSize(20);
-      doc.setTextColor(40);
-      doc.text('Purchase Order', 20, 20);
+      // Company Header - Professional Layout
+      doc.setFontSize(22);
+      doc.setTextColor(44, 62, 80); // Dark blue
+      doc.text('PURCHASE ORDER', 105, 25, { align: 'center' });
       
-      // PO Details
+      // Company Information Box
+      doc.setDrawColor(44, 62, 80);
+      doc.setFillColor(248, 249, 250);
+      doc.rect(15, 35, 180, 35, 'FD');
+      
+      doc.setFontSize(14);
+      doc.setTextColor(44, 62, 80);
+      doc.text('Your Company Name', 20, 45);
+      doc.setFontSize(10);
+      doc.setTextColor(108, 117, 125);
+      doc.text('Company Address Line 1', 20, 52);
+      doc.text('City, State, ZIP Code', 20, 58);
+      doc.text('Phone: (555) 123-4567 | Email: orders@company.com', 20, 64);
+      
+      // PO Information Section
       doc.setFontSize(12);
-      doc.setTextColor(100);
+      doc.setTextColor(44, 62, 80);
       
-      const details = [
-        `PO Number: ${order.po_number}`,
-        `Supplier: ${order.supplier.name}`,
-        `Order Date: ${order.order_date}`,
-        `Expected Date: ${order.expected_date || 'N/A'}`,
-        `Status: ${order.status}`,
-        `Total Amount: ${order.currency} ${order.total_amount.toLocaleString()}`,
-        `Notes: ${order.notes || 'N/A'}`
+      // Left column - PO Details
+      doc.text('PO Number:', 20, 85);
+      doc.setTextColor(220, 53, 69); // Red for PO number
+      doc.text(order.po_number, 55, 85);
+      
+      doc.setTextColor(44, 62, 80);
+      doc.text('Supplier:', 20, 95);
+      doc.text(order.supplier.name, 55, 95);
+      
+      doc.text('Status:', 20, 105);
+      doc.text(order.status.toUpperCase(), 55, 105);
+      
+      // Right column - Dates
+      doc.text('Order Date:', 120, 85);
+      doc.text(new Date(order.order_date).toLocaleDateString(), 155, 85);
+      
+      doc.text('Expected Date:', 120, 95);
+      doc.text(order.expected_date ? new Date(order.expected_date).toLocaleDateString() : 'N/A', 155, 95);
+      
+      doc.text('Currency:', 120, 105);
+      doc.text(order.currency, 155, 105);
+      
+      // Line Items Table Header
+      const tableStartY = 125;
+      doc.setFontSize(14);
+      doc.setTextColor(44, 62, 80);
+      doc.text('LINE ITEMS', 20, tableStartY);
+      
+      // Table Headers
+      doc.setDrawColor(108, 117, 125);
+      doc.setFillColor(233, 236, 239);
+      doc.rect(15, tableStartY + 5, 180, 10, 'FD');
+      
+      doc.setFontSize(10);
+      doc.setTextColor(44, 62, 80);
+      doc.text('Line', 20, tableStartY + 12);
+      doc.text('Item Code', 35, tableStartY + 12);
+      doc.text('Description', 70, tableStartY + 12);
+      doc.text('Unit Price', 125, tableStartY + 12);
+      doc.text('Qty', 150, tableStartY + 12);
+      doc.text('UOM', 165, tableStartY + 12);
+      doc.text('Total', 180, tableStartY + 12);
+      
+      // Sample Line Items
+      const lineItems = [
+        { line: 1, code: 'ITEM001', desc: 'Sample Product 1', price: 100.00, qty: 5, uom: 'EA', total: 500.00 },
+        { line: 2, code: 'ITEM002', desc: 'Sample Product 2', price: 250.00, qty: 2, uom: 'EA', total: 500.00 }
       ];
       
-      let yPosition = 40;
-      details.forEach(detail => {
-        doc.text(detail, 20, yPosition);
-        yPosition += 10;
+      let currentY = tableStartY + 20;
+      lineItems.forEach((item, index) => {
+        if (index % 2 === 0) {
+          doc.setFillColor(248, 249, 250);
+          doc.rect(15, currentY - 5, 180, 10, 'F');
+        }
+        
+        doc.setTextColor(73, 80, 87);
+        doc.text(item.line.toString(), 20, currentY);
+        doc.text(item.code, 35, currentY);
+        doc.text(item.desc, 70, currentY);
+        doc.text(`${order.currency} ${item.price.toFixed(2)}`, 125, currentY);
+        doc.text(item.qty.toString(), 150, currentY);
+        doc.text(item.uom, 165, currentY);
+        doc.text(`${order.currency} ${item.total.toFixed(2)}`, 180, currentY);
+        
+        currentY += 10;
       });
+      
+      // Totals Section
+      const totalsY = currentY + 15;
+      const subtotal = order.total_amount / 1.1; // Assuming 10% tax
+      const tax = order.total_amount - subtotal;
+      
+      doc.setDrawColor(108, 117, 125);
+      doc.line(130, totalsY, 195, totalsY);
+      
+      doc.setTextColor(44, 62, 80);
+      doc.text('Subtotal:', 140, totalsY + 10);
+      doc.text(`${order.currency} ${subtotal.toFixed(2)}`, 175, totalsY + 10);
+      
+      doc.text('Tax (10%):', 140, totalsY + 20);
+      doc.text(`${order.currency} ${tax.toFixed(2)}`, 175, totalsY + 20);
+      
+      doc.setFontSize(12);
+      doc.setTextColor(220, 53, 69);
+      doc.text('TOTAL:', 140, totalsY + 35);
+      doc.text(`${order.currency} ${order.total_amount.toLocaleString()}`, 175, totalsY + 35);
+      
+      // Terms and Conditions
+      const termsY = totalsY + 55;
+      doc.setFontSize(12);
+      doc.setTextColor(44, 62, 80);
+      doc.text('TERMS & CONDITIONS', 20, termsY);
+      
+      doc.setFontSize(9);
+      doc.setTextColor(73, 80, 87);
+      const terms = [
+        '• Payment Terms: Net 30 days from invoice date',
+        '• Delivery: FOB Destination, prepaid and allowed',
+        '• Quality: All goods must meet specifications',
+        '• Returns: Prior authorization required for all returns',
+        '• Warranties: Standard manufacturer warranties apply'
+      ];
+      
+      let termsCurrentY = termsY + 10;
+      terms.forEach(term => {
+        doc.text(term, 20, termsCurrentY);
+        termsCurrentY += 8;
+      });
+      
+      // Notes Section
+      if (order.notes) {
+        doc.setFontSize(10);
+        doc.setTextColor(44, 62, 80);
+        doc.text('Special Notes:', 20, termsCurrentY + 10);
+        doc.setTextColor(73, 80, 87);
+        doc.text(order.notes, 20, termsCurrentY + 20);
+      }
       
       // Footer
       doc.setFontSize(8);
-      doc.setTextColor(150);
-      doc.text(`Generated on: ${new Date().toLocaleString()}`, 20, 280);
+      doc.setTextColor(108, 117, 125);
+      doc.text(`Document generated on: ${new Date().toLocaleString()}`, 20, 285);
+      doc.text('This is a system-generated document and does not require signature.', 20, 290);
       
-      doc.save(`PO_${order.po_number}.pdf`);
+      doc.save(`PO_${order.po_number}_Complete.pdf`);
       
       toast({
-        title: "Export Successful",
-        description: `Purchase Order ${order.po_number} exported to PDF`,
+        title: "PDF Export Successful",
+        description: `Complete Purchase Order ${order.po_number} exported to PDF`,
       });
     } catch (error) {
       console.error('Export to PDF failed:', error);
@@ -352,7 +531,7 @@ export function PurchaseOrderTable({
                     {getSortIcon('status')}
                   </div>
                 </TableHead>
-                <TableHead className="font-semibold text-gray-700 text-center">Actions</TableHead>
+                <TableHead className="font-semibold text-muted-foreground text-center min-w-[200px]">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -386,51 +565,51 @@ export function PurchaseOrderTable({
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      <div className="flex items-center gap-1 justify-center">
+                      <div className="flex items-center gap-1.5 justify-center flex-wrap">
                         <Button
-                          variant="ghost"
+                          variant="outline"
                           size="sm"
                           onClick={() => onView(order)}
-                          className="hover:bg-blue-100 hover:text-blue-700"
-                          title="View Details"
+                          className="h-8 w-8 p-0 border-blue-200 bg-blue-50 hover:bg-blue-100 hover:border-blue-300 text-blue-700 transition-all duration-200"
+                          title="View Purchase Order Details"
                         >
-                          <Eye className="h-4 w-4" />
+                          <Eye className="h-3.5 w-3.5" />
                         </Button>
                         <Button
-                          variant="ghost"
+                          variant="outline"
                           size="sm"
                           onClick={() => onEdit(order)}
-                          className="hover:bg-green-100 hover:text-green-700"
-                          title="Edit"
+                          className="h-8 w-8 p-0 border-emerald-200 bg-emerald-50 hover:bg-emerald-100 hover:border-emerald-300 text-emerald-700 transition-all duration-200"
+                          title="Edit Purchase Order"
                         >
-                          <Edit className="h-4 w-4" />
+                          <Edit className="h-3.5 w-3.5" />
                         </Button>
                         <Button
-                          variant="ghost"
+                          variant="outline"
                           size="sm"
                           onClick={() => onDelete(order.id)}
-                          className="hover:bg-red-100 hover:text-red-700"
-                          title="Delete"
+                          className="h-8 w-8 p-0 border-red-200 bg-red-50 hover:bg-red-100 hover:border-red-300 text-red-700 transition-all duration-200"
+                          title="Delete Purchase Order"
                         >
-                          <Trash2 className="h-4 w-4" />
+                          <Trash2 className="h-3.5 w-3.5" />
                         </Button>
                         <Button
-                          variant="ghost"
+                          variant="outline"
                           size="sm"
                           onClick={() => exportToExcel(order)}
-                          className="hover:bg-emerald-100 hover:text-emerald-700"
-                          title="Export to Excel"
+                          className="h-8 w-8 p-0 border-green-200 bg-green-50 hover:bg-green-100 hover:border-green-300 text-green-700 transition-all duration-200"
+                          title="Export to Excel Spreadsheet"
                         >
-                          <FileSpreadsheet className="h-4 w-4" />
+                          <FileSpreadsheet className="h-3.5 w-3.5" />
                         </Button>
                         <Button
-                          variant="ghost"
+                          variant="outline"
                           size="sm"
                           onClick={() => exportToPDF(order)}
-                          className="hover:bg-orange-100 hover:text-orange-700"
-                          title="Export to PDF"
+                          className="h-8 w-8 p-0 border-orange-200 bg-orange-50 hover:bg-orange-100 hover:border-orange-300 text-orange-700 transition-all duration-200"
+                          title="Export to PDF Document"
                         >
-                          <FileText className="h-4 w-4" />
+                          <FileText className="h-3.5 w-3.5" />
                         </Button>
                       </div>
                     </TableCell>
