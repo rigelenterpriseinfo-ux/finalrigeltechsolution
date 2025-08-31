@@ -34,8 +34,8 @@ const formSchema = z.object({
     required_error: 'Reason is required',
   }),
   adjustment_quantity: z.number().min(1, 'Quantity must be greater than 0'),
-  adjustment_amount: z.number().optional(),
-  remarks: z.string().optional(),
+  adjustment_amount: z.number().min(0, 'Amount must be non-negative'),
+  remarks: z.string().min(1, 'Remarks are required'),
 });
 
 type FormData = z.infer<typeof formSchema>;
@@ -69,6 +69,7 @@ export const InventoryAdjustmentForm: React.FC<InventoryAdjustmentFormProps> = (
   const [products, setProducts] = useState<Product[]>([]);
   const [warehouseBins, setWarehouseBins] = useState<WarehouseBin[]>([]);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [currentStock, setCurrentStock] = useState<number>(0);
   const [loading, setLoading] = useState(false);
 
   const form = useForm<FormData>({
@@ -76,11 +77,14 @@ export const InventoryAdjustmentForm: React.FC<InventoryAdjustmentFormProps> = (
     defaultValues: {
       adjustment_quantity: 1,
       adjustment_amount: 0,
+      remarks: '',
     },
   });
 
   const adjustmentType = form.watch('adjustment_type');
   const adjustmentQuantity = form.watch('adjustment_quantity');
+  const selectedProductId = form.watch('product_id');
+  const selectedWarehouseId = form.watch('warehouse_id');
 
   useEffect(() => {
     if (company) {
@@ -88,6 +92,12 @@ export const InventoryAdjustmentForm: React.FC<InventoryAdjustmentFormProps> = (
       fetchWarehouseBins();
     }
   }, [company]);
+
+  useEffect(() => {
+    if (selectedProductId && selectedWarehouseId) {
+      fetchCurrentStock(selectedProductId, selectedWarehouseId);
+    }
+  }, [selectedProductId, selectedWarehouseId]);
 
   const fetchProducts = async () => {
     try {
@@ -131,15 +141,40 @@ export const InventoryAdjustmentForm: React.FC<InventoryAdjustmentFormProps> = (
     }
   };
 
+  const fetchCurrentStock = async (productId: string, warehouseId: string) => {
+    if (!productId || !warehouseId || !company) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('current_stock_levels')
+        .select('current_stock')
+        .eq('company_id', company.id)
+        .eq('product_id', productId)
+        .eq('warehouse_id', warehouseId)
+        .single();
+
+      if (error && error.code !== 'PGRST116') {
+        console.error('Error fetching current stock:', error);
+        setCurrentStock(0);
+        return;
+      }
+
+      setCurrentStock(data?.current_stock || 0);
+    } catch (error) {
+      console.error('Error fetching current stock:', error);
+      setCurrentStock(0);
+    }
+  };
+
   const onSubmit = async (data: FormData) => {
     if (!user || !company) return;
 
-    // Validate negative adjustment
-    if (data.adjustment_type === 'negative' && selectedProduct) {
-      if (data.adjustment_quantity > selectedProduct.stock_quantity) {
+    // Validate negative adjustment against current stock in specific warehouse/bin
+    if (data.adjustment_type === 'negative') {
+      if (data.adjustment_quantity > currentStock) {
         toast({
-          title: 'Invalid Quantity',
-          description: `Cannot reduce stock by ${data.adjustment_quantity}. Current stock is ${selectedProduct.stock_quantity}`,
+          title: 'Insufficient Stock',
+          description: `Cannot reduce stock by ${data.adjustment_quantity}. Only ${currentStock} stock available in selected warehouse/bin`,
           variant: 'destructive',
         });
         return;
@@ -350,11 +385,11 @@ export const InventoryAdjustmentForm: React.FC<InventoryAdjustmentFormProps> = (
                     onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
                   />
                 </FormControl>
-                {adjustmentType === 'negative' && selectedProduct && adjustmentQuantity > selectedProduct.stock_quantity && (
-                  <p className="text-sm text-destructive">
-                    Quantity exceeds available stock ({selectedProduct.stock_quantity})
-                  </p>
-                )}
+                 {adjustmentType === 'negative' && adjustmentQuantity > currentStock && (
+                   <p className="text-sm text-destructive">
+                     Quantity exceeds available stock in selected warehouse/bin ({currentStock})
+                   </p>
+                 )}
                 <FormMessage />
               </FormItem>
             )}
@@ -365,7 +400,7 @@ export const InventoryAdjustmentForm: React.FC<InventoryAdjustmentFormProps> = (
             name="adjustment_amount"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Adjustment Amount (Optional)</FormLabel>
+                <FormLabel>Adjustment Amount</FormLabel>
                 <FormControl>
                   <Input 
                     type="number" 
@@ -386,12 +421,12 @@ export const InventoryAdjustmentForm: React.FC<InventoryAdjustmentFormProps> = (
           name="remarks"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Additional Remarks</FormLabel>
+              <FormLabel>Remarks</FormLabel>
               <FormControl>
-                <Textarea
-                  placeholder="Enter any additional notes..."
-                  {...field}
-                />
+                 <Textarea
+                   placeholder="Enter remarks for this adjustment..."
+                   {...field}
+                 />
               </FormControl>
               <FormMessage />
             </FormItem>
