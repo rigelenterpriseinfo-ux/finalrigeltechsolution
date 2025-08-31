@@ -450,9 +450,12 @@ export function PurchaseModule() {
         <StatsCard
           title="Overdue Purchase Orders"
           value={stats.overduePOs.count}
-          subtitle={`₹${stats.overduePOs.value.toLocaleString()}`}
+          subtitle={stats.overduePOs.details.length > 0 
+            ? `${stats.overduePOs.details.slice(0, 2).map((po: any) => `${po.po_number} (${po.supplier?.name || 'Unknown'})`).join(', ')}${stats.overduePOs.details.length > 2 ? '...' : ''}`
+            : `₹${stats.overduePOs.value.toLocaleString()}`
+          }
           icon={AlertCircle}
-          variant="accent"
+          className="border-red-200 bg-gradient-to-br from-red-50 to-red-100"
         />
       </div>
 

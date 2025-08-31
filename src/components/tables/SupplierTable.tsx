@@ -95,13 +95,7 @@ export const SupplierTable: React.FC<SupplierTableProps> = ({
   return (
     <Card>
       <CardHeader>
-        <div className="flex justify-between items-center">
-          <CardTitle>Supplier Management</CardTitle>
-          <Button onClick={onCreate} disabled={!canEdit}>
-            <Plus className="h-4 w-4 mr-2" />
-            Add Supplier
-          </Button>
-        </div>
+        <CardTitle>Supplier Management</CardTitle>
       </CardHeader>
       <CardContent>
         {/* Filters */}
