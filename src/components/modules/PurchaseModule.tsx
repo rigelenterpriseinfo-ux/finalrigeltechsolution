@@ -743,12 +743,22 @@ export function PurchaseModule() {
               </div>
             </div>
           </Card>
-          <Card className="p-4 bg-gradient-to-br from-purple-50 to-purple-100 border-purple-200">
+          <Card className="p-4 bg-gradient-to-br from-green-50 to-green-100 border-green-200">
             <div className="flex items-center gap-2">
-              <FileText className="h-5 w-5 text-purple-600" />
+              <ShoppingCart className="h-5 w-5 text-green-600" />
               <div>
-                <p className="text-sm text-purple-700">Invoices</p>
-                <p className="text-xl font-bold text-purple-800">{purchaseInvoices.length}</p>
+                <p className="text-sm text-green-700">Open Purchase Orders</p>
+                <div className="flex flex-col">
+                  <p className="text-xl font-bold text-green-800">
+                    {purchaseOrders.filter(po => po.status === 'open' || po.status === 'confirmed').length}
+                  </p>
+                  <p className="text-sm text-green-600">
+                    Total: ₹{purchaseOrders
+                      .filter(po => po.status === 'open' || po.status === 'confirmed')
+                      .reduce((sum, po) => sum + po.total_amount, 0)
+                      .toLocaleString()}
+                  </p>
+                </div>
               </div>
             </div>
           </Card>

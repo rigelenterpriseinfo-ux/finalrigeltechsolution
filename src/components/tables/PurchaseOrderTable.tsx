@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -6,6 +6,8 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/integrations/supabase/client';
 import { 
   Eye, 
   Edit, 
@@ -57,12 +59,36 @@ export function PurchaseOrderTable({
   loading = false
 }: PurchaseOrderTableProps) {
   const { toast } = useToast();
+  const { profile } = useAuth();
   const [currentPage, setCurrentPage] = useState(1);
   const [searchTerm, setSearchTerm] = useState('');
   const [sortField, setSortField] = useState<SortField>('order_date');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
+  const [companyData, setCompanyData] = useState<any>(null);
   
   const itemsPerPage = 5;
+
+  // Fetch company data
+  useEffect(() => {
+    const fetchCompanyData = async () => {
+      if (!profile?.company_id) return;
+      
+      try {
+        const { data, error } = await supabase
+          .from('companies')
+          .select('*')
+          .eq('id', profile.company_id)
+          .single();
+        
+        if (error) throw error;
+        setCompanyData(data);
+      } catch (error) {
+        console.error('Error fetching company data:', error);
+      }
+    };
+
+    fetchCompanyData();
+  }, [profile?.company_id]);
 
   // Filter and sort data
   const filteredOrders = purchaseOrders.filter(order =>
@@ -149,14 +175,14 @@ export function PurchaseOrderTable({
 
   const exportToExcel = (order: PurchaseOrder) => {
     try {
-      // Company Header Info
+      // Company Header Info with real data
       const companyInfo = [
         ['PURCHASE ORDER'],
         [''],
-        ['Your Company Name'],
-        ['Company Address Line 1'],
-        ['City, State, ZIP Code'],
-        ['Phone: (555) 123-4567 | Email: orders@company.com'],
+        [companyData?.name || 'Your Company Name'],
+        [companyData?.address_line1 || 'Company Address Line 1'],
+        [`${companyData?.city || 'City'}, ${companyData?.state || 'State'}, ${companyData?.postal_code || 'ZIP Code'}`],
+        [`Phone: ${companyData?.phone || '(555) 123-4567'} | Email: ${companyData?.email || 'orders@company.com'}`],
         ['']
       ];
 
@@ -263,12 +289,12 @@ export function PurchaseOrderTable({
       
       doc.setFontSize(14);
       doc.setTextColor(44, 62, 80);
-      doc.text('Your Company Name', 20, 45);
+      doc.text(companyData?.name || 'Your Company Name', 20, 45);
       doc.setFontSize(10);
       doc.setTextColor(108, 117, 125);
-      doc.text('Company Address Line 1', 20, 52);
-      doc.text('City, State, ZIP Code', 20, 58);
-      doc.text('Phone: (555) 123-4567 | Email: orders@company.com', 20, 64);
+      doc.text(companyData?.address_line1 || 'Company Address Line 1', 20, 52);
+      doc.text(`${companyData?.city || 'City'}, ${companyData?.state || 'State'}, ${companyData?.postal_code || 'ZIP Code'}`, 20, 58);
+      doc.text(`Phone: ${companyData?.phone || '(555) 123-4567'} | Email: ${companyData?.email || 'orders@company.com'}`, 20, 64);
       
       // PO Information Section
       doc.setFontSize(12);
