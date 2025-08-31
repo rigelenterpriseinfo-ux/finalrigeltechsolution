@@ -12,13 +12,14 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useBusinessAuth } from '@/hooks/useBusinessAuth';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Truck, ShoppingCart, Building2, Package, TrendingUp } from 'lucide-react';
+import { Plus, Truck, ShoppingCart, Building2, Package, TrendingUp, AlertCircle, BarChart3 } from 'lucide-react';
 import { SupplierForm } from '@/components/forms/SupplierForm';
 import { SupplierTable } from '@/components/tables/SupplierTable';
 import { PurchaseOrderForm } from '@/components/forms/PurchaseOrderForm';
 import { PurchaseOrderTable } from '@/components/tables/PurchaseOrderTable';
 import { GRNForm } from '@/components/forms/GRNForm';
 import { GRNTable } from '@/components/tables/GRNTable';
+import { StatsCard } from '@/components/ui/stats-card';
 
 interface Supplier {
   id: string;
@@ -59,6 +60,13 @@ export function PurchaseModule() {
   const [grns, setGRNs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   
+  // Stats state
+  const [stats, setStats] = useState({
+    openPOs: { count: 0, value: 0 },
+    recentGRNs: { count: 0, value: 0 },
+    overduePOs: { count: 0, value: 0, details: [] as any[] }
+  });
+  
   // Dialog states
   const [showAddSupplierDialog, setShowAddSupplierDialog] = useState(false);
   const [showEditSupplierDialog, setShowEditSupplierDialog] = useState(false);
@@ -80,6 +88,7 @@ export function PurchaseModule() {
       fetchSuppliers();
       fetchPurchaseOrders();
       fetchGRNs();
+      fetchStats();
     }
   }, [profile?.company_id]);
 
@@ -141,6 +150,74 @@ export function PurchaseModule() {
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchStats = async () => {
+    if (!profile?.company_id) return;
+
+    try {
+      // Fetch open PO stats
+      const { data: openPOs, error: openPOError } = await supabase
+        .from('purchase_orders')
+        .select('total_amount')
+        .eq('company_id', profile.company_id)
+        .in('status', ['draft', 'sent', 'partially_received']);
+
+      if (openPOError) throw openPOError;
+
+      const openPOStats = {
+        count: openPOs?.length || 0,
+        value: openPOs?.reduce((sum, po) => sum + (po.total_amount || 0), 0) || 0
+      };
+
+      // Fetch recent GRN stats (last 15 days)
+      const fifteenDaysAgo = new Date();
+      fifteenDaysAgo.setDate(fifteenDaysAgo.getDate() - 15);
+      
+      const { data: recentGRNs, error: grnError } = await supabase
+        .from('grn_header')
+        .select('total_amount')
+        .eq('company_id', profile.company_id)
+        .gte('created_at', fifteenDaysAgo.toISOString());
+
+      if (grnError) throw grnError;
+
+      const recentGRNStats = {
+        count: recentGRNs?.length || 0,
+        value: recentGRNs?.reduce((sum, grn) => sum + (grn.total_amount || 0), 0) || 0
+      };
+
+      // Fetch overdue POs
+      const today = new Date().toISOString().split('T')[0];
+      const { data: overduePOs, error: overdueError } = await supabase
+        .from('purchase_orders')
+        .select(`
+          po_number,
+          total_amount,
+          expected_date,
+          supplier:suppliers(name)
+        `)
+        .eq('company_id', profile.company_id)
+        .lt('expected_date', today)
+        .neq('status', 'closed');
+
+      if (overdueError) throw overdueError;
+
+      const overduePOStats = {
+        count: overduePOs?.length || 0,
+        value: overduePOs?.reduce((sum, po) => sum + (po.total_amount || 0), 0) || 0,
+        details: overduePOs || []
+      };
+
+      setStats({
+        openPOs: openPOStats,
+        recentGRNs: recentGRNStats,
+        overduePOs: overduePOStats
+      });
+
+    } catch (error) {
+      console.error('Error fetching stats:', error);
     }
   };
 
@@ -354,6 +431,31 @@ export function PurchaseModule() {
 
   return (
     <div className="space-y-6">
+      {/* Purchase Stats */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <StatsCard
+          title="Open Purchase Orders"
+          value={stats.openPOs.count}
+          subtitle={`₹${stats.openPOs.value.toLocaleString()}`}
+          icon={ShoppingCart}
+          variant="primary"
+        />
+        <StatsCard
+          title="Recent GRNs (15 days)"
+          value={stats.recentGRNs.count}
+          subtitle={`₹${stats.recentGRNs.value.toLocaleString()}`}
+          icon={Package}
+          variant="secondary"
+        />
+        <StatsCard
+          title="Overdue Purchase Orders"
+          value={stats.overduePOs.count}
+          subtitle={`₹${stats.overduePOs.value.toLocaleString()}`}
+          icon={AlertCircle}
+          variant="accent"
+        />
+      </div>
+
       <Tabs defaultValue="suppliers" className="w-full">
         <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="suppliers">Suppliers</TabsTrigger>
