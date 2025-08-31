@@ -1679,6 +1679,8 @@ export type Database = {
           address_line2: string | null
           bank_address: string | null
           bank_name: string | null
+          branch_name: string | null
+          business_registration_no: string | null
           city: string | null
           company_id: string
           contact_person: string | null
@@ -1698,14 +1700,20 @@ export type Database = {
           is_active: boolean
           name: string
           pan_number: string | null
+          payment_terms: string | null
           phone: string | null
           pin_code: string | null
           place_of_supply: string | null
+          preferred_currency: string | null
           same_as_registered_address: boolean | null
           state: string | null
           supplier_ref: string | null
+          supplier_type: string | null
+          swift_code: string | null
+          tax_id: string | null
           updated_at: string
           vendor_registered_address: string | null
+          website: string | null
         }
         Insert: {
           account_number?: string | null
@@ -1715,6 +1723,8 @@ export type Database = {
           address_line2?: string | null
           bank_address?: string | null
           bank_name?: string | null
+          branch_name?: string | null
+          business_registration_no?: string | null
           city?: string | null
           company_id: string
           contact_person?: string | null
@@ -1734,14 +1744,20 @@ export type Database = {
           is_active?: boolean
           name: string
           pan_number?: string | null
+          payment_terms?: string | null
           phone?: string | null
           pin_code?: string | null
           place_of_supply?: string | null
+          preferred_currency?: string | null
           same_as_registered_address?: boolean | null
           state?: string | null
           supplier_ref?: string | null
+          supplier_type?: string | null
+          swift_code?: string | null
+          tax_id?: string | null
           updated_at?: string
           vendor_registered_address?: string | null
+          website?: string | null
         }
         Update: {
           account_number?: string | null
@@ -1751,6 +1767,8 @@ export type Database = {
           address_line2?: string | null
           bank_address?: string | null
           bank_name?: string | null
+          branch_name?: string | null
+          business_registration_no?: string | null
           city?: string | null
           company_id?: string
           contact_person?: string | null
@@ -1770,14 +1788,20 @@ export type Database = {
           is_active?: boolean
           name?: string
           pan_number?: string | null
+          payment_terms?: string | null
           phone?: string | null
           pin_code?: string | null
           place_of_supply?: string | null
+          preferred_currency?: string | null
           same_as_registered_address?: boolean | null
           state?: string | null
           supplier_ref?: string | null
+          supplier_type?: string | null
+          swift_code?: string | null
+          tax_id?: string | null
           updated_at?: string
           vendor_registered_address?: string | null
+          website?: string | null
         }
         Relationships: [
           {
@@ -2022,7 +2046,7 @@ export type Database = {
         Returns: string
       }
       generate_supplier_ref: {
-        Args: { company_name: string }
+        Args: { supplier_name: string }
         Returns: string
       }
       generate_transfer_number: {

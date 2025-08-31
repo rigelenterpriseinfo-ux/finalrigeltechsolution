@@ -15,6 +15,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Plus, Truck, ShoppingCart, FileText, Building2, Package, TrendingUp } from 'lucide-react';
 import { EnhancedPurchaseInvoiceForm } from '@/components/forms/EnhancedPurchaseInvoiceForm';
 import { PurchaseInvoiceTable } from '@/components/tables/PurchaseInvoiceTable';
+import { SupplierForm } from '@/components/forms/SupplierForm';
 
 interface Supplier {
   id: string;
@@ -130,31 +131,17 @@ export function PurchaseModule() {
   };
 
   // Supplier Management Functions
-  const handleAddSupplier = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
+  const handleAddSupplier = async (data: any) => {
     if (!canEdit) {
       toast({ title: "Permission denied", description: "You don't have edit access to Purchases.", variant: "destructive" });
       return;
     }
-    const formData = new FormData(e.currentTarget);
     
     try {
       const supplierData = {
+        ...data,
         company_id: profile?.company_id,
-        name: formData.get('name') as string,
-        email: formData.get('email') as string,
-        phone: formData.get('phone') as string,
-        contact_person: formData.get('contact_person') as string,
-        address_line1: formData.get('address_line1') as string,
-        address_line2: formData.get('address_line2') as string,
-        city: formData.get('city') as string,
-        state: formData.get('state') as string,
-        country: formData.get('country') as string,
-        pin_code: formData.get('pin_code') as string,
-        place_of_supply: formData.get('place_of_supply') as string,
-        gst_number: formData.get('gst_number') as string,
-        pan_number: formData.get('pan_number') as string,
-        is_active: true,
+        is_active: data.is_active !== false,
       };
 
       const { error } = await supabase
@@ -170,7 +157,6 @@ export function PurchaseModule() {
 
       setShowAddSupplierDialog(false);
       fetchSuppliers();
-      (e.target as HTMLFormElement).reset();
     } catch (error) {
       console.error('Error adding supplier:', error);
       toast({
@@ -484,102 +470,16 @@ export function PurchaseModule() {
                    Add Supplier
                  </Button>
                   </DialogTrigger>
-                  <DialogContent className="max-w-4xl max-h-[95vh] overflow-y-auto">
-                    <DialogHeader>
-                      <DialogTitle className="text-xl text-blue-700">Add New Supplier</DialogTitle>
-                      <DialogDescription>Add a new supplier with complete details</DialogDescription>
-                    </DialogHeader>
-                    <form onSubmit={handleAddSupplier} className="space-y-6">
-                      {/* Basic Information */}
-                      <div className="bg-gradient-to-r from-blue/5 to-blue/10 p-6 rounded-xl border border-blue/20">
-                        <h3 className="text-lg font-semibold text-blue-700 mb-4">Basic Information</h3>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <div>
-                            <Label htmlFor="name">Supplier Name *</Label>
-                            <Input id="name" name="name" required className="mt-1" />
-                          </div>
-                          <div>
-                            <Label htmlFor="email">Email</Label>
-                            <Input id="email" name="email" type="email" className="mt-1" />
-                          </div>
-                          <div>
-                            <Label htmlFor="phone">Phone</Label>
-                            <Input id="phone" name="phone" className="mt-1" />
-                          </div>
-                          <div>
-                            <Label htmlFor="contact_person">Contact Person</Label>
-                            <Input id="contact_person" name="contact_person" className="mt-1" />
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Address Information */}
-                      <div className="bg-gradient-to-r from-green/5 to-green/10 p-6 rounded-xl border border-green/20">
-                        <h3 className="text-lg font-semibold text-green-700 mb-4">Address Information</h3>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <div>
-                            <Label htmlFor="address_line1">Address Line 1</Label>
-                            <Input id="address_line1" name="address_line1" className="mt-1" />
-                          </div>
-                          <div>
-                            <Label htmlFor="address_line2">Address Line 2</Label>
-                            <Input id="address_line2" name="address_line2" className="mt-1" />
-                          </div>
-                          <div>
-                            <Label htmlFor="city">City</Label>
-                            <Input id="city" name="city" className="mt-1" />
-                          </div>
-                          <div>
-                            <Label htmlFor="state">State</Label>
-                            <Input id="state" name="state" className="mt-1" />
-                          </div>
-                          <div>
-                            <Label htmlFor="country">Country</Label>
-                            <Input id="country" name="country" defaultValue="India" className="mt-1" />
-                          </div>
-                          <div>
-                            <Label htmlFor="pin_code">Pin Code</Label>
-                            <Input id="pin_code" name="pin_code" className="mt-1" />
-                          </div>
-                        </div>
-                        <div className="mt-4">
-                          <Label htmlFor="place_of_supply">Place of Supply</Label>
-                          <Input id="place_of_supply" name="place_of_supply" className="mt-1" />
-                        </div>
-                      </div>
-
-                      {/* Tax Information */}
-                      <div className="bg-gradient-to-r from-orange/5 to-orange/10 p-6 rounded-xl border border-orange/20">
-                        <h3 className="text-lg font-semibold text-orange-700 mb-4">Tax Information</h3>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <div>
-                            <Label htmlFor="gst_number">GST Number</Label>
-                            <Input id="gst_number" name="gst_number" className="mt-1" />
-                          </div>
-                          <div>
-                            <Label htmlFor="pan_number">PAN Number</Label>
-                            <Input id="pan_number" name="pan_number" className="mt-1" />
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Action Buttons */}
-                      <div className="flex gap-4 pt-6 border-t">
-                        <Button type="submit" className="flex-1 bg-blue-600 hover:bg-blue-700">
-                          <Plus className="h-4 w-4 mr-2" />
-                          Add Supplier
-                        </Button>
-                        <Button 
-                          type="button" 
-                          variant="outline" 
-                          onClick={() => setShowAddSupplierDialog(false)} 
-                          className="flex-1"
-                        >
-                          Cancel
-                        </Button>
-                      </div>
-                    </form>
-                  </DialogContent>
+                   <DialogContent className="max-w-4xl max-h-[95vh] overflow-y-auto">
+                     <DialogHeader>
+                       <DialogTitle className="text-xl text-blue-700">Add New Supplier</DialogTitle>
+                       <DialogDescription>Add a new supplier with complete details</DialogDescription>
+                     </DialogHeader>
+                     <SupplierForm
+                       onSubmit={handleAddSupplier}
+                       onCancel={() => setShowAddSupplierDialog(false)}
+                     />
+                   </DialogContent>
                 </Dialog>
               </div>
             </CardHeader>
