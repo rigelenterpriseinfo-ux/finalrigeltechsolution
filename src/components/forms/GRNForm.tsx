@@ -26,7 +26,7 @@ const grnFormSchema = z.object({
   supplier_invoice_number: z.string().optional(),
   supplier_invoice_date: z.string().optional(),
   remarks: z.string().optional(),
-  status: z.enum(['received', 'partially_received']),
+  status: z.enum(['draft', 'received', 'partially_received', 'accepted']),
   // Consolidated warehouse & bin at form level
   default_warehouse_id: z.string().min(1, 'Default warehouse is required'),
   default_bin_id: z.string().min(1, 'Default bin is required'),
@@ -87,7 +87,7 @@ export function GRNForm({ grn, onSubmit, onCancel, readOnly = false, mode }: GRN
       supplier_invoice_number: grn?.supplier_invoice_number || '',
       supplier_invoice_date: grn?.supplier_invoice_date ? new Date(grn.supplier_invoice_date).toISOString().split('T')[0] : '',
       remarks: grn?.remarks || '',
-      status: grn?.status || 'received',
+      status: grn?.status || 'accepted',
       default_warehouse_id: '',
       default_bin_id: '',
       items: grn?.grn_line_items?.map((item: any) => ({
@@ -270,8 +270,8 @@ export function GRNForm({ grn, onSubmit, onCancel, readOnly = false, mode }: GRN
     const currentItems = form.getValues('items');
     
     const updatedItems = currentItems.map(item => {
-      if (status === 'received') {
-        // For "Received" status, set accepted_quantity = received_quantity (full receipt)
+      if (status === 'accepted' || status === 'received') {
+        // For "Accepted/Received" status, set accepted_quantity = received_quantity (full receipt)
         return {
           ...item,
           accepted_quantity: item.received_quantity,
@@ -286,7 +286,7 @@ export function GRNForm({ grn, onSubmit, onCancel, readOnly = false, mode }: GRN
     });
     
     form.setValue('items', updatedItems);
-    form.setValue('status', status as 'received' | 'partially_received');
+    form.setValue('status', (status === 'received' ? 'accepted' : status) as any);
   };
 
   const calculateItemTotals = (index: number) => {
@@ -529,7 +529,7 @@ export function GRNForm({ grn, onSubmit, onCancel, readOnly = false, mode }: GRN
             )}
           />
 
-          {/* Status Selection - Only "Received" and "Partially received" */}
+          {/* Status Selection - Only "Accepted" and "Partially received" */}
           <FormField
             control={form.control}
             name="status"
@@ -550,7 +550,7 @@ export function GRNForm({ grn, onSubmit, onCancel, readOnly = false, mode }: GRN
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    <SelectItem value="received">Received</SelectItem>
+                    <SelectItem value="accepted">Accepted</SelectItem>
                     <SelectItem value="partially_received">Partially Received</SelectItem>
                   </SelectContent>
                 </Select>
@@ -802,8 +802,8 @@ export function GRNForm({ grn, onSubmit, onCancel, readOnly = false, mode }: GRN
                                       );
                                       form.setValue(`items.${index}.received_quantity`, newValue);
                                       
-                                      // Auto-update accepted quantity if status is "received"
-                                      if (form.getValues('status') === 'received') {
+                                      // Auto-update accepted quantity if status is "accepted"
+                                      if (form.getValues('status') === 'accepted') {
                                         form.setValue(`items.${index}.accepted_quantity`, newValue);
                                         form.setValue(`items.${index}.rejected_quantity`, 0);
                                       }
