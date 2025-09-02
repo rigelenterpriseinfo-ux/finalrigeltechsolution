@@ -47,6 +47,7 @@ export const CurrentStockTable = ({ refreshTrigger }: CurrentStockTableProps) =>
     totalQuantity: 0,
     totalValue: 0
   });
+  const [topLowStockItems, setTopLowStockItems] = useState<{name: string, qty: number}[]>([]);
 
   useEffect(() => {
     fetchCurrentStock();
@@ -86,6 +87,18 @@ export const CurrentStockTable = ({ refreshTrigger }: CurrentStockTableProps) =>
       })) || [];
 
       setStockLevels(formattedStock);
+      
+      // Get top 5 low stock items
+      const lowStockItems = formattedStock
+        .filter(stock => stock.current_stock > 0 && stock.current_stock <= stock.min_stock_level)
+        .sort((a, b) => a.current_stock - b.current_stock)
+        .slice(0, 5)
+        .map(stock => ({
+          name: stock.product_name,
+          qty: stock.current_stock
+        }));
+      
+      setTopLowStockItems(lowStockItems);
     } catch (error) {
       console.error('Error fetching current stock:', error);
       toast({
@@ -177,23 +190,21 @@ export const CurrentStockTable = ({ refreshTrigger }: CurrentStockTableProps) =>
         </div>
         <div className="p-4 border rounded-lg">
           <div className="flex items-center gap-2">
-            <Package className="h-5 w-5 text-primary" />
-            <div>
-              <p className="text-sm text-muted-foreground">Inventory Overview</p>
-              <div className="flex gap-4 mt-2">
-                <div>
-                  <p className="text-xs text-muted-foreground">SKU Count</p>
-                  <p className="text-lg font-bold">{inventoryStats.totalSKUs}</p>
+            <AlertTriangle className="h-5 w-5 text-orange-500" />
+            <div className="w-full">
+              <p className="text-sm text-muted-foreground">Top 5 Low Stock Items</p>
+              {topLowStockItems.length > 0 ? (
+                <div className="mt-2 space-y-1">
+                  {topLowStockItems.map((item, index) => (
+                    <div key={index} className="flex justify-between items-center text-sm">
+                      <span className="font-medium truncate">{item.name}</span>
+                      <span className="text-orange-600 font-bold">{item.qty}</span>
+                    </div>
+                  ))}
                 </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Total Qty</p>
-                  <p className="text-lg font-bold">{inventoryStats.totalQuantity.toLocaleString()}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Total Value</p>
-                  <p className="text-lg font-bold">₹{inventoryStats.totalValue.toLocaleString()}</p>
-                </div>
-              </div>
+              ) : (
+                <p className="text-sm text-muted-foreground mt-2">No low stock items</p>
+              )}
             </div>
           </div>
         </div>
