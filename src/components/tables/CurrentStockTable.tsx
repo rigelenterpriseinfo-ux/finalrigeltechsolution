@@ -59,17 +59,23 @@ export const CurrentStockTable = ({ refreshTrigger }: CurrentStockTableProps) =>
     
     setLoading(true);
     try {
+      // First try the current_stock_levels view
       const { data, error } = await supabase
         .from('current_stock_levels')
         .select(`
           *,
           products!inner(name, sku, min_stock_level),
-          warehouse_bins!inner(warehouse_name, bin_name)
+          warehouse_bins!fk_inventory_transactions_warehouse_id(warehouse_name, bin_name)
         `)
         .eq('company_id', company.id)
         .order('current_stock', { ascending: true });
 
-      if (error) throw error;
+      if (error) {
+        console.warn('Current stock levels view failed, falling back to inventory transactions:', error);
+        // Fallback: Calculate stock levels from inventory_transactions
+        await fetchStockFromTransactions();
+        return;
+      }
 
       const formattedStock: CurrentStock[] = data?.map((stock: any) => ({
         company_id: stock.company_id,
@@ -82,8 +88,8 @@ export const CurrentStockTable = ({ refreshTrigger }: CurrentStockTableProps) =>
         product_name: stock.products.name,
         product_sku: stock.products.sku,
         min_stock_level: stock.products.min_stock_level || 0,
-        warehouse_name: stock.warehouse_bins.warehouse_name || 'N/A',
-        bin_name: stock.warehouse_bins.bin_name
+        warehouse_name: stock.warehouse_bins?.warehouse_name || 'N/A',
+        bin_name: stock.warehouse_bins?.bin_name || 'N/A'
       })) || [];
 
       setStockLevels(formattedStock);
@@ -108,6 +114,85 @@ export const CurrentStockTable = ({ refreshTrigger }: CurrentStockTableProps) =>
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchStockFromTransactions = async () => {
+    try {
+      // Get all inventory transactions and calculate current stock
+      const { data: transactions, error: transError } = await supabase
+        .from('inventory_transactions')
+        .select(`
+          product_id,
+          warehouse_id,
+          bin_id,
+          quantity_change,
+          transaction_date,
+          products!inner(name, sku, min_stock_level),
+          warehouse_bins!inner(warehouse_name, bin_name)
+        `)
+        .eq('company_id', company.id)
+        .order('transaction_date', { ascending: false });
+
+      if (transError) throw transError;
+
+      // Calculate current stock by product, warehouse, and bin
+      const stockMap = new Map<string, any>();
+      
+      transactions?.forEach((trans: any) => {
+        const key = `${trans.product_id}-${trans.warehouse_id}-${trans.bin_id}`;
+        
+        if (!stockMap.has(key)) {
+          stockMap.set(key, {
+            company_id: company.id,
+            product_id: trans.product_id,
+            warehouse_id: trans.warehouse_id,
+            bin_id: trans.bin_id,
+            current_stock: 0,
+            last_transaction_date: trans.transaction_date,
+            transaction_count: 0,
+            product_name: trans.products.name,
+            product_sku: trans.products.sku,
+            min_stock_level: trans.products.min_stock_level || 0,
+            warehouse_name: trans.warehouse_bins.warehouse_name || 'N/A',
+            bin_name: trans.warehouse_bins.bin_name || 'N/A'
+          });
+        }
+        
+        const stock = stockMap.get(key);
+        stock.current_stock += trans.quantity_change || 0;
+        stock.transaction_count += 1;
+        
+        // Update last transaction date if this is more recent
+        if (new Date(trans.transaction_date) > new Date(stock.last_transaction_date)) {
+          stock.last_transaction_date = trans.transaction_date;
+        }
+      });
+
+      const formattedStock = Array.from(stockMap.values())
+        .sort((a, b) => a.current_stock - b.current_stock);
+
+      setStockLevels(formattedStock);
+      
+      // Get top 5 low stock items
+      const lowStockItems = formattedStock
+        .filter(stock => stock.current_stock > 0 && stock.current_stock <= stock.min_stock_level)
+        .sort((a, b) => a.current_stock - b.current_stock)
+        .slice(0, 5)
+        .map(stock => ({
+          name: stock.product_name,
+          qty: stock.current_stock
+        }));
+      
+      setTopLowStockItems(lowStockItems);
+      
+    } catch (error) {
+      console.error('Fallback stock calculation failed:', error);
+      toast({
+        title: "Error",
+        description: "Failed to calculate stock levels from transactions",
+        variant: "destructive",
+      });
     }
   };
 
