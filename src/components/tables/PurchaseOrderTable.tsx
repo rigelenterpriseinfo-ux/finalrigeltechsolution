@@ -600,8 +600,13 @@ export function PurchaseOrderTable({
                           variant="outline"
                           size="sm"
                           onClick={() => onEdit(order)}
-                          className="h-8 w-8 p-0 border-emerald-200 bg-emerald-50 hover:bg-emerald-100 hover:border-emerald-300 text-emerald-700 transition-all duration-200"
-                          title="Edit Purchase Order"
+                          disabled={order.status === 'closed'}
+                          className={`h-8 w-8 p-0 transition-all duration-200 ${
+                            order.status === 'closed' 
+                              ? 'border-gray-200 bg-gray-50 text-gray-400 cursor-not-allowed' 
+                              : 'border-emerald-200 bg-emerald-50 hover:bg-emerald-100 hover:border-emerald-300 text-emerald-700'
+                          }`}
+                          title={order.status === 'closed' ? 'Cannot edit closed purchase order' : 'Edit Purchase Order'}
                         >
                           <Edit className="h-3.5 w-3.5" />
                         </Button>

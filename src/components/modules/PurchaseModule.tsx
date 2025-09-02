@@ -570,7 +570,12 @@ export function PurchaseModule() {
                 }}
                 onEdit={(po) => {
                   setSelectedPO(po);
-                  setShowEditPODialog(true);
+                  if (po.status === 'closed') {
+                    // Open closed POs in view mode instead
+                    setShowViewPODialog(true);
+                  } else {
+                    setShowEditPODialog(true);
+                  }
                 }}
                 onDelete={handleDeletePurchaseOrder}
                 loading={loading}
