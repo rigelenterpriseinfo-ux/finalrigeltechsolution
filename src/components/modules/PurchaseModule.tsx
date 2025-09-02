@@ -114,7 +114,8 @@ export function PurchaseModule() {
         .from('purchase_orders')
         .select(`
           *,
-          supplier:suppliers(name)
+          supplier:suppliers(name),
+          purchase_order_items:purchase_order_items(*)
         `)
         .eq('company_id', profile?.company_id)
         .order('created_at', { ascending: false });
