@@ -79,7 +79,7 @@ export function PurchaseOrderForm({
       order_date: purchaseOrder?.order_date || new Date().toISOString().split('T')[0],
       currency: purchaseOrder?.currency || 'INR',
       payment_terms: purchaseOrder?.payment_terms || '',
-      expected_date: purchaseOrder?.expected_date || '',
+      expected_date: purchaseOrder?.expected_date || null,
       status: purchaseOrder?.status || 'draft',
       notes: purchaseOrder?.notes || '',
       items: purchaseOrder?.purchase_order_items || [{
@@ -125,7 +125,7 @@ export function PurchaseOrderForm({
       order_date: purchaseOrder.order_date || new Date().toISOString().split('T')[0],
       currency: purchaseOrder.currency || 'INR',
       payment_terms: purchaseOrder.payment_terms || '',
-      expected_date: purchaseOrder.expected_date || '',
+      expected_date: purchaseOrder.expected_date || null,
       status: purchaseOrder.status || 'draft',
       notes: purchaseOrder.notes || '',
       items: (purchaseOrder.purchase_order_items || []).map((it: any) => ({
@@ -247,6 +247,14 @@ export function PurchaseOrderForm({
     });
   };
 
+  // Helper function to sanitize date values
+  const sanitizeDateValue = (dateValue: string | null | undefined): string | null => {
+    if (!dateValue || dateValue === '') {
+      return null;
+    }
+    return dateValue;
+  };
+
   const handleSubmit = async (data: PurchaseOrderFormData) => {
     if (readOnly) return;
     
@@ -261,6 +269,8 @@ export function PurchaseOrderForm({
 
       const purchaseOrderData = {
         ...data,
+        // Sanitize date fields to convert empty strings to null
+        expected_date: sanitizeDateValue(data.expected_date),
         subtotal_amount: subtotalAmount,
         total_discount_amount: totalDiscountAmount,
         total_tax_amount: totalTaxAmount,

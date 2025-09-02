@@ -85,7 +85,7 @@ export function GRNForm({ grn, onSubmit, onCancel, readOnly = false, mode }: GRN
       grn_reference_no: grn?.grn_reference_no || '',
       grn_date: grn?.grn_date ? new Date(grn.grn_date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
       supplier_invoice_number: grn?.supplier_invoice_number || '',
-      supplier_invoice_date: grn?.supplier_invoice_date ? new Date(grn.supplier_invoice_date).toISOString().split('T')[0] : '',
+      supplier_invoice_date: grn?.supplier_invoice_date ? new Date(grn.supplier_invoice_date).toISOString().split('T')[0] : null,
       remarks: grn?.remarks || '',
       status: grn?.status || 'accepted',
       default_warehouse_id: '',
@@ -389,6 +389,14 @@ export function GRNForm({ grn, onSubmit, onCancel, readOnly = false, mode }: GRN
     return !hasErrors;
   };
 
+  // Helper function to sanitize date values
+  const sanitizeDateValue = (dateValue: string | null | undefined): string | null => {
+    if (!dateValue || dateValue === '') {
+      return null;
+    }
+    return dateValue;
+  };
+
   const handleSubmit = async (data: z.infer<typeof grnFormSchema>) => {
     if (readOnly) return;
     
@@ -404,7 +412,12 @@ export function GRNForm({ grn, onSubmit, onCancel, readOnly = false, mode }: GRN
     
     try {
       setLoading(true);
-      await onSubmit(data);
+      // Sanitize date fields before submitting
+      const sanitizedData = {
+        ...data,
+        supplier_invoice_date: sanitizeDateValue(data.supplier_invoice_date),
+      };
+      await onSubmit(sanitizedData);
     } catch (error) {
       console.error('Error submitting GRN:', error);
       toast({
