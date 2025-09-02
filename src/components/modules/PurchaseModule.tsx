@@ -447,336 +447,466 @@ export function PurchaseModule() {
   };
 
   return (
-    <div className="space-y-6">
-      {/* Purchase Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <StatsCard
-          title="Open Purchase Orders"
-          value={stats.openPOs.count}
-          subtitle={`₹${stats.openPOs.value.toLocaleString()}`}
-          icon={ShoppingCart}
-          variant="primary"
-        />
-        <StatsCard
-          title="Recent GRNs (15 days)"
-          value={stats.recentGRNs.count}
-          subtitle={`₹${stats.recentGRNs.value.toLocaleString()}`}
-          icon={Package}
-          variant="secondary"
-        />
-        <StatsCard
-          title="Overdue Purchase Orders"
-          value={stats.overduePOs.count}
-          subtitle={stats.overduePOs.details.length > 0 
-            ? `${stats.overduePOs.details.slice(0, 2).map((po: any) => `${po.po_number} (${po.supplier?.name || 'Unknown'})`).join(', ')}${stats.overduePOs.details.length > 2 ? '...' : ''}`
-            : `₹${stats.overduePOs.value.toLocaleString()}`
-          }
-          icon={AlertCircle}
-          className="border-red-200 bg-gradient-to-br from-red-50 to-red-100"
-        />
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
+      {/* Hero Header Section */}
+      <div className="relative bg-gradient-to-r from-blue-600 via-blue-700 to-indigo-800 text-white">
+        <div className="absolute inset-0 bg-black/10"></div>
+        <div className="relative px-6 py-12">
+          <div className="max-w-7xl mx-auto">
+            <div className="flex items-center gap-4 mb-4">
+              <div className="p-3 bg-white/20 rounded-xl backdrop-blur-sm">
+                <Building2 className="h-8 w-8" />
+              </div>
+              <div>
+                <h1 className="text-4xl font-bold tracking-tight">Purchase Management</h1>
+                <p className="text-blue-100 text-lg mt-2">Streamline your procurement process with smart analytics</p>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
-      <Tabs defaultValue="suppliers" className="w-full">
-        <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="suppliers">Suppliers</TabsTrigger>
-          <TabsTrigger value="orders">Purchase Orders</TabsTrigger>
-          <TabsTrigger value="grn">GRN Management</TabsTrigger>
-        </TabsList>
-
-        {/* Section 1: Supplier Management */}
-        <TabsContent value="suppliers" className="space-y-6">
-          <Card>
-            <CardHeader className="border-b bg-gradient-to-r from-blue-50 to-blue-100">
-              <div className="flex justify-between items-center">
-                <div>
-                  <CardTitle className="text-xl text-blue-800">Supplier Management</CardTitle>
-                  <CardDescription>Manage your supplier database</CardDescription>
+      <div className="max-w-7xl mx-auto px-6 -mt-8 relative z-10">
+        {/* Enhanced Stats Dashboard */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
+          <div className="group hover:scale-105 transition-all duration-300 animate-fade-in">
+            <Card className="border-0 shadow-xl bg-gradient-to-br from-blue-500 to-blue-600 text-white overflow-hidden relative">
+              <div className="absolute inset-0 bg-gradient-to-r from-blue-400/20 to-transparent"></div>
+              <CardContent className="p-6 relative">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="p-3 bg-white/20 rounded-lg backdrop-blur-sm">
+                    <ShoppingCart className="h-8 w-8" />
+                  </div>
+                  <TrendingUp className="h-5 w-5 text-blue-200" />
                 </div>
-                <Dialog open={showAddSupplierDialog} onOpenChange={setShowAddSupplierDialog}>
-                  <DialogTrigger asChild>
-                    <Button className="bg-blue-600 hover:bg-blue-700" disabled={!canEdit}>
-                      <Plus className="h-4 w-4 mr-2" />
-                      Add Supplier
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
-                    <DialogHeader>
-                      <DialogTitle>Add New Supplier</DialogTitle>
-                      <DialogDescription>Enter supplier information below</DialogDescription>
-                    </DialogHeader>
-                    <SupplierForm
-                      onSubmit={handleAddSupplier}
-                      onCancel={() => setShowAddSupplierDialog(false)}
+                <div className="space-y-2">
+                  <h3 className="text-sm font-medium text-blue-100">Open Purchase Orders</h3>
+                  <div className="text-3xl font-bold">{stats.openPOs.count}</div>
+                  <p className="text-sm text-blue-200">₹{stats.openPOs.value.toLocaleString()}</p>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          <div className="group hover:scale-105 transition-all duration-300 animate-fade-in delay-100">
+            <Card className="border-0 shadow-xl bg-gradient-to-br from-emerald-500 to-emerald-600 text-white overflow-hidden relative">
+              <div className="absolute inset-0 bg-gradient-to-r from-emerald-400/20 to-transparent"></div>
+              <CardContent className="p-6 relative">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="p-3 bg-white/20 rounded-lg backdrop-blur-sm">
+                    <Package className="h-8 w-8" />
+                  </div>
+                  <BarChart3 className="h-5 w-5 text-emerald-200" />
+                </div>
+                <div className="space-y-2">
+                  <h3 className="text-sm font-medium text-emerald-100">Recent GRNs (15 days)</h3>
+                  <div className="text-3xl font-bold">{stats.recentGRNs.count}</div>
+                  <p className="text-sm text-emerald-200">₹{stats.recentGRNs.value.toLocaleString()}</p>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          <div className="group hover:scale-105 transition-all duration-300 animate-fade-in delay-200">
+            <Card className="border-0 shadow-xl bg-gradient-to-br from-red-500 to-red-600 text-white overflow-hidden relative">
+              <div className="absolute inset-0 bg-gradient-to-r from-red-400/20 to-transparent"></div>
+              <CardContent className="p-6 relative">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="p-3 bg-white/20 rounded-lg backdrop-blur-sm">
+                    <AlertCircle className="h-8 w-8" />
+                  </div>
+                  <div className="animate-pulse">
+                    <div className="h-2 w-2 bg-red-200 rounded-full"></div>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <h3 className="text-sm font-medium text-red-100">Overdue Purchase Orders</h3>
+                  <div className="text-3xl font-bold">{stats.overduePOs.count}</div>
+                  <p className="text-xs text-red-200 line-clamp-2">
+                    {stats.overduePOs.details.length > 0 
+                      ? `${stats.overduePOs.details.slice(0, 2).map((po: any) => `${po.po_number} (${po.supplier?.name || 'Unknown'})`).join(', ')}${stats.overduePOs.details.length > 2 ? '...' : ''}`
+                      : `₹${stats.overduePOs.value.toLocaleString()}`
+                    }
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+
+        {/* Enhanced Tabs Section */}
+        <Card className="shadow-2xl border-0 bg-white/80 backdrop-blur-sm animate-fade-in delay-300">
+          <CardContent className="p-0">
+            <Tabs defaultValue="suppliers" className="w-full">
+              <div className="bg-gradient-to-r from-slate-50 to-slate-100 px-6 py-4 border-b">
+                <TabsList className="grid w-full grid-cols-3 bg-white shadow-lg border-0 p-1 rounded-xl">
+                  <TabsTrigger 
+                    value="suppliers" 
+                    className="flex items-center gap-3 px-6 py-3 data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-blue-600 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all duration-300"
+                  >
+                    <Building2 className="h-4 w-4" />
+                    <span className="font-medium">Suppliers</span>
+                  </TabsTrigger>
+                  <TabsTrigger 
+                    value="purchase-orders" 
+                    className="flex items-center gap-3 px-6 py-3 data-[state=active]:bg-gradient-to-r data-[state=active]:from-emerald-500 data-[state=active]:to-emerald-600 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all duration-300"
+                  >
+                    <ShoppingCart className="h-4 w-4" />
+                    <span className="font-medium">Purchase Orders</span>
+                  </TabsTrigger>
+                  <TabsTrigger 
+                    value="grn" 
+                    className="flex items-center gap-3 px-6 py-3 data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-500 data-[state=active]:to-purple-600 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all duration-300"
+                  >
+                    <Package className="h-4 w-4" />
+                    <span className="font-medium">Goods Receipt Notes</span>
+                  </TabsTrigger>
+                </TabsList>
+              </div>
+
+              {/* Suppliers Tab */}
+              <TabsContent value="suppliers" className="mt-0">
+                <div className="bg-gradient-to-br from-blue-50/50 to-indigo-50/50 p-8">
+                  <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6 mb-8">
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-3">
+                        <div className="p-2 bg-blue-100 rounded-lg">
+                          <Building2 className="h-6 w-6 text-blue-600" />
+                        </div>
+                        <h2 className="text-3xl font-bold text-gray-900">Suppliers</h2>
+                      </div>
+                      <p className="text-gray-600 text-lg">Manage your supplier relationships and vendor information</p>
+                    </div>
+                    {canEdit && (
+                      <Button 
+                        onClick={() => setShowAddSupplierDialog(true)} 
+                        className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 shadow-lg hover:shadow-xl transition-all duration-300 px-6 py-3 text-lg gap-3"
+                      >
+                        <Plus className="h-5 w-5" />
+                        Add New Supplier
+                      </Button>
+                    )}
+                  </div>
+                  <div className="bg-white rounded-xl shadow-lg border-0">
+                    <SupplierTable
+                      suppliers={suppliers}
+                      onView={(supplier) => {
+                        setSelectedSupplier(supplier);
+                        setShowViewSupplierDialog(true);
+                      }}
+                      onEdit={canEdit ? (supplier) => {
+                        setSelectedSupplier(supplier);
+                        setShowEditSupplierDialog(true);
+                      } : undefined}
+                      onCreate={() => setShowAddSupplierDialog(true)}
+                      onDelete={canEdit ? async (supplierId) => {
+                        if (!confirm('Are you sure you want to delete this supplier?')) return;
+                        try {
+                          const { error } = await supabase.from('suppliers').delete().eq('id', supplierId);
+                          if (error) throw error;
+                          toast({ title: "Success", description: "Supplier deleted successfully" });
+                          fetchSuppliers();
+                        } catch (error) {
+                          console.error('Error deleting supplier:', error);
+                          toast({ title: "Error", description: "Failed to delete supplier", variant: "destructive" });
+                        }
+                      } : undefined}
+                      loading={loading}
                     />
-                  </DialogContent>
-                </Dialog>
-              </div>
-            </CardHeader>
-            <CardContent className="p-6">
-              <SupplierTable
-                suppliers={suppliers}
-                onView={(supplier) => {
-                  setSelectedSupplier(supplier);
-                  setShowViewSupplierDialog(true);
-                }}
-                onEdit={(supplier) => {
-                  setSelectedSupplier(supplier);
-                  setShowEditSupplierDialog(true);
-                }}
-                onDelete={handleDeleteSupplier}
-                onCreate={() => setShowAddSupplierDialog(true)}
-                loading={loading}
-              />
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* Section 2: Purchase Orders */}
-        <TabsContent value="orders" className="space-y-6">
-          <Card>
-            <CardHeader className="border-b bg-gradient-to-r from-green-50 to-green-100">
-              <div className="flex justify-between items-center">
-                <div>
-                  <CardTitle className="text-xl text-green-800">Purchase Orders</CardTitle>
-                  <CardDescription>Create and manage purchase orders</CardDescription>
+                  </div>
                 </div>
-                 <Dialog open={showAddPODialog} onOpenChange={setShowAddPODialog}>
-                   <DialogTrigger asChild>
-                     <Button className="bg-green-600 hover:bg-green-700" disabled={!canEdit}>
-                       <Plus className="h-4 w-4 mr-2" />
-                       Create Purchase Order
-                     </Button>
-                   </DialogTrigger>
-                   <DialogContent className="max-w-7xl max-h-[95vh] overflow-y-auto">
-                     <DialogHeader>
-                       <DialogTitle>Create Purchase Order</DialogTitle>
-                       <DialogDescription>Create a new purchase order</DialogDescription>
-                     </DialogHeader>
-                     <PurchaseOrderForm
-                       onSubmit={handleAddPurchaseOrder}
-                       onCancel={() => setShowAddPODialog(false)}
-                       mode="create"
-                     />
-                   </DialogContent>
-                 </Dialog>
-              </div>
-            </CardHeader>
-            <CardContent className="p-6">
-              <PurchaseOrderTable
-                purchaseOrders={purchaseOrders}
-                onView={(po) => {
-                  setSelectedPO(po);
-                  setShowViewPODialog(true);
-                }}
-                onEdit={(po) => {
-                  setSelectedPO(po);
-                  if (po.status === 'closed') {
-                    // Open closed POs in view mode instead
-                    setShowViewPODialog(true);
-                  } else {
-                    setShowEditPODialog(true);
-                  }
-                }}
-                onDelete={handleDeletePurchaseOrder}
-                loading={loading}
-              />
-            </CardContent>
-          </Card>
-        </TabsContent>
+              </TabsContent>
 
-        {/* Section 3: GRN Management */}
-        <TabsContent value="grn" className="space-y-6">
-          <Card>
-            <CardHeader className="border-b bg-gradient-to-r from-orange-50 to-orange-100">
-              <div className="flex justify-between items-center">
-                <div>
-                  <CardTitle className="text-xl text-orange-800">Purchase Receipt (GRN)</CardTitle>
-                  <CardDescription>Create and manage Goods Receipt Notes</CardDescription>
-                </div>
-                <Dialog open={showAddGRNDialog} onOpenChange={setShowAddGRNDialog}>
-                  <DialogTrigger asChild>
-                    <Button className="bg-orange-600 hover:bg-orange-700" disabled={!canEdit}>
-                      <Plus className="h-4 w-4 mr-2" />
-                      Create GRN
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent className="max-w-7xl max-h-[95vh] overflow-y-auto">
-                    <DialogHeader>
-                      <DialogTitle>Create GRN</DialogTitle>
-                      <DialogDescription>Record goods received against a purchase order</DialogDescription>
-                    </DialogHeader>
-                    <GRNForm
-                       onSubmit={async (data) => {
-                         try {
-                           // Calculate totals from line items
-                           const totals = data.items.reduce(
-                             (acc: any, item: any) => ({
-                               totalOrderedQty: acc.totalOrderedQty + (item.ordered_quantity || 0),
-                               totalReceivedQty: acc.totalReceivedQty + (item.received_quantity || 0),
-                               totalAcceptedQty: acc.totalAcceptedQty + (item.accepted_quantity || 0),
-                               totalRejectedQty: acc.totalRejectedQty + (item.rejected_quantity || 0),
-                               subtotalAmount: acc.subtotalAmount + ((item.accepted_quantity || 0) * (item.unit_price || 0)),
-                               totalDiscountAmount: acc.totalDiscountAmount + (item.discount_amount || 0),
-                               totalTaxAmount: acc.totalTaxAmount + (item.total_tax_amount || 0),
-                               totalAmount: acc.totalAmount + (item.line_total || 0),
-                             }),
-                             {
-                               totalOrderedQty: 0,
-                               totalReceivedQty: 0,
-                               totalAcceptedQty: 0,
-                               totalRejectedQty: 0,
-                               subtotalAmount: 0,
-                               totalDiscountAmount: 0,
-                               totalTaxAmount: 0,
-                               totalAmount: 0,
-                             }
-                           );
-
-                            console.log('Creating GRN with data:', data);
-                            console.log('Validation - warehouse/bin check:', {
-                              defaultWarehouse: data.default_warehouse_id,
-                              defaultBin: data.default_bin_id,
-                              itemsWithBins: data.items?.map(item => ({
-                                productName: item.product_name,
-                                warehouseId: item.warehouse_id,
-                                binId: item.bin_id
-                              }))
-                            });
-                            
-                            // Validate all items have warehouse_id and bin_id
-                            const invalidItems = data.items?.filter(item => 
-                              !item.warehouse_id || !item.bin_id || !item.product_id
-                            );
-                            
-                            if (invalidItems?.length > 0) {
-                              console.error('Invalid items found:', invalidItems);
-                              throw new Error(`Invalid items found: ${invalidItems.map(i => i.product_name || 'Unknown').join(', ')} - missing warehouse, bin, or product ID`);
-                            }
-
-                            const { data: grn, error } = await supabase
-                              .from('grn_header')
-                              .insert({
-                                company_id: profile?.company_id,
-                                purchase_order_id: data.purchase_order_id,
-                                supplier_id: data.supplier_id,
-                                supplier_name: data.supplier_name,
-                                grn_date: data.grn_date,
-                                supplier_invoice_number: data.supplier_invoice_number,
-                                supplier_invoice_date: data.supplier_invoice_date || null,
-                                remarks: data.remarks,
-                                status: data.status === 'received' ? 'accepted' : data.status,
-                                total_ordered_quantity: totals.totalOrderedQty,
-                                total_received_quantity: totals.totalReceivedQty,
-                                total_accepted_quantity: totals.totalAcceptedQty,
-                                total_rejected_quantity: totals.totalRejectedQty,
-                                subtotal_amount: totals.subtotalAmount,
-                                total_discount_amount: totals.totalDiscountAmount,
-                                total_tax_amount: totals.totalTaxAmount,
-                                total_amount: totals.totalAmount,
-                                created_by: profile?.id,
-                                grn_number: '' // Will be auto-generated by trigger
-                              } as any)
-                              .select()
-                              .single();
-
-                            if (error) {
-                              console.error('GRN Header creation error:', error);
-                              throw error;
-                            }
-
-                            console.log('GRN Header created:', grn);
-
-                            if (data.items?.length > 0) {
-                               const itemsToInsert = data.items.map((item) => ({
-                                 grn_header_id: grn.id,
-                                 product_id: item.product_id,
-                                 product_name: item.product_name,
-                                 product_sku: item.product_sku,
-                                 unit_of_measure: item.unit_of_measure,
-                                 ordered_quantity: item.ordered_quantity,
-                                 received_quantity: item.received_quantity,
-                                 accepted_quantity: item.accepted_quantity,
-                                 rejected_quantity: item.rejected_quantity,
-                                 unit_price: item.unit_price,
-                                 discount_percentage: item.discount_percentage || 0,
-                                 discount_amount: item.discount_amount || 0,
-                                 warehouse_id: item.warehouse_id,
-                                 bin_id: item.bin_id,
-                                 hsn_sac_code: item.hsn_sac_code,
-                                 cgst_rate: item.cgst_rate || 0,
-                                 cgst_amount: item.cgst_amount || 0,
-                                 sgst_rate: item.sgst_rate || 0,
-                                 sgst_amount: item.sgst_amount || 0,
-                                 igst_rate: item.igst_rate || 0,
-                                 igst_amount: item.igst_amount || 0,
-                                 total_tax_amount: item.total_tax_amount || 0,
-                                 line_total: item.line_total || 0,
-                               }));
-                              
-                              console.log('Inserting GRN line items:', itemsToInsert);
-                              const { error: itemsError } = await supabase
-                                .from('grn_line_items')
-                                .insert(itemsToInsert);
-                              if (itemsError) {
-                                console.error('GRN Line items creation error:', itemsError);
-                                throw itemsError;
-                              }
-                            }
-
-                            console.log('GRN creation completed successfully');
-                            toast({ 
-                              title: "Success", 
-                              description: `GRN created successfully${grn.grn_number ? ` (GRN: ${grn.grn_number})` : ''}. Inventory has been updated.` 
-                            });
-                            setShowAddGRNDialog(false);
-                            setRefreshGRNTrigger(prev => prev + 1);
-                            fetchGRNs();
-                         } catch (error) {
-                           console.error('Error creating GRN:', error);
-                           toast({ 
-                             title: "Error", 
-                             description: "Failed to create GRN. Please check that all products are properly selected.", 
-                             variant: "destructive" 
-                           });
-                         }
-                       }}
-                      onCancel={() => setShowAddGRNDialog(false)}
-                      mode="create"
+              {/* Purchase Orders Tab */}
+              <TabsContent value="purchase-orders" className="mt-0">
+                <div className="bg-gradient-to-br from-emerald-50/50 to-green-50/50 p-8">
+                  <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6 mb-8">
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-3">
+                        <div className="p-2 bg-emerald-100 rounded-lg">
+                          <ShoppingCart className="h-6 w-6 text-emerald-600" />
+                        </div>
+                        <h2 className="text-3xl font-bold text-gray-900">Purchase Orders</h2>
+                      </div>
+                      <p className="text-gray-600 text-lg">Create and manage purchase orders for your suppliers</p>
+                    </div>
+                    {canEdit && (
+                      <Button 
+                        onClick={() => setShowAddPODialog(true)} 
+                        className="bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 shadow-lg hover:shadow-xl transition-all duration-300 px-6 py-3 text-lg gap-3"
+                      >
+                        <Plus className="h-5 w-5" />
+                        Create Purchase Order
+                      </Button>
+                    )}
+                  </div>
+                  <div className="bg-white rounded-xl shadow-lg border-0">
+                    <PurchaseOrderTable
+                      purchaseOrders={purchaseOrders}
+                      onView={(po) => {
+                        setSelectedPO(po);
+                        setShowViewPODialog(true);
+                      }}
+                      onEdit={canEdit ? (po) => {
+                        setSelectedPO(po);
+                        setShowEditPODialog(true);
+                      } : undefined}
+                      onDelete={canEdit ? handleDeletePurchaseOrder : undefined}
+                      loading={loading}
                     />
-                  </DialogContent>
-                </Dialog>
-              </div>
-            </CardHeader>
-            <CardContent className="p-6">
-              <GRNTable
-                refreshTrigger={refreshGRNTrigger}
-                onView={(grn) => {
-                  setSelectedGRN(grn);
-                  setShowViewGRNDialog(true);
-                }}
-                onEdit={(grn) => {
-                  setSelectedGRN(grn);
-                  setShowEditGRNDialog(true);
-                }}
-                onDelete={async (grnId) => {
-                  if (!confirm('Are you sure you want to delete this GRN?')) return;
-                  try {
-                    const { error } = await supabase.from('grn_header').delete().eq('id', grnId);
-                    if (error) throw error;
-                    toast({ title: "Success", description: "GRN deleted successfully" });
-                    setRefreshGRNTrigger(prev => prev + 1);
-                  } catch (error) {
-                    console.error('Error deleting GRN:', error);
-                    toast({ title: "Error", description: "Failed to delete GRN", variant: "destructive" });
-                  }
-                }}
-              />
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+                  </div>
+                </div>
+              </TabsContent>
 
-      {/* Supplier Dialogs */}
+              {/* GRN Tab */}
+              <TabsContent value="grn" className="mt-0">
+                <div className="bg-gradient-to-br from-purple-50/50 to-pink-50/50 p-8">
+                  <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6 mb-8">
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-3">
+                        <div className="p-2 bg-purple-100 rounded-lg">
+                          <Package className="h-6 w-6 text-purple-600" />
+                        </div>
+                        <h2 className="text-3xl font-bold text-gray-900">Goods Receipt Notes</h2>
+                      </div>
+                      <p className="text-gray-600 text-lg">Record and manage received goods from purchase orders</p>
+                    </div>
+                    {canEdit && (
+                      <Button 
+                        onClick={() => setShowAddGRNDialog(true)} 
+                        className="bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 shadow-lg hover:shadow-xl transition-all duration-300 px-6 py-3 text-lg gap-3"
+                      >
+                        <Plus className="h-5 w-5" />
+                        Create GRN
+                      </Button>
+                    )}
+                  </div>
+                  <div className="bg-white rounded-xl shadow-lg border-0">
+                    <GRNTable
+                      refreshTrigger={refreshGRNTrigger}
+                      onView={(grn) => {
+                        setSelectedGRN(grn);
+                        setShowViewGRNDialog(true);
+                      }}
+                      onEdit={(grn) => {
+                        setSelectedGRN(grn);
+                        setShowEditGRNDialog(true);
+                      }}
+                      onDelete={async (grnId) => {
+                        if (!confirm('Are you sure you want to delete this GRN?')) return;
+                        try {
+                          const { error } = await supabase.from('grn_header').delete().eq('id', grnId);
+                          if (error) throw error;
+                          toast({ title: "Success", description: "GRN deleted successfully" });
+                          setRefreshGRNTrigger(prev => prev + 1);
+                        } catch (error) {
+                          console.error('Error deleting GRN:', error);
+                          toast({ title: "Error", description: "Failed to delete GRN", variant: "destructive" });
+                        }
+                      }}
+                    />
+                  </div>
+                </div>
+              </TabsContent>
+            </Tabs>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Enhanced Add Supplier Dialog */}
+      <Dialog open={showAddSupplierDialog} onOpenChange={setShowAddSupplierDialog}>
+        <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto bg-gradient-to-br from-white to-blue-50/30 border-0 shadow-2xl">
+          <DialogHeader className="pb-6 border-b border-blue-100">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-blue-100 rounded-lg">
+                <Building2 className="h-6 w-6 text-blue-600" />
+              </div>
+              <div>
+                <DialogTitle className="text-2xl font-bold text-gray-900">Add New Supplier</DialogTitle>
+                <DialogDescription className="text-gray-600 mt-1">Enter supplier information to add them to your vendor list</DialogDescription>
+              </div>
+            </div>
+          </DialogHeader>
+          <div className="mt-6">
+            <SupplierForm
+              onSubmit={handleAddSupplier}
+              onCancel={() => setShowAddSupplierDialog(false)}
+            />
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Enhanced Add Purchase Order Dialog */}
+      <Dialog open={showAddPODialog} onOpenChange={setShowAddPODialog}>
+        <DialogContent className="max-w-7xl max-h-[95vh] overflow-y-auto bg-gradient-to-br from-white to-emerald-50/30 border-0 shadow-2xl">
+          <DialogHeader className="pb-6 border-b border-emerald-100">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-emerald-100 rounded-lg">
+                <ShoppingCart className="h-6 w-6 text-emerald-600" />
+              </div>
+              <div>
+                <DialogTitle className="text-2xl font-bold text-gray-900">Create Purchase Order</DialogTitle>
+                <DialogDescription className="text-gray-600 mt-1">Create a new purchase order for your supplier</DialogDescription>
+              </div>
+            </div>
+          </DialogHeader>
+          <div className="mt-6">
+            <PurchaseOrderForm
+              onSubmit={handleAddPurchaseOrder}
+              onCancel={() => setShowAddPODialog(false)}
+            />
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Enhanced Add GRN Dialog */}
+      <Dialog open={showAddGRNDialog} onOpenChange={setShowAddGRNDialog}>
+        <DialogContent className="max-w-7xl max-h-[95vh] overflow-y-auto bg-gradient-to-br from-white to-purple-50/30 border-0 shadow-2xl">
+          <DialogHeader className="pb-6 border-b border-purple-100">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-purple-100 rounded-lg">
+                <Package className="h-6 w-6 text-purple-600" />
+              </div>
+              <div>
+                <DialogTitle className="text-2xl font-bold text-gray-900">Create GRN</DialogTitle>
+                <DialogDescription className="text-gray-600 mt-1">Record received goods from purchase orders</DialogDescription>
+              </div>
+            </div>
+          </DialogHeader>
+          <div className="mt-6">
+            <GRNForm
+              onSubmit={async (data) => {
+                try {
+                  // Calculate totals from line items
+                  const totals = data.items.reduce(
+                    (acc: any, item: any) => ({
+                      totalOrderedQty: acc.totalOrderedQty + (item.ordered_quantity || 0),
+                      totalReceivedQty: acc.totalReceivedQty + (item.received_quantity || 0),
+                      totalAcceptedQty: acc.totalAcceptedQty + (item.accepted_quantity || 0),
+                      totalRejectedQty: acc.totalRejectedQty + (item.rejected_quantity || 0),
+                      subtotalAmount: acc.subtotalAmount + ((item.accepted_quantity || 0) * (item.unit_price || 0)),
+                      totalDiscountAmount: acc.totalDiscountAmount + (item.discount_amount || 0),
+                      totalTaxAmount: acc.totalTaxAmount + (item.total_tax_amount || 0),
+                      totalAmount: acc.totalAmount + (item.line_total || 0),
+                    }),
+                    {
+                      totalOrderedQty: 0,
+                      totalReceivedQty: 0,
+                      totalAcceptedQty: 0,
+                      totalRejectedQty: 0,
+                      subtotalAmount: 0,
+                      totalDiscountAmount: 0,
+                      totalTaxAmount: 0,
+                      totalAmount: 0,
+                    }
+                  );
+
+                  console.log('Creating GRN with data:', data);
+                  
+                  // Validate all items have warehouse_id and bin_id
+                  const invalidItems = data.items?.filter(item => 
+                    !item.warehouse_id || !item.bin_id || !item.product_id
+                  );
+                  
+                  if (invalidItems?.length > 0) {
+                    console.error('Invalid items found:', invalidItems);
+                    throw new Error(`Invalid items found: ${invalidItems.map(i => i.product_name || 'Unknown').join(', ')} - missing warehouse, bin, or product ID`);
+                  }
+
+                  const { data: grn, error } = await supabase
+                    .from('grn_header')
+                    .insert({
+                      company_id: profile?.company_id,
+                      purchase_order_id: data.purchase_order_id,
+                      supplier_id: data.supplier_id,
+                      supplier_name: data.supplier_name,
+                      grn_date: data.grn_date,
+                      supplier_invoice_number: data.supplier_invoice_number,
+                      supplier_invoice_date: data.supplier_invoice_date || null,
+                      remarks: data.remarks,
+                      status: data.status === 'received' ? 'accepted' : data.status,
+                      total_ordered_quantity: totals.totalOrderedQty,
+                      total_received_quantity: totals.totalReceivedQty,
+                      total_accepted_quantity: totals.totalAcceptedQty,
+                      total_rejected_quantity: totals.totalRejectedQty,
+                      subtotal_amount: totals.subtotalAmount,
+                      total_discount_amount: totals.totalDiscountAmount,
+                      total_tax_amount: totals.totalTaxAmount,
+                      total_amount: totals.totalAmount,
+                      created_by: profile?.id,
+                      grn_number: '' // Will be auto-generated by trigger
+                    } as any)
+                    .select()
+                    .single();
+
+                  if (error) {
+                    console.error('GRN Header creation error:', error);
+                    throw error;
+                  }
+
+                  console.log('GRN Header created:', grn);
+
+                  if (data.items?.length > 0) {
+                    const itemsToInsert = data.items.map((item) => ({
+                      grn_header_id: grn.id,
+                      product_id: item.product_id,
+                      product_name: item.product_name,
+                      product_sku: item.product_sku,
+                      unit_of_measure: item.unit_of_measure,
+                      ordered_quantity: item.ordered_quantity,
+                      received_quantity: item.received_quantity,
+                      accepted_quantity: item.accepted_quantity,
+                      rejected_quantity: item.rejected_quantity,
+                      unit_price: item.unit_price,
+                      discount_percentage: item.discount_percentage || 0,
+                      discount_amount: item.discount_amount || 0,
+                      warehouse_id: item.warehouse_id,
+                      bin_id: item.bin_id,
+                      hsn_sac_code: item.hsn_sac_code,
+                      cgst_rate: item.cgst_rate || 0,
+                      cgst_amount: item.cgst_amount || 0,
+                      sgst_rate: item.sgst_rate || 0,
+                      sgst_amount: item.sgst_amount || 0,
+                      igst_rate: item.igst_rate || 0,
+                      igst_amount: item.igst_amount || 0,
+                      total_tax_amount: item.total_tax_amount || 0,
+                      line_total: item.line_total || 0,
+                    }));
+                    
+                    console.log('Inserting GRN line items:', itemsToInsert);
+                    const { error: itemsError } = await supabase
+                      .from('grn_line_items')
+                      .insert(itemsToInsert);
+                    if (itemsError) {
+                      console.error('GRN Line items creation error:', itemsError);
+                      throw itemsError;
+                    }
+                  }
+
+                  console.log('GRN creation completed successfully');
+                  toast({ 
+                    title: "Success", 
+                    description: `GRN created successfully${grn.grn_number ? ` (GRN: ${grn.grn_number})` : ''}. Inventory has been updated.` 
+                  });
+                  setShowAddGRNDialog(false);
+                  setRefreshGRNTrigger(prev => prev + 1);
+                  fetchGRNs();
+                } catch (error) {
+                  console.error('Error creating GRN:', error);
+                  toast({ 
+                    title: "Error", 
+                    description: "Failed to create GRN. Please check that all products are properly selected.", 
+                    variant: "destructive" 
+                  });
+                }
+              }}
+              onCancel={() => setShowAddGRNDialog(false)}
+              mode="create"
+            />
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {/* Edit Supplier Dialog */}
       <Dialog open={showEditSupplierDialog} onOpenChange={setShowEditSupplierDialog}>
         <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
@@ -814,7 +944,6 @@ export function PurchaseModule() {
         </DialogContent>
       </Dialog>
 
-      {/* Purchase Order Dialogs */}
       {/* Edit Purchase Order Dialog */}
       <Dialog open={showEditPODialog} onOpenChange={setShowEditPODialog}>
         <DialogContent className="max-w-7xl max-h-[95vh] overflow-y-auto">
@@ -854,7 +983,6 @@ export function PurchaseModule() {
         </DialogContent>
       </Dialog>
 
-      {/* GRN Dialogs */}
       {/* Edit GRN Dialog */}
       <Dialog open={showEditGRNDialog} onOpenChange={setShowEditGRNDialog}>
         <DialogContent className="max-w-7xl max-h-[95vh] overflow-y-auto">
@@ -866,7 +994,7 @@ export function PurchaseModule() {
             grn={selectedGRN}
             onSubmit={async (grnData) => {
               try {
-                // 1) Recalculate totals from line items
+                // Recalculate totals from line items
                 const totals = (grnData.items || []).reduce(
                   (acc: any, item: any) => ({
                     totalOrderedQty: acc.totalOrderedQty + (item.ordered_quantity || 0),
@@ -890,7 +1018,7 @@ export function PurchaseModule() {
                   }
                 );
 
-                // 2) Update GRN header (exclude items array)
+                // Update GRN header (exclude items array)
                 const { error: headerError } = await supabase
                   .from('grn_header')
                   .update({
@@ -915,7 +1043,7 @@ export function PurchaseModule() {
 
                 if (headerError) throw headerError;
 
-                // 3) Replace line items
+                // Replace line items
                 if (Array.isArray(grnData.items)) {
                   const { error: delErr } = await supabase
                     .from('grn_line_items')
@@ -993,16 +1121,16 @@ export function PurchaseModule() {
             mode="view"
           />
         </DialogContent>
-        </Dialog>
+      </Dialog>
 
-        {/* Purchase Order Details Dialog */}
-        <PurchaseOrderDetailsDialog
-          purchaseOrder={selectedPO}
-          open={showViewPODialog}
-          onOpenChange={setShowViewPODialog}
-        />
-      </div>
-    );
-  }
+      {/* Purchase Order Details Dialog */}
+      <PurchaseOrderDetailsDialog
+        purchaseOrder={selectedPO}
+        open={showViewPODialog}
+        onOpenChange={setShowViewPODialog}
+      />
+    </div>
+  );
+}
 
 export default PurchaseModule;
