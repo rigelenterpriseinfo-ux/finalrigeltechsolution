@@ -332,6 +332,8 @@ export function GRNForm({ grn, onSubmit, onCancel, readOnly = false, mode }: GRN
     const defaultBinId = form.getValues('default_bin_id');
     const items = form.getValues('items');
     
+    console.log('Applying default warehouse/bin:', { defaultWarehouseId, defaultBinId, itemsCount: items?.length });
+    
     if (defaultWarehouseId && defaultBinId) {
       const updatedItems = items.map(item => ({
         ...item,
@@ -339,6 +341,11 @@ export function GRNForm({ grn, onSubmit, onCancel, readOnly = false, mode }: GRN
         bin_id: defaultBinId
       }));
       form.setValue('items', updatedItems);
+      console.log('Updated items with warehouse/bin:', updatedItems.map(i => ({ 
+        name: i.product_name, 
+        warehouse_id: i.warehouse_id, 
+        bin_id: i.bin_id 
+      })));
     }
   };
 
