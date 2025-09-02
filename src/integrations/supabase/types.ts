@@ -2103,6 +2103,10 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: boolean
       }
+      process_grn_inventory: {
+        Args: { p_grn_id: string }
+        Returns: undefined
+      }
       record_inventory_transaction: {
         Args: {
           p_bin_id: string
