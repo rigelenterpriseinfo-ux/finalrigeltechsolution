@@ -42,9 +42,15 @@ export const CurrentStockTable = ({ refreshTrigger }: CurrentStockTableProps) =>
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [showLowStockOnly, setShowLowStockOnly] = useState(false);
+  const [inventoryStats, setInventoryStats] = useState({
+    totalSKUs: 0,
+    totalQuantity: 0,
+    totalValue: 0
+  });
 
   useEffect(() => {
     fetchCurrentStock();
+    fetchInventoryStats();
   }, [company?.id, refreshTrigger]);
 
   const fetchCurrentStock = async () => {
@@ -89,6 +95,31 @@ export const CurrentStockTable = ({ refreshTrigger }: CurrentStockTableProps) =>
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchInventoryStats = async () => {
+    if (!company?.id) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from('inventory_transactions')
+        .select('product_id, quantity_change, total_value')
+        .eq('company_id', company.id);
+
+      if (error) throw error;
+
+      const uniqueProducts = new Set(data?.map(t => t.product_id) || []);
+      const totalQuantity = data?.reduce((sum, t) => sum + Math.abs(t.quantity_change || 0), 0) || 0;
+      const totalValue = data?.reduce((sum, t) => sum + Math.abs(t.total_value || 0), 0) || 0;
+
+      setInventoryStats({
+        totalSKUs: uniqueProducts.size,
+        totalQuantity,
+        totalValue
+      });
+    } catch (error) {
+      console.error('Error fetching inventory stats:', error);
     }
   };
 
@@ -146,10 +177,23 @@ export const CurrentStockTable = ({ refreshTrigger }: CurrentStockTableProps) =>
         </div>
         <div className="p-4 border rounded-lg">
           <div className="flex items-center gap-2">
-            <AlertTriangle className="h-5 w-5 text-destructive" />
+            <Package className="h-5 w-5 text-primary" />
             <div>
-              <p className="text-sm text-muted-foreground">Out of Stock</p>
-              <p className="text-2xl font-bold text-destructive">{outOfStockItems}</p>
+              <p className="text-sm text-muted-foreground">Inventory Overview</p>
+              <div className="flex gap-4 mt-2">
+                <div>
+                  <p className="text-xs text-muted-foreground">SKU Count</p>
+                  <p className="text-lg font-bold">{inventoryStats.totalSKUs}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Total Qty</p>
+                  <p className="text-lg font-bold">{inventoryStats.totalQuantity.toLocaleString()}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Total Value</p>
+                  <p className="text-lg font-bold">₹{inventoryStats.totalValue.toLocaleString()}</p>
+                </div>
+              </div>
             </div>
           </div>
         </div>
