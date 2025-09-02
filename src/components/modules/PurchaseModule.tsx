@@ -632,30 +632,30 @@ export function PurchaseModule() {
                              }
                            );
 
-                            const { data: grn, error } = await supabase
-                              .from('grn_header')
-                              .insert({
-                                company_id: profile?.company_id,
-                                purchase_order_id: data.purchase_order_id,
-                                supplier_id: data.supplier_id,
-                                supplier_name: data.supplier_name,
-                                grn_date: data.grn_date,
-                                supplier_invoice_number: data.supplier_invoice_number,
-                                supplier_invoice_date: data.supplier_invoice_date,
-                                remarks: data.remarks,
-                                status: data.status === 'received' ? 'accepted' : data.status,
-                                total_ordered_quantity: totals.totalOrderedQty,
-                                total_received_quantity: totals.totalReceivedQty,
-                                total_accepted_quantity: totals.totalAcceptedQty,
-                                total_rejected_quantity: totals.totalRejectedQty,
-                                subtotal_amount: totals.subtotalAmount,
-                                total_discount_amount: totals.totalDiscountAmount,
-                                total_tax_amount: totals.totalTaxAmount,
-                                total_amount: totals.totalAmount,
-                                created_by: profile?.id,
-                              } as any)
-                              .select()
-                              .single();
+                             const { data: grn, error } = await supabase
+                               .from('grn_header')
+                               .insert({
+                                 company_id: profile?.company_id,
+                                 purchase_order_id: data.purchase_order_id,
+                                 supplier_id: data.supplier_id,
+                                 supplier_name: data.supplier_name,
+                                 grn_date: data.grn_date,
+                                 supplier_invoice_number: data.supplier_invoice_number,
+                                 supplier_invoice_date: data.supplier_invoice_date || null,
+                                 remarks: data.remarks,
+                                 status: data.status === 'received' ? 'accepted' : data.status,
+                                 total_ordered_quantity: totals.totalOrderedQty,
+                                 total_received_quantity: totals.totalReceivedQty,
+                                 total_accepted_quantity: totals.totalAcceptedQty,
+                                 total_rejected_quantity: totals.totalRejectedQty,
+                                 subtotal_amount: totals.subtotalAmount,
+                                 total_discount_amount: totals.totalDiscountAmount,
+                                 total_tax_amount: totals.totalTaxAmount,
+                                 total_amount: totals.totalAmount,
+                                 created_by: profile?.id,
+                               } as any)
+                               .select()
+                               .single();
 
                            if (error) throw error;
 
