@@ -26,7 +26,7 @@ const grnFormSchema = z.object({
   supplier_invoice_number: z.string().optional(),
   supplier_invoice_date: z.string().optional(),
   remarks: z.string().optional(),
-  status: z.enum(['draft', 'received', 'partially_received', 'accepted']),
+  status: z.enum(['draft', 'received', 'accepted']),
   // Consolidated warehouse & bin at form level
   default_warehouse_id: z.string().min(1, 'Default warehouse is required'),
   default_bin_id: z.string().min(1, 'Default bin is required'),
@@ -277,10 +277,6 @@ export function GRNForm({ grn, onSubmit, onCancel, readOnly = false, mode }: GRN
           accepted_quantity: item.received_quantity,
           rejected_quantity: 0,
         };
-      } else if (status === 'partially_received') {
-        // For "Partially received" status, keep current accepted quantities
-        // User can manually adjust these
-        return item;
       }
       return item;
     });
@@ -542,7 +538,7 @@ export function GRNForm({ grn, onSubmit, onCancel, readOnly = false, mode }: GRN
             )}
           />
 
-          {/* Status Selection - Only "Accepted" and "Partially received" */}
+          {/* Status Selection - Only "Accepted" and "Received" */}
           <FormField
             control={form.control}
             name="status"
@@ -564,7 +560,7 @@ export function GRNForm({ grn, onSubmit, onCancel, readOnly = false, mode }: GRN
                   </FormControl>
                   <SelectContent>
                     <SelectItem value="accepted">Accepted</SelectItem>
-                    <SelectItem value="partially_received">Partially Received</SelectItem>
+                    <SelectItem value="received">Received</SelectItem>
                   </SelectContent>
                 </Select>
                 <FormMessage />
