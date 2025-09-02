@@ -516,13 +516,13 @@ export function GRNForm({ grn, onSubmit, onCancel, readOnly = false, mode }: GRN
                       <SelectValue placeholder="Select purchase order" />
                     </SelectTrigger>
                   </FormControl>
-                  <SelectContent>
-                    {purchaseOrders.map((po) => (
-                      <SelectItem key={po.id} value={po.id}>
-                        {po.po_number} - {po.supplier?.name} (₹{po.total_amount?.toLocaleString()})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
+                   <SelectContent>
+                     {purchaseOrders.filter(po => po.id && po.id.trim() !== '').map((po) => (
+                       <SelectItem key={po.id} value={po.id}>
+                         {po.po_number || 'N/A'} - {po.supplier?.name || 'Unknown Supplier'} (₹{po.total_amount?.toLocaleString() || '0'})
+                       </SelectItem>
+                     ))}
+                   </SelectContent>
                 </Select>
                 <FormMessage />
               </FormItem>
@@ -656,13 +656,13 @@ export function GRNForm({ grn, onSubmit, onCancel, readOnly = false, mode }: GRN
                           <SelectValue placeholder="Select warehouse" />
                         </SelectTrigger>
                       </FormControl>
-                      <SelectContent>
-                        {warehouses.map((warehouse) => (
-                          <SelectItem key={warehouse.id} value={warehouse.id}>
-                            {warehouse.name} ({warehouse.warehouse_code})
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
+                       <SelectContent>
+                         {warehouses.filter(warehouse => warehouse.id && warehouse.id.trim() !== '').map((warehouse) => (
+                           <SelectItem key={warehouse.id} value={warehouse.id}>
+                             {warehouse.name || 'Unknown'} ({warehouse.warehouse_code || 'N/A'})
+                           </SelectItem>
+                         ))}
+                       </SelectContent>
                     </Select>
                     <FormMessage />
                   </FormItem>
@@ -688,19 +688,19 @@ export function GRNForm({ grn, onSubmit, onCancel, readOnly = false, mode }: GRN
                           <SelectValue placeholder="Select bin" />
                         </SelectTrigger>
                       </FormControl>
-                      <SelectContent>
-                        {bins
-                          .filter(bin => {
-                            const selectedWarehouse = warehouses.find(w => w.id === form.watch('default_warehouse_id'));
-                            return bin.warehouse_name === selectedWarehouse?.name;
-                          })
-                          .map((bin) => (
-                            <SelectItem key={bin.id} value={bin.id}>
-                              {bin.bin_name} ({bin.wh_bin_code})
-                            </SelectItem>
-                          ))
-                        }
-                      </SelectContent>
+                       <SelectContent>
+                         {bins
+                           .filter(bin => {
+                             const selectedWarehouse = warehouses.find(w => w.id === form.watch('default_warehouse_id'));
+                             return bin.warehouse_name === selectedWarehouse?.name && bin.id && bin.id.trim() !== '';
+                           })
+                           .map((bin) => (
+                             <SelectItem key={bin.id} value={bin.id}>
+                               {bin.bin_name || 'Unknown Bin'} ({bin.wh_bin_code || 'N/A'})
+                             </SelectItem>
+                           ))
+                         }
+                       </SelectContent>
                     </Select>
                     <FormMessage />
                   </FormItem>
