@@ -115,6 +115,44 @@ export function PurchaseOrderForm({
     fetchProducts();
   }, []);
 
+  // Reset form with existing PO values when editing
+  useEffect(() => {
+    if (mode !== 'edit' || !purchaseOrder) return;
+
+    const mapped = {
+      po_number: purchaseOrder.po_number || '',
+      supplier_id: purchaseOrder.supplier_id || '',
+      order_date: purchaseOrder.order_date || new Date().toISOString().split('T')[0],
+      currency: purchaseOrder.currency || 'INR',
+      payment_terms: purchaseOrder.payment_terms || '',
+      expected_date: purchaseOrder.expected_date || '',
+      status: purchaseOrder.status || 'draft',
+      notes: purchaseOrder.notes || '',
+      items: (purchaseOrder.purchase_order_items || []).map((it: any) => ({
+        product_id: it.product_id || '',
+        product_name: it.item_description || '',
+        item_code: it.item_code || '',
+        hsn_sac_code: it.hsn_sac_code || '',
+        quantity: Number(it.quantity) || 1,
+        unit_of_measure: it.unit_of_measure || 'pcs',
+        unit_price: Number(it.unit_price) || 0,
+        discount_percentage: Number(it.discount_percentage) || 0,
+        discount_amount: Number(it.discount_amount) || 0,
+        cgst_rate: Number(it.cgst_rate) || 0,
+        sgst_rate: Number(it.sgst_rate) || 0,
+        igst_rate: Number(it.igst_rate) || 0,
+        cgst_amount: Number(it.cgst_amount) || 0,
+        sgst_amount: Number(it.sgst_amount) || 0,
+        igst_amount: Number(it.igst_amount) || 0,
+        line_subtotal: Number(it.taxable_value ?? it.total_price ?? 0),
+        line_total: Number(it.total_price) || 0,
+        remarks: it.remarks || ''
+      }))
+    };
+
+    form.reset(mapped as any);
+  }, [mode, purchaseOrder]);
+
   const fetchSuppliers = async () => {
     try {
       const { data, error } = await supabase
