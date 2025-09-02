@@ -560,6 +560,45 @@ export type Database = {
           },
         ]
       }
+      grn_processing_log: {
+        Row: {
+          company_id: string
+          created_at: string | null
+          created_by: string | null
+          error_message: string | null
+          grn_id: string
+          grn_number: string
+          id: string
+          items_processed: number | null
+          processing_status: string
+          transactions_created: number | null
+        }
+        Insert: {
+          company_id: string
+          created_at?: string | null
+          created_by?: string | null
+          error_message?: string | null
+          grn_id: string
+          grn_number: string
+          id?: string
+          items_processed?: number | null
+          processing_status: string
+          transactions_created?: number | null
+        }
+        Update: {
+          company_id?: string
+          created_at?: string | null
+          created_by?: string | null
+          error_message?: string | null
+          grn_id?: string
+          grn_number?: string
+          id?: string
+          items_processed?: number | null
+          processing_status?: string
+          transactions_created?: number | null
+        }
+        Relationships: []
+      }
       inventory_adjustments: {
         Row: {
           adjustment_amount: number | null
@@ -2035,6 +2074,16 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: undefined
       }
+      find_and_fix_missing_grn_transactions: {
+        Args: { p_company_id?: string }
+        Returns: {
+          grn_id: string
+          grn_number: string
+          missing_transactions: number
+          processing_result: Json
+          status: string
+        }[]
+      }
       generate_business_ref: {
         Args: Record<PropertyKey, never>
         Returns: string
@@ -2106,6 +2155,10 @@ export type Database = {
       process_grn_inventory: {
         Args: { p_grn_id: string }
         Returns: undefined
+      }
+      process_grn_inventory_enhanced: {
+        Args: { p_grn_id: string }
+        Returns: Json
       }
       record_inventory_transaction: {
         Args: {
