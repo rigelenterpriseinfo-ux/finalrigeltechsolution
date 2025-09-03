@@ -97,6 +97,7 @@ export const SalesInvoiceForm: React.FC<SalesInvoiceFormProps> = ({
   const [binName, setBinName] = useState('');
   const [stockLevels, setStockLevels] = useState<Record<string, number>>({});
   const [quantityErrors, setQuantityErrors] = useState<Record<number, string>>({});
+  const [remainingQuantities, setRemainingQuantities] = useState<Record<string, any>>({});
 
   const form = useForm<SalesInvoiceFormData>({
     resolver: zodResolver(salesInvoiceSchema),
@@ -258,9 +259,21 @@ export const SalesInvoiceForm: React.FC<SalesInvoiceFormProps> = ({
   // Validate quantity constraints
   const validateQuantity = (itemIndex: number, invoicedQty: number, orderedQty: number, productId: string): string | null => {
     const stockOnHand = stockLevels[productId] || 0;
+    const remainingData = remainingQuantities[productId];
     
-    if (invoicedQty > orderedQty) {
-      return `Cannot exceed ordered quantity (${orderedQty})`;
+    if (!remainingData) {
+      return `Product data not loaded`;
+    }
+    
+    const remainingQty = remainingData.quantity_remaining || 0;
+    const currentBackorderQty = remainingData.current_backorder_qty || 0;
+    
+    if (invoicedQty > remainingQty) {
+      return `Cannot exceed remaining quantity (${remainingQty} available)`;
+    }
+    
+    if (invoicedQty > currentBackorderQty && currentBackorderQty > 0) {
+      return `Cannot exceed current backorder (${currentBackorderQty})`;
     }
     
     if (invoicedQty > stockOnHand) {
@@ -306,6 +319,24 @@ export const SalesInvoiceForm: React.FC<SalesInvoiceFormProps> = ({
       if (error) throw error;
       setSelectedSalesOrder(data);
       
+      // Fetch remaining quantities using the new database function
+      const { data: remainingData, error: remainingError } = await supabase
+        .rpc('get_sales_order_item_remaining_quantities', {
+          p_sales_order_id: salesOrderId
+        });
+
+      if (remainingError) {
+        console.error('Error fetching remaining quantities:', remainingError);
+        throw remainingError;
+      }
+
+      // Convert array to object for easy lookup
+      const remainingMap: Record<string, any> = {};
+      remainingData?.forEach((item: any) => {
+        remainingMap[item.product_id] = item;
+      });
+      setRemainingQuantities(remainingMap);
+      
       // Auto-populate customer and address details
       const customer = data.customers;
       form.setValue('customer_id', customer.id);
@@ -337,21 +368,21 @@ export const SalesInvoiceForm: React.FC<SalesInvoiceFormProps> = ({
         }
       }
       
-      // Auto-populate line items from sales order
-      const items = data.sales_order_items.map((item: any) => ({
+      // Auto-populate line items from sales order using remaining quantities data
+      const items = remainingData?.map((item: any) => ({
         product_id: item.product_id,
-        item_code: item.products.sku,
-        item_description: item.item_description,
+        item_code: item.product_sku,
+        item_description: item.product_name,
         hsn_sac_code: item.hsn_sac_code || '',
-        quantity_ordered: item.quantity,
+        quantity_ordered: item.quantity_ordered,
         quantity_invoiced: 0, // User needs to enter this
         unit_of_measure: item.unit_of_measure,
         unit_price: parseFloat(item.unit_price.toString()),
-        discount_percentage: parseFloat(item.discount_percentage?.toString() || '0'),
-        cgst_rate: parseFloat(item.cgst_rate?.toString() || '0'),
-        sgst_rate: parseFloat(item.sgst_rate?.toString() || '0'),
-        igst_rate: parseFloat(item.igst_rate?.toString() || '0'),
-      }));
+        discount_percentage: 0,
+        cgst_rate: 0,
+        sgst_rate: 0,
+        igst_rate: 0,
+      })) || [];
       
       // Fetch stock levels for these products
       const productIds = items.map((item: any) => item.product_id);
@@ -405,7 +436,7 @@ export const SalesInvoiceForm: React.FC<SalesInvoiceFormProps> = ({
       igstAmount,
       totalTax,
       lineTotal,
-      backorderQuantity: item.quantity_ordered - item.quantity_invoiced,
+      backorderQuantity: remainingQuantities[item.product_id]?.current_backorder_qty || (item.quantity_ordered - item.quantity_invoiced),
     };
   };
 
@@ -967,26 +998,29 @@ export const SalesInvoiceForm: React.FC<SalesInvoiceFormProps> = ({
                   <div className="overflow-x-auto">
                     <table className="min-w-full divide-y divide-gray-200">
                       <thead className="bg-gray-50">
-                         <tr>
-                           <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Item Code</th>
-                           <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Description</th>
-                           <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">HSN</th>
-                           <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Ordered</th>
-                           <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Stock</th>
-                           <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Invoiced</th>
-                           <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Backorder</th>
-                           <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">UOM</th>
-                           <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Unit Price</th>
-                           <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Discount %</th>
-                           <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">CGST %</th>
-                           <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">SGST %</th>
-                           <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">IGST %</th>
-                           <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Line Total</th>
-                         </tr>
+                          <tr>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Item Code</th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Description</th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">HSN</th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Ordered</th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Already Invoiced</th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Remaining</th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Stock</th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Invoice Qty</th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">SO Backorder</th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">UOM</th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Unit Price</th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Discount %</th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">CGST %</th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">SGST %</th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">IGST %</th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Line Total</th>
+                          </tr>
                       </thead>
                       <tbody className="bg-white divide-y divide-gray-200">
                         {watchedItems.map((item, index) => {
                           const itemTotals = calculateItemTotals(index);
+                          const remainingData = remainingQuantities[item.product_id];
                           return (
                              <tr key={index}>
                                <td className="px-4 py-3 text-sm">{item.item_code}</td>
@@ -1001,6 +1035,12 @@ export const SalesInvoiceForm: React.FC<SalesInvoiceFormProps> = ({
                                  />
                                </td>
                                <td className="px-4 py-3 text-sm font-medium">{item.quantity_ordered}</td>
+                               <td className="px-4 py-3 text-sm font-medium text-blue-600">
+                                 {remainingData?.quantity_already_invoiced || 0}
+                               </td>
+                               <td className="px-4 py-3 text-sm font-medium text-green-600">
+                                 {remainingData?.quantity_remaining || 0}
+                               </td>
                                <td className="px-4 py-3 text-sm">
                                  <div className="text-center">
                                    <span className={cn(
@@ -1029,6 +1069,7 @@ export const SalesInvoiceForm: React.FC<SalesInvoiceFormProps> = ({
                                            "w-20",
                                            quantityErrors[index] ? "border-red-500" : ""
                                          )}
+                                         max={remainingData?.quantity_remaining || 0}
                                        />
                                      )}
                                    />
@@ -1040,7 +1081,7 @@ export const SalesInvoiceForm: React.FC<SalesInvoiceFormProps> = ({
                                  </div>
                                </td>
                               <td className="px-4 py-3 text-sm font-medium text-orange-600">
-                                {itemTotals?.backorderQuantity || 0}
+                                {remainingData?.current_backorder_qty || 0}
                               </td>
                               <td className="px-4 py-3 text-sm">{item.unit_of_measure}</td>
                               <td className="px-4 py-3 text-sm">₹{item.unit_price.toFixed(2)}</td>

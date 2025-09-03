@@ -2514,6 +2514,21 @@ export type Database = {
           total_ordered_qty: number
         }[]
       }
+      get_sales_order_item_remaining_quantities: {
+        Args: { p_sales_order_id: string }
+        Returns: {
+          current_backorder_qty: number
+          hsn_sac_code: string
+          product_id: string
+          product_name: string
+          product_sku: string
+          quantity_already_invoiced: number
+          quantity_ordered: number
+          quantity_remaining: number
+          unit_of_measure: string
+          unit_price: number
+        }[]
+      }
       get_sales_orders_with_delivery_summary: {
         Args: { p_company_id: string }
         Returns: {
