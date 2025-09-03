@@ -13,7 +13,7 @@ import { toast } from '@/hooks/use-toast';
 
 interface SalesInvoice {
   id: string;
-  invoice_number: string;
+  invoice_number: string | null;
   invoice_date: string;
   customer_name: string;
   sales_order_id: string;
@@ -138,8 +138,8 @@ export const SalesInvoiceTable: React.FC<SalesInvoiceTableProps> = ({
 
   const filteredInvoices = invoices.filter(invoice => {
     const matchesSearch = 
-      invoice.invoice_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      invoice.customer_name.toLowerCase().includes(searchTerm.toLowerCase());
+      (invoice.invoice_number?.toLowerCase().includes(searchTerm.toLowerCase()) || false) ||
+      (invoice.customer_name?.toLowerCase().includes(searchTerm.toLowerCase()) || false);
     
     const matchesStatus = statusFilter === 'all' || invoice.status === statusFilter;
     
@@ -214,7 +214,7 @@ export const SalesInvoiceTable: React.FC<SalesInvoiceTableProps> = ({
               {filteredInvoices.map((invoice) => (
                 <TableRow key={invoice.id}>
                   <TableCell className="font-medium">
-                    {invoice.invoice_number}
+                    {invoice.invoice_number || 'Draft - Not Generated'}
                   </TableCell>
                   <TableCell>
                     {format(new Date(invoice.invoice_date), 'MMM dd, yyyy')}
@@ -279,7 +279,7 @@ export const SalesInvoiceTable: React.FC<SalesInvoiceTableProps> = ({
                             <AlertDialogHeader>
                               <AlertDialogTitle>Delete Invoice</AlertDialogTitle>
                               <AlertDialogDescription>
-                                Are you sure you want to delete invoice {invoice.invoice_number}? 
+                                Are you sure you want to delete this invoice? 
                                 This action cannot be undone.
                               </AlertDialogDescription>
                             </AlertDialogHeader>
