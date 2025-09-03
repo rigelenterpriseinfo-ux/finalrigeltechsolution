@@ -325,8 +325,11 @@ export default function SalesModule() {
     try {
       setLoading(true);
       
+      // Separate items from header data to avoid column error
+      const { items, ...headerData } = data;
+      
       const invoiceData = {
-        ...data,
+        ...headerData,
         company_id: company.id,
         created_by: user.id,
       };
@@ -352,7 +355,7 @@ export default function SalesModule() {
         if (deleteError) throw deleteError;
 
         // Insert updated invoice items
-        const invoiceItems = data.items.map((item: any) => ({
+        const invoiceItems = items.map((item: any) => ({
           sales_invoice_id: editingSalesInvoice.id,
           ...item,
           backorder_quantity: item.quantity_ordered - item.quantity_invoiced,
@@ -379,10 +382,13 @@ export default function SalesModule() {
           .select()
           .single();
 
-        if (invoiceError) throw invoiceError;
+        if (invoiceError) {
+          console.error('Invoice creation error:', invoiceError);
+          throw invoiceError;
+        }
 
         // Insert invoice items
-        const invoiceItems = data.items.map((item: any) => ({
+        const invoiceItems = items.map((item: any) => ({
           sales_invoice_id: newInvoice.id,
           ...item,
           backorder_quantity: item.quantity_ordered - item.quantity_invoiced,
@@ -399,7 +405,25 @@ export default function SalesModule() {
           .from('sales_invoice_items')
           .insert(invoiceItems);
 
-        if (itemsError) throw itemsError;
+        if (itemsError) {
+          console.error('Invoice items creation error:', itemsError);
+          throw itemsError;
+        }
+
+        // Process inventory and sales order updates if status is posted/finalized
+        if (newInvoice.status === 'posted' || newInvoice.status === 'finalized') {
+          const { data: processResult, error: processError } = await supabase.rpc(
+            'process_sales_invoice', 
+            { p_invoice_id: newInvoice.id }
+          );
+
+          if (processError) {
+            console.error('Error processing sales invoice:', processError);
+          } else if (processResult && typeof processResult === 'object' && processResult !== null && 'success' in processResult && !(processResult as any).success) {
+            console.error('Sales invoice processing failed:', processResult);
+          }
+        }
+
         result = newInvoice;
       }
 
@@ -411,11 +435,17 @@ export default function SalesModule() {
         title: "Success",
         description: `Sales invoice ${editingSalesInvoice ? 'updated' : 'created'} successfully`,
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error saving sales invoice:', error);
+      
+      let errorMessage = `Failed to ${editingSalesInvoice ? 'update' : 'create'} sales invoice`;
+      if (error?.message) {
+        errorMessage += `: ${error.message}`;
+      }
+      
       toast({
         title: "Error",
-        description: `Failed to ${editingSalesInvoice ? 'update' : 'create'} sales invoice`,
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
