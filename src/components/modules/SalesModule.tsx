@@ -358,6 +358,8 @@ export default function SalesModule() {
         const invoiceItems = items.map((item: any) => ({
           sales_invoice_id: editingSalesInvoice.id,
           ...item,
+          warehouse_id: data.default_warehouse_id,
+          bin_id: data.default_bin_id,
           backorder_quantity: item.quantity_ordered - item.quantity_invoiced,
           line_subtotal: item.quantity_invoiced * item.unit_price,
           discount_amount: (item.quantity_invoiced * item.unit_price * item.discount_percentage) / 100,
@@ -417,6 +419,8 @@ export default function SalesModule() {
         const invoiceItems = items.map((item: any) => ({
           sales_invoice_id: newInvoice.id,
           ...item,
+          warehouse_id: data.default_warehouse_id,
+          bin_id: data.default_bin_id,
           backorder_quantity: item.quantity_ordered - item.quantity_invoiced,
           line_subtotal: item.quantity_invoiced * item.unit_price,
           discount_amount: (item.quantity_invoiced * item.unit_price * item.discount_percentage) / 100,
@@ -546,6 +550,8 @@ export default function SalesModule() {
           sgst_amount: item.sgst_amount,
           igst_amount: item.igst_amount,
           total_price: item.total_price,
+          warehouse_id: orderData.default_warehouse_id,
+          bin_id: orderData.default_bin_id,
         }));
 
         const { error: itemsError } = await supabase

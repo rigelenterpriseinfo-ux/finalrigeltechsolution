@@ -1422,6 +1422,7 @@ export type Database = {
       sales_invoice_items: {
         Row: {
           backorder_quantity: number
+          bin_id: string | null
           cgst_amount: number | null
           cgst_rate: number | null
           created_at: string
@@ -1444,9 +1445,11 @@ export type Database = {
           tax_amount: number
           unit_of_measure: string
           unit_price: number
+          warehouse_id: string | null
         }
         Insert: {
           backorder_quantity?: number
+          bin_id?: string | null
           cgst_amount?: number | null
           cgst_rate?: number | null
           created_at?: string
@@ -1469,9 +1472,11 @@ export type Database = {
           tax_amount?: number
           unit_of_measure?: string
           unit_price?: number
+          warehouse_id?: string | null
         }
         Update: {
           backorder_quantity?: number
+          bin_id?: string | null
           cgst_amount?: number | null
           cgst_rate?: number | null
           created_at?: string
@@ -1494,13 +1499,28 @@ export type Database = {
           tax_amount?: number
           unit_of_measure?: string
           unit_price?: number
+          warehouse_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "sales_invoice_items_bin_id_fkey"
+            columns: ["bin_id"]
+            isOneToOne: false
+            referencedRelation: "warehouse_bins"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "sales_invoice_items_sales_invoice_id_fkey"
             columns: ["sales_invoice_id"]
             isOneToOne: false
             referencedRelation: "sales_invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sales_invoice_items_warehouse_id_fkey"
+            columns: ["warehouse_id"]
+            isOneToOne: false
+            referencedRelation: "warehouse_bins"
             referencedColumns: ["id"]
           },
         ]
@@ -1651,6 +1671,7 @@ export type Database = {
       sales_order_items: {
         Row: {
           back_order_quantity: number | null
+          bin_id: string | null
           cgst_amount: number | null
           cgst_rate: number | null
           created_at: string
@@ -1674,9 +1695,11 @@ export type Database = {
           total_price: number
           unit_of_measure: string
           unit_price: number
+          warehouse_id: string | null
         }
         Insert: {
           back_order_quantity?: number | null
+          bin_id?: string | null
           cgst_amount?: number | null
           cgst_rate?: number | null
           created_at?: string
@@ -1700,9 +1723,11 @@ export type Database = {
           total_price: number
           unit_of_measure?: string
           unit_price: number
+          warehouse_id?: string | null
         }
         Update: {
           back_order_quantity?: number | null
+          bin_id?: string | null
           cgst_amount?: number | null
           cgst_rate?: number | null
           created_at?: string
@@ -1726,8 +1751,16 @@ export type Database = {
           total_price?: number
           unit_of_measure?: string
           unit_price?: number
+          warehouse_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "sales_order_items_bin_id_fkey"
+            columns: ["bin_id"]
+            isOneToOne: false
+            referencedRelation: "warehouse_bins"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "sales_order_items_product_id_fkey"
             columns: ["product_id"]
@@ -1740,6 +1773,13 @@ export type Database = {
             columns: ["sales_order_id"]
             isOneToOne: false
             referencedRelation: "sales_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sales_order_items_warehouse_id_fkey"
+            columns: ["warehouse_id"]
+            isOneToOne: false
+            referencedRelation: "warehouse_bins"
             referencedColumns: ["id"]
           },
         ]

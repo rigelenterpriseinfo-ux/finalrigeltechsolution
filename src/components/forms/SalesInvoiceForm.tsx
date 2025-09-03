@@ -52,6 +52,8 @@ const salesInvoiceSchema = z.object({
   round_off: z.number().default(0),
   notes: z.string().optional(),
   status: z.enum(['draft', 'finalized']).default('draft'),
+  default_warehouse_id: z.string().min(1, 'Default warehouse is required'),
+  default_bin_id: z.string().min(1, 'Default bin is required'),
   items: z.array(z.object({
     product_id: z.string().min(1, 'Product is required'),
     item_code: z.string().min(1, 'Item code is required'),
@@ -84,6 +86,8 @@ export const SalesInvoiceForm: React.FC<SalesInvoiceFormProps> = ({
   const { company } = useAuth();
   const [customers, setCustomers] = useState<any[]>([]);
   const [salesOrders, setSalesOrders] = useState<any[]>([]);
+  const [warehouses, setWarehouses] = useState<any[]>([]);
+  const [bins, setBins] = useState<any[]>([]);
   const [recentInvoices, setRecentInvoices] = useState<any[]>([]);
   const [selectedSalesOrder, setSelectedSalesOrder] = useState<any>(null);
   const [loading, setLoading] = useState(false);
@@ -98,6 +102,8 @@ export const SalesInvoiceForm: React.FC<SalesInvoiceFormProps> = ({
       packing_charges: 0,
       round_off: 0,
       status: 'draft',
+      default_warehouse_id: '',
+      default_bin_id: '',
       items: [],
     },
   });
@@ -110,6 +116,7 @@ export const SalesInvoiceForm: React.FC<SalesInvoiceFormProps> = ({
       fetchCustomers();
       fetchSalesOrders();
       fetchRecentInvoices();
+      fetchWarehouses();
     }
   }, [company?.id]);
 
@@ -184,6 +191,31 @@ export const SalesInvoiceForm: React.FC<SalesInvoiceFormProps> = ({
     } catch (error) {
       console.error('Error fetching recent invoices:', error);
     }
+  };
+
+  const fetchWarehouses = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('warehouse_bins')
+        .select('*')
+        .eq('company_id', company.id)
+        .eq('is_active', true)
+        .order('warehouse_name, bin_name');
+
+      if (error) throw error;
+      setWarehouses(data || []);
+    } catch (error) {
+      console.error('Error fetching warehouses:', error);
+    }
+  };
+
+  const handleWarehouseChange = (warehouseId: string) => {
+    form.setValue('default_warehouse_id', warehouseId);
+    // Filter bins for selected warehouse
+    const filteredBins = warehouses.filter(w => w.id === warehouseId);
+    setBins(filteredBins);
+    // Reset bin selection
+    form.setValue('default_bin_id', '');
   };
 
   const fetchSalesOrderDetails = async (salesOrderId: string) => {
@@ -335,6 +367,11 @@ export const SalesInvoiceForm: React.FC<SalesInvoiceFormProps> = ({
         tax_amount: totals.totalTax,
         total_amount: totals.grandTotal,
         amount_in_words: numberToWords(totals.grandTotal),
+        items: data.items.map(item => ({
+          ...item,
+          warehouse_id: data.default_warehouse_id,
+          bin_id: data.default_bin_id
+        }))
       };
       
       await onSubmit(invoiceData);
@@ -489,6 +526,69 @@ export const SalesInvoiceForm: React.FC<SalesInvoiceFormProps> = ({
                       <FormControl>
                         <Input placeholder="Customer PO reference" {...field} />
                       </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              {/* Warehouse and Bin Selection */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="default_warehouse_id"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Default Warehouse *</FormLabel>
+                      <Select 
+                        value={field.value} 
+                        onValueChange={(value) => {
+                          field.onChange(value);
+                          handleWarehouseChange(value);
+                        }}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select warehouse" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {warehouses.map((warehouse) => (
+                            <SelectItem key={warehouse.id} value={warehouse.id}>
+                              {warehouse.warehouse_name} - {warehouse.bin_name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="default_bin_id"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Default Bin *</FormLabel>
+                      <Select 
+                        value={field.value} 
+                        onValueChange={field.onChange} 
+                        disabled={!form.watch('default_warehouse_id')}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select bin" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {bins.map((bin) => (
+                            <SelectItem key={bin.id} value={bin.id}>
+                              {bin.bin_name} ({bin.wh_bin_code})
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                       <FormMessage />
                     </FormItem>
                   )}

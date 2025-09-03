@@ -55,6 +55,8 @@ const salesOrderSchema = z.object({
   mode_of_transport: z.string().optional(),
   notes: z.string().optional(),
   same_as_registered_address: z.boolean().optional(),
+  default_warehouse_id: z.string().min(1, 'Default warehouse is required'),
+  default_bin_id: z.string().min(1, 'Default bin is required'),
   items: z.array(salesOrderItemSchema).min(1, 'At least one item is required'),
 });
 
@@ -79,6 +81,8 @@ export function SalesOrderForm({
   const { toast } = useToast();
   const [customers, setCustomers] = useState<any[]>([]);
   const [products, setProducts] = useState<any[]>([]);
+  const [warehouses, setWarehouses] = useState<any[]>([]);
+  const [bins, setBins] = useState<any[]>([]);
   const [selectedCustomer, setSelectedCustomer] = useState<any>(null);
   const [loading, setLoading] = useState(false);
 
@@ -98,6 +102,8 @@ export function SalesOrderForm({
       mode_of_transport: salesOrder?.mode_of_transport || 'courier',
       notes: salesOrder?.notes || '',
       same_as_registered_address: salesOrder?.same_as_registered_address || false,
+      default_warehouse_id: salesOrder?.default_warehouse_id || '',
+      default_bin_id: salesOrder?.default_bin_id || '',
       items: salesOrder?.sales_order_items || [{
         line_no: 1,
         product_id: '',
@@ -132,6 +138,7 @@ export function SalesOrderForm({
   useEffect(() => {
     fetchCustomers();
     fetchProducts();
+    fetchWarehouses();
   }, []);
 
   // Reset form with existing sales order values when editing
@@ -152,6 +159,8 @@ export function SalesOrderForm({
       mode_of_transport: salesOrder.mode_of_transport || 'courier',
       notes: salesOrder.notes || '',
       same_as_registered_address: salesOrder.same_as_registered_address || false,
+      default_warehouse_id: salesOrder.default_warehouse_id || '',
+      default_bin_id: salesOrder.default_bin_id || '',
       items: (salesOrder.sales_order_items || []).map((item: any, index: number) => ({
         line_no: index + 1,
         product_id: item.product_id || '',
@@ -210,6 +219,31 @@ export function SalesOrderForm({
     } catch (error) {
       console.error('Error fetching products:', error);
     }
+  };
+
+  const fetchWarehouses = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('warehouse_bins')
+        .select('*')
+        .eq('company_id', profile?.company_id)
+        .eq('is_active', true)
+        .order('warehouse_name, bin_name');
+
+      if (error) throw error;
+      setWarehouses(data || []);
+    } catch (error) {
+      console.error('Error fetching warehouses:', error);
+    }
+  };
+
+  const handleWarehouseChange = (warehouseId: string) => {
+    form.setValue('default_warehouse_id', warehouseId);
+    // Filter bins for selected warehouse
+    const filteredBins = warehouses.filter(w => w.id === warehouseId);
+    setBins(filteredBins);
+    // Reset bin selection
+    form.setValue('default_bin_id', '');
   };
 
   const handleCustomerSelect = (customerId: string) => {
@@ -358,7 +392,9 @@ export function SalesOrderForm({
         igst_amount: item.igst_amount || 0,
         net_amount: item.net_amount || 0,
         tax_percentage: (item.cgst_rate || 0) + (item.sgst_rate || 0) + (item.igst_rate || 0),
-        total_price: item.total_price || 0
+        total_price: item.total_price || 0,
+        warehouse_id: data.default_warehouse_id,
+        bin_id: data.default_bin_id
       }));
 
       const result = await onSubmit({ orderData, lineItems });
@@ -656,6 +692,67 @@ export function SalesOrderForm({
                         <SelectItem value="truck">Truck</SelectItem>
                         <SelectItem value="sea">Sea</SelectItem>
                         <SelectItem value="air">Air</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="default_warehouse_id"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Default Warehouse *</FormLabel>
+                    <Select 
+                      value={field.value} 
+                      onValueChange={(value) => {
+                        field.onChange(value);
+                        handleWarehouseChange(value);
+                      }} 
+                      disabled={readOnly}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select warehouse" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {warehouses.map((warehouse) => (
+                          <SelectItem key={warehouse.id} value={warehouse.id}>
+                            {warehouse.warehouse_name} - {warehouse.bin_name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="default_bin_id"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Default Bin *</FormLabel>
+                    <Select 
+                      value={field.value} 
+                      onValueChange={field.onChange} 
+                      disabled={readOnly || !form.watch('default_warehouse_id')}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select bin" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {bins.map((bin) => (
+                          <SelectItem key={bin.id} value={bin.id}>
+                            {bin.bin_name} ({bin.wh_bin_code})
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                     <FormMessage />
