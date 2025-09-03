@@ -1542,6 +1542,7 @@ export type Database = {
           customer_id: string
           customer_name: string
           customer_po_reference: string | null
+          default_bin_id: string | null
           delivery_note_number: string | null
           discount_amount: number
           due_date: string | null
@@ -1586,6 +1587,7 @@ export type Database = {
           customer_id: string
           customer_name: string
           customer_po_reference?: string | null
+          default_bin_id?: string | null
           delivery_note_number?: string | null
           discount_amount?: number
           due_date?: string | null
@@ -1630,6 +1632,7 @@ export type Database = {
           customer_id?: string
           customer_name?: string
           customer_po_reference?: string | null
+          default_bin_id?: string | null
           delivery_note_number?: string | null
           discount_amount?: number
           due_date?: string | null
@@ -1659,6 +1662,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "sales_invoices_default_bin_id_fkey"
+            columns: ["default_bin_id"]
+            isOneToOne: false
+            referencedRelation: "warehouse_bins"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "sales_invoices_sales_order_id_fkey"
             columns: ["sales_order_id"]

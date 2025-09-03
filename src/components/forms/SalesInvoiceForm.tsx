@@ -67,6 +67,8 @@ const salesInvoiceSchema = z.object({
     cgst_rate: z.number().min(0).max(100).default(0),
     sgst_rate: z.number().min(0).max(100).default(0),
     igst_rate: z.number().min(0).max(100).default(0),
+    warehouse_id: z.string().optional(),
+    bin_id: z.string().optional(),
   })).min(1, 'At least one item is required'),
 });
 
@@ -93,6 +95,8 @@ export const SalesInvoiceForm: React.FC<SalesInvoiceFormProps> = ({
   const [loading, setLoading] = useState(false);
   const [warehouseName, setWarehouseName] = useState('');
   const [binName, setBinName] = useState('');
+  const [stockLevels, setStockLevels] = useState<Record<string, number>>({});
+  const [quantityErrors, setQuantityErrors] = useState<Record<number, string>>({});
 
   const form = useForm<SalesInvoiceFormData>({
     resolver: zodResolver(salesInvoiceSchema),
@@ -220,6 +224,69 @@ export const SalesInvoiceForm: React.FC<SalesInvoiceFormProps> = ({
     form.setValue('default_bin_id', '');
   };
 
+  // Function to fetch current stock levels for products
+  const fetchStockLevels = async (productIds: string[], warehouseId?: string, binId?: string) => {
+    if (!company?.id || productIds.length === 0) return {};
+    
+    try {
+      let query = supabase
+        .from('current_stock_levels')
+        .select('product_id, current_stock')
+        .eq('company_id', company.id)
+        .in('product_id', productIds);
+      
+      if (warehouseId) query = query.eq('warehouse_id', warehouseId);
+      if (binId) query = query.eq('bin_id', binId);
+      
+      const { data, error } = await query;
+      
+      if (error) throw error;
+      
+      const stockMap: Record<string, number> = {};
+      data?.forEach(item => {
+        stockMap[item.product_id] = Math.max(0, item.current_stock || 0);
+      });
+      
+      return stockMap;
+    } catch (error) {
+      console.error('Error fetching stock levels:', error);
+      return {};
+    }
+  };
+
+  // Validate quantity constraints
+  const validateQuantity = (itemIndex: number, invoicedQty: number, orderedQty: number, productId: string): string | null => {
+    const stockOnHand = stockLevels[productId] || 0;
+    
+    if (invoicedQty > orderedQty) {
+      return `Cannot exceed ordered quantity (${orderedQty})`;
+    }
+    
+    if (invoicedQty > stockOnHand) {
+      return `Insufficient stock (${stockOnHand} available)`;
+    }
+    
+    return null;
+  };
+
+  // Handle quantity change with validation
+  const handleQuantityChange = (itemIndex: number, value: number) => {
+    const items = form.getValues('items');
+    const item = items[itemIndex];
+    
+    if (item) {
+      const error = validateQuantity(itemIndex, value, item.quantity_ordered, item.product_id);
+      
+      setQuantityErrors(prev => ({
+        ...prev,
+        [itemIndex]: error || ''
+      }));
+      
+      // Update the form field
+      form.setValue(`items.${itemIndex}.quantity_invoiced`, value);
+    }
+  };
+
   const fetchSalesOrderDetails = async (salesOrderId: string) => {
     try {
       const { data, error } = await supabase
@@ -284,6 +351,14 @@ export const SalesInvoiceForm: React.FC<SalesInvoiceFormProps> = ({
         sgst_rate: parseFloat(item.sgst_rate?.toString() || '0'),
         igst_rate: parseFloat(item.igst_rate?.toString() || '0'),
       }));
+      
+      // Fetch stock levels for these products
+      const productIds = items.map((item: any) => item.product_id);
+      const defaultWarehouseId = data.default_warehouse_id;
+      const defaultBinId = data.default_bin_id;
+      
+      const stockData = await fetchStockLevels(productIds, defaultWarehouseId, defaultBinId);
+      setStockLevels(stockData);
       
       form.setValue('items', items);
     } catch (error) {
@@ -379,6 +454,18 @@ export const SalesInvoiceForm: React.FC<SalesInvoiceFormProps> = ({
 
   const handleSubmit = async (data: SalesInvoiceFormData) => {
     console.log('🔄 SalesInvoiceForm: Starting submission...', { editingInvoice: !!editingInvoice });
+    
+    // Check for any validation errors
+    const hasErrors = Object.values(quantityErrors).some(error => error);
+    if (hasErrors) {
+      toast({
+        title: "Validation Error",
+        description: "Please fix quantity validation errors before submitting",
+        variant: "destructive",
+      });
+      return;
+    }
+    
     setLoading(true);
     try {
       const totals = calculateGrandTotals();
@@ -875,56 +962,78 @@ export const SalesInvoiceForm: React.FC<SalesInvoiceFormProps> = ({
                   <div className="overflow-x-auto">
                     <table className="min-w-full divide-y divide-gray-200">
                       <thead className="bg-gray-50">
-                        <tr>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Item Code</th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Description</th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">HSN</th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Ordered</th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Invoiced</th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Backorder</th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">UOM</th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Unit Price</th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Discount %</th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">CGST %</th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">SGST %</th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">IGST %</th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Line Total</th>
-                        </tr>
+                         <tr>
+                           <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Item Code</th>
+                           <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Description</th>
+                           <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">HSN</th>
+                           <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Ordered</th>
+                           <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Stock</th>
+                           <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Invoiced</th>
+                           <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Backorder</th>
+                           <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">UOM</th>
+                           <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Unit Price</th>
+                           <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Discount %</th>
+                           <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">CGST %</th>
+                           <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">SGST %</th>
+                           <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">IGST %</th>
+                           <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Line Total</th>
+                         </tr>
                       </thead>
                       <tbody className="bg-white divide-y divide-gray-200">
                         {watchedItems.map((item, index) => {
                           const itemTotals = calculateItemTotals(index);
                           return (
-                            <tr key={index}>
-                              <td className="px-4 py-3 text-sm">{item.item_code}</td>
-                              <td className="px-4 py-3 text-sm">{item.item_description}</td>
-                              <td className="px-4 py-3 text-sm">
-                                <FormField
-                                  control={form.control}
-                                  name={`items.${index}.hsn_sac_code`}
-                                  render={({ field }) => (
-                                    <Input {...field} className="w-20" />
-                                  )}
-                                />
-                              </td>
-                              <td className="px-4 py-3 text-sm font-medium">{item.quantity_ordered}</td>
-                              <td className="px-4 py-3 text-sm">
-                                <FormField
-                                  control={form.control}
-                                  name={`items.${index}.quantity_invoiced`}
-                                  render={({ field }) => (
-                                    <Input
-                                      type="number"
-                                      {...field}
-                                      onChange={(e) => {
-                                        const value = parseFloat(e.target.value) || 0;
-                                        field.onChange(value);
-                                      }}
-                                      className="w-20"
-                                    />
-                                  )}
-                                />
-                              </td>
+                             <tr key={index}>
+                               <td className="px-4 py-3 text-sm">{item.item_code}</td>
+                               <td className="px-4 py-3 text-sm">{item.item_description}</td>
+                               <td className="px-4 py-3 text-sm">
+                                 <FormField
+                                   control={form.control}
+                                   name={`items.${index}.hsn_sac_code`}
+                                   render={({ field }) => (
+                                     <Input {...field} className="w-20" />
+                                   )}
+                                 />
+                               </td>
+                               <td className="px-4 py-3 text-sm font-medium">{item.quantity_ordered}</td>
+                               <td className="px-4 py-3 text-sm">
+                                 <div className="text-center">
+                                   <span className={cn(
+                                     "font-medium",
+                                     (stockLevels[item.product_id] || 0) > 0 ? "text-green-600" : "text-red-600"
+                                   )}>
+                                     {stockLevels[item.product_id] || 0}
+                                   </span>
+                                   <div className="text-xs text-muted-foreground">on hand</div>
+                                 </div>
+                               </td>
+                               <td className="px-4 py-3 text-sm">
+                                 <div className="space-y-1">
+                                   <FormField
+                                     control={form.control}
+                                     name={`items.${index}.quantity_invoiced`}
+                                     render={({ field }) => (
+                                       <Input
+                                         type="number"
+                                         {...field}
+                                         onChange={(e) => {
+                                           const value = parseFloat(e.target.value) || 0;
+                                           handleQuantityChange(index, value);
+                                         }}
+                                         className={cn(
+                                           "w-20",
+                                           quantityErrors[index] ? "border-red-500" : ""
+                                         )}
+                                       />
+                                     )}
+                                   />
+                                   {quantityErrors[index] && (
+                                     <div className="text-xs text-red-500 mt-1">
+                                       {quantityErrors[index]}
+                                     </div>
+                                   )}
+                                 </div>
+                               </td>
                               <td className="px-4 py-3 text-sm font-medium text-orange-600">
                                 {itemTotals?.backorderQuantity || 0}
                               </td>
