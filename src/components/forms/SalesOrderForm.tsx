@@ -141,6 +141,15 @@ export function SalesOrderForm({
     fetchWarehouses();
   }, []);
 
+  // Filter bins when warehouse is pre-selected (for edit mode)
+  useEffect(() => {
+    const currentWarehouseId = form.watch('default_warehouse_id');
+    if (currentWarehouseId && warehouses.length > 0) {
+      const filteredBins = warehouses.filter(w => w.id === currentWarehouseId);
+      setBins(filteredBins);
+    }
+  }, [warehouses, form.watch('default_warehouse_id')]);
+
   // Reset form with existing sales order values when editing
   useEffect(() => {
     if (mode !== 'edit' || !salesOrder) return;
@@ -159,8 +168,9 @@ export function SalesOrderForm({
       mode_of_transport: salesOrder.mode_of_transport || 'courier',
       notes: salesOrder.notes || '',
       same_as_registered_address: salesOrder.same_as_registered_address || false,
-      default_warehouse_id: salesOrder.default_warehouse_id || '',
-      default_bin_id: salesOrder.default_bin_id || '',
+      // Get warehouse and bin from first sales order item if available
+      default_warehouse_id: salesOrder.sales_order_items?.[0]?.warehouse_id || salesOrder.default_warehouse_id || '',
+      default_bin_id: salesOrder.sales_order_items?.[0]?.bin_id || salesOrder.default_bin_id || '',
       items: (salesOrder.sales_order_items || []).map((item: any, index: number) => ({
         line_no: index + 1,
         product_id: item.product_id || '',
