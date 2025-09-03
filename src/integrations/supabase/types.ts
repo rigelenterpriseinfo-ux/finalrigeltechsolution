@@ -1550,7 +1550,7 @@ export type Database = {
           freight_charges: number | null
           id: string
           invoice_date: string
-          invoice_number: string
+          invoice_number: string | null
           mode_of_delivery: string | null
           notes: string | null
           packing_charges: number | null
@@ -1596,7 +1596,7 @@ export type Database = {
           freight_charges?: number | null
           id?: string
           invoice_date?: string
-          invoice_number: string
+          invoice_number?: string | null
           mode_of_delivery?: string | null
           notes?: string | null
           packing_charges?: number | null
@@ -1642,7 +1642,7 @@ export type Database = {
           freight_charges?: number | null
           id?: string
           invoice_date?: string
-          invoice_number?: string
+          invoice_number?: string | null
           mode_of_delivery?: string | null
           notes?: string | null
           packing_charges?: number | null
