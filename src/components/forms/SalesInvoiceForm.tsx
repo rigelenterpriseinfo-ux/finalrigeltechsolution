@@ -51,7 +51,7 @@ const salesInvoiceSchema = z.object({
   packing_charges: z.number().default(0),
   round_off: z.number().default(0),
   notes: z.string().optional(),
-  status: z.string().default('draft'),
+  status: z.enum(['draft', 'finalized']).default('draft'),
   items: z.array(z.object({
     product_id: z.string().min(1, 'Product is required'),
     item_code: z.string().min(1, 'Item code is required'),
@@ -1048,7 +1048,29 @@ export const SalesInvoiceForm: React.FC<SalesInvoiceFormProps> = ({
             <CardHeader>
               <CardTitle>Additional Information</CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="space-y-6">
+              <FormField
+                control={form.control}
+                name="status"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Invoice Status</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <FormControl>
+                        <SelectTrigger className="bg-background">
+                          <SelectValue placeholder="Select invoice status" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent className="bg-background border shadow-md z-50">
+                        <SelectItem value="draft">Draft</SelectItem>
+                        <SelectItem value="finalized">Finalized</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
               <FormField
                 control={form.control}
                 name="notes"
