@@ -1421,6 +1421,7 @@ export type Database = {
       }
       sales_order_items: {
         Row: {
+          back_order_quantity: number | null
           cgst_amount: number | null
           cgst_rate: number | null
           created_at: string
@@ -1433,17 +1434,20 @@ export type Database = {
           item_description: string
           line_no: number | null
           net_amount: number | null
+          ordered_quantity: number | null
           product_id: string
           quantity: number
           sales_order_id: string
           sgst_amount: number | null
           sgst_rate: number | null
+          stock_on_hand: number | null
           tax_percentage: number | null
           total_price: number
           unit_of_measure: string
           unit_price: number
         }
         Insert: {
+          back_order_quantity?: number | null
           cgst_amount?: number | null
           cgst_rate?: number | null
           created_at?: string
@@ -1456,17 +1460,20 @@ export type Database = {
           item_description?: string
           line_no?: number | null
           net_amount?: number | null
+          ordered_quantity?: number | null
           product_id: string
           quantity: number
           sales_order_id: string
           sgst_amount?: number | null
           sgst_rate?: number | null
+          stock_on_hand?: number | null
           tax_percentage?: number | null
           total_price: number
           unit_of_measure?: string
           unit_price: number
         }
         Update: {
+          back_order_quantity?: number | null
           cgst_amount?: number | null
           cgst_rate?: number | null
           created_at?: string
@@ -1479,11 +1486,13 @@ export type Database = {
           item_description?: string
           line_no?: number | null
           net_amount?: number | null
+          ordered_quantity?: number | null
           product_id?: string
           quantity?: number
           sales_order_id?: string
           sgst_amount?: number | null
           sgst_rate?: number | null
+          stock_on_hand?: number | null
           tax_percentage?: number | null
           total_price?: number
           unit_of_measure?: string

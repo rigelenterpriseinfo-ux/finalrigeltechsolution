@@ -21,7 +21,10 @@ const salesOrderItemSchema = z.object({
   line_no: z.number().min(1).optional(),
   product_id: z.string().min(1, 'Product is required'),
   item_description: z.string().min(1, 'Item description is required'),
-  quantity: z.number().min(1, 'Quantity must be at least 1'),
+  stock_on_hand: z.number().min(0).optional(),
+  ordered_quantity: z.number().min(1, 'Ordered quantity must be at least 1'),
+  back_order_quantity: z.number().min(0).optional(),
+  quantity: z.number().min(1, 'Quantity must be at least 1'), // Keep for backward compatibility
   unit_of_measure: z.string().min(1, 'Unit of measure is required'),
   unit_price: z.number().min(0, 'Unit price must be non-negative'),
   discount_percentage: z.number().min(0).max(100).optional(),
@@ -99,6 +102,9 @@ export function SalesOrderForm({
         line_no: 1,
         product_id: '',
         item_description: '',
+        stock_on_hand: 0,
+        ordered_quantity: 1,
+        back_order_quantity: 0,
         quantity: 1,
         unit_of_measure: 'pcs',
         unit_price: 0,
@@ -150,6 +156,9 @@ export function SalesOrderForm({
         line_no: index + 1,
         product_id: item.product_id || '',
         item_description: item.item_description || '',
+        stock_on_hand: Number(item.stock_on_hand) || 0,
+        ordered_quantity: Number(item.ordered_quantity) || Number(item.quantity) || 1,
+        back_order_quantity: Number(item.back_order_quantity) || 0,
         quantity: Number(item.quantity) || 1,
         unit_of_measure: item.unit_of_measure || 'pcs',
         unit_price: Number(item.unit_price) || 0,
@@ -226,6 +235,7 @@ export function SalesOrderForm({
       form.setValue(`items.${index}.unit_price`, product.unit_price || 0);
       form.setValue(`items.${index}.unit_of_measure`, product.unit || 'pcs');
       form.setValue(`items.${index}.hsn_sac_code`, product.hsn_code || '');
+      form.setValue(`items.${index}.stock_on_hand`, product.stock_quantity || 0);
       calculateLineAmounts(index);
     }
   };
@@ -234,11 +244,15 @@ export function SalesOrderForm({
     const values = form.getValues();
     const item = values.items[index];
     
-    const quantity = item.quantity || 0;
+    const orderedQuantity = item.ordered_quantity || 0;
+    const stockOnHand = item.stock_on_hand || 0;
     const unitPrice = item.unit_price || 0;
     const discountPercentage = item.discount_percentage || 0;
     
-    const lineSubtotal = quantity * unitPrice;
+    // Calculate back order quantity
+    const backOrderQuantity = Math.max(0, orderedQuantity - stockOnHand);
+    
+    const lineSubtotal = orderedQuantity * unitPrice;
     const discountAmount = discountPercentage > 0 
       ? (lineSubtotal * discountPercentage) / 100 
       : (item.discount_amount || 0);
@@ -252,6 +266,8 @@ export function SalesOrderForm({
     const taxAmount = cgstAmount + sgstAmount + igstAmount;
     const lineTotal = netAmount + taxAmount;
     
+    form.setValue(`items.${index}.back_order_quantity`, backOrderQuantity);
+    form.setValue(`items.${index}.quantity`, orderedQuantity); // Keep for backward compatibility
     form.setValue(`items.${index}.discount_amount`, discountAmount);
     form.setValue(`items.${index}.net_amount`, netAmount);
     form.setValue(`items.${index}.cgst_amount`, cgstAmount);
@@ -267,6 +283,9 @@ export function SalesOrderForm({
       line_no: newLineNo,
       product_id: '',
       item_description: '',
+      stock_on_hand: 0,
+      ordered_quantity: 1,
+      back_order_quantity: 0,
       quantity: 1,
       unit_of_measure: 'pcs',
       unit_price: 0,
@@ -296,35 +315,53 @@ export function SalesOrderForm({
       const totalTaxAmount = data.items.reduce((sum, item) => sum + (item.tax_amount || 0), 0);
       const totalAmount = data.items.reduce((sum, item) => sum + (item.total_price || 0), 0);
 
-      const salesOrderData = {
-        ...data,
+      // Prepare order data (header)
+      const orderData = {
+        order_number: data.order_number,
+        order_date: data.order_date,
+        customer_id: data.customer_id,
+        customer_po_number: data.customer_po_number,
+        status: data.status,
+        account_manager: data.account_manager,
+        order_type: data.order_type,
+        currency: data.currency,
+        payment_terms: data.payment_terms,
+        expected_delivery_date: data.expected_delivery_date,
+        mode_of_transport: data.mode_of_transport,
+        notes: data.notes,
+        same_as_registered_address: data.same_as_registered_address,
         subtotal_amount: subtotalAmount,
         discount_amount: totalDiscountAmount,
         tax_amount: totalTaxAmount,
-        total_amount: totalAmount,
-        items: data.items.map((item, index) => ({
-          line_no: index + 1,
-          product_id: item.product_id,
-          item_description: item.item_description,
-          hsn_sac_code: item.hsn_sac_code,
-          quantity: item.quantity,
-          unit_of_measure: item.unit_of_measure,
-          unit_price: item.unit_price,
-          discount_percentage: item.discount_percentage || 0,
-          discount_amount: item.discount_amount || 0,
-          cgst_rate: item.cgst_rate || 0,
-          sgst_rate: item.sgst_rate || 0,
-          igst_rate: item.igst_rate || 0,
-          cgst_amount: item.cgst_amount || 0,
-          sgst_amount: item.sgst_amount || 0,
-          igst_amount: item.igst_amount || 0,
-          net_amount: item.net_amount || 0,
-          tax_percentage: (item.cgst_rate || 0) + (item.sgst_rate || 0) + (item.igst_rate || 0),
-          total_price: item.total_price || 0
-        }))
+        total_amount: totalAmount
       };
 
-      const result = await onSubmit(salesOrderData);
+      // Prepare line items
+      const lineItems = data.items.map((item, index) => ({
+        line_no: index + 1,
+        product_id: item.product_id,
+        item_description: item.item_description,
+        hsn_sac_code: item.hsn_sac_code,
+        stock_on_hand: item.stock_on_hand || 0,
+        ordered_quantity: item.ordered_quantity || item.quantity,
+        back_order_quantity: item.back_order_quantity || 0,
+        quantity: item.ordered_quantity || item.quantity, // For backward compatibility
+        unit_of_measure: item.unit_of_measure,
+        unit_price: item.unit_price,
+        discount_percentage: item.discount_percentage || 0,
+        discount_amount: item.discount_amount || 0,
+        cgst_rate: item.cgst_rate || 0,
+        sgst_rate: item.sgst_rate || 0,
+        igst_rate: item.igst_rate || 0,
+        cgst_amount: item.cgst_amount || 0,
+        sgst_amount: item.sgst_amount || 0,
+        igst_amount: item.igst_amount || 0,
+        net_amount: item.net_amount || 0,
+        tax_percentage: (item.cgst_rate || 0) + (item.sgst_rate || 0) + (item.igst_rate || 0),
+        total_price: item.total_price || 0
+      }));
+
+      const result = await onSubmit({ orderData, lineItems });
       if (result?.order_number) {
         form.setValue('order_number', result.order_number);
       }
@@ -346,11 +383,48 @@ export function SalesOrderForm({
     const totalDiscount = items.reduce((sum, item) => sum + (item.discount_amount || 0), 0);
     const totalTax = items.reduce((sum, item) => sum + (item.tax_amount || 0), 0);
     const total = items.reduce((sum, item) => sum + (item.total_price || 0), 0);
+
+    // Calculate enhanced totals
+    const totalOrderQty = items.reduce((sum, item) => sum + (item.ordered_quantity || 0), 0);
+    const totalOrderValue = total;
     
-    return { subtotal, totalDiscount, totalTax, total };
+    const readyToDeliverQty = items.reduce((sum, item) => {
+      const orderedQty = item.ordered_quantity || 0;
+      const stockOnHand = item.stock_on_hand || 0;
+      return sum + Math.min(orderedQty, stockOnHand);
+    }, 0);
+    
+    const readyToDeliverValue = items.reduce((sum, item) => {
+      const orderedQty = item.ordered_quantity || 0;
+      const stockOnHand = item.stock_on_hand || 0;
+      const deliverableQty = Math.min(orderedQty, stockOnHand);
+      const unitPrice = item.unit_price || 0;
+      const lineValue = deliverableQty * unitPrice;
+      const discountPercentage = item.discount_percentage || 0;
+      const discountAmount = discountPercentage > 0 ? (lineValue * discountPercentage) / 100 : 0;
+      const netAmount = lineValue - discountAmount;
+      const taxRate = (item.cgst_rate || 0) + (item.sgst_rate || 0) + (item.igst_rate || 0);
+      const taxAmount = (netAmount * taxRate) / 100;
+      return sum + netAmount + taxAmount;
+    }, 0);
+    
+    const backOrderQty = items.reduce((sum, item) => sum + (item.back_order_quantity || 0), 0);
+    const backOrderValue = totalOrderValue - readyToDeliverValue;
+    
+    return { 
+      subtotal, totalDiscount, totalTax, total,
+      totalOrderQty, totalOrderValue,
+      readyToDeliverQty, readyToDeliverValue,
+      backOrderQty, backOrderValue: Math.max(0, backOrderValue)
+    };
   };
 
-  const { subtotal, totalDiscount, totalTax, total } = calculateTotals();
+  const { 
+    subtotal, totalDiscount, totalTax, total,
+    totalOrderQty, totalOrderValue,
+    readyToDeliverQty, readyToDeliverValue,
+    backOrderQty, backOrderValue
+  } = calculateTotals();
 
   return (
     <div className="space-y-6">
@@ -689,27 +763,67 @@ export function SalesOrderForm({
                       )}
                     />
 
-                    <FormField
-                      control={form.control}
-                      name={`items.${index}.quantity`}
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Quantity *</FormLabel>
-                          <FormControl>
-                            <Input 
-                              type="number" 
-                              {...field} 
-                              onChange={(e) => {
-                                field.onChange(Number(e.target.value));
-                                setTimeout(() => calculateLineAmounts(index), 0);
-                              }}
-                              disabled={readOnly} 
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+                     <FormField
+                       control={form.control}
+                       name={`items.${index}.stock_on_hand`}
+                       render={({ field }) => (
+                         <FormItem>
+                           <FormLabel>Stock on Hand</FormLabel>
+                           <FormControl>
+                             <Input 
+                               type="number" 
+                               {...field} 
+                               disabled
+                               readOnly
+                               className="bg-muted"
+                             />
+                           </FormControl>
+                           <FormMessage />
+                         </FormItem>
+                       )}
+                     />
+
+                     <FormField
+                       control={form.control}
+                       name={`items.${index}.ordered_quantity`}
+                       render={({ field }) => (
+                         <FormItem>
+                           <FormLabel>Ordered Quantity *</FormLabel>
+                           <FormControl>
+                             <Input 
+                               type="number" 
+                               {...field} 
+                               onChange={(e) => {
+                                 field.onChange(Number(e.target.value));
+                                 setTimeout(() => calculateLineAmounts(index), 0);
+                               }}
+                               disabled={readOnly} 
+                             />
+                           </FormControl>
+                           <FormMessage />
+                         </FormItem>
+                       )}
+                     />
+
+                     <FormField
+                       control={form.control}
+                       name={`items.${index}.back_order_quantity`}
+                       render={({ field }) => (
+                         <FormItem>
+                           <FormLabel>Back Order</FormLabel>
+                           <FormControl>
+                             <Input 
+                               type="number" 
+                               {...field} 
+                               disabled
+                               readOnly
+                               className="bg-muted"
+                             />
+                           </FormControl>
+                           <FormMessage />
+                         </FormItem>
+                       )}
+                     />
 
                     <FormField
                       control={form.control}
@@ -860,13 +974,14 @@ export function SalesOrderForm({
             </CardContent>
           </Card>
 
-          {/* Totals */}
+          {/* Enhanced Order Summary */}
           <Card>
             <CardHeader>
               <CardTitle>Order Summary</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              {/* Traditional Totals */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
                 <div className="text-center">
                   <Label className="text-sm text-muted-foreground">Subtotal</Label>
                   <p className="text-lg font-semibold">₹{subtotal.toFixed(2)}</p>
@@ -882,6 +997,47 @@ export function SalesOrderForm({
                 <div className="text-center bg-primary/10 p-3 rounded">
                   <Label className="text-sm text-muted-foreground">Grand Total</Label>
                   <p className="text-xl font-bold">₹{total.toFixed(2)}</p>
+                </div>
+              </div>
+
+              <Separator className="my-4" />
+
+              {/* Enhanced Summary */}
+              <div className="space-y-4">
+                <h4 className="text-md font-semibold">Delivery Summary</h4>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {/* Total Order */}
+                  <div className="bg-blue-50 dark:bg-blue-950/20 p-4 rounded-lg border border-blue-200 dark:border-blue-800">
+                    <div className="text-center">
+                      <Label className="text-sm font-medium text-blue-700 dark:text-blue-300">Total Order</Label>
+                      <div className="mt-2">
+                        <p className="text-lg font-bold text-blue-800 dark:text-blue-200">{totalOrderQty} units</p>
+                        <p className="text-md text-blue-600 dark:text-blue-400">₹{totalOrderValue.toFixed(2)}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Ready to Deliver */}
+                  <div className="bg-green-50 dark:bg-green-950/20 p-4 rounded-lg border border-green-200 dark:border-green-800">
+                    <div className="text-center">
+                      <Label className="text-sm font-medium text-green-700 dark:text-green-300">Ready to Deliver</Label>
+                      <div className="mt-2">
+                        <p className="text-lg font-bold text-green-800 dark:text-green-200">{readyToDeliverQty} units</p>
+                        <p className="text-md text-green-600 dark:text-green-400">₹{readyToDeliverValue.toFixed(2)}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Back Order */}
+                  <div className="bg-orange-50 dark:bg-orange-950/20 p-4 rounded-lg border border-orange-200 dark:border-orange-800">
+                    <div className="text-center">
+                      <Label className="text-sm font-medium text-orange-700 dark:text-orange-300">Back Order</Label>
+                      <div className="mt-2">
+                        <p className="text-lg font-bold text-orange-800 dark:text-orange-200">{backOrderQty} units</p>
+                        <p className="text-md text-orange-600 dark:text-orange-400">₹{backOrderValue.toFixed(2)}</p>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
             </CardContent>
