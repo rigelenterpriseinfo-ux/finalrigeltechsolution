@@ -115,17 +115,14 @@ export const SalesInvoiceForm: React.FC<SalesInvoiceFormProps> = ({
 
   useEffect(() => {
     if (editingInvoice) {
-      // Populate form with editing data
+      // Populate form with editing data (do not override with SO defaults)
       form.reset({
         ...editingInvoice,
         invoice_date: new Date(editingInvoice.invoice_date),
         due_date: editingInvoice.due_date ? new Date(editingInvoice.due_date) : undefined,
         items: editingInvoice.sales_invoice_items || [],
       });
-      
-      if (editingInvoice.sales_order_id) {
-        fetchSalesOrderDetails(editingInvoice.sales_order_id);
-      }
+      // When editing, we avoid auto-fetching SO details to prevent overwriting invoice items
     }
   }, [editingInvoice]);
 
@@ -1055,7 +1052,7 @@ export const SalesInvoiceForm: React.FC<SalesInvoiceFormProps> = ({
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Invoice Status</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
                         <SelectTrigger className="bg-background">
                           <SelectValue placeholder="Select invoice status" />
