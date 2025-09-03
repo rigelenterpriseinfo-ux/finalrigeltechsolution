@@ -129,10 +129,7 @@ export const SalesInvoiceTable: React.FC<SalesInvoiceTableProps> = ({
   const getStatusBadge = (status: string) => {
     const statusConfig = {
       draft: { label: 'Draft', variant: 'secondary' as const },
-      posted: { label: 'Posted', variant: 'default' as const },
       finalized: { label: 'Finalized', variant: 'default' as const },
-      paid: { label: 'Paid', variant: 'default' as const },
-      cancelled: { label: 'Cancelled', variant: 'destructive' as const },
     };
 
     const config = statusConfig[status as keyof typeof statusConfig] || statusConfig.draft;
@@ -184,10 +181,7 @@ export const SalesInvoiceTable: React.FC<SalesInvoiceTableProps> = ({
             <SelectContent>
               <SelectItem value="all">All Status</SelectItem>
               <SelectItem value="draft">Draft</SelectItem>
-              <SelectItem value="posted">Posted</SelectItem>
               <SelectItem value="finalized">Finalized</SelectItem>
-              <SelectItem value="paid">Paid</SelectItem>
-              <SelectItem value="cancelled">Cancelled</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -260,12 +254,11 @@ export const SalesInvoiceTable: React.FC<SalesInvoiceTableProps> = ({
                           value={invoice.status}
                           onValueChange={(newStatus) => handleStatusUpdate(invoice.id, newStatus)}
                         >
-                          <SelectTrigger className="w-24 h-8">
+                          <SelectTrigger className="w-28 h-8">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
                             <SelectItem value="draft">Draft</SelectItem>
-                            <SelectItem value="posted">Post</SelectItem>
                             <SelectItem value="finalized">Finalize</SelectItem>
                           </SelectContent>
                         </Select>

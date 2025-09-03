@@ -397,7 +397,7 @@ export default function SalesModule() {
 
         // Process inventory if status changed to posted/finalized
         const statusChanged = editingSalesInvoice.status !== updatedInvoice.status;
-        if (statusChanged && (updatedInvoice.status === 'posted' || updatedInvoice.status === 'finalized')) {
+        if (statusChanged && updatedInvoice.status === 'finalized') {
           const { data: processResult, error: processError } = await supabase.rpc(
             'process_sales_invoice', 
             { p_invoice_id: updatedInvoice.id }
@@ -459,8 +459,8 @@ export default function SalesModule() {
           throw itemsError;
         }
 
-        // Process inventory and sales order updates if status is posted/finalized
-        if (newInvoice.status === 'posted' || newInvoice.status === 'finalized') {
+        // Process inventory and sales order updates if status is finalized
+        if (newInvoice.status === 'finalized') {
           const { data: processResult, error: processError } = await supabase.rpc(
             'process_sales_invoice', 
             { p_invoice_id: newInvoice.id }

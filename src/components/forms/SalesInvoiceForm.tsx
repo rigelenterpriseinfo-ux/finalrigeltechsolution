@@ -116,6 +116,7 @@ export const SalesInvoiceForm: React.FC<SalesInvoiceFormProps> = ({
 
   const watchedSameAsBilling = form.watch('same_as_billing_address');
   const watchedItems = form.watch('items');
+  const watchedStatus = form.watch('status');
 
   useEffect(() => {
     if (company?.id) {
@@ -517,9 +518,13 @@ export const SalesInvoiceForm: React.FC<SalesInvoiceFormProps> = ({
                       <FormLabel>Invoice Number</FormLabel>
                       <FormControl>
                         <Input 
-                          placeholder="Auto-generated if empty" 
+                          placeholder={
+                            watchedStatus === 'draft' 
+                              ? "Will be generated when finalized" 
+                              : "Auto-generated if empty"
+                          } 
                           {...field} 
-                          disabled={!!editingInvoice}
+                          disabled={!!editingInvoice || watchedStatus === 'draft'}
                         />
                       </FormControl>
                       <FormMessage />
@@ -1273,7 +1278,7 @@ export const SalesInvoiceForm: React.FC<SalesInvoiceFormProps> = ({
                       </FormControl>
                       <SelectContent className="bg-background border shadow-md z-50">
                         <SelectItem value="draft">Draft</SelectItem>
-                        <SelectItem value="finalized">Finalized</SelectItem>
+                        <SelectItem value="finalized">Finalize & Generate Invoice Number</SelectItem>
                       </SelectContent>
                     </Select>
                     <FormMessage />
