@@ -373,6 +373,32 @@ export default function SalesModule() {
           .insert(invoiceItems);
 
         if (itemsError) throw itemsError;
+
+        // Process inventory if status changed to posted/finalized
+        const statusChanged = editingSalesInvoice.status !== updatedInvoice.status;
+        if (statusChanged && (updatedInvoice.status === 'posted' || updatedInvoice.status === 'finalized')) {
+          const { data: processResult, error: processError } = await supabase.rpc(
+            'process_sales_invoice', 
+            { p_invoice_id: updatedInvoice.id }
+          );
+
+          if (processError) {
+            console.error('Error processing sales invoice:', processError);
+            toast({
+              title: "Warning",
+              description: "Invoice updated but inventory processing failed. Please check inventory levels.",
+              variant: "destructive",
+            });
+          } else if (processResult && typeof processResult === 'object' && processResult !== null && 'success' in processResult && !(processResult as any).success) {
+            console.error('Sales invoice processing failed:', processResult);
+            toast({
+              title: "Warning", 
+              description: "Invoice updated but inventory processing failed. Please check inventory levels.",
+              variant: "destructive",
+            });
+          }
+        }
+
         result = updatedInvoice;
       } else {
         // Create new invoice
