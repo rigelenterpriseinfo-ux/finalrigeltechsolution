@@ -1419,6 +1419,235 @@ export type Database = {
           },
         ]
       }
+      sales_invoice_items: {
+        Row: {
+          backorder_quantity: number
+          cgst_amount: number | null
+          cgst_rate: number | null
+          created_at: string
+          discount_amount: number
+          discount_percentage: number | null
+          hsn_sac_code: string | null
+          id: string
+          igst_amount: number | null
+          igst_rate: number | null
+          item_code: string
+          item_description: string
+          line_subtotal: number
+          line_total: number
+          product_id: string
+          quantity_invoiced: number
+          quantity_ordered: number
+          sales_invoice_id: string
+          sgst_amount: number | null
+          sgst_rate: number | null
+          tax_amount: number
+          unit_of_measure: string
+          unit_price: number
+        }
+        Insert: {
+          backorder_quantity?: number
+          cgst_amount?: number | null
+          cgst_rate?: number | null
+          created_at?: string
+          discount_amount?: number
+          discount_percentage?: number | null
+          hsn_sac_code?: string | null
+          id?: string
+          igst_amount?: number | null
+          igst_rate?: number | null
+          item_code: string
+          item_description: string
+          line_subtotal?: number
+          line_total?: number
+          product_id: string
+          quantity_invoiced?: number
+          quantity_ordered?: number
+          sales_invoice_id: string
+          sgst_amount?: number | null
+          sgst_rate?: number | null
+          tax_amount?: number
+          unit_of_measure?: string
+          unit_price?: number
+        }
+        Update: {
+          backorder_quantity?: number
+          cgst_amount?: number | null
+          cgst_rate?: number | null
+          created_at?: string
+          discount_amount?: number
+          discount_percentage?: number | null
+          hsn_sac_code?: string | null
+          id?: string
+          igst_amount?: number | null
+          igst_rate?: number | null
+          item_code?: string
+          item_description?: string
+          line_subtotal?: number
+          line_total?: number
+          product_id?: string
+          quantity_invoiced?: number
+          quantity_ordered?: number
+          sales_invoice_id?: string
+          sgst_amount?: number | null
+          sgst_rate?: number | null
+          tax_amount?: number
+          unit_of_measure?: string
+          unit_price?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sales_invoice_items_sales_invoice_id_fkey"
+            columns: ["sales_invoice_id"]
+            isOneToOne: false
+            referencedRelation: "sales_invoices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sales_invoices: {
+        Row: {
+          account_manager: string | null
+          amount_in_words: string | null
+          billing_address_line1: string | null
+          billing_address_line2: string | null
+          billing_city: string | null
+          billing_country: string | null
+          billing_pin_code: string | null
+          billing_state: string | null
+          company_id: string
+          created_at: string
+          created_by: string
+          currency: string | null
+          customer_id: string
+          customer_name: string
+          customer_po_reference: string | null
+          delivery_note_number: string | null
+          discount_amount: number
+          due_date: string | null
+          freight_charges: number | null
+          id: string
+          invoice_date: string
+          invoice_number: string
+          mode_of_delivery: string | null
+          notes: string | null
+          packing_charges: number | null
+          payment_terms: string | null
+          round_off: number | null
+          sales_order_id: string | null
+          salesperson_id: string | null
+          same_as_billing_address: boolean | null
+          shipping_address_line1: string | null
+          shipping_address_line2: string | null
+          shipping_city: string | null
+          shipping_country: string | null
+          shipping_pin_code: string | null
+          shipping_state: string | null
+          status: string
+          subtotal_amount: number
+          tax_amount: number
+          total_amount: number
+          transporter: string | null
+          updated_at: string
+        }
+        Insert: {
+          account_manager?: string | null
+          amount_in_words?: string | null
+          billing_address_line1?: string | null
+          billing_address_line2?: string | null
+          billing_city?: string | null
+          billing_country?: string | null
+          billing_pin_code?: string | null
+          billing_state?: string | null
+          company_id: string
+          created_at?: string
+          created_by: string
+          currency?: string | null
+          customer_id: string
+          customer_name: string
+          customer_po_reference?: string | null
+          delivery_note_number?: string | null
+          discount_amount?: number
+          due_date?: string | null
+          freight_charges?: number | null
+          id?: string
+          invoice_date?: string
+          invoice_number: string
+          mode_of_delivery?: string | null
+          notes?: string | null
+          packing_charges?: number | null
+          payment_terms?: string | null
+          round_off?: number | null
+          sales_order_id?: string | null
+          salesperson_id?: string | null
+          same_as_billing_address?: boolean | null
+          shipping_address_line1?: string | null
+          shipping_address_line2?: string | null
+          shipping_city?: string | null
+          shipping_country?: string | null
+          shipping_pin_code?: string | null
+          shipping_state?: string | null
+          status?: string
+          subtotal_amount?: number
+          tax_amount?: number
+          total_amount?: number
+          transporter?: string | null
+          updated_at?: string
+        }
+        Update: {
+          account_manager?: string | null
+          amount_in_words?: string | null
+          billing_address_line1?: string | null
+          billing_address_line2?: string | null
+          billing_city?: string | null
+          billing_country?: string | null
+          billing_pin_code?: string | null
+          billing_state?: string | null
+          company_id?: string
+          created_at?: string
+          created_by?: string
+          currency?: string | null
+          customer_id?: string
+          customer_name?: string
+          customer_po_reference?: string | null
+          delivery_note_number?: string | null
+          discount_amount?: number
+          due_date?: string | null
+          freight_charges?: number | null
+          id?: string
+          invoice_date?: string
+          invoice_number?: string
+          mode_of_delivery?: string | null
+          notes?: string | null
+          packing_charges?: number | null
+          payment_terms?: string | null
+          round_off?: number | null
+          sales_order_id?: string | null
+          salesperson_id?: string | null
+          same_as_billing_address?: boolean | null
+          shipping_address_line1?: string | null
+          shipping_address_line2?: string | null
+          shipping_city?: string | null
+          shipping_country?: string | null
+          shipping_pin_code?: string | null
+          shipping_state?: string | null
+          status?: string
+          subtotal_amount?: number
+          tax_amount?: number
+          total_amount?: number
+          transporter?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sales_invoices_sales_order_id_fkey"
+            columns: ["sales_order_id"]
+            isOneToOne: false
+            referencedRelation: "sales_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       sales_order_items: {
         Row: {
           back_order_quantity: number | null
@@ -2163,6 +2392,10 @@ export type Database = {
         Args: { comp_id: string }
         Returns: string
       }
+      generate_invoice_number: {
+        Args: { comp_id: string }
+        Returns: string
+      }
       generate_performa_invoice_number: {
         Args: Record<PropertyKey, never>
         Returns: string
@@ -2215,6 +2448,10 @@ export type Database = {
         Args: { p_grn_id: string }
         Returns: Json
       }
+      process_sales_invoice: {
+        Args: { p_invoice_id: string }
+        Returns: Json
+      }
       record_inventory_transaction: {
         Args: {
           p_bin_id: string
@@ -2249,6 +2486,7 @@ export type Database = {
         | "adjustment_negative"
         | "transfer_out"
         | "transfer_in"
+        | "sales_invoice"
       user_role: "Admin" | "User" | "ViewOnly"
     }
     CompositeTypes: {
@@ -2389,6 +2627,7 @@ export const Constants = {
         "adjustment_negative",
         "transfer_out",
         "transfer_in",
+        "sales_invoice",
       ],
       user_role: ["Admin", "User", "ViewOnly"],
     },
