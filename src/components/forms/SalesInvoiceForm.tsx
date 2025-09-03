@@ -91,6 +91,8 @@ export const SalesInvoiceForm: React.FC<SalesInvoiceFormProps> = ({
   const [recentInvoices, setRecentInvoices] = useState<any[]>([]);
   const [selectedSalesOrder, setSelectedSalesOrder] = useState<any>(null);
   const [loading, setLoading] = useState(false);
+  const [warehouseName, setWarehouseName] = useState('');
+  const [binName, setBinName] = useState('');
 
   const form = useForm<SalesInvoiceFormData>({
     resolver: zodResolver(salesInvoiceSchema),
@@ -246,6 +248,26 @@ export const SalesInvoiceForm: React.FC<SalesInvoiceFormProps> = ({
       form.setValue('billing_state', customer.state || '');
       form.setValue('billing_pin_code', customer.pin_code || '');
       form.setValue('billing_country', customer.country || '');
+      
+      // Get warehouse and bin details from sales order items (first item's warehouse/bin)
+      if (data.sales_order_items && data.sales_order_items.length > 0) {
+        const firstItem = data.sales_order_items[0];
+        if (firstItem.warehouse_id && firstItem.bin_id) {
+          // Fetch warehouse and bin names
+          const { data: warehouseData } = await supabase
+            .from('warehouse_bins')
+            .select('warehouse_name, bin_name')
+            .eq('id', firstItem.warehouse_id)
+            .single();
+            
+          if (warehouseData) {
+            form.setValue('default_warehouse_id', firstItem.warehouse_id);
+            form.setValue('default_bin_id', firstItem.bin_id);
+            setWarehouseName(warehouseData.warehouse_name);
+            setBinName(warehouseData.bin_name);
+          }
+        }
+      }
       
       // Auto-populate line items from sales order
       const items = data.sales_order_items.map((item: any) => ({
@@ -532,7 +554,7 @@ export const SalesInvoiceForm: React.FC<SalesInvoiceFormProps> = ({
                 />
               </div>
 
-              {/* Warehouse and Bin Selection */}
+              {/* Warehouse and Bin (Read-only from Sales Order) */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <FormField
                   control={form.control}
@@ -540,27 +562,19 @@ export const SalesInvoiceForm: React.FC<SalesInvoiceFormProps> = ({
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Default Warehouse *</FormLabel>
-                      <Select 
-                        value={field.value} 
-                        onValueChange={(value) => {
-                          field.onChange(value);
-                          handleWarehouseChange(value);
-                        }}
-                      >
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select warehouse" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {warehouses.map((warehouse) => (
-                            <SelectItem key={warehouse.id} value={warehouse.id}>
-                              {warehouse.warehouse_name} - {warehouse.bin_name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <FormControl>
+                        <Input 
+                          value={warehouseName || 'Not selected'}
+                          disabled
+                          className="bg-muted text-muted-foreground"
+                        />
+                      </FormControl>
                       <FormMessage />
+                      {!field.value && (
+                        <p className="text-sm text-muted-foreground">
+                          Will be auto-filled from selected Sales Order
+                        </p>
+                      )}
                     </FormItem>
                   )}
                 />
@@ -571,25 +585,19 @@ export const SalesInvoiceForm: React.FC<SalesInvoiceFormProps> = ({
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Default Bin *</FormLabel>
-                      <Select 
-                        value={field.value} 
-                        onValueChange={field.onChange} 
-                        disabled={!form.watch('default_warehouse_id')}
-                      >
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select bin" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {bins.map((bin) => (
-                            <SelectItem key={bin.id} value={bin.id}>
-                              {bin.bin_name} ({bin.wh_bin_code})
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <FormControl>
+                        <Input 
+                          value={binName || 'Not selected'}
+                          disabled
+                          className="bg-muted text-muted-foreground"
+                        />
+                      </FormControl>
                       <FormMessage />
+                      {!field.value && (
+                        <p className="text-sm text-muted-foreground">
+                          Will be auto-filled from selected Sales Order
+                        </p>
+                      )}
                     </FormItem>
                   )}
                 />
