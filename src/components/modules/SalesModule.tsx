@@ -322,16 +322,29 @@ export default function SalesModule() {
   };
 
   const handleSalesInvoiceSubmit = async (data: any) => {
+    if (!company?.id) return;
+    if (!profile?.id) {
+      toast({ title: 'Error', description: "Profile not found. Please try logging in again.", variant: 'destructive' });
+      return;
+    }
+    
     try {
       setLoading(true);
       
       // Separate items from header data to avoid column error
       const { items, ...headerData } = data;
       
-      const invoiceData = {
+      // Convert empty date strings to null
+      const processedHeaderData = {
         ...headerData,
+        due_date: headerData.due_date || null,
+        invoice_date: headerData.invoice_date || null,
+      };
+      
+      const invoiceData = {
+        ...processedHeaderData,
         company_id: company.id,
-        created_by: user.id,
+        created_by: profile.id,
       };
 
       let result;
@@ -485,6 +498,10 @@ export default function SalesModule() {
 
   const handleSalesOrderSubmit = async (data: any) => {
     if (!company?.id) return;
+    if (!profile?.id) {
+      toast({ title: 'Error', description: "Profile not found. Please try logging in again.", variant: 'destructive' });
+      return;
+    }
     if (!canEdit) {
       toast({ title: 'Permission denied', description: "You don't have edit access to Sales.", variant: 'destructive' });
       return;
@@ -494,10 +511,17 @@ export default function SalesModule() {
       setLoading(true);
       const { orderData, lineItems } = data;
       
-      const salesOrderPayload = {
+      // Convert empty date strings to null
+      const processedOrderData = {
         ...orderData,
+        expected_delivery_date: orderData.expected_delivery_date || null,
+        delivery_date: orderData.delivery_date || null,
+      };
+      
+      const salesOrderPayload = {
+        ...processedOrderData,
         company_id: company.id,
-        created_by: user.id,
+        created_by: profile.id,
       };
 
       let result;

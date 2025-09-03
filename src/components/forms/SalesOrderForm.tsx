@@ -51,7 +51,7 @@ const salesOrderSchema = z.object({
   order_type: z.string().min(1, 'Order type is required'),
   currency: z.string().min(1, 'Currency is required'),
   payment_terms: z.string().optional(),
-  expected_delivery_date: z.string().optional(),
+  expected_delivery_date: z.string().optional().nullable().transform((val) => val === '' ? null : val),
   mode_of_transport: z.string().optional(),
   notes: z.string().optional(),
   same_as_registered_address: z.boolean().optional(),
