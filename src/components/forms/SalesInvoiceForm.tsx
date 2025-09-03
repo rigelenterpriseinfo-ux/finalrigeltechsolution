@@ -378,6 +378,7 @@ export const SalesInvoiceForm: React.FC<SalesInvoiceFormProps> = ({
   };
 
   const handleSubmit = async (data: SalesInvoiceFormData) => {
+    console.log('🔄 SalesInvoiceForm: Starting submission...', { editingInvoice: !!editingInvoice });
     setLoading(true);
     try {
       const totals = calculateGrandTotals();
@@ -396,20 +397,15 @@ export const SalesInvoiceForm: React.FC<SalesInvoiceFormProps> = ({
         }))
       };
       
+      console.log('📤 SalesInvoiceForm: Calling onSubmit...', { invoiceDataKeys: Object.keys(invoiceData) });
       await onSubmit(invoiceData);
-      toast({
-        title: "Success",
-        description: `Sales invoice ${editingInvoice ? 'updated' : 'created'} successfully`,
-      });
+      console.log('✅ SalesInvoiceForm: onSubmit completed successfully');
     } catch (error) {
-      console.error('Error submitting invoice:', error);
-      toast({
-        title: "Error",
-        description: `Failed to ${editingInvoice ? 'update' : 'create'} sales invoice`,
-        variant: "destructive",
-      });
+      console.error('❌ SalesInvoiceForm: Error in handleSubmit:', error);
+      throw error; // Re-throw to let parent handle
     } finally {
       setLoading(false);
+      console.log('🏁 SalesInvoiceForm: Submission process finished');
     }
   };
 

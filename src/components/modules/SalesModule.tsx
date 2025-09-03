@@ -322,6 +322,12 @@ export default function SalesModule() {
   };
 
   const handleSalesInvoiceSubmit = async (data: any) => {
+    console.log('🎯 SalesModule: handleSalesInvoiceSubmit called', { 
+      hasCompany: !!company?.id, 
+      hasProfile: !!profile?.id,
+      editingInvoice: !!editingSalesInvoice 
+    });
+    
     if (!company?.id) return;
     if (!profile?.id) {
       toast({ title: 'Error', description: "Profile not found. Please try logging in again.", variant: 'destructive' });
@@ -470,22 +476,25 @@ export default function SalesModule() {
         result = newInvoice;
       }
 
+      console.log('✅ SalesModule: Invoice operation completed, closing dialog...');
       setShowSalesInvoiceDialog(false);
       setEditingSalesInvoice(null);
       setRefreshTrigger(prev => prev + 1);
 
+      console.log('📢 SalesModule: Showing success toast');
       toast({
         title: "Success",
         description: `Sales invoice ${editingSalesInvoice ? 'updated' : 'created'} successfully`,
       });
     } catch (error: any) {
-      console.error('Error saving sales invoice:', error);
+      console.error('❌ SalesModule: Error saving sales invoice:', error);
       
       let errorMessage = `Failed to ${editingSalesInvoice ? 'update' : 'create'} sales invoice`;
       if (error?.message) {
         errorMessage += `: ${error.message}`;
       }
       
+      console.log('📢 SalesModule: Showing error toast');
       toast({
         title: "Error",
         description: errorMessage,
@@ -493,6 +502,7 @@ export default function SalesModule() {
       });
     } finally {
       setLoading(false);
+      console.log('🏁 SalesModule: handleSalesInvoiceSubmit finished');
     }
   };
 
