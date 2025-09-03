@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Plus } from 'lucide-react';
+import { Plus, FileText, Clock, Package2, Users } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useBusinessAuth } from '@/hooks/useBusinessAuth';
 import { supabase } from '@/integrations/supabase/client';
@@ -8,6 +8,7 @@ import { toast } from '@/hooks/use-toast';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Card, CardContent } from '@/components/ui/card';
+import { StatsCard } from '@/components/ui/stats-card';
 
 // Import table and form components
 import { CustomerTable } from '@/components/tables/CustomerTable';
@@ -27,6 +28,16 @@ export default function SalesModule() {
   const [customers, setCustomers] = useState([]);
   const [salesOrders, setSalesOrders] = useState([]);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+  
+  // Sales metrics state
+  const [salesMetrics, setSalesMetrics] = useState({
+    pending_orders_count: 0,
+    pending_orders_value: 0,
+    total_backorder_units: 0,
+    total_backorder_value: 0
+  });
+  const [topBackorderItems, setTopBackorderItems] = useState([]);
+  const [topBackorderCustomers, setTopBackorderCustomers] = useState([]);
   
   // Dialog states
   const [showCustomerDialog, setShowCustomerDialog] = useState(false);
@@ -86,10 +97,51 @@ export default function SalesModule() {
     }
   };
 
+  // Fetch sales metrics
+  const fetchSalesMetrics = async () => {
+    if (!company?.id) return;
+
+    try {
+      const { data: metrics, error: metricsError } = await supabase.rpc(
+        'get_sales_metrics',
+        { p_company_id: company.id }
+      );
+
+      if (metricsError) throw metricsError;
+      if (metrics?.[0]) {
+        setSalesMetrics(metrics[0]);
+      }
+
+      const { data: items, error: itemsError } = await supabase.rpc(
+        'get_top_backorder_items',
+        { p_company_id: company.id, p_limit: 5 }
+      );
+
+      if (itemsError) throw itemsError;
+      setTopBackorderItems(items || []);
+
+      const { data: customers, error: customersError } = await supabase.rpc(
+        'get_top_backorder_customers',
+        { p_company_id: company.id, p_limit: 5 }
+      );
+
+      if (customersError) throw customersError;
+      setTopBackorderCustomers(customers || []);
+    } catch (error) {
+      console.error('Error fetching sales metrics:', error);
+      toast({
+        title: "Error",
+        description: "Failed to fetch sales metrics",
+        variant: "destructive",
+      });
+    }
+  };
+
   useEffect(() => {
     if (company?.id) {
       fetchCustomers();
       fetchSalesOrders();
+      fetchSalesMetrics();
     }
   }, [company?.id]);
 
@@ -474,8 +526,9 @@ export default function SalesModule() {
       setEditingSalesInvoice(null);
       setRefreshTrigger(prev => prev + 1);
       
-      // Refresh sales orders to update quantity tracking
+      // Refresh sales orders and metrics to update quantity tracking
       fetchSalesOrders();
+      fetchSalesMetrics();
 
       console.log('📢 SalesModule: Showing success toast');
       toast({
@@ -597,6 +650,7 @@ export default function SalesModule() {
       });
 
       fetchSalesOrders();
+      fetchSalesMetrics();
       setShowSalesOrderDialog(false);
       setEditingSalesOrder(null);
     } catch (error) {
@@ -615,6 +669,75 @@ export default function SalesModule() {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-semibold">Sales Management</h2>
+      </div>
+
+      {/* Sales Metrics Dashboard */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <StatsCard
+          title="Pending Sales Orders"
+          value={salesMetrics.pending_orders_count}
+          subtitle={`₹${salesMetrics.pending_orders_value?.toLocaleString() || '0'}`}
+          icon={FileText}
+          variant="primary"
+        />
+        
+        <StatsCard
+          title="Total Back-orders"
+          value={salesMetrics.total_backorder_units}
+          subtitle={`₹${salesMetrics.total_backorder_value?.toLocaleString() || '0'}`}
+          icon={Clock}
+          variant="secondary"
+        />
+        
+        <Card className="card-interactive">
+          <CardContent className="p-6">
+            <div className="flex items-start justify-between">
+              <div className="space-y-2">
+                <p className="text-sm font-medium text-muted-foreground">Top 5 Backordered Items</p>
+                <div className="space-y-1 max-h-24 overflow-y-auto">
+                  {topBackorderItems.length > 0 ? (
+                    topBackorderItems.map((item, index) => (
+                      <div key={index} className="text-xs">
+                        <span className="font-medium">{item.product_name}</span>
+                        <span className="text-muted-foreground ml-1">({item.total_backorder_qty})</span>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-xs text-muted-foreground">No backordered items</p>
+                  )}
+                </div>
+              </div>
+              <div className="p-3 rounded-xl bg-background/50">
+                <Package2 className="h-6 w-6 text-accent" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        
+        <Card className="card-interactive">
+          <CardContent className="p-6">
+            <div className="flex items-start justify-between">
+              <div className="space-y-2">
+                <p className="text-sm font-medium text-muted-foreground">Top 5 Customers by Backorder</p>
+                <div className="space-y-1 max-h-24 overflow-y-auto">
+                  {topBackorderCustomers.length > 0 ? (
+                    topBackorderCustomers.map((customer, index) => (
+                      <div key={index} className="text-xs">
+                        <span className="font-medium">{customer.customer_name}</span>
+                        <span className="text-muted-foreground ml-1">₹{customer.total_backorder_amount?.toLocaleString()}</span>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-xs text-muted-foreground">No customer backorders</p>
+                  )}
+                </div>
+              </div>
+              <div className="p-3 rounded-xl bg-background/50">
+                <Users className="h-6 w-6 text-primary" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       <Tabs defaultValue="customers" className="w-full">

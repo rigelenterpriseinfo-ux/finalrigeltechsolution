@@ -2505,6 +2505,15 @@ export type Database = {
         Args: { po_id: string }
         Returns: string
       }
+      get_sales_metrics: {
+        Args: { p_company_id: string }
+        Returns: {
+          pending_orders_count: number
+          pending_orders_value: number
+          total_backorder_units: number
+          total_backorder_value: number
+        }[]
+      }
       get_sales_order_delivery_summary: {
         Args: { p_sales_order_id: string }
         Returns: {
@@ -2547,6 +2556,22 @@ export type Database = {
           total_backorder_qty: number
           total_invoiced_qty: number
           total_ordered_qty: number
+        }[]
+      }
+      get_top_backorder_customers: {
+        Args: { p_company_id: string; p_limit?: number }
+        Returns: {
+          customer_name: string
+          customer_ref: string
+          total_backorder_amount: number
+        }[]
+      }
+      get_top_backorder_items: {
+        Args: { p_company_id: string; p_limit?: number }
+        Returns: {
+          product_name: string
+          product_sku: string
+          total_backorder_qty: number
         }[]
       }
       get_user_company_id: {
