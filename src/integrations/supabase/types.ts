@@ -1543,6 +1543,7 @@ export type Database = {
           customer_name: string
           customer_po_reference: string | null
           default_bin_id: string | null
+          default_warehouse_id: string | null
           delivery_note_number: string | null
           discount_amount: number
           due_date: string | null
@@ -1588,6 +1589,7 @@ export type Database = {
           customer_name: string
           customer_po_reference?: string | null
           default_bin_id?: string | null
+          default_warehouse_id?: string | null
           delivery_note_number?: string | null
           discount_amount?: number
           due_date?: string | null
@@ -1633,6 +1635,7 @@ export type Database = {
           customer_name?: string
           customer_po_reference?: string | null
           default_bin_id?: string | null
+          default_warehouse_id?: string | null
           delivery_note_number?: string | null
           discount_amount?: number
           due_date?: string | null
