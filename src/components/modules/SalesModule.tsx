@@ -143,7 +143,7 @@ export default function SalesModule() {
       fetchSalesOrders();
       fetchSalesMetrics();
     }
-  }, [company?.id]);
+  }, [company?.id, refreshTrigger]);
 
   // Customer handlers
   const handleOpenCustomerDialog = () => {
