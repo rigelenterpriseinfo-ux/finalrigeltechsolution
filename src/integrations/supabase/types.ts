@@ -1431,6 +1431,8 @@ export type Database = {
           igst_amount: number | null
           igst_rate: number | null
           item_description: string
+          line_no: number | null
+          net_amount: number | null
           product_id: string
           quantity: number
           sales_order_id: string
@@ -1452,6 +1454,8 @@ export type Database = {
           igst_amount?: number | null
           igst_rate?: number | null
           item_description?: string
+          line_no?: number | null
+          net_amount?: number | null
           product_id: string
           quantity: number
           sales_order_id: string
@@ -1473,6 +1477,8 @@ export type Database = {
           igst_amount?: number | null
           igst_rate?: number | null
           item_description?: string
+          line_no?: number | null
+          net_amount?: number | null
           product_id?: string
           quantity?: number
           sales_order_id?: string
@@ -1502,6 +1508,13 @@ export type Database = {
       }
       sales_orders: {
         Row: {
+          account_manager: string | null
+          billing_address_line1: string | null
+          billing_address_line2: string | null
+          billing_city: string | null
+          billing_country: string | null
+          billing_pin_code: string | null
+          billing_state: string | null
           company_id: string
           created_at: string
           created_by: string
@@ -1523,7 +1536,9 @@ export type Database = {
           notes: string | null
           order_date: string
           order_number: string
+          order_type: string | null
           payment_terms: string | null
+          salesperson_id: string | null
           same_as_registered_address: boolean | null
           shipping_instructions: string | null
           status: string
@@ -1533,6 +1548,13 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          account_manager?: string | null
+          billing_address_line1?: string | null
+          billing_address_line2?: string | null
+          billing_city?: string | null
+          billing_country?: string | null
+          billing_pin_code?: string | null
+          billing_state?: string | null
           company_id: string
           created_at?: string
           created_by: string
@@ -1554,7 +1576,9 @@ export type Database = {
           notes?: string | null
           order_date?: string
           order_number: string
+          order_type?: string | null
           payment_terms?: string | null
+          salesperson_id?: string | null
           same_as_registered_address?: boolean | null
           shipping_instructions?: string | null
           status?: string
@@ -1564,6 +1588,13 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          account_manager?: string | null
+          billing_address_line1?: string | null
+          billing_address_line2?: string | null
+          billing_city?: string | null
+          billing_country?: string | null
+          billing_pin_code?: string | null
+          billing_state?: string | null
           company_id?: string
           created_at?: string
           created_by?: string
@@ -1585,7 +1616,9 @@ export type Database = {
           notes?: string | null
           order_date?: string
           order_number?: string
+          order_type?: string | null
           payment_terms?: string | null
+          salesperson_id?: string | null
           same_as_registered_address?: boolean | null
           shipping_instructions?: string | null
           status?: string
