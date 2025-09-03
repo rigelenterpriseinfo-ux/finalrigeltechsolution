@@ -69,17 +69,10 @@ export default function SalesModule() {
     if (!company?.id) return;
 
     try {
-      const { data, error } = await supabase
-        .from('sales_orders')
-        .select(`
-          *,
-          customers!inner(
-            name,
-            customer_ref
-          )
-        `)
-        .eq('company_id', company.id)
-        .order('created_at', { ascending: false });
+      const { data, error } = await supabase.rpc(
+        'get_sales_orders_with_delivery_summary',
+        { p_company_id: company.id }
+      );
 
       if (error) throw error;
       setSalesOrders(data || []);
@@ -480,6 +473,9 @@ export default function SalesModule() {
       setShowSalesInvoiceDialog(false);
       setEditingSalesInvoice(null);
       setRefreshTrigger(prev => prev + 1);
+      
+      // Refresh sales orders to update quantity tracking
+      fetchSalesOrders();
 
       console.log('📢 SalesModule: Showing success toast');
       toast({

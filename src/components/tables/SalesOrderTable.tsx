@@ -13,15 +13,17 @@ interface SalesOrder {
   order_number: string;
   order_date: string;
   customer_id: string;
-  customer?: {
-    name: string;
-    customer_ref: string;
-  };
+  customer_name?: string;
+  customer_ref?: string;
   customer_po_number?: string;
   status: string;
   total_amount: number;
   currency: string;
   created_at: string;
+  total_ordered_qty: number;
+  total_invoiced_qty: number;
+  total_backorder_qty: number;
+  delivery_status: string;
 }
 
 interface SalesOrderTableProps {
@@ -32,7 +34,7 @@ interface SalesOrderTableProps {
   loading?: boolean;
 }
 
-type SortField = 'order_number' | 'customer_name' | 'order_date' | 'total_amount' | 'status';
+type SortField = 'order_number' | 'customer_name' | 'order_date' | 'total_amount' | 'status' | 'delivery_status' | 'total_ordered_qty' | 'total_invoiced_qty' | 'total_backorder_qty';
 type SortDirection = 'asc' | 'desc';
 
 export const SalesOrderTable: React.FC<SalesOrderTableProps> = ({
@@ -53,9 +55,10 @@ export const SalesOrderTable: React.FC<SalesOrderTableProps> = ({
     const searchLower = searchTerm.toLowerCase();
     return (
       order.order_number.toLowerCase().includes(searchLower) ||
-      order.customer?.name.toLowerCase().includes(searchLower) ||
+      (order.customer_name && order.customer_name.toLowerCase().includes(searchLower)) ||
       (order.customer_po_number && order.customer_po_number.toLowerCase().includes(searchLower)) ||
-      order.status.toLowerCase().includes(searchLower)
+      order.status.toLowerCase().includes(searchLower) ||
+      order.delivery_status.toLowerCase().includes(searchLower)
     );
   });
 
@@ -69,8 +72,8 @@ export const SalesOrderTable: React.FC<SalesOrderTableProps> = ({
         bValue = b.order_number;
         break;
       case 'customer_name':
-        aValue = a.customer?.name || '';
-        bValue = b.customer?.name || '';
+        aValue = a.customer_name || '';
+        bValue = b.customer_name || '';
         break;
       case 'order_date':
         aValue = new Date(a.order_date);
@@ -83,6 +86,22 @@ export const SalesOrderTable: React.FC<SalesOrderTableProps> = ({
       case 'status':
         aValue = a.status;
         bValue = b.status;
+        break;
+      case 'delivery_status':
+        aValue = a.delivery_status;
+        bValue = b.delivery_status;
+        break;
+      case 'total_ordered_qty':
+        aValue = a.total_ordered_qty;
+        bValue = b.total_ordered_qty;
+        break;
+      case 'total_invoiced_qty':
+        aValue = a.total_invoiced_qty;
+        bValue = b.total_invoiced_qty;
+        break;
+      case 'total_backorder_qty':
+        aValue = a.total_backorder_qty;
+        bValue = b.total_backorder_qty;
         break;
       default:
         return 0;
@@ -124,6 +143,26 @@ export const SalesOrderTable: React.FC<SalesOrderTableProps> = ({
     return (
       <Badge variant={variants[status] || 'outline'}>
         {status.replace('_', ' ').toUpperCase()}
+      </Badge>
+    );
+  };
+
+  const getDeliveryStatusBadge = (status: string) => {
+    const variants: Record<string, 'default' | 'secondary' | 'destructive' | 'outline'> = {
+      not_started: 'outline',
+      partially_delivered: 'secondary',
+      closed: 'default'
+    };
+
+    const labels: Record<string, string> = {
+      not_started: 'Not Started',
+      partially_delivered: 'Partially Delivered',
+      closed: 'Closed'
+    };
+
+    return (
+      <Badge variant={variants[status] || 'outline'}>
+        {labels[status] || status.replace('_', ' ').toUpperCase()}
       </Badge>
     );
   };
@@ -194,12 +233,48 @@ export const SalesOrderTable: React.FC<SalesOrderTableProps> = ({
                   </TableHead>
                   <TableHead>PO Number</TableHead>
                   <TableHead 
+                    className="cursor-pointer hover:bg-muted/50 text-center"
+                    onClick={() => handleSort('total_ordered_qty')}
+                  >
+                    <div className="flex items-center justify-center space-x-1">
+                      <span>Ordered Qty</span>
+                      {getSortIcon('total_ordered_qty')}
+                    </div>
+                  </TableHead>
+                  <TableHead 
+                    className="cursor-pointer hover:bg-muted/50 text-center"
+                    onClick={() => handleSort('total_invoiced_qty')}
+                  >
+                    <div className="flex items-center justify-center space-x-1">
+                      <span>Invoiced Qty</span>
+                      {getSortIcon('total_invoiced_qty')}
+                    </div>
+                  </TableHead>
+                  <TableHead 
+                    className="cursor-pointer hover:bg-muted/50 text-center"
+                    onClick={() => handleSort('total_backorder_qty')}
+                  >
+                    <div className="flex items-center justify-center space-x-1">
+                      <span>Backorder Qty</span>
+                      {getSortIcon('total_backorder_qty')}
+                    </div>
+                  </TableHead>
+                  <TableHead 
                     className="cursor-pointer hover:bg-muted/50"
                     onClick={() => handleSort('status')}
                   >
                     <div className="flex items-center space-x-1">
                       <span>Status</span>
                       {getSortIcon('status')}
+                    </div>
+                  </TableHead>
+                  <TableHead 
+                    className="cursor-pointer hover:bg-muted/50"
+                    onClick={() => handleSort('delivery_status')}
+                  >
+                    <div className="flex items-center space-x-1">
+                      <span>Delivery Status</span>
+                      {getSortIcon('delivery_status')}
                     </div>
                   </TableHead>
                   <TableHead 
@@ -225,17 +300,29 @@ export const SalesOrderTable: React.FC<SalesOrderTableProps> = ({
                     </TableCell>
                     <TableCell>
                       <div>
-                        <div className="font-medium">{order.customer?.name}</div>
+                        <div className="font-medium">{order.customer_name}</div>
                         <div className="text-sm text-muted-foreground">
-                          {order.customer?.customer_ref}
+                          {order.customer_ref}
                         </div>
                       </div>
                     </TableCell>
                     <TableCell>
                       {order.customer_po_number || '-'}
                     </TableCell>
+                    <TableCell className="text-center font-medium">
+                      {order.total_ordered_qty}
+                    </TableCell>
+                    <TableCell className="text-center font-medium">
+                      {order.total_invoiced_qty}
+                    </TableCell>
+                    <TableCell className="text-center font-medium">
+                      {order.total_backorder_qty}
+                    </TableCell>
                     <TableCell>
                       {getStatusBadge(order.status)}
+                    </TableCell>
+                    <TableCell>
+                      {getDeliveryStatusBadge(order.delivery_status)}
                     </TableCell>
                     <TableCell className="text-right font-medium">
                       {order.currency} {order.total_amount.toFixed(2)}

@@ -2505,6 +2505,35 @@ export type Database = {
         Args: { po_id: string }
         Returns: string
       }
+      get_sales_order_delivery_summary: {
+        Args: { p_sales_order_id: string }
+        Returns: {
+          delivery_status: string
+          total_backorder_qty: number
+          total_invoiced_qty: number
+          total_ordered_qty: number
+        }[]
+      }
+      get_sales_orders_with_delivery_summary: {
+        Args: { p_company_id: string }
+        Returns: {
+          created_at: string
+          currency: string
+          customer_id: string
+          customer_name: string
+          customer_po_number: string
+          customer_ref: string
+          delivery_status: string
+          id: string
+          order_date: string
+          order_number: string
+          status: string
+          total_amount: number
+          total_backorder_qty: number
+          total_invoiced_qty: number
+          total_ordered_qty: number
+        }[]
+      }
       get_user_company_id: {
         Args: Record<PropertyKey, never>
         Returns: string
