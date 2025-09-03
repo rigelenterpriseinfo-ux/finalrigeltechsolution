@@ -82,7 +82,7 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({
     defaultValues: customer || {
       name: '',
       preferred_currency: 'INR',
-      customer_type: 'Business',
+      customer_type: 'business',
       is_active: true,
       same_as_registered_address: false,
       credit_limit_days: 30,
@@ -153,7 +153,7 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({
             <div>
               <Label htmlFor="customer_type">Customer Type</Label>
               <Select
-                defaultValue={customer?.customer_type || 'Business'}
+                defaultValue={customer?.customer_type || 'business'}
                 onValueChange={(value) => setValue('customer_type', value)}
                 disabled={!canEdit}
               >
@@ -161,8 +161,8 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="Individual">Individual</SelectItem>
-                  <SelectItem value="Business">Business</SelectItem>
+                  <SelectItem value="individual">Individual</SelectItem>
+                  <SelectItem value="business">Business</SelectItem>
                 </SelectContent>
               </Select>
             </div>
