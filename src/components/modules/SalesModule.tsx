@@ -261,9 +261,40 @@ export default function SalesModule() {
     setShowSalesOrderDialog(true);
   };
 
-  const handleEditSalesOrder = (salesOrder: any) => {
-    setEditingSalesOrder(salesOrder);
-    setShowSalesOrderDialog(true);
+  const handleEditSalesOrder = async (salesOrder: any) => {
+    try {
+      setLoading(true);
+      
+      // Fetch complete sales order with items
+      const { data: completeOrder, error } = await supabase
+        .from('sales_orders')
+        .select(`
+          *,
+          customers!inner(
+            name,
+            customer_ref
+          ),
+          sales_order_items (
+            *
+          )
+        `)
+        .eq('id', salesOrder.id)
+        .single();
+
+      if (error) throw error;
+
+      setEditingSalesOrder(completeOrder);
+      setShowSalesOrderDialog(true);
+    } catch (error) {
+      console.error('Error fetching sales order for edit:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load sales order details",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleDeleteSalesOrder = async (salesOrder: any) => {
