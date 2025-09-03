@@ -573,6 +573,7 @@ export default function SalesModule() {
           <Card>
             <CardContent className="p-6">
               <SalesOrderTable
+                salesOrders={salesOrders}
                 onView={handleViewSalesOrder}
                 onEdit={(order) => { 
                   if (!canEdit) { 
@@ -640,7 +641,7 @@ export default function SalesModule() {
             <DialogTitle>{editingSalesOrder ? 'Edit Sales Order' : 'Create Sales Order'}</DialogTitle>
           </DialogHeader>
           <SalesOrderForm
-            editingSalesOrder={editingSalesOrder}
+            salesOrder={editingSalesOrder}
             onSubmit={handleSalesOrderSubmit}
             onCancel={() => {
               setShowSalesOrderDialog(false);
