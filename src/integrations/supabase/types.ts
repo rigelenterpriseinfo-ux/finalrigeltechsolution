@@ -1800,6 +1800,8 @@ export type Database = {
           customer_id: string
           customer_po_number: string | null
           customer_reference_no: string | null
+          default_bin_id: string | null
+          default_warehouse_id: string | null
           delivery_address_line1: string | null
           delivery_address_line2: string | null
           delivery_city: string | null
@@ -1840,6 +1842,8 @@ export type Database = {
           customer_id: string
           customer_po_number?: string | null
           customer_reference_no?: string | null
+          default_bin_id?: string | null
+          default_warehouse_id?: string | null
           delivery_address_line1?: string | null
           delivery_address_line2?: string | null
           delivery_city?: string | null
@@ -1880,6 +1884,8 @@ export type Database = {
           customer_id?: string
           customer_po_number?: string | null
           customer_reference_no?: string | null
+          default_bin_id?: string | null
+          default_warehouse_id?: string | null
           delivery_address_line1?: string | null
           delivery_address_line2?: string | null
           delivery_city?: string | null
@@ -1925,6 +1931,20 @@ export type Database = {
             columns: ["customer_id"]
             isOneToOne: false
             referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sales_orders_default_bin_fk"
+            columns: ["default_bin_id"]
+            isOneToOne: false
+            referencedRelation: "warehouse_bins"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sales_orders_default_warehouse_fk"
+            columns: ["default_warehouse_id"]
+            isOneToOne: false
+            referencedRelation: "warehouse_bins"
             referencedColumns: ["id"]
           },
         ]

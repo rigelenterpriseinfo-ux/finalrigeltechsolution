@@ -374,6 +374,8 @@ export function SalesOrderForm({
         mode_of_transport: data.mode_of_transport,
         notes: data.notes,
         same_as_registered_address: data.same_as_registered_address,
+        default_warehouse_id: data.default_warehouse_id,
+        default_bin_id: data.default_bin_id,
         subtotal_amount: subtotalAmount,
         discount_amount: totalDiscountAmount,
         tax_amount: totalTaxAmount,

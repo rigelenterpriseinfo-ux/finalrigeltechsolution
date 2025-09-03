@@ -728,6 +728,7 @@ export default function SalesModule() {
           </DialogHeader>
           <SalesOrderForm
             salesOrder={editingSalesOrder}
+            mode={editingSalesOrder ? "edit" : "create"}
             onSubmit={handleSalesOrderSubmit}
             onCancel={() => {
               setShowSalesOrderDialog(false);
