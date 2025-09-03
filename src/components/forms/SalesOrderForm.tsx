@@ -85,6 +85,7 @@ export function SalesOrderForm({
   const [bins, setBins] = useState<any[]>([]);
   const [selectedCustomer, setSelectedCustomer] = useState<any>(null);
   const [loading, setLoading] = useState(false);
+  const [stockLevels, setStockLevels] = useState<Record<string, number>>({});
 
   const form = useForm<SalesOrderFormData>({
     resolver: zodResolver(salesOrderSchema),
@@ -140,6 +141,53 @@ export function SalesOrderForm({
     fetchProducts();
     fetchWarehouses();
   }, []);
+
+  // Function to fetch stock levels for specific warehouse and bin
+  const fetchStockLevels = async (warehouseId?: string, binId?: string) => {
+    if (!profile?.company_id || !warehouseId || !binId) {
+      setStockLevels({});
+      return;
+    }
+    
+    try {
+      const { data, error } = await supabase
+        .from('current_stock_levels')
+        .select('product_id, current_stock')
+        .eq('company_id', profile.company_id)
+        .eq('warehouse_id', warehouseId)
+        .eq('bin_id', binId);
+      
+      if (error) throw error;
+      
+      const stockMap: Record<string, number> = {};
+      data?.forEach(item => {
+        stockMap[item.product_id] = Math.max(0, item.current_stock || 0);
+      });
+      
+      setStockLevels(stockMap);
+      
+      // Update form values with new stock levels
+      const currentItems = form.getValues('items');
+      currentItems.forEach((item, index) => {
+        if (item.product_id && stockMap[item.product_id] !== undefined) {
+          form.setValue(`items.${index}.stock_on_hand`, stockMap[item.product_id]);
+        }
+      });
+    } catch (error) {
+      console.error('Error fetching stock levels:', error);
+      setStockLevels({});
+    }
+  };
+
+  // Fetch stock levels when warehouse or bin changes
+  useEffect(() => {
+    const warehouseId = form.watch('default_warehouse_id');
+    const binId = form.watch('default_bin_id');
+    
+    if (warehouseId && binId) {
+      fetchStockLevels(warehouseId, binId);
+    }
+  }, [form.watch('default_warehouse_id'), form.watch('default_bin_id'), profile?.company_id]);
 
   // Filter bins when warehouse is pre-selected (for edit mode)
   useEffect(() => {
@@ -248,12 +296,19 @@ export function SalesOrderForm({
   };
 
   const handleWarehouseChange = (warehouseId: string) => {
-    form.setValue('default_warehouse_id', warehouseId);
-    // Filter bins for selected warehouse
+    // Filter bins for the selected warehouse
     const filteredBins = warehouses.filter(w => w.id === warehouseId);
     setBins(filteredBins);
-    // Reset bin selection
+    
+    // Reset bin selection when warehouse changes
     form.setValue('default_bin_id', '');
+    setStockLevels({}); // Clear stock levels when warehouse changes
+    
+    // Clear stock on hand for all items until new warehouse/bin is selected
+    const currentItems = form.getValues('items');
+    currentItems.forEach((_, index) => {
+      form.setValue(`items.${index}.stock_on_hand`, 0);
+    });
   };
 
   const handleCustomerSelect = (customerId: string) => {
@@ -274,12 +329,19 @@ export function SalesOrderForm({
   const handleProductSelect = (index: number, productId: string) => {
     const product = products.find(p => p.id === productId);
     if (product) {
-      form.setValue(`items.${index}.product_id`, productId);
       form.setValue(`items.${index}.item_description`, product.name);
       form.setValue(`items.${index}.unit_price`, product.unit_price || 0);
       form.setValue(`items.${index}.unit_of_measure`, product.unit || 'pcs');
       form.setValue(`items.${index}.hsn_sac_code`, product.hsn_code || '');
-      form.setValue(`items.${index}.stock_on_hand`, product.stock_quantity || 0);
+      
+      // Set stock level from our fetched data, or fallback to product's general stock
+      const warehouseStock = stockLevels[productId];
+      if (warehouseStock !== undefined) {
+        form.setValue(`items.${index}.stock_on_hand`, warehouseStock);
+      } else {
+        form.setValue(`items.${index}.stock_on_hand`, product.stock_quantity || 0);
+      }
+      
       calculateLineAmounts(index);
     }
   };
@@ -743,34 +805,41 @@ export function SalesOrderForm({
                 )}
               />
 
-              <FormField
-                control={form.control}
-                name="default_bin_id"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Default Bin *</FormLabel>
-                    <Select 
-                      value={field.value} 
-                      onValueChange={field.onChange} 
-                      disabled={readOnly || !form.watch('default_warehouse_id')}
-                    >
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select bin" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {bins.map((bin) => (
-                          <SelectItem key={bin.id} value={bin.id}>
-                            {bin.bin_name} ({bin.wh_bin_code})
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+                <FormField
+                  control={form.control}
+                  name="default_bin_id"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Default Bin *</FormLabel>
+                      <Select 
+                        value={field.value} 
+                        onValueChange={(value) => {
+                          field.onChange(value);
+                          // Trigger stock levels fetch when bin is selected
+                          const warehouseId = form.watch('default_warehouse_id');
+                          if (warehouseId && value) {
+                            fetchStockLevels(warehouseId, value);
+                          }
+                        }} 
+                        disabled={readOnly || !form.watch('default_warehouse_id')}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select bin" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {bins.map((bin) => (
+                            <SelectItem key={bin.id} value={bin.id}>
+                              {bin.bin_name} ({bin.wh_bin_code})
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
               <div className="col-span-full">
                 <FormField
@@ -879,13 +948,27 @@ export function SalesOrderForm({
                          <FormItem>
                            <FormLabel>Stock on Hand</FormLabel>
                            <FormControl>
-                             <Input 
-                               type="number" 
-                               {...field} 
-                               disabled
-                               readOnly
-                               className="bg-muted"
-                             />
+                             <div className="relative">
+                               <Input 
+                                 type="number" 
+                                 {...field} 
+                                 disabled
+                                 readOnly
+                                 className={`bg-muted ${
+                                   (field.value || 0) > 0 ? 'text-green-600 font-medium' : 'text-red-600 font-medium'
+                                 }`}
+                               />
+                               {form.watch('default_warehouse_id') && form.watch('default_bin_id') ? (
+                                 <div className="absolute -bottom-5 left-0 text-xs text-muted-foreground">
+                                   {warehouses.find(w => w.id === form.watch('default_warehouse_id'))?.warehouse_name} - 
+                                   {bins.find(b => b.id === form.watch('default_bin_id'))?.bin_name}
+                                 </div>
+                               ) : (
+                                 <div className="absolute -bottom-5 left-0 text-xs text-amber-600">
+                                   Select warehouse & bin for accurate stock
+                                 </div>
+                               )}
+                             </div>
                            </FormControl>
                            <FormMessage />
                          </FormItem>
