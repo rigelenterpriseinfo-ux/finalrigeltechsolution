@@ -891,6 +891,7 @@ export function PurchaseModule() {
                   setShowAddGRNDialog(false);
                   setRefreshGRNTrigger(prev => prev + 1);
                   fetchGRNs();
+                  fetchPurchaseOrders(); // Refresh PO list to update status
                 } catch (error) {
                   console.error('Error creating GRN:', error);
                   toast({ 
@@ -1089,6 +1090,7 @@ export function PurchaseModule() {
                 setShowEditGRNDialog(false);
                 setSelectedGRN(null);
                 setRefreshGRNTrigger(prev => prev + 1);
+                fetchPurchaseOrders(); // Refresh PO list to update status
               } catch (error) {
                 console.error('Error updating GRN:', error);
                 toast({ title: 'Error', description: 'Failed to update GRN', variant: 'destructive' });
