@@ -202,9 +202,11 @@ export type Database = {
           country: string | null
           created_at: string
           credit_limit: number | null
+          credit_limit_days: number | null
           customer_ref: string | null
           customer_type: string | null
           email: string | null
+          gst_tax_location: string | null
           gstin: string | null
           id: string
           ifsc_code: string | null
@@ -217,6 +219,7 @@ export type Database = {
           phone: string | null
           pin_code: string | null
           preferred_currency: string | null
+          preferred_payment_method: string | null
           same_as_registered_address: boolean | null
           shipping_address_line1: string | null
           shipping_address_line2: string | null
@@ -247,9 +250,11 @@ export type Database = {
           country?: string | null
           created_at?: string
           credit_limit?: number | null
+          credit_limit_days?: number | null
           customer_ref?: string | null
           customer_type?: string | null
           email?: string | null
+          gst_tax_location?: string | null
           gstin?: string | null
           id?: string
           ifsc_code?: string | null
@@ -262,6 +267,7 @@ export type Database = {
           phone?: string | null
           pin_code?: string | null
           preferred_currency?: string | null
+          preferred_payment_method?: string | null
           same_as_registered_address?: boolean | null
           shipping_address_line1?: string | null
           shipping_address_line2?: string | null
@@ -292,9 +298,11 @@ export type Database = {
           country?: string | null
           created_at?: string
           credit_limit?: number | null
+          credit_limit_days?: number | null
           customer_ref?: string | null
           customer_type?: string | null
           email?: string | null
+          gst_tax_location?: string | null
           gstin?: string | null
           id?: string
           ifsc_code?: string | null
@@ -307,6 +315,7 @@ export type Database = {
           phone?: string | null
           pin_code?: string | null
           preferred_currency?: string | null
+          preferred_payment_method?: string | null
           same_as_registered_address?: boolean | null
           shipping_address_line1?: string | null
           shipping_address_line2?: string | null
@@ -2094,6 +2103,10 @@ export type Database = {
       }
       generate_company_invoice_number: {
         Args: { comp_id: string }
+        Returns: string
+      }
+      generate_customer_id: {
+        Args: { customer_name: string }
         Returns: string
       }
       generate_customer_ref: {
