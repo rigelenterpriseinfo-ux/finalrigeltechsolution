@@ -2599,20 +2599,36 @@ export type Database = {
         Returns: Json
       }
       create_return_order: {
-        Args: {
-          p_company_id: string
-          p_customer_id: string
-          p_delivery_address_line1?: string
-          p_delivery_address_line2?: string
-          p_delivery_city?: string
-          p_delivery_country?: string
-          p_delivery_pin_code?: string
-          p_delivery_same_as_company?: boolean
-          p_invoice_id: string
-          p_notes?: string
-          p_reason_for_credit: string
-          p_return_lines: Json
-        }
+        Args:
+          | {
+              p_company_id: string
+              p_customer_id: string
+              p_delivery_address_line1?: string
+              p_delivery_address_line2?: string
+              p_delivery_city?: string
+              p_delivery_country?: string
+              p_delivery_pin_code?: string
+              p_delivery_same_as_company?: boolean
+              p_invoice_id: string
+              p_notes?: string
+              p_reason_for_credit: string
+              p_return_lines: Json
+            }
+          | {
+              p_company_id: string
+              p_customer_id: string
+              p_delivery_address_line1?: string
+              p_delivery_address_line2?: string
+              p_delivery_city?: string
+              p_delivery_country?: string
+              p_delivery_pin_code?: string
+              p_delivery_same_as_company?: boolean
+              p_invoice_id: string
+              p_notes?: string
+              p_reason_for_credit: string
+              p_return_lines: Json
+              p_status?: string
+            }
         Returns: Json
       }
       find_and_fix_missing_grn_transactions: {

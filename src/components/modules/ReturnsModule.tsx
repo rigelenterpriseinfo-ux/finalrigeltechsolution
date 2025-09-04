@@ -604,7 +604,8 @@ export function ReturnsModule() {
         p_delivery_city: deliverySameAsCompany ? null : deliveryAddress.city,
         p_delivery_country: deliverySameAsCompany ? null : deliveryAddress.country,
         p_delivery_pin_code: deliverySameAsCompany ? null : deliveryAddress.pin_code,
-        p_notes: notes || null
+        p_notes: notes || null,
+        p_status: status
       });
 
       if (error) throw error;
