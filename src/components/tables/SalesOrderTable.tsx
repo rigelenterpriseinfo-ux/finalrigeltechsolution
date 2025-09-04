@@ -7,6 +7,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Search, Eye, Edit, Trash2, ChevronLeft, ChevronRight, ArrowUpDown, ArrowUp, ArrowDown, FileSpreadsheet, FileText } from "lucide-react";
 import { format } from 'date-fns';
+import * as XLSX from 'xlsx';
+import jsPDF from 'jspdf';
 
 interface SalesOrder {
   id: string;
@@ -169,6 +171,53 @@ export const SalesOrderTable: React.FC<SalesOrderTableProps> = ({
         {labels[status] || status.replace('_', ' ').toUpperCase()}
       </Badge>
     );
+  };
+
+  const handleDownloadExcel = (order: SalesOrder) => {
+    if (onDownloadExcel) return onDownloadExcel(order);
+    const data = [
+      {
+        'Order No.': order.order_number,
+        'Order Date': format(new Date(order.order_date), 'yyyy-MM-dd'),
+        Customer: order.customer_name || '',
+        'PO Number': order.customer_po_number || '-',
+        'Ordered Qty': order.total_ordered_qty,
+        'Invoiced Qty': order.total_invoiced_qty,
+        'Backorder Qty': order.total_backorder_qty,
+        Status: order.status,
+        'Delivery Status': order.delivery_status,
+        'Total Amount': order.total_amount,
+        Currency: order.currency,
+      },
+    ];
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Sales Order');
+    XLSX.writeFile(wb, `${order.order_number || 'sales-order'}.xlsx`);
+  };
+
+  const handleDownloadPDF = (order: SalesOrder) => {
+    if (onDownloadPDF) return onDownloadPDF(order);
+    const doc = new jsPDF();
+    let y = 14;
+    doc.setFontSize(14);
+    doc.text('Sales Order', 14, y);
+    y += 8;
+    doc.setFontSize(11);
+    const lines = [
+      `Order No.: ${order.order_number}`,
+      `Order Date: ${format(new Date(order.order_date), 'dd/MM/yyyy')}`,
+      `Customer: ${order.customer_name || ''}`,
+      `PO Number: ${order.customer_po_number || '-'}`,
+      `Ordered Qty: ${order.total_ordered_qty}`,
+      `Invoiced Qty: ${order.total_invoiced_qty}`,
+      `Backorder Qty: ${order.total_backorder_qty}`,
+      `Status: ${order.status}`,
+      `Delivery Status: ${order.delivery_status}`,
+      `Total Amount: ${order.currency} ${order.total_amount.toFixed(2)}`,
+    ];
+    lines.forEach((l) => { doc.text(l, 14, y); y += 7; });
+    doc.save(`${order.order_number || 'sales-order'}.pdf`);
   };
 
   return (
@@ -349,26 +398,22 @@ export const SalesOrderTable: React.FC<SalesOrderTableProps> = ({
                         >
                           <Edit className="h-4 w-4" />
                         </Button>
-                        {onDownloadExcel && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => onDownloadExcel(order)}
-                            title="Download Excel"
-                          >
-                            <FileSpreadsheet className="h-4 w-4" />
-                          </Button>
-                        )}
-                        {onDownloadPDF && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => onDownloadPDF(order)}
-                            title="Download PDF"
-                          >
-                            <FileText className="h-4 w-4" />
-                          </Button>
-                        )}
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleDownloadExcel(order)}
+                          title="Download Excel"
+                        >
+                          <FileSpreadsheet className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleDownloadPDF(order)}
+                          title="Download PDF"
+                        >
+                          <FileText className="h-4 w-4" />
+                        </Button>
                         <Button
                           variant="ghost"
                           size="sm"

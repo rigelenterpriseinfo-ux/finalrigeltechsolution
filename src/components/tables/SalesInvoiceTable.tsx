@@ -9,6 +9,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Edit, Trash2, Eye, Search, Filter, FileSpreadsheet, FileText } from 'lucide-react';
 import { format } from 'date-fns';
+import * as XLSX from 'xlsx';
+import jsPDF from 'jspdf';
 import { toast } from '@/hooks/use-toast';
 
 interface SalesInvoice {
@@ -140,6 +142,48 @@ export const SalesInvoiceTable: React.FC<SalesInvoiceTableProps> = ({
     return <Badge variant={config.variant}>{config.label}</Badge>;
   };
 
+  const handleDownloadExcel = (invoice: SalesInvoice) => {
+    if (onDownloadExcel) return onDownloadExcel(invoice);
+    const data = [
+      {
+        'Invoice No.': invoice.invoice_number || 'DRAFT',
+        Date: format(new Date(invoice.invoice_date), 'yyyy-MM-dd'),
+        Customer: invoice.customer_name,
+        'Sales Order': invoice.sales_orders?.order_number || 'N/A',
+        Subtotal: invoice.subtotal_amount,
+        Tax: invoice.tax_amount,
+        Total: invoice.total_amount,
+        Status: invoice.status,
+      },
+    ];
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Invoice');
+    XLSX.writeFile(wb, `${invoice.invoice_number || 'invoice-draft'}.xlsx`);
+  };
+
+  const handleDownloadPDF = (invoice: SalesInvoice) => {
+    if (onDownloadPDF) return onDownloadPDF(invoice);
+    const doc = new jsPDF();
+    let y = 14;
+    doc.setFontSize(14);
+    doc.text('Sales Invoice', 14, y);
+    y += 8;
+    doc.setFontSize(11);
+    const lines = [
+      `Invoice No.: ${invoice.invoice_number || 'DRAFT'}`,
+      `Date: ${format(new Date(invoice.invoice_date), 'dd/MM/yyyy')}`,
+      `Customer: ${invoice.customer_name}`,
+      `Sales Order: ${invoice.sales_orders?.order_number || 'N/A'}`,
+      `Subtotal: ₹${invoice.subtotal_amount.toFixed(2)}`,
+      `Tax: ₹${invoice.tax_amount.toFixed(2)}`,
+      `Total: ₹${invoice.total_amount.toFixed(2)}`,
+      `Status: ${invoice.status}`,
+    ];
+    lines.forEach((l) => { doc.text(l, 14, y); y += 7; });
+    doc.save(`${invoice.invoice_number || 'invoice-draft'}.pdf`);
+  };
+
   const filteredInvoices = invoices.filter(invoice => {
     const matchesSearch = 
       (invoice.invoice_number?.toLowerCase().includes(searchTerm.toLowerCase()) || false) ||
@@ -253,27 +297,23 @@ export const SalesInvoiceTable: React.FC<SalesInvoiceTableProps> = ({
                         </Button>
                       )}
 
-                      {onDownloadExcel && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => onDownloadExcel(invoice)}
-                          title="Download Excel"
-                        >
-                          <FileSpreadsheet className="h-4 w-4" />
-                        </Button>
-                      )}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleDownloadExcel(invoice)}
+                        title="Download Excel"
+                      >
+                        <FileSpreadsheet className="h-4 w-4" />
+                      </Button>
 
-                      {onDownloadPDF && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => onDownloadPDF(invoice)}
-                          title="Download PDF"
-                        >
-                          <FileText className="h-4 w-4" />
-                        </Button>
-                      )}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleDownloadPDF(invoice)}
+                        title="Download PDF"
+                      >
+                        <FileText className="h-4 w-4" />
+                      </Button>
 
                       {invoice.status === 'draft' && (
                         <Select
