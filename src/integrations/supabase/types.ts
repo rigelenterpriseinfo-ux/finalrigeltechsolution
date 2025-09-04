@@ -2693,9 +2693,20 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: Database["public"]["Enums"]["app_role"]
       }
+      get_invoice_returned_quantities: {
+        Args: { p_invoice_id: string }
+        Returns: {
+          product_id: string
+          returned_qty: number
+        }[]
+      }
       get_purchase_order_status: {
         Args: { po_id: string }
         Returns: string
+      }
+      get_return_order_stats: {
+        Args: { p_company_id: string }
+        Returns: Json
       }
       get_sales_metrics: {
         Args: { p_company_id: string }
