@@ -508,11 +508,62 @@ export function ReturnsModule() {
           });
         }
         
+        // Recalculate all amounts based on new quantity
+        const baseAmount = item.unit_price * validReturnQty;
+        const discountAmount = (baseAmount * item.discount_percentage) / 100;
+        const lineSubtotal = baseAmount - discountAmount;
+        
+        // Calculate tax on net amount (after discount)
+        const cgstAmount = (lineSubtotal * item.cgst_rate) / 100;
+        const sgstAmount = (lineSubtotal * item.sgst_rate) / 100;
+        const igstAmount = (lineSubtotal * item.igst_rate) / 100;
+        const taxAmount = cgstAmount + sgstAmount + igstAmount;
+        
         return {
           ...item,
           return_qty: validReturnQty,
-          pending_return_qty: maxAllowed - validReturnQty
+          pending_return_qty: maxAllowed - validReturnQty,
+          discount_amount: discountAmount,
+          line_subtotal: lineSubtotal,
+          cgst_amount: cgstAmount,
+          sgst_amount: sgstAmount,
+          igst_amount: igstAmount,
+          tax_amount: taxAmount,
+          line_total: lineSubtotal + taxAmount
         };
+      }
+      return item;
+    }));
+  };
+
+  const updateItemDiscount = (lineItemId: string, discountPercentage: number) => {
+    // Clamp discount percentage between 0 and 100
+    const clampedDiscount = Math.max(0, Math.min(100, discountPercentage));
+    
+    setInvoiceLineItems(prev => prev.map(item => {
+      if (item.id === lineItemId) {
+        const updatedItem = { ...item, discount_percentage: clampedDiscount };
+        
+        // Recalculate amounts based on return quantity
+        const baseAmount = updatedItem.unit_price * updatedItem.return_qty;
+        const discountAmount = (baseAmount * clampedDiscount) / 100;
+        const lineSubtotal = baseAmount - discountAmount;
+        
+        // Calculate tax on net amount (after discount)
+        const cgstAmount = (lineSubtotal * updatedItem.cgst_rate) / 100;
+        const sgstAmount = (lineSubtotal * updatedItem.sgst_rate) / 100;
+        const igstAmount = (lineSubtotal * updatedItem.igst_rate) / 100;
+        const taxAmount = cgstAmount + sgstAmount + igstAmount;
+        
+        updatedItem.discount_amount = discountAmount;
+        updatedItem.line_subtotal = lineSubtotal;
+        updatedItem.cgst_amount = cgstAmount;
+        updatedItem.sgst_amount = sgstAmount;
+        updatedItem.igst_amount = igstAmount;
+        updatedItem.tax_amount = taxAmount;
+        updatedItem.line_total = lineSubtotal + taxAmount;
+        
+        return updatedItem;
       }
       return item;
     }));
@@ -523,15 +574,16 @@ export function ReturnsModule() {
       if (item.id === lineItemId) {
         const updatedItem = { ...item, [field]: value };
         
-        // Recalculate tax amounts based on return quantity
-        const returnRatio = updatedItem.return_qty / updatedItem.quantity_invoiced;
+        // Recalculate tax amounts based on line subtotal (after discount)
         const baseAmount = updatedItem.unit_price * updatedItem.return_qty;
+        const discountAmount = (baseAmount * updatedItem.discount_percentage) / 100;
+        const lineSubtotal = baseAmount - discountAmount;
         
-        updatedItem.cgst_amount = (baseAmount * updatedItem.cgst_rate) / 100;
-        updatedItem.sgst_amount = (baseAmount * updatedItem.sgst_rate) / 100;
-        updatedItem.igst_amount = (baseAmount * updatedItem.igst_rate) / 100;
+        updatedItem.cgst_amount = (lineSubtotal * updatedItem.cgst_rate) / 100;
+        updatedItem.sgst_amount = (lineSubtotal * updatedItem.sgst_rate) / 100;
+        updatedItem.igst_amount = (lineSubtotal * updatedItem.igst_rate) / 100;
         updatedItem.tax_amount = updatedItem.cgst_amount + updatedItem.sgst_amount + updatedItem.igst_amount;
-        updatedItem.line_total = baseAmount + updatedItem.tax_amount;
+        updatedItem.line_total = lineSubtotal + updatedItem.tax_amount;
         
         return updatedItem;
       }
@@ -541,11 +593,24 @@ export function ReturnsModule() {
 
   const calculateTotals = () => {
     const returnItems = invoiceLineItems.filter(item => item.return_qty > 0);
-    const subtotal = returnItems.reduce((sum, item) => sum + (item.line_subtotal * item.return_qty / item.quantity_invoiced), 0);
-    const taxAmount = returnItems.reduce((sum, item) => sum + (item.tax_amount * item.return_qty / item.quantity_invoiced), 0);
-    const total = returnItems.reduce((sum, item) => sum + (item.line_total * item.return_qty / item.quantity_invoiced), 0);
+    const subtotal = returnItems.reduce((sum, item) => {
+      const baseAmount = item.unit_price * item.return_qty;
+      return sum + baseAmount;
+    }, 0);
     
-    return { subtotal, taxAmount, total };
+    const discountAmount = returnItems.reduce((sum, item) => {
+      const baseAmount = item.unit_price * item.return_qty;
+      const discount = (baseAmount * item.discount_percentage) / 100;
+      return sum + discount;
+    }, 0);
+    
+    const taxAmount = returnItems.reduce((sum, item) => {
+      return sum + item.tax_amount;
+    }, 0);
+    
+    const total = subtotal - discountAmount + taxAmount;
+    
+    return { subtotal, discountAmount, taxAmount, total };
   };
 
   const resetForm = () => {
@@ -624,16 +689,16 @@ export function ReturnsModule() {
         return_qty: safeNum(item.return_qty),
         unit_price: safeNum(item.unit_price),
         discount_percentage: safeNum(item.discount_percentage),
-        discount_amount: proRate(item.discount_amount ?? 0, item),
+        discount_amount: safeNum(item.discount_amount), // Use edited amount
         cgst_rate: safeNum(item.cgst_rate),
-        cgst_amount: proRate(item.cgst_amount ?? 0, item),
+        cgst_amount: safeNum(item.cgst_amount), // Use recalculated amount
         sgst_rate: safeNum(item.sgst_rate),
-        sgst_amount: proRate(item.sgst_amount ?? 0, item),
+        sgst_amount: safeNum(item.sgst_amount), // Use recalculated amount
         igst_rate: safeNum(item.igst_rate),
-        igst_amount: proRate(item.igst_amount ?? 0, item),
-        line_subtotal: proRate(item.line_subtotal ?? 0, item),
-        tax_amount: proRate(item.tax_amount ?? 0, item),
-        line_total: proRate(item.line_total ?? 0, item)
+        igst_amount: safeNum(item.igst_amount), // Use recalculated amount
+        line_subtotal: safeNum(item.line_subtotal), // Use recalculated subtotal
+        tax_amount: safeNum(item.tax_amount), // Use recalculated tax
+        line_total: safeNum(item.line_total) // Use recalculated total
       }));
 
       // Map UI reason values to valid database constraints
@@ -862,7 +927,7 @@ export function ReturnsModule() {
     }
   };
 
-  const { subtotal, taxAmount, total } = calculateTotals();
+  const { subtotal, discountAmount, taxAmount, total } = calculateTotals();
 
   const customerOptions = customers.map(customer => ({
     id: customer.id,
@@ -1270,7 +1335,17 @@ export function ReturnsModule() {
                                 </TableCell>
                                 <TableCell className="py-4 text-center text-blue-600 font-medium">{item.pending_return_qty}</TableCell>
                                 <TableCell className="py-4 font-semibold">₹{item.unit_price.toFixed(2)}</TableCell>
-                                <TableCell className="py-4 text-center font-medium text-amber-700">{item.discount_percentage}%</TableCell>
+                                <TableCell className="py-4">
+                                  <Input
+                                    type="number"
+                                    min="0"
+                                    max="100"
+                                    step="0.01"
+                                    value={item.discount_percentage}
+                                    onChange={(e) => updateItemDiscount(item.id, parseFloat(e.target.value) || 0)}
+                                    className="w-16 text-center text-sm border-muted hover:border-primary/50 focus:ring-primary"
+                                  />
+                                </TableCell>
                                 <TableCell className="py-4">
                                   <Input
                                     type="number"
@@ -1311,25 +1386,29 @@ export function ReturnsModule() {
                         </Table>
                       </div>
 
-                      {/* Totals */}
-                      <div className="flex justify-end">
-                        <div className="w-80 space-y-3 p-6 bg-gradient-to-br from-primary/5 to-secondary/5 rounded-lg border border-primary/20 shadow-sm">
-                          <div className="flex justify-between items-center text-sm">
-                            <span className="text-muted-foreground">Subtotal:</span>
-                            <span className="font-medium">₹{subtotal.toFixed(2)}</span>
-                          </div>
-                          <div className="flex justify-between items-center text-sm">
-                            <span className="text-muted-foreground">Tax Amount:</span>
-                            <span className="font-medium">₹{taxAmount.toFixed(2)}</span>
-                          </div>
-                          <div className="border-t border-primary/20 pt-3">
-                            <div className="flex justify-between items-center font-bold text-xl">
-                              <span className="text-primary">Total:</span>
-                              <span className="text-primary">₹{total.toFixed(2)}</span>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
+                       {/* Totals */}
+                       <div className="flex justify-end">
+                         <div className="w-80 space-y-3 p-6 bg-gradient-to-br from-primary/5 to-secondary/5 rounded-lg border border-primary/20 shadow-sm">
+                           <div className="flex justify-between items-center text-sm">
+                             <span className="text-muted-foreground">Subtotal:</span>
+                             <span className="font-medium">₹{subtotal.toFixed(2)}</span>
+                           </div>
+                           <div className="flex justify-between items-center text-sm">
+                             <span className="text-muted-foreground">Total Discount:</span>
+                             <span className="font-medium text-amber-700">-₹{discountAmount.toFixed(2)}</span>
+                           </div>
+                           <div className="flex justify-between items-center text-sm">
+                             <span className="text-muted-foreground">Tax Amount:</span>
+                             <span className="font-medium">₹{taxAmount.toFixed(2)}</span>
+                           </div>
+                           <div className="border-t border-primary/20 pt-3">
+                             <div className="flex justify-between items-center font-bold text-xl">
+                               <span className="text-primary">Total:</span>
+                               <span className="text-primary">₹{total.toFixed(2)}</span>
+                             </div>
+                           </div>
+                         </div>
+                       </div>
                     </div>
                   )}
 
