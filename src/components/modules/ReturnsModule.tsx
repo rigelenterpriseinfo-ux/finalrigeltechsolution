@@ -132,6 +132,10 @@ function SearchableCombobox({
 
   const selectedOption = options.find(option => option.id === value);
 
+  // Show loading state if no options and not disabled
+  const showLoading = options.length === 0 && !disabled;
+  const effectivePlaceholder = showLoading ? "Loading..." : placeholder;
+
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
@@ -140,13 +144,17 @@ function SearchableCombobox({
           role="combobox"
           aria-expanded={open}
           className={`w-full justify-between ${className}`}
-          disabled={disabled}
+          disabled={disabled || showLoading}
         >
-          {selectedOption ? selectedOption.name : placeholder}
+          {selectedOption ? selectedOption.name : effectivePlaceholder}
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-full p-0 z-50 bg-white shadow-lg border">
+      <PopoverContent 
+        className="z-[9999] w-[var(--radix-popover-trigger-width)] min-w-[20rem] p-0 bg-white shadow-lg border rounded-md"
+        align="start"
+        sideOffset={4}
+      >
         <Command>
           <CommandInput 
             placeholder={searchPlaceholder}
@@ -154,27 +162,34 @@ function SearchableCombobox({
             onValueChange={setSearchValue}
           />
           <CommandList>
-            <CommandEmpty>No results found.</CommandEmpty>
-            <CommandGroup>
-              {filteredOptions.map((option) => (
-                <CommandItem
-                  key={option.id}
-                  value={option.id}
-                  onSelect={() => {
-                    onSelect(option.id);
-                    setOpen(false);
-                    setSearchValue("");
-                  }}
-                >
-                  <div className="flex flex-col">
-                    <span>{option.name}</span>
-                    {option.subtitle && (
-                      <span className="text-sm text-muted-foreground">{option.subtitle}</span>
-                    )}
-                  </div>
-                </CommandItem>
-              ))}
-            </CommandGroup>
+            {options.length === 0 ? (
+              <CommandEmpty>No options available.</CommandEmpty>
+            ) : filteredOptions.length === 0 ? (
+              <CommandEmpty>No results found.</CommandEmpty>
+            ) : (
+              <CommandGroup>
+                {filteredOptions.map((option) => (
+                  <CommandItem
+                    key={option.id}
+                    value={option.id}
+                    onSelect={() => {
+                      console.debug('Selected option:', option);
+                      onSelect(option.id);
+                      setOpen(false);
+                      setSearchValue("");
+                    }}
+                    className="cursor-pointer hover:bg-accent hover:text-accent-foreground"
+                  >
+                    <div className="flex flex-col">
+                      <span>{option.name}</span>
+                      {option.subtitle && (
+                        <span className="text-sm text-muted-foreground">{option.subtitle}</span>
+                      )}
+                    </div>
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+            )}
           </CommandList>
         </Command>
       </PopoverContent>
@@ -212,6 +227,7 @@ export function ReturnsModule() {
   const [returnOrders, setReturnOrders] = useState<ReturnOrder[]>([]);
   const [returnStats, setReturnStats] = useState<ReturnStats | null>(null);
   const [loading, setLoading] = useState(false);
+  const [customersLoading, setCustomersLoading] = useState(false);
   const [validationErrors, setValidationErrors] = useState<{ [key: string]: string }>({});
 
   // Load initial data
@@ -247,19 +263,31 @@ export function ReturnsModule() {
   const loadCustomers = async () => {
     if (!company?.id) return;
     
-    const { data, error } = await supabase
-      .from('customers')
-      .select('id, name, customer_ref, address_line1, address_line2, city, state, country, pin_code')
-      .eq('company_id', company.id)
-      .eq('is_active', true)
-      .order('name');
+    console.debug('Loading customers for company:', company.id);
+    setCustomersLoading(true);
     
-    if (error) {
+    try {
+      const { data, error } = await supabase
+        .from('customers')
+        .select('id, name, customer_ref, address_line1, address_line2, city, state, country, pin_code')
+        .eq('company_id', company.id)
+        .eq('is_active', true)
+        .order('name');
+      
+      if (error) {
+        console.error('Error loading customers:', error);
+        toast({ title: "Error", description: "Failed to load customers", variant: "destructive" });
+        return;
+      }
+      
+      console.debug('Loaded customers:', data?.length || 0);
+      setCustomers(data || []);
+    } catch (error) {
+      console.error('Customer loading exception:', error);
       toast({ title: "Error", description: "Failed to load customers", variant: "destructive" });
-      return;
+    } finally {
+      setCustomersLoading(false);
     }
-    
-    setCustomers(data || []);
   };
 
   const loadInvoicesForCustomer = async (customerId: string) => {
@@ -388,7 +416,9 @@ export function ReturnsModule() {
   };
 
   const handleCustomerSelect = useCallback((customerId: string) => {
+    console.debug('handleCustomerSelect called with:', customerId);
     const customer = customers.find(c => c.id === customerId);
+    console.debug('Found customer:', customer);
     if (customer) {
       setSelectedCustomer(customer);
       loadInvoicesForCustomer(customerId);
@@ -784,6 +814,10 @@ export function ReturnsModule() {
                 onClick={() => {
                   resetForm();
                   setIsCreateReturnFormOpen(true);
+                  // Ensure customers are loaded when form opens
+                  if (customers.length === 0 && company?.id) {
+                    loadCustomers();
+                  }
                 }}
               >
                 <Plus className="mr-2 h-4 w-4" />
