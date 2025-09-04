@@ -116,6 +116,7 @@ export function RSOForm({ rsoId, onClose, onSave }: RSOFormProps) {
   const [invoiceItems, setInvoiceItems] = useState<ReturnItem[]>([]);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [selectedInvoice, setSelectedInvoice] = useState<SalesInvoice | null>(null);
+  const [isLoadingExisting, setIsLoadingExisting] = useState(false);
 
   const form = useForm<RSOFormData>({
     resolver: zodResolver(rsoSchema),
@@ -145,25 +146,25 @@ export function RSOForm({ rsoId, onClose, onSave }: RSOFormProps) {
     }
   }, [rsoId, company?.id]);
 
-  // Load invoices when customer changes
+  // Load invoices when customer changes (but not during existing RSO load)
   useEffect(() => {
-    if (selectedCustomer) {
+    if (selectedCustomer && !isLoadingExisting) {
       loadCustomerInvoices(selectedCustomer.id);
-    } else {
+    } else if (!selectedCustomer) {
       setInvoices([]);
       setSelectedInvoice(null);
     }
-  }, [selectedCustomer]);
+  }, [selectedCustomer, isLoadingExisting]);
 
-  // Load invoice items when invoice changes
+  // Load invoice items when invoice changes (but not during existing RSO load)
   useEffect(() => {
     console.log('Invoice changed:', selectedInvoice);
-    if (selectedInvoice) {
+    if (selectedInvoice && !isLoadingExisting) {
       loadInvoiceItems(selectedInvoice.id);
-    } else {
+    } else if (!selectedInvoice) {
       setInvoiceItems([]);
     }
-  }, [selectedInvoice]);
+  }, [selectedInvoice, isLoadingExisting]);
 
   // Debug log for invoiceItems state
   useEffect(() => {
@@ -275,6 +276,7 @@ export function RSOForm({ rsoId, onClose, onSave }: RSOFormProps) {
 
     try {
       setLoading(true);
+      setIsLoadingExisting(true); // Prevent cascading useEffects
       
       // Load RSO header
       const { data: rsoData, error: rsoError } = await supabase
@@ -381,6 +383,7 @@ export function RSOForm({ rsoId, onClose, onSave }: RSOFormProps) {
         variant: 'destructive',
       });
     } finally {
+      setIsLoadingExisting(false); // Re-enable useEffects
       setLoading(false);
     }
   };
