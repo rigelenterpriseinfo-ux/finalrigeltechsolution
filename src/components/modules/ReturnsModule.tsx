@@ -695,6 +695,14 @@ export function ReturnsModule() {
       loadCreditNotes();
       loadCreditNoteStats();
       
+      // Refresh inventory data if we're on that tab or need to update stock views
+      if (typeof window !== 'undefined') {
+        // Trigger a custom event that inventory components can listen to
+        window.dispatchEvent(new CustomEvent('inventoryUpdated', { 
+          detail: { type: 'credit_note_confirmed', creditNoteId: creditNote.id } 
+        }));
+      }
+      
       // Refresh inventory transactions if the component is available
       if (typeof window !== 'undefined' && window.dispatchEvent) {
         window.dispatchEvent(new CustomEvent('refreshInventoryTransactions'));

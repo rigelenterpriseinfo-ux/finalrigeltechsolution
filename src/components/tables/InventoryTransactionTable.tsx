@@ -50,16 +50,20 @@ export const InventoryTransactionTable = ({ refreshTrigger }: InventoryTransacti
   }, [company?.id, refreshTrigger]);
 
   useEffect(() => {
-    // Listen for custom refresh events
-    const handleRefresh = () => {
-      fetchTransactions();
+    const handleInventoryUpdate = (event: CustomEvent) => {
+      console.log('Inventory updated:', event.detail);
+      fetchTransactions(); // Refresh the table
     };
+
+    // Listen for both custom events
+    window.addEventListener('inventoryUpdated', handleInventoryUpdate as EventListener);
+    window.addEventListener('refreshInventoryTransactions', handleInventoryUpdate as EventListener);
     
-    if (typeof window !== 'undefined') {
-      window.addEventListener('refreshInventoryTransactions', handleRefresh);
-      return () => window.removeEventListener('refreshInventoryTransactions', handleRefresh);
-    }
-  }, [company?.id]);
+    return () => {
+      window.removeEventListener('inventoryUpdated', handleInventoryUpdate as EventListener);
+      window.removeEventListener('refreshInventoryTransactions', handleInventoryUpdate as EventListener);
+    };
+  }, []);
 
   const fetchTransactions = async () => {
     if (!company?.id) return;
