@@ -4,7 +4,6 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
-import { useCompany } from '@/contexts/CompanyContext';
 import { useToast } from '@/hooks/use-toast';
 import {
   Form,
@@ -134,9 +133,11 @@ interface EnhancedCreateRSOFormProps {
 }
 
 export function EnhancedCreateRSOForm({ rsoId, onClose, onSave }: EnhancedCreateRSOFormProps) {
-  const { user } = useAuth();
-  const { company } = useCompany();
+  const { user, profile } = useAuth();
   const { toast } = useToast();
+
+  // Get company ID from profile
+  const companyId = profile?.company_id;
 
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -188,7 +189,7 @@ export function EnhancedCreateRSOForm({ rsoId, onClose, onSave }: EnhancedCreate
     if (rsoId) {
       loadExistingRSO();
     }
-  }, [rsoId, company?.id]);
+  }, [rsoId, companyId]);
 
   // Load invoices when customer changes (but not during existing RSO load)
   useEffect(() => {
@@ -211,7 +212,7 @@ export function EnhancedCreateRSOForm({ rsoId, onClose, onSave }: EnhancedCreate
   }, [selectedInvoice, isLoadingExisting]);
 
   const loadCustomers = async () => {
-    if (!company?.id) return;
+    if (!companyId) return;
 
     try {
       setLoading(true);
@@ -221,7 +222,7 @@ export function EnhancedCreateRSOForm({ rsoId, onClose, onSave }: EnhancedCreate
           id, name, customer_ref, address_line1, address_line2, 
           city, state, country, pin_code
         `)
-        .eq('company_id', company.id)
+        .eq('company_id', companyId)
         .eq('is_active', true)
         .order('name');
 
@@ -240,7 +241,7 @@ export function EnhancedCreateRSOForm({ rsoId, onClose, onSave }: EnhancedCreate
   };
 
   const loadCustomerInvoices = async (customerId: string) => {
-    if (!company?.id) return;
+    if (!companyId) return;
 
     try {
       // Filter invoices from last 365 days
@@ -250,7 +251,7 @@ export function EnhancedCreateRSOForm({ rsoId, onClose, onSave }: EnhancedCreate
       const { data, error } = await supabase
         .from('sales_invoices')
         .select('id, invoice_number, invoice_date, customer_id, total_amount')
-        .eq('company_id', company.id)
+        .eq('company_id', companyId)
         .eq('customer_id', customerId)
         .eq('status', 'finalized')
         .gte('invoice_date', oneYearAgo.toISOString().split('T')[0])
@@ -340,7 +341,7 @@ export function EnhancedCreateRSOForm({ rsoId, onClose, onSave }: EnhancedCreate
   };
 
   const loadExistingRSO = async () => {
-    if (!rsoId || !company?.id) return;
+    if (!rsoId || !companyId) return;
 
     try {
       setIsLoadingExisting(true);
@@ -350,7 +351,7 @@ export function EnhancedCreateRSOForm({ rsoId, onClose, onSave }: EnhancedCreate
         .from('return_order_header')
         .select('*')
         .eq('id', rsoId)
-        .eq('company_id', company.id)
+        .eq('company_id', companyId)
         .single();
 
       if (rsoError) throw rsoError;
@@ -577,7 +578,7 @@ export function EnhancedCreateRSOForm({ rsoId, onClose, onSave }: EnhancedCreate
   }, [returnLineItems]);
 
   const onSubmit = async (data: RSOHeaderData) => {
-    if (!user || !company?.id) return;
+    if (!user || !companyId) return;
 
     // Validate that at least one item has return quantity
     const hasReturnItems = returnLineItems.some(item => item.return_qty > 0);
@@ -597,7 +598,7 @@ export function EnhancedCreateRSOForm({ rsoId, onClose, onSave }: EnhancedCreate
       
       // Prepare header data according to table structure
       const headerData = {
-        company_id: company.id,
+        company_id: companyId,
         rso_date: data.rso_date,
         customer_id: data.customer_id,
         customer_name: selectedCustomer?.name || '',
@@ -767,18 +768,28 @@ export function EnhancedCreateRSOForm({ rsoId, onClose, onSave }: EnhancedCreate
                             <SelectValue placeholder="Select a customer" />
                           </SelectTrigger>
                         </FormControl>
-                        <SelectContent className="bg-background border z-50 max-h-64">
-                          {filteredCustomers.map((customer) => (
-                            <SelectItem key={customer.id} value={customer.id}>
-                              <div className="flex flex-col">
-                                <span className="font-medium">{customer.name}</span>
-                                <span className="text-sm text-muted-foreground">
-                                  {customer.customer_ref}
-                                </span>
-                              </div>
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
+                         <SelectContent className="bg-background border z-50 max-h-64">
+                           {!companyId ? (
+                             <SelectItem value="" disabled>
+                               <span className="text-muted-foreground">Company context loading...</span>
+                             </SelectItem>
+                           ) : filteredCustomers.length === 0 ? (
+                             <SelectItem value="" disabled>
+                               <span className="text-muted-foreground">No customers found</span>
+                             </SelectItem>
+                           ) : (
+                             filteredCustomers.map((customer) => (
+                               <SelectItem key={customer.id} value={customer.id}>
+                                 <div className="flex flex-col">
+                                   <span className="font-medium">{customer.name}</span>
+                                   <span className="text-sm text-muted-foreground">
+                                     {customer.customer_ref}
+                                   </span>
+                                 </div>
+                               </SelectItem>
+                             ))
+                           )}
+                         </SelectContent>
                       </Select>
                     </div>
                     <FormMessage />
@@ -809,19 +820,29 @@ export function EnhancedCreateRSOForm({ rsoId, onClose, onSave }: EnhancedCreate
                             <SelectValue placeholder="Select an invoice" />
                           </SelectTrigger>
                         </FormControl>
-                        <SelectContent className="bg-background border z-50 max-h-64">
-                          {filteredInvoices.map((invoice) => (
-                            <SelectItem key={invoice.id} value={invoice.id}>
-                              <div className="flex flex-col">
-                                <span className="font-medium">{invoice.invoice_number}</span>
-                                <div className="flex justify-between text-sm text-muted-foreground">
-                                  <span>{new Date(invoice.invoice_date).toLocaleDateString()}</span>
-                                  <span>₹{invoice.total_amount.toLocaleString()}</span>
-                                </div>
-                              </div>
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
+                         <SelectContent className="bg-background border z-50 max-h-64">
+                           {!selectedCustomer ? (
+                             <SelectItem value="" disabled>
+                               <span className="text-muted-foreground">Select a customer first</span>
+                             </SelectItem>
+                           ) : filteredInvoices.length === 0 ? (
+                             <SelectItem value="" disabled>
+                               <span className="text-muted-foreground">No finalized invoices found for this customer in the last 365 days</span>
+                             </SelectItem>
+                           ) : (
+                             filteredInvoices.map((invoice) => (
+                               <SelectItem key={invoice.id} value={invoice.id}>
+                                 <div className="flex flex-col">
+                                   <span className="font-medium">{invoice.invoice_number}</span>
+                                   <div className="flex justify-between text-sm text-muted-foreground">
+                                     <span>{new Date(invoice.invoice_date).toLocaleDateString()}</span>
+                                     <span>₹{invoice.total_amount.toLocaleString()}</span>
+                                   </div>
+                                 </div>
+                               </SelectItem>
+                             ))
+                           )}
+                         </SelectContent>
                       </Select>
                     </div>
                     <FormMessage />
