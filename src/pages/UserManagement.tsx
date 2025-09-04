@@ -11,7 +11,7 @@ import { Switch } from '@/components/ui/switch';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Loader2, Plus, Edit, Trash2, Users, Shield, Eye, ArrowLeft, Clock, CheckCircle, User, Settings, Database, FileText, CreditCard, MapPin, Bot, Package, Building2 } from 'lucide-react';
+import { Loader2, Plus, Edit, Trash2, Users, Shield, Eye, ArrowLeft, Clock, CheckCircle, User, Settings, Database, FileText, CreditCard, MapPin, Bot, Package, Building2, RotateCcw } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -60,6 +60,7 @@ const UserManagement = () => {
   const availableSections = [
     { key: 'inventory', label: 'Inventory Management', icon: Package, description: 'Manage products, stock levels, and warehouse operations' },
     { key: 'sales', label: 'Sales Orders', icon: FileText, description: 'Create and manage sales orders and customer invoices' },
+    { key: 'returns', label: 'Returns & Credit Notes', icon: RotateCcw, description: 'Manage product returns and customer credit notes' },
     { key: 'purchases', label: 'Purchase Management', icon: Database, description: 'Handle purchase orders, supplier invoices, and procurement' },
     { key: 'reports', label: 'Reports & Analytics', icon: Settings, description: 'View business reports and analytics dashboards' },
     { key: 'payments', label: 'Payment Processing', icon: CreditCard, description: 'Process payments and manage financial transactions' },

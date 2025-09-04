@@ -38,6 +38,7 @@ import {
   Users,
   Activity,
   Plus,
+  RotateCcw,
 } from 'lucide-react';
 import { InventoryModule } from '@/components/modules/InventoryModule';
 import { PurchaseModule } from '@/components/modules/PurchaseModule';
@@ -47,12 +48,14 @@ import { ReportsModule } from '@/components/modules/ReportsModule';
 import { TrackingModule } from '@/components/modules/TrackingModule';
 import { AIAssistant } from '@/components/modules/AIAssistant';
 import { CompanyProfile } from '@/components/CompanyProfile';
+import { ReturnsModule } from '@/components/modules/ReturnsModule';
 
 const menuItems: Array<{ id: ActiveModule; icon: any; label: string; description: string; restricted?: boolean; section?: string }> = [
   { id: 'dashboard', icon: BarChart3, label: 'Dashboard', description: 'Overview & Analytics' },
   { id: 'inventory', icon: Package, label: 'Inventory', description: 'Manage Products & Stock', section: 'inventory' },
   { id: 'purchase', icon: ShoppingCart, label: 'Purchase', description: 'Purchase Orders & Suppliers', section: 'purchases' },
   { id: 'sales', icon: FileText, label: 'Sales', description: 'Sales Orders & Customers', section: 'sales' },
+  { id: 'returns', icon: RotateCcw, label: 'Returns', description: 'Return Orders & Credit Notes', section: 'returns' },
   { id: 'payments', icon: CreditCard, label: 'Payments', description: 'Payment Tracking', section: 'payments' },
   { id: 'reports', icon: BarChart3, label: 'Reports', description: 'Analytics & Reports', section: 'reports' },
   { id: 'tracking', icon: MapPin, label: 'Track & Trace', description: 'Order Tracking', section: 'tracking' },
@@ -61,7 +64,7 @@ const menuItems: Array<{ id: ActiveModule; icon: any; label: string; description
   { id: 'profile', icon: Building2, label: 'Company Profile', description: 'Edit Company Details', section: 'company_profile' },
 ];
 
-type ActiveModule = 'dashboard' | 'inventory' | 'purchase' | 'sales' | 'payments' | 'reports' | 'tracking' | 'ai' | 'users' | 'profile';
+type ActiveModule = 'dashboard' | 'inventory' | 'purchase' | 'sales' | 'returns' | 'payments' | 'reports' | 'tracking' | 'ai' | 'users' | 'profile';
 
 export default function Dashboard() {
   const { user, profile, company, signOut, loading } = useAuth();
@@ -180,6 +183,20 @@ export default function Dashboard() {
             }
           >
             <SalesModule />
+          </DashboardLayout>
+        );
+      case 'returns':
+        return (
+          <DashboardLayout
+            title="Returns Management"
+            subtitle="Handle return orders and credit notes"
+            headerActions={
+              <Button onClick={() => setActiveModule('dashboard')} variant="outline">
+                Back to Dashboard
+              </Button>
+            }
+          >
+            <ReturnsModule />
           </DashboardLayout>
         );
       case 'payments':
