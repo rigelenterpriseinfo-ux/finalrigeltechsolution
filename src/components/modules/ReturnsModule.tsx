@@ -839,6 +839,41 @@ export function ReturnsModule() {
     }
   };
 
+  const handleDeleteConfirmedReturn = async (returnOrderId: string) => {
+    setLoading(true);
+    
+    try {
+      const { data, error } = await supabase.rpc('delete_confirmed_return_order', {
+        p_return_order_id: returnOrderId
+      });
+
+      if (error) throw error;
+
+      // Type cast the response as it's returned as Json
+      const result = data as { success: boolean; error?: string; rso_number?: string; message?: string };
+
+      if (result.success) {
+        toast({ 
+          title: "Success", 
+          description: `Return order ${result.rso_number || ''} deleted and inventory reversed successfully`
+        });
+        loadReturnOrders();
+        loadReturnStats();
+      } else {
+        throw new Error(result.error || 'Failed to delete confirmed return order');
+      }
+    } catch (error: any) {
+      console.error('Delete confirmed return error:', error);
+      toast({ 
+        title: "Error", 
+        description: error.message || "Failed to delete confirmed return order",
+        variant: "destructive" 
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleEditReturn = async (returnOrderId: string) => {
     // Load return order data and populate form
     const { data: headerData, error: headerError } = await supabase
@@ -1533,58 +1568,100 @@ export function ReturnsModule() {
                                   <Button variant="outline" size="sm" title="View" className="hover:bg-accent">
                                     <Eye className="h-4 w-4" />
                                   </Button>
-                                  {returnOrder.status === 'Draft' && (
-                                    <>
-                                      <Button 
-                                        variant="outline" 
-                                        size="sm" 
-                                        title="Edit"
-                                        onClick={() => handleEditReturn(returnOrder.id)}
-                                        className="hover:bg-blue-50"
-                                      >
-                                        <Edit className="h-4 w-4" />
-                                      </Button>
-                                      <Button 
-                                        variant="outline" 
-                                        size="sm"
-                                        title="Confirm"
-                                        onClick={() => handleConfirmReturn(returnOrder.id)}
-                                        disabled={loading}
-                                        className="bg-green-50 hover:bg-green-100"
-                                      >
-                                        <Check className="h-4 w-4" />
-                                      </Button>
-                                      <AlertDialog>
-                                        <AlertDialogTrigger asChild>
-                                          <Button 
-                                            variant="outline" 
-                                            size="sm" 
-                                            title="Delete"
-                                            className="hover:bg-red-50"
-                                          >
-                                            <Trash2 className="h-4 w-4" />
-                                          </Button>
-                                        </AlertDialogTrigger>
-                                        <AlertDialogContent>
-                                          <AlertDialogHeader>
-                                            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                                            <AlertDialogDescription>
-                                              This action cannot be undone. This will permanently delete the return order.
-                                            </AlertDialogDescription>
-                                          </AlertDialogHeader>
-                                          <AlertDialogFooter>
-                                            <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                            <AlertDialogAction 
-                                              onClick={() => handleDeleteReturn(returnOrder.id)}
-                                              className="bg-red-600 hover:bg-red-700"
-                                            >
-                                              Delete
-                                            </AlertDialogAction>
-                                          </AlertDialogFooter>
-                                        </AlertDialogContent>
-                                      </AlertDialog>
-                                    </>
-                                  )}
+                                   {returnOrder.status === 'Draft' && (
+                                     <>
+                                       <Button 
+                                         variant="outline" 
+                                         size="sm" 
+                                         title="Edit"
+                                         onClick={() => handleEditReturn(returnOrder.id)}
+                                         className="hover:bg-blue-50"
+                                       >
+                                         <Edit className="h-4 w-4" />
+                                       </Button>
+                                       <Button 
+                                         variant="outline" 
+                                         size="sm"
+                                         title="Confirm"
+                                         onClick={() => handleConfirmReturn(returnOrder.id)}
+                                         disabled={loading}
+                                         className="bg-green-50 hover:bg-green-100"
+                                       >
+                                         <Check className="h-4 w-4" />
+                                       </Button>
+                                       <AlertDialog>
+                                         <AlertDialogTrigger asChild>
+                                           <Button 
+                                             variant="outline" 
+                                             size="sm" 
+                                             title="Delete"
+                                             className="hover:bg-red-50"
+                                           >
+                                             <Trash2 className="h-4 w-4" />
+                                           </Button>
+                                         </AlertDialogTrigger>
+                                         <AlertDialogContent>
+                                           <AlertDialogHeader>
+                                             <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                                             <AlertDialogDescription>
+                                               This action cannot be undone. This will permanently delete the return order.
+                                             </AlertDialogDescription>
+                                           </AlertDialogHeader>
+                                           <AlertDialogFooter>
+                                             <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                             <AlertDialogAction 
+                                               onClick={() => handleDeleteReturn(returnOrder.id)}
+                                               className="bg-red-600 hover:bg-red-700"
+                                             >
+                                               Delete
+                                             </AlertDialogAction>
+                                           </AlertDialogFooter>
+                                         </AlertDialogContent>
+                                       </AlertDialog>
+                                     </>
+                                   )}
+                                   {returnOrder.status === 'Confirmed' && (
+                                     <>
+                                       <Button 
+                                         variant="outline" 
+                                         size="sm" 
+                                         title="Edit Confirmed Return"
+                                         onClick={() => handleEditReturn(returnOrder.id)}
+                                         className="hover:bg-blue-50"
+                                       >
+                                         <Edit className="h-4 w-4" />
+                                       </Button>
+                                       <AlertDialog>
+                                         <AlertDialogTrigger asChild>
+                                           <Button 
+                                             variant="outline" 
+                                             size="sm" 
+                                             title="Delete Confirmed Return"
+                                             className="hover:bg-red-50"
+                                           >
+                                             <Trash2 className="h-4 w-4" />
+                                           </Button>
+                                         </AlertDialogTrigger>
+                                         <AlertDialogContent>
+                                           <AlertDialogHeader>
+                                             <AlertDialogTitle>Delete Confirmed Return?</AlertDialogTitle>
+                                             <AlertDialogDescription>
+                                               This will delete the confirmed return order and reverse any inventory changes. This action cannot be undone.
+                                             </AlertDialogDescription>
+                                           </AlertDialogHeader>
+                                           <AlertDialogFooter>
+                                             <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                             <AlertDialogAction 
+                                               onClick={() => handleDeleteConfirmedReturn(returnOrder.id)}
+                                               className="bg-red-600 hover:bg-red-700"
+                                             >
+                                               Delete & Reverse
+                                             </AlertDialogAction>
+                                           </AlertDialogFooter>
+                                         </AlertDialogContent>
+                                       </AlertDialog>
+                                     </>
+                                   )}
                                   <Button variant="outline" size="sm" title="Download" className="hover:bg-accent">
                                     <Download className="h-4 w-4" />
                                   </Button>

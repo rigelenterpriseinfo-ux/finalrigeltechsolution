@@ -2631,6 +2631,10 @@ export type Database = {
             }
         Returns: Json
       }
+      delete_confirmed_return_order: {
+        Args: { p_return_order_id: string }
+        Returns: Json
+      }
       find_and_fix_missing_grn_transactions: {
         Args: { p_company_id?: string }
         Returns: {
