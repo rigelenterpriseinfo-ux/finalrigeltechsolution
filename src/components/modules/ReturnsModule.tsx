@@ -17,6 +17,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import { RSOForm } from '@/components/forms/RSOForm';
 import { 
   RotateCcw, 
   FileText, 
@@ -34,7 +35,8 @@ import {
   X,
   AlertCircle,
   MapPin,
-  Calendar
+  Calendar,
+  Loader2
 } from 'lucide-react';
 
 interface ReturnOrder {
@@ -267,6 +269,8 @@ export function ReturnsModule() {
   // Form states
   const [isCreateReturnFormOpen, setIsCreateReturnFormOpen] = useState(false);
   const [isCreateCreditNoteFormOpen, setIsCreateCreditNoteFormOpen] = useState(false);
+  const [isCreateRSOFormOpen, setIsCreateRSOFormOpen] = useState(false);
+  const [editingRsoId, setEditingRsoId] = useState<string | null>(null);
 
   // Data states
   const [customers, setCustomers] = useState<Customer[]>([]);
@@ -312,7 +316,6 @@ export function ReturnsModule() {
         .from('return_order_header')
         .select('*')
         .eq('company_id', company.id)
-        .eq('status', 'Confirmed') // Only show confirmed RSOs for credit notes
         .order('created_at', { ascending: false });
       
       console.log('RSO query result:', { data, error, dataLength: data?.length });
@@ -660,6 +663,66 @@ export function ReturnsModule() {
     setIsCreateCreditNoteFormOpen(false);
   };
 
+  // RSO Action Handlers
+  const handleViewRso = (rsoId: string) => {
+    // TODO: Implement RSO view dialog
+    toast({ 
+      title: "View RSO", 
+      description: "RSO view functionality will be implemented", 
+      variant: "default" 
+    });
+  };
+
+  const handleEditRso = (rsoId: string) => {
+    setEditingRsoId(rsoId);
+    setIsCreateRSOFormOpen(true);
+  };
+
+  const handleDeleteRso = async (rsoId: string) => {
+    if (!window.confirm('Are you sure you want to delete this RSO?')) {
+      return;
+    }
+
+    try {
+      setLoading(true);
+
+      // Delete RSO lines first
+      const { error: linesError } = await supabase
+        .from('return_order_lines')
+        .delete()
+        .eq('return_order_id', rsoId);
+
+      if (linesError) throw linesError;
+
+      // Delete RSO header
+      const { error: headerError } = await supabase
+        .from('return_order_header')
+        .delete()
+        .eq('id', rsoId)
+        .eq('company_id', company!.id);
+
+      if (headerError) throw headerError;
+
+      toast({
+        title: 'Success',
+        description: 'RSO deleted successfully',
+      });
+
+      // Reload data
+      loadReturnOrders();
+      loadReturnStats();
+    } catch (error) {
+      console.error('Error deleting RSO:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to delete RSO',
+        variant: 'destructive',
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const getStatusBadge = (status: 'Draft' | 'Confirmed') => {
     return (
       <Badge variant={status === 'Confirmed' ? 'default' : 'secondary'}>
@@ -683,10 +746,154 @@ export function ReturnsModule() {
         </TabsList>
 
         <TabsContent value="returns" className="space-y-6">
-          {/* Return Sales Orders tab content is assumed implemented elsewhere */}
-          <div className="text-center py-8">
-            <p className="text-muted-foreground">Return Sales Orders functionality is already implemented above.</p>
+          {/* Return Sales Orders Statistics */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Draft RSOs</CardTitle>
+                <FileText className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{returnStats?.draft_count || 0}</div>
+                <p className="text-xs text-muted-foreground">
+                  ₹{(returnStats?.draft_amount || 0).toLocaleString()}
+                </p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Confirmed RSOs</CardTitle>
+                <Check className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{returnStats?.confirmed_count || 0}</div>
+                <p className="text-xs text-muted-foreground">
+                  ₹{(returnStats?.confirmed_amount || 0).toLocaleString()}
+                </p>
+              </CardContent>
+            </Card>
           </div>
+
+          {/* Create RSO Button */}
+          <div className="flex justify-between items-center">
+            <h3 className="text-lg font-semibold">Return Sales Orders</h3>
+            <div className="flex space-x-2">
+              <Button 
+                variant="outline"
+                onClick={loadReturnOrders}
+                disabled={loading}
+              >
+                <RotateCcw className="mr-2 h-4 w-4" />
+                Refresh
+              </Button>
+              <Button 
+                onClick={() => setIsCreateRSOFormOpen(true)}
+                disabled={loading}
+              >
+                <Plus className="mr-2 h-4 w-4" />
+                Create RSO
+              </Button>
+            </div>
+          </div>
+
+          {/* RSO Form */}
+          {isCreateRSOFormOpen && (
+            <RSOForm
+              rsoId={editingRsoId}
+              onClose={() => {
+                setIsCreateRSOFormOpen(false);
+                setEditingRsoId(null);
+              }}
+              onSave={() => {
+                loadReturnOrders();
+                loadReturnStats();
+                setIsCreateRSOFormOpen(false);
+                setEditingRsoId(null);
+              }}
+            />
+          )}
+
+          {/* RSO Table */}
+          {!isCreateRSOFormOpen && (
+            <Card>
+              <CardHeader>
+                <CardTitle>RSO List</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {loading ? (
+                  <div className="flex justify-center items-center py-8">
+                    <Loader2 className="h-8 w-8 animate-spin" />
+                  </div>
+                ) : returnOrders.length === 0 ? (
+                  <div className="text-center py-8">
+                    <p className="text-muted-foreground">No return sales orders found.</p>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>RSO Number</TableHead>
+                          <TableHead>RSO Date</TableHead>
+                          <TableHead>Customer</TableHead>
+                          <TableHead>Invoice</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead>Total Amount</TableHead>
+                          <TableHead>Actions</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {returnOrders.map((rso) => (
+                          <TableRow key={rso.id}>
+                            <TableCell className="font-medium">{rso.rso_number}</TableCell>
+                            <TableCell>{rso.rso_date}</TableCell>
+                            <TableCell>{rso.customer_name}</TableCell>
+                            <TableCell>{rso.invoice_number}</TableCell>
+                            <TableCell>
+                              <Badge variant={rso.status === 'Confirmed' ? 'default' : 'secondary'}>
+                                {rso.status}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>₹{rso.total_amount.toLocaleString()}</TableCell>
+                            <TableCell>
+                              <div className="flex space-x-2">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleViewRso(rso.id)}
+                                >
+                                  <Eye className="h-4 w-4" />
+                                </Button>
+                                {rso.status === 'Draft' && (
+                                  <>
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => handleEditRso(rso.id)}
+                                    >
+                                      <Edit className="h-4 w-4" />
+                                    </Button>
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => handleDeleteRso(rso.id)}
+                                      className="text-red-600 hover:text-red-700"
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                  </>
+                                )}
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
         </TabsContent>
 
         <TabsContent value="credit-notes" className="space-y-6">
