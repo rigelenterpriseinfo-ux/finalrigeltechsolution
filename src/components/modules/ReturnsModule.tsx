@@ -220,6 +220,7 @@ export function ReturnsModule() {
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [selectedInvoice, setSelectedInvoice] = useState<SalesInvoice | null>(null);
   const [reasonForCredit, setReasonForCredit] = useState<string>('');
+  const [status, setStatus] = useState<'Draft' | 'Confirmed'>('Draft');
   const [deliverySameAsCompany, setDeliverySameAsCompany] = useState(true);
   const [deliveryAddress, setDeliveryAddress] = useState({
     address_line1: '',
@@ -529,6 +530,7 @@ export function ReturnsModule() {
     setSelectedCustomer(null);
     setSelectedInvoice(null);
     setReasonForCredit('');
+    setStatus('Draft');
     setDeliverySameAsCompany(true);
     setDeliveryAddress({ address_line1: '', address_line2: '', city: '', country: '', pin_code: '' });
     setNotes('');
@@ -1005,6 +1007,21 @@ export function ReturnsModule() {
                       <div className="flex items-center space-x-2">
                         <RadioGroupItem value="Others" id="others" />
                         <Label htmlFor="others">Others</Label>
+                      </div>
+                    </RadioGroup>
+                  </div>
+
+                  {/* Status */}
+                  <div>
+                    <Label>Status *</Label>
+                    <RadioGroup value={status} onValueChange={(value) => setStatus(value as 'Draft' | 'Confirmed')} className="mt-2">
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="Draft" id="draft" />
+                        <Label htmlFor="draft">Draft</Label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="Confirmed" id="confirmed" />
+                        <Label htmlFor="confirmed">Confirmed</Label>
                       </div>
                     </RadioGroup>
                   </div>
