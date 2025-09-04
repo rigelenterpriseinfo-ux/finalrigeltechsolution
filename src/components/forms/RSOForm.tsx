@@ -157,12 +157,18 @@ export function RSOForm({ rsoId, onClose, onSave }: RSOFormProps) {
 
   // Load invoice items when invoice changes
   useEffect(() => {
+    console.log('Invoice changed:', selectedInvoice);
     if (selectedInvoice) {
       loadInvoiceItems(selectedInvoice.id);
     } else {
       setInvoiceItems([]);
     }
   }, [selectedInvoice]);
+
+  // Debug log for invoiceItems state
+  useEffect(() => {
+    console.log('InvoiceItems state changed:', invoiceItems);
+  }, [invoiceItems]);
 
   const loadCustomers = async () => {
     if (!company?.id) return;
@@ -212,12 +218,14 @@ export function RSOForm({ rsoId, onClose, onSave }: RSOFormProps) {
   };
 
   const loadInvoiceItems = async (invoiceId: string) => {
+    console.log('Loading invoice items for invoice:', invoiceId);
     try {
       const { data, error } = await supabase
         .from('sales_invoice_items')
         .select('*')
         .eq('sales_invoice_id', invoiceId);
 
+      console.log('Invoice items query result:', { data, error });
       if (error) throw error;
 
       // Get previously returned quantities for this invoice
@@ -250,6 +258,7 @@ export function RSOForm({ rsoId, onClose, onSave }: RSOFormProps) {
         return_line_total: 0,
       }));
 
+      console.log('Setting invoice items:', itemsWithReturn);
       setInvoiceItems(itemsWithReturn);
     } catch (error) {
       console.error('Error loading invoice items:', error);
@@ -736,7 +745,7 @@ export function RSOForm({ rsoId, onClose, onSave }: RSOFormProps) {
             </div>
 
             {/* Invoice Items */}
-            {invoiceItems.length > 0 && (
+            {invoiceItems.length > 0 ? (
               <div className="space-y-4">
                 <h3 className="text-lg font-semibold">Invoice Items</h3>
                 <div className="overflow-x-auto">
@@ -802,7 +811,14 @@ export function RSOForm({ rsoId, onClose, onSave }: RSOFormProps) {
                   </div>
                 </div>
               </div>
-            )}
+            ) : selectedInvoice ? (
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold">Invoice Items</h3>
+                <div className="text-center py-8 text-muted-foreground">
+                  No items found for this invoice or loading items...
+                </div>
+              </div>
+            ) : null}
 
             {/* Notes */}
             <FormField
