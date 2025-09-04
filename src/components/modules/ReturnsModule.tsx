@@ -237,6 +237,7 @@ export function ReturnsModule() {
   const [editingReturnId, setEditingReturnId] = useState<string | null>(null);
   const [viewingReturnId, setViewingReturnId] = useState<string | null>(null);
   const [isViewMode, setIsViewMode] = useState(false);
+  const [originalStatus, setOriginalStatus] = useState<'Draft' | 'Confirmed'>('Draft');
 
   // Data states
   const [customers, setCustomers] = useState<Customer[]>([]);
@@ -743,6 +744,7 @@ export function ReturnsModule() {
     setSelectedInvoice(null);
     setReasonForCredit('');
     setStatus('Draft');
+    setOriginalStatus('Draft');
     setDeliverySameAsCompany(true);
     setDeliveryAddress({ address_line1: '', address_line2: '', city: '', country: '', pin_code: '' });
     setNotes('');
@@ -750,6 +752,8 @@ export function ReturnsModule() {
     setInvoices([]);
     setCreatedRsoNumber(null);
     setEditingReturnId(null);
+    setIsViewMode(false);
+    setViewingReturnId(null);
     setValidationErrors({});
     setReturnOrderDate(new Date().toISOString().split('T')[0]);
     // Reset loading states (but don't clear customers list)
@@ -757,21 +761,16 @@ export function ReturnsModule() {
   };
 
   const handleSaveReturn = async () => {
+    if (editingReturnId) {
+      // Call update function for editing existing RSO
+      return handleUpdateReturn();
+    }
+
+    // Original creation logic
     if (!selectedCustomer || !selectedInvoice || !reasonForCredit || !company?.id) {
       toast({ title: "Error", description: "Please fill in all required fields", variant: "destructive" });
       return;
     }
-
-    // Map UI reason values to valid database constraints
-    const mapReasonForCredit = (reason: string) => {
-      const validReasons = ['Return', 'Price Correction', 'Discount', 'Others'];
-      if (validReasons.includes(reason)) return reason;
-      
-      // Map deprecated reasons to 'Return'
-      if (['Defective', 'Damaged'].includes(reason)) return 'Return';
-      
-      return 'Others'; // fallback
-    };
 
     const returnItems = invoiceLineItems.filter(item => item.return_qty > 0);
     if (returnItems.length === 0) {
@@ -797,12 +796,6 @@ export function ReturnsModule() {
         const v = Number(n);
         return Number.isFinite(v) ? v : 0;
       };
-      const proRate = (amount: any, item: InvoiceLineItem) => {
-        const qty = safeNum(item.quantity_invoiced);
-        const ret = safeNum(item.return_qty);
-        if (qty <= 0 || ret <= 0) return 0;
-        return safeNum(amount) * (ret / qty);
-      };
 
       const returnLinesData = returnItems.map(item => ({
         product_id: item.product_id,
@@ -814,16 +807,16 @@ export function ReturnsModule() {
         return_qty: safeNum(item.return_qty),
         unit_price: safeNum(item.unit_price),
         discount_percentage: safeNum(item.discount_percentage),
-        discount_amount: safeNum(item.discount_amount), // Use edited amount
+        discount_amount: safeNum(item.discount_amount),
         cgst_rate: safeNum(item.cgst_rate),
-        cgst_amount: safeNum(item.cgst_amount), // Use recalculated amount
+        cgst_amount: safeNum(item.cgst_amount),
         sgst_rate: safeNum(item.sgst_rate),
-        sgst_amount: safeNum(item.sgst_amount), // Use recalculated amount
+        sgst_amount: safeNum(item.sgst_amount),
         igst_rate: safeNum(item.igst_rate),
-        igst_amount: safeNum(item.igst_amount), // Use recalculated amount
-        line_subtotal: safeNum(item.line_subtotal), // Use recalculated subtotal
-        tax_amount: safeNum(item.tax_amount), // Use recalculated tax
-        line_total: safeNum(item.line_total) // Use recalculated total
+        igst_amount: safeNum(item.igst_amount),
+        line_subtotal: safeNum(item.line_subtotal),
+        tax_amount: safeNum(item.tax_amount),
+        line_total: safeNum(item.line_total)
       }));
 
       // Map UI reason values to valid database constraints
@@ -887,6 +880,155 @@ export function ReturnsModule() {
       toast({
         title: "Error",
         description: error.message || "Failed to create return order",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleUpdateReturn = async () => {
+    if (!selectedCustomer || !selectedInvoice || !reasonForCredit || !company?.id || !editingReturnId) {
+      toast({ title: "Error", description: "Please fill in all required fields", variant: "destructive" });
+      return;
+    }
+
+    const returnItems = invoiceLineItems.filter(item => item.return_qty > 0);
+    if (returnItems.length === 0) {
+      toast({ title: "Error", description: "Please select at least one item to return", variant: "destructive" });
+      return;
+    }
+
+    // Check for validation errors
+    if (Object.keys(validationErrors).length > 0) {
+      toast({ title: "Error", description: "Please fix validation errors before saving", variant: "destructive" });
+      return;
+    }
+
+    if (!deliverySameAsCompany && (!deliveryAddress.address_line1 || !deliveryAddress.city)) {
+      toast({ title: "Error", description: "Please provide complete delivery address", variant: "destructive" });
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      // If original status was Confirmed and new status is Draft, reverse the confirmation first
+      if (originalStatus === 'Confirmed' && status === 'Draft') {
+        const { error: reverseError } = await supabase.rpc('delete_confirmed_return_order', {
+          p_return_order_id: editingReturnId
+        });
+        
+        if (reverseError) {
+          console.error('Error reversing confirmed return:', reverseError);
+          toast({ title: "Error", description: "Failed to reverse confirmed return", variant: "destructive" });
+          return;
+        }
+      }
+
+      // Map UI reason values to valid database constraints
+      const mapReasonForCredit = (reason: string) => {
+        const validReasons = ['Return', 'Price Correction', 'Discount', 'Others'];
+        if (validReasons.includes(reason)) return reason;
+        
+        // Map deprecated reasons to 'Return'
+        if (['Defective', 'Damaged'].includes(reason)) return 'Return';
+        
+        return 'Others'; // fallback
+      };
+
+      const mappedReason = mapReasonForCredit(reasonForCredit);
+      const enhancedNotes = mappedReason !== reasonForCredit 
+        ? `${notes ? notes + '\n\n' : ''}Original reason: ${reasonForCredit}`.trim()
+        : notes;
+
+      // Update header
+      const { error: headerError } = await supabase
+        .from('return_order_header')
+        .update({
+          rso_date: returnOrderDate,
+          reason_for_credit: mappedReason,
+          delivery_same_as_company: deliverySameAsCompany,
+          delivery_address_line1: deliverySameAsCompany ? null : deliveryAddress.address_line1,
+          delivery_address_line2: deliverySameAsCompany ? null : deliveryAddress.address_line2,
+          delivery_city: deliverySameAsCompany ? null : deliveryAddress.city,
+          delivery_country: deliverySameAsCompany ? null : deliveryAddress.country,
+          delivery_pin_code: deliverySameAsCompany ? null : deliveryAddress.pin_code,
+          notes: enhancedNotes || null,
+          status: status,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', editingReturnId);
+
+      if (headerError) throw headerError;
+
+      // Delete existing lines
+      const { error: deleteError } = await supabase
+        .from('return_order_lines')
+        .delete()
+        .eq('return_order_id', editingReturnId);
+
+      if (deleteError) throw deleteError;
+
+      // Insert updated lines
+      const safeNum = (n: any) => {
+        const v = Number(n);
+        return Number.isFinite(v) ? v : 0;
+      };
+
+      const returnLinesData = returnItems.map(item => ({
+        return_order_id: editingReturnId,
+        product_id: item.product_id,
+        product_name: item.product_name,
+        product_sku: item.product_sku,
+        hsn_sac_code: item.hsn_sac_code,
+        unit_of_measure: item.unit_of_measure,
+        invoice_qty: safeNum(item.quantity_invoiced),
+        return_qty: safeNum(item.return_qty),
+        pending_return_qty: Math.max(0, (item.available_to_return || 0) - safeNum(item.return_qty)),
+        unit_price: safeNum(item.unit_price),
+        discount_percentage: safeNum(item.discount_percentage),
+        discount_amount: safeNum(item.discount_amount),
+        cgst_rate: safeNum(item.cgst_rate),
+        cgst_amount: safeNum(item.cgst_amount),
+        sgst_rate: safeNum(item.sgst_rate),
+        sgst_amount: safeNum(item.sgst_amount),
+        igst_rate: safeNum(item.igst_rate),
+        igst_amount: safeNum(item.igst_amount),
+        line_subtotal: safeNum(item.line_subtotal),
+        tax_amount: safeNum(item.tax_amount),
+        line_total: safeNum(item.line_total)
+      }));
+
+      const { error: insertError } = await supabase
+        .from('return_order_lines')
+        .insert(returnLinesData);
+
+      if (insertError) throw insertError;
+
+      // If new status is Confirmed, confirm the return order
+      if (status === 'Confirmed') {
+        const { error: confirmError } = await supabase.rpc('confirm_return_order', {
+          p_return_order_id: editingReturnId
+        });
+        
+        if (confirmError) throw confirmError;
+      }
+
+      toast({
+        title: "Success",
+        description: "Return order updated successfully"
+      });
+      
+      loadReturnOrders();
+      loadReturnStats();
+      resetForm();
+      setIsCreateReturnFormOpen(false);
+      
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update return order",
         variant: "destructive"
       });
     } finally {
@@ -1067,6 +1209,8 @@ export function ReturnsModule() {
     // Set other form fields
     setReturnOrderDate(headerData.rso_date);
     setReasonForCredit(headerData.reason_for_credit);
+    setStatus(headerData.status as 'Draft' | 'Confirmed');
+    setOriginalStatus(headerData.status as 'Draft' | 'Confirmed'); // Store original status
     setDeliverySameAsCompany(headerData.delivery_same_as_company);
     if (!headerData.delivery_same_as_company) {
       setDeliveryAddress({
@@ -1334,19 +1478,19 @@ export function ReturnsModule() {
                     </RadioGroup>
                   </div>
 
-                  {/* Status */}
-                  <div className="p-6 bg-card border border-border/50 rounded-lg shadow-sm">
-                    <Label className="text-sm font-medium">Status *</Label>
-                    <Select value={status} onValueChange={(value) => setStatus(value as 'Draft' | 'Confirmed')}>
-                      <SelectTrigger className="mt-2 hover:border-primary/50 focus:ring-primary">
-                        <SelectValue placeholder="Select status" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Draft">Draft</SelectItem>
-                        <SelectItem value="Confirmed">Confirmed</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
+                   {/* Status */}
+                   <div className="p-6 bg-card border border-border/50 rounded-lg shadow-sm">
+                     <Label className="text-sm font-medium">Status *</Label>
+                     <Select value={status} onValueChange={(value) => setStatus(value as 'Draft' | 'Confirmed')} disabled={isViewMode}>
+                       <SelectTrigger className="mt-2 hover:border-primary/50 focus:ring-primary">
+                         <SelectValue placeholder="Select status" />
+                       </SelectTrigger>
+                       <SelectContent>
+                         <SelectItem value="Draft">Draft</SelectItem>
+                         <SelectItem value="Confirmed">Confirmed</SelectItem>
+                       </SelectContent>
+                     </Select>
+                   </div>
 
                   {/* Delivery Address Section */}
                   <div className="space-y-4 p-6 bg-card border border-border/50 rounded-lg shadow-sm">
@@ -1591,41 +1735,29 @@ export function ReturnsModule() {
                     />
                   </div>
 
-                  {/* Actions */}
-                  <div className="flex justify-between p-6 bg-muted/30 border border-border/50 rounded-lg">
-                    <div>
-                      {createdRsoNumber && (
-                        <Button
-                          onClick={() => handleConfirmReturn(editingReturnId || '')}
-                          disabled={loading || !editingReturnId}
-                          className="bg-green-600 hover:bg-green-700 text-white hover:scale-105 transition-all duration-200 shadow-lg"
-                        >
-                          <Check className="h-4 w-4 mr-2" />
-                          {loading ? 'Confirming...' : 'Confirm Return'}
-                        </Button>
-                      )}
-                    </div>
-                    <div className="flex gap-4">
-                      <Button
-                        variant="outline"
-                        onClick={() => {
-                          resetForm();
-                          setIsCreateReturnFormOpen(false);
-                        }}
-                        className="hover:bg-muted hover:scale-105 transition-all duration-200"
-                      >
-                        Cancel
-                      </Button>
-                      <Button
-                        onClick={handleSaveReturn}
-                        disabled={loading || !!createdRsoNumber}
-                        className="btn-gradient hover:scale-105 transition-all duration-200 shadow-lg"
-                      >
-                        <Save className="h-4 w-4 mr-2" />
-                        {loading ? 'Saving...' : 'Save'}
-                      </Button>
-                    </div>
-                  </div>
+                   {/* Actions */}
+                   <div className="flex justify-end p-6 bg-muted/30 border border-border/50 rounded-lg">
+                     <div className="flex gap-4">
+                       <Button
+                         variant="outline"
+                         onClick={() => {
+                           resetForm();
+                           setIsCreateReturnFormOpen(false);
+                         }}
+                         className="hover:bg-muted hover:scale-105 transition-all duration-200"
+                       >
+                         Cancel
+                       </Button>
+                       <Button
+                         onClick={handleSaveReturn}
+                         disabled={loading || isViewMode}
+                         className="btn-gradient hover:scale-105 transition-all duration-200 shadow-lg"
+                       >
+                         <Save className="h-4 w-4 mr-2" />
+                         {loading ? 'Saving...' : editingReturnId ? 'Update' : 'Save'}
+                       </Button>
+                     </div>
+                   </div>
                 </CardContent>
               </Card>
             ) : (
