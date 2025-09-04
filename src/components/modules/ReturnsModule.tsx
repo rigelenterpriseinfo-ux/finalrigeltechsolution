@@ -592,26 +592,37 @@ export function ReturnsModule() {
     setLoading(true);
 
     try {
+      const safeNum = (n: any) => {
+        const v = Number(n);
+        return Number.isFinite(v) ? v : 0;
+      };
+      const proRate = (amount: any, item: InvoiceLineItem) => {
+        const qty = safeNum(item.quantity_invoiced);
+        const ret = safeNum(item.return_qty);
+        if (qty <= 0 || ret <= 0) return 0;
+        return safeNum(amount) * (ret / qty);
+      };
+
       const returnLinesData = returnItems.map(item => ({
         product_id: item.product_id,
         product_name: item.product_name,
         product_sku: item.product_sku,
         hsn_sac_code: item.hsn_sac_code,
         unit_of_measure: item.unit_of_measure,
-        invoice_qty: item.quantity_invoiced,
-        return_qty: item.return_qty,
-        unit_price: item.unit_price,
-        discount_percentage: item.discount_percentage,
-        discount_amount: item.discount_amount * item.return_qty / item.quantity_invoiced,
-        cgst_rate: item.cgst_rate,
-        cgst_amount: item.cgst_amount * item.return_qty / item.quantity_invoiced,
-        sgst_rate: item.sgst_rate,
-        sgst_amount: item.sgst_amount * item.return_qty / item.quantity_invoiced,
-        igst_rate: item.igst_rate,
-        igst_amount: item.igst_amount * item.return_qty / item.quantity_invoiced,
-        line_subtotal: item.line_subtotal * item.return_qty / item.quantity_invoiced,
-        tax_amount: item.tax_amount * item.return_qty / item.quantity_invoiced,
-        line_total: item.line_total * item.return_qty / item.quantity_invoiced
+        invoice_qty: safeNum(item.quantity_invoiced),
+        return_qty: safeNum(item.return_qty),
+        unit_price: safeNum(item.unit_price),
+        discount_percentage: safeNum(item.discount_percentage),
+        discount_amount: proRate(item.discount_amount ?? 0, item),
+        cgst_rate: safeNum(item.cgst_rate),
+        cgst_amount: proRate(item.cgst_amount ?? 0, item),
+        sgst_rate: safeNum(item.sgst_rate),
+        sgst_amount: proRate(item.sgst_amount ?? 0, item),
+        igst_rate: safeNum(item.igst_rate),
+        igst_amount: proRate(item.igst_amount ?? 0, item),
+        line_subtotal: proRate(item.line_subtotal ?? 0, item),
+        tax_amount: proRate(item.tax_amount ?? 0, item),
+        line_total: proRate(item.line_total ?? 0, item)
       }));
 
       const { data, error } = await supabase.rpc('create_return_order', {
@@ -632,23 +643,25 @@ export function ReturnsModule() {
 
       if (error) throw error;
 
-      const result = data as { success: boolean; rso_number: string; return_order_id: string };
-      
-      if (result.success) {
+      const result = data as { success: boolean; rso_number?: string; return_order_id?: string; error?: string };
+
+      console.debug('create_return_order result:', result);
+      if (result && result.success) {
         toast({
           title: "Success",
           description: `Return order ${result.rso_number} created successfully`
         });
-        
-        setCreatedRsoNumber(result.rso_number);
+        setCreatedRsoNumber(result.rso_number || null);
         loadReturnOrders();
         loadReturnStats();
-        
-        // Auto-close form and reset after successful creation
         setTimeout(() => {
           resetForm();
           setIsCreateReturnFormOpen(false);
-        }, 1500);
+        }, 1000);
+      } else {
+        const errorMsg = (result && (result.error || JSON.stringify(result))) || 'Failed to create return order';
+        console.error('create_return_order returned failure:', result);
+        toast({ title: 'Error', description: errorMsg, variant: 'destructive' });
       }
     } catch (error: any) {
       toast({
