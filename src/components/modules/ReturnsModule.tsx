@@ -1236,7 +1236,7 @@ export function ReturnsModule() {
                         className="btn-gradient"
                       >
                         <Save className="h-4 w-4 mr-2" />
-                        {loading ? 'Saving...' : editingReturnId ? 'Update (Draft)' : 'Save (Draft)'}
+                        {loading ? 'Saving...' : editingReturnId ? `Update (${status})` : `Save (${status})`}
                       </Button>
                     </div>
                   </div>
