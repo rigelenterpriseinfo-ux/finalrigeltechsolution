@@ -77,20 +77,7 @@ export default function Dashboard() {
     totalCost: 0
   });
 
-  // Early returns AFTER hooks are declared to preserve hook order
-  if (loading) {
-    console.log('Dashboard loading...');
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-      </div>
-    );
-  }
-
-  if (!user) {
-    console.log('No user, redirecting to auth');
-    return <Navigate to="/auth" replace />;
-  }
+  // moved early returns below hooks
 
   useEffect(() => {
     if (activeModule === 'dashboard' && user) {
@@ -125,6 +112,21 @@ export default function Dashboard() {
   };
 
   console.log('Dashboard render:', { user: !!user, profile: !!profile, company: !!company, loading, activeModule });
+
+  // Early returns AFTER hooks are declared to preserve hook order
+  if (loading) {
+    console.log('Dashboard loading...');
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    console.log('No user, redirecting to auth');
+    return <Navigate to="/auth" replace />;
+  }
 
   const renderActiveModule = () => {
     console.log('Rendering active module:', activeModule);
