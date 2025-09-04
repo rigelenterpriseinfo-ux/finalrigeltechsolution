@@ -36,7 +36,8 @@ import {
   AlertCircle,
   MapPin,
   Calendar,
-  Loader2
+  Loader2,
+  RefreshCw
 } from 'lucide-react';
 
 interface ReturnOrder {
@@ -673,7 +674,14 @@ export function ReturnsModule() {
 
       // Process inventory for confirmed credit notes
       if (creditNoteStatus === 'Confirmed') {
-        await processCreditNoteInventory(creditNote.id, itemsToInsert);
+        try {
+          await processCreditNoteInventory(creditNote.id, itemsToInsert);
+          console.log('✅ Credit note inventory processing completed successfully');
+        } catch (inventoryError) {
+          console.error('❌ Inventory processing failed:', inventoryError);
+          // If inventory processing fails, we should not save the credit note as confirmed
+          throw new Error(`Failed to process inventory: ${inventoryError instanceof Error ? inventoryError.message : 'Unknown error'}`);
+        }
       }
 
       toast({ 
@@ -688,8 +696,22 @@ export function ReturnsModule() {
       loadCreditNoteStats();
 
     } catch (error) {
-      console.error('Error saving credit note:', error);
-      toast({ title: "Error", description: "Failed to save credit note", variant: "destructive" });
+      console.error('❌ Error saving credit note:', error);
+      let errorMessage = "Failed to save credit note";
+      
+      if (error instanceof Error) {
+        if (error.message.includes('Failed to process inventory')) {
+          errorMessage = "Credit note not saved: " + error.message;
+        } else {
+          errorMessage = error.message;
+        }
+      }
+      
+      toast({ 
+        title: "Error", 
+        description: errorMessage, 
+        variant: "destructive" 
+      });
     } finally {
       setLoading(false);
     }
@@ -713,43 +735,16 @@ export function ReturnsModule() {
       for (const item of creditNoteItems) {
         if (item.return_qty <= 0) continue;
 
-        // Get current stock quantity first
-        const { data: product, error: fetchError } = await supabase
-          .from('products')
-          .select('stock_quantity')
-          .eq('id', item.product_id)
-          .single();
-
-        if (fetchError) {
-          console.error('Error fetching product stock:', fetchError);
-          continue;
-        }
-
-        // Update product stock - add returned quantity back to inventory  
-        const newStockQuantity = (product.stock_quantity || 0) + item.return_qty;
-        const { error: stockError } = await supabase
-          .from('products')
-          .update({
-            stock_quantity: newStockQuantity,
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', item.product_id);
-
-        if (stockError) {
-          console.error('Error updating product stock:', stockError);
-          continue;
-        }
-
-        // Record inventory transaction for credit note return
+        // First record the inventory transaction
         const { error: transactionError } = await supabase.rpc('record_inventory_transaction', {
           p_company_id: company!.id,
-          p_transaction_type: 'sales_return', // Use existing transaction type
+          p_transaction_type: 'sales_return',
           p_reference_id: creditNoteId,
           p_reference_number: `CN-${creditNoteId.substring(0, 8)}`,
           p_product_id: item.product_id,
           p_warehouse_id: item.warehouse_id,
-          p_bin_id: item.bin_id || item.warehouse_id, // Use bin_id if available, fallback to warehouse_id
-          p_quantity_change: item.return_qty, // Positive quantity for returns (adding back to inventory)
+          p_bin_id: item.bin_id || item.warehouse_id,
+          p_quantity_change: item.return_qty, // Positive quantity for returns
           p_unit_cost: item.unit_price,
           p_notes: `Credit Note Return - ${item.product_name} (${item.return_qty} units)`,
           p_created_by: user!.id
@@ -757,18 +752,142 @@ export function ReturnsModule() {
 
         if (transactionError) {
           console.error('Error recording inventory transaction:', transactionError);
-          // Continue processing other items even if one fails
+          throw new Error(`Failed to record inventory transaction for ${item.product_name}: ${transactionError.message}`);
+        }
+
+        console.log(`✅ Recorded inventory transaction for ${item.product_name}: +${item.return_qty} units`);
+
+        // Now calculate the correct stock from inventory transactions and sync products table
+        await reconcileProductStock(item.product_id, item.warehouse_id, item.bin_id);
+      }
+
+      console.log('✅ Inventory processing completed successfully for credit note:', creditNoteId);
+    } catch (error) {
+      console.error('❌ Error processing credit note inventory:', error);
+      toast({ 
+        title: "Inventory Update Failed", 
+        description: error instanceof Error ? error.message : "Failed to update inventory for credit note", 
+        variant: "destructive" 
+      });
+      throw error; // Re-throw to prevent credit note from being saved if inventory fails
+    }
+  };
+
+  // Reconcile product stock quantity with actual inventory transactions
+  const reconcileProductStock = async (productId: string, warehouseId: string, binId: string) => {
+    try {
+      // Calculate actual stock from inventory transactions
+      const { data: transactions, error: transError } = await supabase
+        .from('inventory_transactions')
+        .select('quantity_change')
+        .eq('company_id', company!.id)
+        .eq('product_id', productId)
+        .eq('warehouse_id', warehouseId)
+        .eq('bin_id', binId);
+
+      if (transError) {
+        throw new Error(`Failed to fetch inventory transactions: ${transError.message}`);
+      }
+
+      // Calculate total stock from all transactions
+      const actualStock = transactions?.reduce((sum, t) => sum + (t.quantity_change || 0), 0) || 0;
+      
+      console.log(`📊 Calculated actual stock for product ${productId}: ${actualStock} units`);
+
+      // Get current product stock to compare
+      const { data: product, error: productError } = await supabase
+        .from('products')
+        .select('stock_quantity, name, sku')
+        .eq('id', productId)
+        .single();
+
+      if (productError) {
+        throw new Error(`Failed to fetch product: ${productError.message}`);
+      }
+
+      const currentStock = product.stock_quantity || 0;
+      console.log(`📊 Current product stock for ${product.name} (${product.sku}): ${currentStock} units`);
+      
+      // Update product stock to match inventory transactions if different
+      if (currentStock !== actualStock) {
+        console.log(`🔄 Reconciling stock: ${currentStock} → ${actualStock} (difference: ${actualStock - currentStock})`);
+        
+        const { error: updateError } = await supabase
+          .from('products')
+          .update({
+            stock_quantity: actualStock,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', productId);
+
+        if (updateError) {
+          throw new Error(`Failed to update product stock: ${updateError.message}`);
+        }
+
+        console.log(`✅ Successfully reconciled stock for ${product.name}: ${actualStock} units`);
+        return { reconciled: true, difference: actualStock - currentStock };
+      } else {
+        console.log(`✅ Stock already in sync for ${product.name}: ${actualStock} units`);
+        return { reconciled: false, difference: 0 };
+      }
+
+    } catch (error) {
+      console.error('❌ Error reconciling product stock:', error);
+      throw error;
+    }
+  };
+
+  // Reconcile all products in the company to sync with inventory transactions
+  const reconcileAllProductStock = async () => {
+    if (!company?.id) return;
+    
+    setLoading(true);
+    try {
+      console.log('🔄 Starting company-wide stock reconciliation...');
+      
+      // Get all products with inventory transactions
+      const { data: stockLevels, error } = await supabase
+        .from('current_stock_levels')
+        .select('product_id, warehouse_id, bin_id, current_stock')
+        .eq('company_id', company.id);
+
+      if (error) throw error;
+
+      let reconciledCount = 0;
+      let totalDifference = 0;
+
+      for (const stock of stockLevels || []) {
+        try {
+          const result = await reconcileProductStock(stock.product_id, stock.warehouse_id, stock.bin_id);
+          if (result.reconciled) {
+            reconciledCount++;
+            totalDifference += Math.abs(result.difference);
+          }
+        } catch (error) {
+          console.error(`Failed to reconcile product ${stock.product_id}:`, error);
         }
       }
 
-      console.log('Inventory processing completed for credit note:', creditNoteId);
-    } catch (error) {
-      console.error('Error processing credit note inventory:', error);
-      toast({ 
-        title: "Warning", 
-        description: "Credit note saved but inventory update may have failed", 
-        variant: "destructive" 
+      toast({
+        title: "Stock Reconciliation Complete",
+        description: `Reconciled ${reconciledCount} products with ${totalDifference} total units adjusted`,
       });
+
+      console.log(`✅ Stock reconciliation complete: ${reconciledCount} products reconciled`);
+      
+      // Refresh the data
+      loadReturnOrders();
+      loadCreditNotes();
+      
+    } catch (error) {
+      console.error('❌ Error during stock reconciliation:', error);
+      toast({
+        title: "Reconciliation Failed",
+        description: error instanceof Error ? error.message : "Failed to reconcile stock",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -846,6 +965,15 @@ export function ReturnsModule() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold">Returns Management</h2>
+        <Button
+          onClick={reconcileAllProductStock}
+          disabled={loading}
+          variant="outline"
+          className="flex items-center gap-2"
+        >
+          <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+          {loading ? 'Reconciling...' : 'Reconcile Stock'}
+        </Button>
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
