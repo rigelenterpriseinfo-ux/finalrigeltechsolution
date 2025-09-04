@@ -68,8 +68,16 @@ type ActiveModule = 'dashboard' | 'inventory' | 'purchase' | 'sales' | 'returns'
 
 export default function Dashboard() {
   const { user, profile, company, signOut, loading } = useAuth();
-  
-  // Early return for loading state before any other hooks
+  // Call all hooks unconditionally at the top to preserve hook order
+  const { hasAccess, isOwnerOrAdmin } = useBusinessAuth();
+  const [activeModule, setActiveModule] = useState<ActiveModule>('dashboard');
+  const [inventoryStats, setInventoryStats] = useState({
+    totalSKUs: 0,
+    totalUnits: 0,
+    totalCost: 0
+  });
+
+  // Early returns AFTER hooks are declared to preserve hook order
   if (loading) {
     console.log('Dashboard loading...');
     return (
@@ -79,20 +87,10 @@ export default function Dashboard() {
     );
   }
 
-  // Early return for no user before any other hooks
   if (!user) {
     console.log('No user, redirecting to auth');
     return <Navigate to="/auth" replace />;
   }
-
-  // Now safe to call other hooks after user/loading checks
-  const { hasAccess, isOwnerOrAdmin } = useBusinessAuth();
-  const [activeModule, setActiveModule] = useState<ActiveModule>('dashboard');
-  const [inventoryStats, setInventoryStats] = useState({
-    totalSKUs: 0,
-    totalUnits: 0,
-    totalCost: 0
-  });
 
   useEffect(() => {
     if (activeModule === 'dashboard' && user) {

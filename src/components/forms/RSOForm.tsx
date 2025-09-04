@@ -310,11 +310,68 @@ export function RSOForm({ rsoId, onClose, onSave }: RSOFormProps) {
         notes: rsoData.notes || '',
       });
 
-      // Set selected customer and invoice
+      // Set selected customer
       const customer = customers.find(c => c.id === rsoData.customer_id);
-      if (customer) {
-        setSelectedCustomer(customer);
+      if (customer) setSelectedCustomer(customer);
+
+      // Also load and set the selected invoice explicitly (so items can load independently of invoices list)
+      const { data: invoice, error: invErr } = await supabase
+        .from('sales_invoices')
+        .select('id, invoice_number, invoice_date, customer_id, total_amount')
+        .eq('id', rsoData.invoice_id)
+        .maybeSingle();
+      if (invErr) throw invErr;
+      if (invoice) {
+        setSelectedInvoice(invoice as SalesInvoice);
+        form.setValue('invoice_id', invoice.id);
       }
+
+      // Build a quick map for prefilled return qty from existing lines
+      const prefillMap = new Map<string, number>();
+      (linesData || []).forEach(l => prefillMap.set(l.product_id, l.return_qty));
+
+      // Load invoice items and merge with availability + prefilled return qty
+      const { data: sii, error: siiErr } = await supabase
+        .from('sales_invoice_items')
+        .select('*')
+        .eq('sales_invoice_id', rsoData.invoice_id);
+      if (siiErr) throw siiErr;
+
+      // Compute already returned quantities on this invoice (for available_qty)
+      const { data: existingReturns, error: returnsError } = await supabase
+        .from('return_order_lines')
+        .select('product_id, return_qty')
+        .in('return_order_id',
+          await supabase
+            .from('return_order_header')
+            .select('id')
+            .eq('invoice_id', rsoData.invoice_id)
+            .then(({ data }) => data?.map(r => r.id) || [])
+        );
+      if (returnsError) throw returnsError;
+
+      const returnedQtyMap = new Map<string, number>();
+      existingReturns?.forEach(item => {
+        const current = returnedQtyMap.get(item.product_id) || 0;
+        returnedQtyMap.set(item.product_id, current + item.return_qty);
+      });
+
+      const itemsWithReturn: ReturnItem[] = (sii || []).map(item => {
+        const available = item.quantity_invoiced - (returnedQtyMap.get(item.product_id) || 0);
+        const prefillQty = Math.min(prefillMap.get(item.product_id) || 0, Math.max(available, 0));
+        const lineSubtotal = (prefillQty * item.unit_price) - ((prefillQty * item.unit_price * item.discount_percentage) / 100);
+        const taxAmount = (item.cgst_rate + item.sgst_rate + item.igst_rate) / 100 * lineSubtotal;
+        return {
+          ...item,
+          product_name: item.item_description,
+          product_sku: item.item_code,
+          return_qty: prefillQty,
+          available_qty: available,
+          return_line_total: lineSubtotal + taxAmount,
+        } as ReturnItem;
+      });
+
+      setInvoiceItems(itemsWithReturn);
 
     } catch (error) {
       console.error('Error loading existing RSO:', error);
