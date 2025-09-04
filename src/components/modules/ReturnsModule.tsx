@@ -43,6 +43,7 @@ interface ReturnOrder {
   id: string;
   rso_number: string;
   rso_date: string;
+  customer_id: string;
   customer_name: string;
   invoice_number: string;
   status: 'Draft' | 'Confirmed';
@@ -263,7 +264,7 @@ function SearchableCombobox({
 
 export function ReturnsModule() {
   const { toast } = useToast();
-  const { company } = useAuth();
+  const { user, company } = useAuth(); // Get both user and company from auth
   const [activeTab, setActiveTab] = useState('returns');
   
   // Form states
@@ -330,6 +331,7 @@ export function ReturnsModule() {
         id: order.id,
         rso_number: order.rso_number || 'Pending',
         rso_date: order.rso_date,
+        customer_id: order.customer_id,
         customer_name: order.customer_name,
         invoice_number: order.invoice_number,
         status: order.status as 'Draft' | 'Confirmed',
@@ -480,8 +482,8 @@ export function ReturnsModule() {
       sgst_amount: item.sgst_amount || 0,
       igst_rate: item.igst_rate || 0,
       igst_amount: item.igst_amount || 0,
-      warehouse_id: '',
-      bin_id: '',
+      warehouse_id: selectedWarehouse?.id || '',  // Apply default warehouse
+      bin_id: selectedWarehouse?.id || '',        // Use same ID for now
       line_subtotal: item.line_subtotal,
       tax_amount: item.tax_amount,
       line_total: item.line_total
@@ -489,6 +491,19 @@ export function ReturnsModule() {
     
     setCreditNoteItems(items);
   };
+
+  // Auto-apply default warehouse to items when warehouse is selected or items are loaded
+  useEffect(() => {
+    if (selectedWarehouse && creditNoteItems.length > 0) {
+      setCreditNoteItems(items => 
+        items.map(item => ({
+          ...item,
+          warehouse_id: item.warehouse_id || selectedWarehouse.id,
+          bin_id: item.bin_id || selectedWarehouse.id
+        }))
+      );
+    }
+  }, [selectedWarehouse]);
 
   const handleRsoSelect = (rsoId: string) => {
     const rso = returnOrders.find(r => r.id === rsoId);
@@ -544,6 +559,22 @@ export function ReturnsModule() {
     );
   };
 
+  // Handler for per-line warehouse/bin selection
+  const handleItemWarehouseChange = (itemId: string, warehouseId: string) => {
+    setCreditNoteItems(items =>
+      items.map(item => {
+        if (item.id === itemId) {
+          return {
+            ...item,
+            warehouse_id: warehouseId,
+            bin_id: warehouseId // Using same ID for warehouse and bin for now
+          };
+        }
+        return item;
+      })
+    );
+  };
+
   const calculateTotals = () => {
     const subtotal = creditNoteItems.reduce((sum, item) => sum + item.line_subtotal, 0);
     const discount = creditNoteItems.reduce((sum, item) => sum + item.discount_amount, 0);
@@ -557,10 +588,16 @@ export function ReturnsModule() {
     const errors: string[] = [];
     
     if (!selectedRso) errors.push("Please select an RSO");
-    if (!selectedWarehouse) errors.push("Please select a default warehouse");
     if (creditNoteItems.length === 0) errors.push("No items found for credit note");
-    if (creditNoteItems.some(item => item.return_qty <= 0)) errors.push("All items must have return quantity > 0");
-    if (creditNoteItems.some(item => !item.warehouse_id)) errors.push("All items must have warehouse selected");
+    
+    // Check if at least one item has return quantity > 0
+    const hasReturnItems = creditNoteItems.some(item => item.return_qty > 0);
+    if (!hasReturnItems) errors.push("At least one item must have return quantity > 0");
+    
+    // Check warehouse is selected for items with return_qty > 0
+    const itemsWithReturn = creditNoteItems.filter(item => item.return_qty > 0);
+    const missingWarehouse = itemsWithReturn.some(item => !item.warehouse_id);
+    if (missingWarehouse) errors.push("All items with return quantity must have warehouse selected");
     
     return errors;
   };
@@ -583,8 +620,8 @@ export function ReturnsModule() {
           company_id: company!.id,
           rso_id: selectedRso!.id,
           status: creditNoteStatus,
-          default_warehouse_id: selectedWarehouse!.id,
-          customer_id: selectedRso!.id, // We'll need to get actual customer_id from RSO
+          default_warehouse_id: selectedWarehouse?.id || creditNoteItems.find(item => item.return_qty > 0)?.warehouse_id || '',
+          customer_id: selectedRso!.customer_id, // Use correct customer_id from RSO
           customer_name: selectedRso!.customer_name,
           cn_date: creditNoteDate,
           subtotal_amount: totals.subtotal,
@@ -592,7 +629,7 @@ export function ReturnsModule() {
           tax_amount: totals.tax,
           total_amount: totals.total,
           notes: creditNoteNotes,
-          created_by: company!.id // Should be user_id in real implementation
+          created_by: user!.id // Use user ID, not company ID
         }])
         .select()
         .single();
@@ -961,7 +998,7 @@ export function ReturnsModule() {
                 {/* Header Fields */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="warehouse">Default Warehouse *</Label>
+                    <Label htmlFor="warehouse">Default Location (Warehouse/Bin)</Label>
                     <SearchableCombobox
                       value={selectedWarehouse?.id}
                       onSelect={handleWarehouseSelect}
@@ -1034,47 +1071,75 @@ export function ReturnsModule() {
                     <h4 className="text-md font-semibold">Line Items</h4>
                     <div className="border rounded-lg overflow-hidden">
                       <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>Item Code</TableHead>
-                            <TableHead>Description</TableHead>
-                            <TableHead>RSO Qty</TableHead>
-                            <TableHead>Return Qty</TableHead>
-                            <TableHead>Pending</TableHead>
-                            <TableHead>Unit Price</TableHead>
-                            <TableHead>Discount %</TableHead>
-                            <TableHead>CGST %</TableHead>
-                            <TableHead>SGST %</TableHead>
-                            <TableHead>IGST %</TableHead>
-                            <TableHead>Line Total</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {creditNoteItems.map((item) => (
-                            <TableRow key={item.id}>
-                              <TableCell>{item.product_sku}</TableCell>
-                              <TableCell>{item.product_name}</TableCell>
-                              <TableCell>{item.rso_qty}</TableCell>
-                              <TableCell>
-                                <Input
-                                  type="number"
-                                  min="0"
-                                  max={item.rso_qty}
-                                  value={item.return_qty}
-                                  onChange={(e) => handleReturnQtyChange(item.id, parseInt(e.target.value) || 0)}
-                                  className="w-20"
-                                />
-                              </TableCell>
-                              <TableCell>{item.pending_return_qty}</TableCell>
-                              <TableCell>₹{item.unit_price.toFixed(2)}</TableCell>
-                              <TableCell>{item.discount_percentage}%</TableCell>
-                              <TableCell>{item.cgst_rate}%</TableCell>
-                              <TableCell>{item.sgst_rate}%</TableCell>
-                              <TableCell>{item.igst_rate}%</TableCell>
-                              <TableCell>₹{item.line_total.toFixed(2)}</TableCell>
-                            </TableRow>
-                          ))}
-                        </TableBody>
+                         <TableHeader>
+                           <TableRow>
+                             <TableHead>Item Code</TableHead>
+                             <TableHead>Description</TableHead>
+                             <TableHead>RSO Qty</TableHead>
+                             <TableHead>Return Qty</TableHead>
+                             <TableHead>Pending</TableHead>
+                             <TableHead>Unit Price</TableHead>
+                             <TableHead>Discount %</TableHead>
+                             <TableHead>CGST %</TableHead>
+                             <TableHead>SGST %</TableHead>
+                             <TableHead>IGST %</TableHead>
+                             <TableHead>Warehouse/Bin</TableHead>
+                             <TableHead>Line Total</TableHead>
+                           </TableRow>
+                         </TableHeader>
+                         <TableBody>
+                           {creditNoteItems.map((item) => {
+                             const hasReturnQty = item.return_qty > 0;
+                             const missingWarehouse = hasReturnQty && !item.warehouse_id;
+                             
+                             return (
+                               <TableRow key={item.id} className={missingWarehouse ? "bg-red-50 border-red-200" : ""}>
+                                 <TableCell>{item.product_sku}</TableCell>
+                                 <TableCell>{item.product_name}</TableCell>
+                                 <TableCell>{item.rso_qty}</TableCell>
+                                 <TableCell>
+                                   <Input
+                                     type="number"
+                                     min="0"
+                                     max={item.rso_qty}
+                                     value={item.return_qty}
+                                     onChange={(e) => handleReturnQtyChange(item.id, parseInt(e.target.value) || 0)}
+                                     className="w-20"
+                                   />
+                                 </TableCell>
+                                 <TableCell>{item.pending_return_qty}</TableCell>
+                                 <TableCell>₹{item.unit_price.toFixed(2)}</TableCell>
+                                 <TableCell>{item.discount_percentage}%</TableCell>
+                                 <TableCell>{item.cgst_rate}%</TableCell>
+                                 <TableCell>{item.sgst_rate}%</TableCell>
+                                 <TableCell>{item.igst_rate}%</TableCell>
+                                 <TableCell className="min-w-[200px]">
+                                   <SearchableCombobox
+                                     value={item.warehouse_id}
+                                     onSelect={(warehouseId) => handleItemWarehouseChange(item.id, warehouseId)}
+                                     placeholder="Select warehouse"
+                                     searchPlaceholder="Search warehouses..."
+                                     options={warehouses.map(w => ({
+                                       id: w.id,
+                                       name: w.name,
+                                       subtitle: w.location
+                                     }))}
+                                     className={`${missingWarehouse ? 'border-red-500' : ''} text-xs`}
+                                     disabled={item.return_qty === 0}
+                                     emptyMessage="No warehouses found"
+                                   />
+                                   {missingWarehouse && (
+                                     <div className="text-xs text-red-600 mt-1">
+                                       <AlertCircle className="h-3 w-3 inline mr-1" />
+                                       Required for return items
+                                     </div>
+                                   )}
+                                 </TableCell>
+                                 <TableCell>₹{item.line_total.toFixed(2)}</TableCell>
+                               </TableRow>
+                             );
+                           })}
+                         </TableBody>
                       </Table>
                     </div>
 
