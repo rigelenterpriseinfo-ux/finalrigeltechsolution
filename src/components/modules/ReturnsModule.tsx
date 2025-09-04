@@ -17,7 +17,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
-import { RSOForm } from '@/components/forms/RSOForm';
+import { CreateRSOForm } from '@/components/forms/CreateRSOForm';
 import { 
   RotateCcw, 
   FileText, 
@@ -798,7 +798,7 @@ export function ReturnsModule() {
 
           {/* RSO Form */}
           {isCreateRSOFormOpen && (
-            <RSOForm
+            <CreateRSOForm
               rsoId={editingRsoId}
               onClose={() => {
                 setIsCreateRSOFormOpen(false);
