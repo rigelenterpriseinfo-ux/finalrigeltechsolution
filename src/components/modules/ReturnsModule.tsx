@@ -700,15 +700,13 @@ export function ReturnsModule() {
           {/* Create Credit Note Button */}
           <div className="flex justify-between items-center">
             <h3 className="text-lg font-semibold">Credit Notes</h3>
-            <PermissionWrapper permission="SALES_WRITE">
-              <Button 
-                onClick={() => setIsCreateCreditNoteFormOpen(true)}
-                disabled={loading}
-              >
-                <Plus className="mr-2 h-4 w-4" />
-                Add Credit Note
-              </Button>
-            </PermissionWrapper>
+            <Button 
+              onClick={() => setIsCreateCreditNoteFormOpen(true)}
+              disabled={loading}
+            >
+              <Plus className="mr-2 h-4 w-4" />
+              Add Credit Note
+            </Button>
           </div>
 
           {/* Credit Note Form */}
