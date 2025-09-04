@@ -107,6 +107,8 @@ interface SearchableComboboxProps {
   searchPlaceholder: string;
   options: { id: string; name: string; subtitle?: string }[];
   disabled?: boolean;
+  loading?: boolean;
+  emptyMessage?: string;
   className?: string;
 }
 
@@ -117,6 +119,8 @@ function SearchableCombobox({
   searchPlaceholder,
   options,
   disabled = false,
+  loading = false,
+  emptyMessage = "No options available",
   className = ""
 }: SearchableComboboxProps) {
   const [open, setOpen] = useState(false);
@@ -132,9 +136,14 @@ function SearchableCombobox({
 
   const selectedOption = options.find(option => option.id === value);
 
-  // Show loading state if no options and not disabled
-  const showLoading = options.length === 0 && !disabled;
-  const effectivePlaceholder = showLoading ? "Loading..." : placeholder;
+  // Determine display text and button state
+  const getDisplayText = () => {
+    if (selectedOption) return selectedOption.name;
+    if (loading) return "Loading...";
+    return placeholder;
+  };
+
+  const isButtonDisabled = disabled || loading;
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -144,9 +153,9 @@ function SearchableCombobox({
           role="combobox"
           aria-expanded={open}
           className={`w-full justify-between ${className}`}
-          disabled={disabled || showLoading}
+          disabled={isButtonDisabled}
         >
-          {selectedOption ? selectedOption.name : effectivePlaceholder}
+          {getDisplayText()}
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
@@ -155,15 +164,19 @@ function SearchableCombobox({
         align="start"
         sideOffset={4}
       >
-        <Command>
+        <Command className="bg-white">
           <CommandInput 
             placeholder={searchPlaceholder}
             value={searchValue}
             onValueChange={setSearchValue}
           />
           <CommandList>
-            {options.length === 0 ? (
-              <CommandEmpty>No options available.</CommandEmpty>
+            {loading ? (
+              <div className="py-6 text-center text-sm text-muted-foreground">
+                Loading options...
+              </div>
+            ) : options.length === 0 ? (
+              <CommandEmpty>{emptyMessage}</CommandEmpty>
             ) : filteredOptions.length === 0 ? (
               <CommandEmpty>No results found.</CommandEmpty>
             ) : (
@@ -228,6 +241,7 @@ export function ReturnsModule() {
   const [returnStats, setReturnStats] = useState<ReturnStats | null>(null);
   const [loading, setLoading] = useState(false);
   const [customersLoading, setCustomersLoading] = useState(false);
+  const [invoicesLoading, setInvoicesLoading] = useState(false);
   const [validationErrors, setValidationErrors] = useState<{ [key: string]: string }>({});
 
   // Load initial data
@@ -282,6 +296,16 @@ export function ReturnsModule() {
       
       console.debug('Loaded customers:', data?.length || 0);
       setCustomers(data || []);
+      
+      // Show toast if no customers found to inform user
+      if (!data || data.length === 0) {
+        console.warn('No customers found for company:', company.id);
+        toast({ 
+          title: "No Customers", 
+          description: "No active customers found. Please add customers in the Sales section first.", 
+          variant: "default" 
+        });
+      }
     } catch (error) {
       console.error('Customer loading exception:', error);
       toast({ title: "Error", description: "Failed to load customers", variant: "destructive" });
@@ -293,24 +317,46 @@ export function ReturnsModule() {
   const loadInvoicesForCustomer = async (customerId: string) => {
     if (!company?.id) return;
     
-    const oneYearAgo = new Date();
-    oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+    console.debug('Loading invoices for customer:', customerId);
+    setInvoicesLoading(true);
     
-    const { data, error } = await supabase
-      .from('sales_invoices')
-      .select('id, invoice_number, invoice_date, customer_name, total_amount')
-      .eq('company_id', company.id)
-      .eq('customer_id', customerId)
-      .eq('status', 'finalized')
-      .gte('invoice_date', oneYearAgo.toISOString().split('T')[0])
-      .order('invoice_date', { ascending: false });
-    
-    if (error) {
+    try {
+      const oneYearAgo = new Date();
+      oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+      
+      const { data, error } = await supabase
+        .from('sales_invoices')
+        .select('id, invoice_number, invoice_date, customer_name, total_amount')
+        .eq('company_id', company.id)
+        .eq('customer_id', customerId)
+        .eq('status', 'finalized')
+        .gte('invoice_date', oneYearAgo.toISOString().split('T')[0])
+        .order('invoice_date', { ascending: false });
+      
+      if (error) {
+        console.error('Error loading invoices:', error);
+        toast({ title: "Error", description: "Failed to load invoices", variant: "destructive" });
+        return;
+      }
+      
+      console.debug('Loaded invoices:', data?.length || 0);
+      setInvoices(data || []);
+      
+      // Show toast if no invoices found
+      if (!data || data.length === 0) {
+        console.warn('No finalized invoices found for customer in last 365 days:', customerId);
+        toast({ 
+          title: "No Invoices", 
+          description: "No finalized invoices found for this customer in the last 365 days.", 
+          variant: "default" 
+        });
+      }
+    } catch (error) {
+      console.error('Invoice loading exception:', error);
       toast({ title: "Error", description: "Failed to load invoices", variant: "destructive" });
-      return;
+    } finally {
+      setInvoicesLoading(false);
     }
-    
-    setInvoices(data || []);
   };
 
   const loadInvoiceLineItems = async (invoiceId: string) => {
@@ -421,11 +467,14 @@ export function ReturnsModule() {
     console.debug('Found customer:', customer);
     if (customer) {
       setSelectedCustomer(customer);
-      loadInvoicesForCustomer(customerId);
+      // Clear previous invoices and line items
       setSelectedInvoice(null);
+      setInvoices([]);
       setInvoiceLineItems([]);
       setCreatedRsoNumber(null);
       setValidationErrors({});
+      // Load invoices for selected customer
+      loadInvoicesForCustomer(customerId);
     }
   }, [customers, company?.id]);
 
@@ -490,6 +539,8 @@ export function ReturnsModule() {
     setEditingReturnId(null);
     setValidationErrors({});
     setReturnOrderDate(new Date().toISOString().split('T')[0]);
+    // Reset loading states (but don't clear customers list)
+    setInvoicesLoading(false);
   };
 
   const handleSaveReturn = async () => {
@@ -656,10 +707,15 @@ export function ReturnsModule() {
       .from('return_order_header')
       .select('*')
       .eq('id', returnOrderId)
-      .single();
+      .maybeSingle();
 
     if (headerError) {
       toast({ title: "Error", description: "Failed to load return order", variant: "destructive" });
+      return;
+    }
+
+    if (!headerData) {
+      toast({ title: "Error", description: "Return order not found", variant: "destructive" });
       return;
     }
 
@@ -814,8 +870,9 @@ export function ReturnsModule() {
                 onClick={() => {
                   resetForm();
                   setIsCreateReturnFormOpen(true);
-                  // Ensure customers are loaded when form opens
-                  if (customers.length === 0 && company?.id) {
+                  // Always reload customers when form opens to ensure fresh data
+                  if (company?.id) {
+                    console.debug('Create Return clicked - reloading customers');
                     loadCustomers();
                   }
                 }}
@@ -876,6 +933,8 @@ export function ReturnsModule() {
                         searchPlaceholder="Type to search customers..."
                         options={customerOptions}
                         disabled={editingReturnId !== null}
+                        loading={customersLoading}
+                        emptyMessage="No customers found. Please add customers in the Sales section first."
                       />
                     </div>
                   </div>
@@ -908,6 +967,8 @@ export function ReturnsModule() {
                           searchPlaceholder="Type to search invoices..."
                           options={invoiceOptions}
                           disabled={editingReturnId !== null}
+                          loading={invoicesLoading}
+                          emptyMessage="No finalized invoices found in the last 365 days for this customer."
                         />
                       </div>
                       {selectedInvoice && (
