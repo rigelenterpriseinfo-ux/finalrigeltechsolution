@@ -287,6 +287,7 @@ export function ReturnsModule() {
 
   // Load initial data
   useEffect(() => {
+    console.log('ReturnsModule useEffect triggered with company:', company?.id);
     if (company?.id) {
       loadReturnOrders();
       loadCreditNotes();
@@ -297,32 +298,52 @@ export function ReturnsModule() {
   }, [company?.id]);
 
   const loadReturnOrders = async () => {
-    if (!company?.id) return;
-    
-    const { data, error } = await supabase
-      .from('return_order_header')
-      .select('*')
-      .eq('company_id', company.id)
-      .eq('status', 'Confirmed') // Only show confirmed RSOs for credit notes
-      .order('created_at', { ascending: false });
-    
-    if (error) {
-      toast({ title: "Error", description: "Failed to load return orders", variant: "destructive" });
+    console.log('loadReturnOrders called with company:', company?.id);
+    if (!company?.id) {
+      console.log('No company ID available, skipping RSO load');
       return;
     }
     
-    const returnOrdersData: ReturnOrder[] = (data || []).map(order => ({
-      id: order.id,
-      rso_number: order.rso_number || 'Pending',
-      rso_date: order.rso_date,
-      customer_name: order.customer_name,
-      invoice_number: order.invoice_number,
-      status: order.status as 'Draft' | 'Confirmed',
-      reason_for_credit: order.reason_for_credit,
-      total_amount: order.total_amount
-    }));
-    
-    setReturnOrders(returnOrdersData);
+    try {
+      setLoading(true);
+      console.log('Fetching RSO data from Supabase...');
+      
+      const { data, error } = await supabase
+        .from('return_order_header')
+        .select('*')
+        .eq('company_id', company.id)
+        .eq('status', 'Confirmed') // Only show confirmed RSOs for credit notes
+        .order('created_at', { ascending: false });
+      
+      console.log('RSO query result:', { data, error, dataLength: data?.length });
+      
+      if (error) {
+        console.error('Error loading RSOs:', error);
+        toast({ title: "Error", description: "Failed to load return orders", variant: "destructive" });
+        return;
+      }
+      
+      const returnOrdersData: ReturnOrder[] = (data || []).map(order => ({
+        id: order.id,
+        rso_number: order.rso_number || 'Pending',
+        rso_date: order.rso_date,
+        customer_name: order.customer_name,
+        invoice_number: order.invoice_number,
+        status: order.status as 'Draft' | 'Confirmed',
+        reason_for_credit: order.reason_for_credit,
+        total_amount: order.total_amount
+      }));
+      
+      console.log('Mapped RSO data:', returnOrdersData);
+      setReturnOrders(returnOrdersData);
+      console.log('RSO state updated with', returnOrdersData.length, 'items');
+      
+    } catch (err) {
+      console.error('Exception in loadReturnOrders:', err);
+      toast({ title: "Error", description: "Failed to load return orders", variant: "destructive" });
+    } finally {
+      setLoading(false);
+    }
   };
 
   const loadWarehouses = async () => {
@@ -700,13 +721,27 @@ export function ReturnsModule() {
           {/* Create Credit Note Button */}
           <div className="flex justify-between items-center">
             <h3 className="text-lg font-semibold">Credit Notes</h3>
-            <Button 
-              onClick={() => setIsCreateCreditNoteFormOpen(true)}
-              disabled={loading}
-            >
-              <Plus className="mr-2 h-4 w-4" />
-              Add Credit Note
-            </Button>
+            <div className="flex space-x-2">
+              <Button 
+                variant="outline"
+                onClick={() => {
+                  console.log('Refresh button clicked - reloading RSO data');
+                  loadReturnOrders();
+                  loadCreditNotes();
+                }}
+                disabled={loading}
+              >
+                <RotateCcw className="mr-2 h-4 w-4" />
+                Refresh
+              </Button>
+              <Button 
+                onClick={() => setIsCreateCreditNoteFormOpen(true)}
+                disabled={loading}
+              >
+                <Plus className="mr-2 h-4 w-4" />
+                Add Credit Note
+              </Button>
+            </div>
           </div>
 
           {/* Credit Note Form */}
@@ -767,14 +802,23 @@ export function ReturnsModule() {
                     onSelect={handleRsoSelect}
                     placeholder="Select RSO"
                     searchPlaceholder="Search RSO..."
-                    options={returnOrders.map(rso => ({
-                      id: rso.id,
-                      name: rso.rso_number,
-                      subtitle: `${rso.customer_name} - ${rso.invoice_number}`
-                    }))}
+                    options={returnOrders.map(rso => {
+                      console.log('Mapping RSO for combobox:', rso);
+                      return {
+                        id: rso.id,
+                        name: rso.rso_number,
+                        subtitle: `${rso.customer_name} - ${rso.invoice_number}`
+                      };
+                    })}
                     loading={loading}
                     emptyMessage="No confirmed RSOs found"
                   />
+                  {/* Debug info */}
+                  {process.env.NODE_ENV === 'development' && (
+                    <div className="text-xs text-gray-500 mt-1">
+                      Debug: {returnOrders.length} RSOs loaded, Loading: {loading ? 'Yes' : 'No'}
+                    </div>
+                  )}
                 </div>
 
                 {/* Line Items Table */}
