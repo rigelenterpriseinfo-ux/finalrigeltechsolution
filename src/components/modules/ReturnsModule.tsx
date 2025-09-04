@@ -671,6 +671,11 @@ export function ReturnsModule() {
 
       if (itemsError) throw itemsError;
 
+      // Process inventory for confirmed credit notes
+      if (creditNoteStatus === 'Confirmed') {
+        await processCreditNoteInventory(creditNote.id, itemsToInsert);
+      }
+
       toast({ 
         title: "Success", 
         description: `Credit Note ${creditNoteStatus === 'Confirmed' ? 'created and confirmed' : 'saved as draft'}`, 
@@ -698,6 +703,73 @@ export function ReturnsModule() {
     setCreditNoteStatus('Draft');
     setCreditNoteNotes('');
     setIsCreateCreditNoteFormOpen(false);
+  };
+
+  // Process inventory for confirmed credit notes
+  const processCreditNoteInventory = async (creditNoteId: string, creditNoteItems: any[]) => {
+    try {
+      console.log('Processing inventory for confirmed credit note:', creditNoteId);
+      
+      for (const item of creditNoteItems) {
+        if (item.return_qty <= 0) continue;
+
+        // Get current stock quantity first
+        const { data: product, error: fetchError } = await supabase
+          .from('products')
+          .select('stock_quantity')
+          .eq('id', item.product_id)
+          .single();
+
+        if (fetchError) {
+          console.error('Error fetching product stock:', fetchError);
+          continue;
+        }
+
+        // Update product stock - add returned quantity back to inventory  
+        const newStockQuantity = (product.stock_quantity || 0) + item.return_qty;
+        const { error: stockError } = await supabase
+          .from('products')
+          .update({
+            stock_quantity: newStockQuantity,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', item.product_id);
+
+        if (stockError) {
+          console.error('Error updating product stock:', stockError);
+          continue;
+        }
+
+        // Record inventory transaction for credit note return
+        const { error: transactionError } = await supabase.rpc('record_inventory_transaction', {
+          p_company_id: company!.id,
+          p_transaction_type: 'sales_return', // Use existing transaction type
+          p_reference_id: creditNoteId,
+          p_reference_number: `CN-${creditNoteId.substring(0, 8)}`,
+          p_product_id: item.product_id,
+          p_warehouse_id: item.warehouse_id,
+          p_bin_id: item.bin_id || item.warehouse_id, // Use bin_id if available, fallback to warehouse_id
+          p_quantity_change: item.return_qty, // Positive quantity for returns (adding back to inventory)
+          p_unit_cost: item.unit_price,
+          p_notes: `Credit Note Return - ${item.product_name} (${item.return_qty} units)`,
+          p_created_by: user!.id
+        });
+
+        if (transactionError) {
+          console.error('Error recording inventory transaction:', transactionError);
+          // Continue processing other items even if one fails
+        }
+      }
+
+      console.log('Inventory processing completed for credit note:', creditNoteId);
+    } catch (error) {
+      console.error('Error processing credit note inventory:', error);
+      toast({ 
+        title: "Warning", 
+        description: "Credit note saved but inventory update may have failed", 
+        variant: "destructive" 
+      });
+    }
   };
 
   // RSO Action Handlers
