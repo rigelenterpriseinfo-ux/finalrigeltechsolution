@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { Edit, Trash2, Eye, Search, Filter } from 'lucide-react';
+import { Edit, Trash2, Eye, Search, Filter, FileSpreadsheet, FileText } from 'lucide-react';
 import { format } from 'date-fns';
 import { toast } from '@/hooks/use-toast';
 
@@ -31,12 +31,16 @@ interface SalesInvoiceTableProps {
   refreshTrigger?: number;
   onEdit: (invoice: SalesInvoice) => void;
   onView: (invoice: SalesInvoice) => void;
+  onDownloadExcel?: (invoice: SalesInvoice) => void;
+  onDownloadPDF?: (invoice: SalesInvoice) => void;
 }
 
 export const SalesInvoiceTable: React.FC<SalesInvoiceTableProps> = ({
   refreshTrigger,
   onEdit,
   onView,
+  onDownloadExcel,
+  onDownloadPDF,
 }) => {
   const { company } = useAuth();
   const [invoices, setInvoices] = useState<SalesInvoice[]>([]);
@@ -246,6 +250,28 @@ export const SalesInvoiceTable: React.FC<SalesInvoiceTableProps> = ({
                           onClick={() => onEdit(invoice)}
                         >
                           <Edit className="h-4 w-4" />
+                        </Button>
+                      )}
+
+                      {onDownloadExcel && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => onDownloadExcel(invoice)}
+                          title="Download Excel"
+                        >
+                          <FileSpreadsheet className="h-4 w-4" />
+                        </Button>
+                      )}
+
+                      {onDownloadPDF && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => onDownloadPDF(invoice)}
+                          title="Download PDF"
+                        >
+                          <FileText className="h-4 w-4" />
                         </Button>
                       )}
 

@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Search, Eye, Edit, Trash2, ChevronLeft, ChevronRight, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
+import { Search, Eye, Edit, Trash2, ChevronLeft, ChevronRight, ArrowUpDown, ArrowUp, ArrowDown, FileSpreadsheet, FileText } from "lucide-react";
 import { format } from 'date-fns';
 
 interface SalesOrder {
@@ -31,6 +31,8 @@ interface SalesOrderTableProps {
   onView: (salesOrder: SalesOrder) => void;
   onEdit: (salesOrder: SalesOrder) => void;
   onDelete: (salesOrder: SalesOrder) => void;
+  onDownloadExcel?: (salesOrder: SalesOrder) => void;
+  onDownloadPDF?: (salesOrder: SalesOrder) => void;
   loading?: boolean;
 }
 
@@ -42,6 +44,8 @@ export const SalesOrderTable: React.FC<SalesOrderTableProps> = ({
   onView,
   onEdit,
   onDelete,
+  onDownloadExcel,
+  onDownloadPDF,
   loading = false
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -345,6 +349,26 @@ export const SalesOrderTable: React.FC<SalesOrderTableProps> = ({
                         >
                           <Edit className="h-4 w-4" />
                         </Button>
+                        {onDownloadExcel && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => onDownloadExcel(order)}
+                            title="Download Excel"
+                          >
+                            <FileSpreadsheet className="h-4 w-4" />
+                          </Button>
+                        )}
+                        {onDownloadPDF && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => onDownloadPDF(order)}
+                            title="Download PDF"
+                          >
+                            <FileText className="h-4 w-4" />
+                          </Button>
+                        )}
                         <Button
                           variant="ghost"
                           size="sm"
