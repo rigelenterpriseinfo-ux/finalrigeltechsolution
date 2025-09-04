@@ -10,6 +10,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useAuth } from '@/hooks/useAuth';
 import { Loader2, Building2, Mail, Lock, Eye, EyeOff, Shield, CheckCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { emailSchema, passwordSchema, nameSchema } from '@/lib/security';
 
 export default function EnhancedAuth() {
   const { user, signIn, signUp, resetPassword, loading } = useAuth();
@@ -76,6 +77,26 @@ export default function EnhancedAuth() {
     const city = formData.get('city') as string;
     const state = formData.get('state') as string;
     const country = formData.get('country') as string;
+    
+    // Enhanced validation using security schemas
+    try {
+      emailSchema.parse(email);
+      passwordSchema.parse(password);
+      nameSchema.parse(companyName);
+      nameSchema.parse(firstName);
+      nameSchema.parse(lastName);
+      nameSchema.parse(city);
+      nameSchema.parse(state);
+      nameSchema.parse(country);
+    } catch (validationError: any) {
+      toast({
+        title: "Validation failed",
+        description: validationError.errors?.[0]?.message || "Please check your input",
+        variant: "destructive",
+      });
+      setIsLoading(false);
+      return;
+    }
     
     // Validate passwords match
     if (password !== confirmPassword) {
