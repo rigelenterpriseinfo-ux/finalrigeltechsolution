@@ -1419,6 +1419,173 @@ export type Database = {
           },
         ]
       }
+      return_order_header: {
+        Row: {
+          company_id: string
+          created_at: string
+          created_by: string
+          customer_id: string
+          customer_name: string
+          delivery_address_line1: string | null
+          delivery_address_line2: string | null
+          delivery_city: string | null
+          delivery_country: string | null
+          delivery_pin_code: string | null
+          delivery_same_as_company: boolean
+          id: string
+          invoice_date: string
+          invoice_id: string
+          invoice_number: string
+          notes: string | null
+          reason_for_credit: string
+          rso_date: string
+          rso_number: string | null
+          status: string
+          subtotal_amount: number
+          tax_amount: number
+          total_amount: number
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          created_by: string
+          customer_id: string
+          customer_name: string
+          delivery_address_line1?: string | null
+          delivery_address_line2?: string | null
+          delivery_city?: string | null
+          delivery_country?: string | null
+          delivery_pin_code?: string | null
+          delivery_same_as_company?: boolean
+          id?: string
+          invoice_date: string
+          invoice_id: string
+          invoice_number: string
+          notes?: string | null
+          reason_for_credit: string
+          rso_date?: string
+          rso_number?: string | null
+          status?: string
+          subtotal_amount?: number
+          tax_amount?: number
+          total_amount?: number
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          created_by?: string
+          customer_id?: string
+          customer_name?: string
+          delivery_address_line1?: string | null
+          delivery_address_line2?: string | null
+          delivery_city?: string | null
+          delivery_country?: string | null
+          delivery_pin_code?: string | null
+          delivery_same_as_company?: boolean
+          id?: string
+          invoice_date?: string
+          invoice_id?: string
+          invoice_number?: string
+          notes?: string | null
+          reason_for_credit?: string
+          rso_date?: string
+          rso_number?: string | null
+          status?: string
+          subtotal_amount?: number
+          tax_amount?: number
+          total_amount?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      return_order_lines: {
+        Row: {
+          cgst_amount: number | null
+          cgst_rate: number | null
+          created_at: string
+          discount_amount: number
+          discount_percentage: number | null
+          hsn_sac_code: string | null
+          id: string
+          igst_amount: number | null
+          igst_rate: number | null
+          invoice_qty: number
+          line_subtotal: number
+          line_total: number
+          pending_return_qty: number
+          product_id: string
+          product_name: string
+          product_sku: string
+          return_order_id: string
+          return_qty: number
+          sgst_amount: number | null
+          sgst_rate: number | null
+          tax_amount: number
+          unit_of_measure: string
+          unit_price: number
+        }
+        Insert: {
+          cgst_amount?: number | null
+          cgst_rate?: number | null
+          created_at?: string
+          discount_amount?: number
+          discount_percentage?: number | null
+          hsn_sac_code?: string | null
+          id?: string
+          igst_amount?: number | null
+          igst_rate?: number | null
+          invoice_qty: number
+          line_subtotal?: number
+          line_total?: number
+          pending_return_qty?: number
+          product_id: string
+          product_name: string
+          product_sku: string
+          return_order_id: string
+          return_qty?: number
+          sgst_amount?: number | null
+          sgst_rate?: number | null
+          tax_amount?: number
+          unit_of_measure?: string
+          unit_price?: number
+        }
+        Update: {
+          cgst_amount?: number | null
+          cgst_rate?: number | null
+          created_at?: string
+          discount_amount?: number
+          discount_percentage?: number | null
+          hsn_sac_code?: string | null
+          id?: string
+          igst_amount?: number | null
+          igst_rate?: number | null
+          invoice_qty?: number
+          line_subtotal?: number
+          line_total?: number
+          pending_return_qty?: number
+          product_id?: string
+          product_name?: string
+          product_sku?: string
+          return_order_id?: string
+          return_qty?: number
+          sgst_amount?: number | null
+          sgst_rate?: number | null
+          tax_amount?: number
+          unit_of_measure?: string
+          unit_price?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "return_order_lines_return_order_id_fkey"
+            columns: ["return_order_id"]
+            isOneToOne: false
+            referencedRelation: "return_order_header"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       sales_invoice_items: {
         Row: {
           backorder_quantity: number
@@ -2477,6 +2644,10 @@ export type Database = {
         Args: { comp_id: string }
         Returns: string
       }
+      generate_rso_number: {
+        Args: { p_company_id: string; p_customer_id: string }
+        Returns: string
+      }
       generate_so_number: {
         Args: { comp_id: string }
         Returns: string
@@ -2629,6 +2800,7 @@ export type Database = {
         | "transfer_out"
         | "transfer_in"
         | "sales_invoice"
+        | "sales_return"
       user_role: "Admin" | "User" | "ViewOnly"
     }
     CompositeTypes: {
@@ -2770,6 +2942,7 @@ export const Constants = {
         "transfer_out",
         "transfer_in",
         "sales_invoice",
+        "sales_return",
       ],
       user_role: ["Admin", "User", "ViewOnly"],
     },
