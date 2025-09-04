@@ -356,9 +356,9 @@ export function ReturnsModule() {
     
     const { data, error } = await supabase
       .from('warehouse_bins')
-      .select('id, bin_name')
+      .select('id, bin_name, warehouse_name, warehouse_code, wh_bin_code')
       .eq('company_id', company.id)
-      .order('bin_name');
+      .order('warehouse_name, bin_name');
     
     if (error) {
       toast({ title: "Error", description: "Failed to load warehouses", variant: "destructive" });
@@ -367,8 +367,8 @@ export function ReturnsModule() {
     
     const warehouseData: Warehouse[] = (data || []).map(item => ({
       id: item.id,
-      name: item.bin_name || 'Unknown',
-      location: undefined
+      name: `${item.warehouse_name || 'Unknown'} - ${item.warehouse_code || 'N/A'}`, // For default location dropdown
+      location: `${item.wh_bin_code || 'N/A'} - ${item.bin_name || 'Unknown'}` // For line items dropdown
     }));
     setWarehouses(warehouseData);
   };
@@ -1006,8 +1006,8 @@ export function ReturnsModule() {
                       searchPlaceholder="Search warehouses..."
                       options={warehouses.map(w => ({
                         id: w.id,
-                        name: w.name,
-                        subtitle: w.location
+                        name: w.name, // Shows "Warehouse name - Warehouse code"
+                        subtitle: undefined
                       }))}
                       loading={loading}
                       emptyMessage="No warehouses found"
@@ -1114,20 +1114,20 @@ export function ReturnsModule() {
                                  <TableCell>{item.sgst_rate}%</TableCell>
                                  <TableCell>{item.igst_rate}%</TableCell>
                                  <TableCell className="min-w-[200px]">
-                                   <SearchableCombobox
-                                     value={item.warehouse_id}
-                                     onSelect={(warehouseId) => handleItemWarehouseChange(item.id, warehouseId)}
-                                     placeholder="Select warehouse"
-                                     searchPlaceholder="Search warehouses..."
-                                     options={warehouses.map(w => ({
-                                       id: w.id,
-                                       name: w.name,
-                                       subtitle: w.location
-                                     }))}
-                                     className={`${missingWarehouse ? 'border-red-500' : ''} text-xs`}
-                                     disabled={item.return_qty === 0}
-                                     emptyMessage="No warehouses found"
-                                   />
+                                    <SearchableCombobox
+                                      value={item.warehouse_id}
+                                      onSelect={(warehouseId) => handleItemWarehouseChange(item.id, warehouseId)}
+                                      placeholder="Select warehouse/bin"
+                                      searchPlaceholder="Search warehouses..."
+                                      options={warehouses.map(w => ({
+                                        id: w.id,
+                                        name: w.location, // Shows "Bin code - Bin name"
+                                        subtitle: w.name // Shows "Warehouse name - Warehouse code" as subtitle
+                                      }))}
+                                      className={`${missingWarehouse ? 'border-red-500' : ''} text-xs`}
+                                      disabled={item.return_qty === 0}
+                                      emptyMessage="No warehouses found"
+                                    />
                                    {missingWarehouse && (
                                      <div className="text-xs text-red-600 mt-1">
                                        <AlertCircle className="h-3 w-3 inline mr-1" />
