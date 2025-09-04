@@ -647,7 +647,7 @@ export function ReturnsModule() {
         return {
           ...item,
           return_qty: validReturnQty,
-          pending_return_qty: maxAllowed - validReturnQty,
+          pending_return_qty: Math.max(0, maxAllowed - validReturnQty),
           discount_amount: discountAmount,
           line_subtotal: lineSubtotal,
           cgst_amount: cgstAmount,
@@ -1050,10 +1050,14 @@ export function ReturnsModule() {
       setInvoiceLineItems(prev => prev.map(item => {
         const savedLine = linesData.find(line => line.product_id === item.product_id);
         if (savedLine) {
+          const savedPending = (savedLine as any).pending_return_qty ?? undefined;
+          const savedReturn = (savedLine as any).return_qty ?? 0;
+          const computedPending = (item.available_to_return || 0) - savedReturn;
           return {
             ...item,
-            return_qty: savedLine.return_qty,
-            pending_return_qty: item.available_to_return! - savedLine.return_qty
+            return_qty: savedReturn,
+            pending_return_qty: Math.max(0, savedPending !== undefined ? savedPending : computedPending),
+            available_to_return: (savedPending || 0) + savedReturn
           };
         }
         return item;
@@ -1475,15 +1479,9 @@ export function ReturnsModule() {
                                        onChange={(e) => updateReturnQty(item.id, parseInt(e.target.value) || 0)}
                                        onBlur={(e) => {
                                          const value = parseInt(e.target.value) || 0;
-                                         const max = item.available_to_return || 0;
-                                         if (value > max) {
-                                           setValidationErrors(prev => ({
-                                             ...prev,
-                                             [item.id]: `Maximum ${max} units available`
-                                           }));
-                                         }
+                                         updateReturnQty(item.id, value);
                                        }}
-                                       disabled={isViewMode}
+                                       disabled={isViewMode || (item.available_to_return || 0) <= 0}
                                        readOnly={isViewMode}
                                        className={`w-20 text-center font-medium transition-all ${
                                          isViewMode 
