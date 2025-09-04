@@ -518,6 +518,27 @@ export function ReturnsModule() {
     }));
   };
 
+  const updateItemTaxRate = (lineItemId: string, field: 'cgst_rate' | 'sgst_rate' | 'igst_rate', value: number) => {
+    setInvoiceLineItems(prev => prev.map(item => {
+      if (item.id === lineItemId) {
+        const updatedItem = { ...item, [field]: value };
+        
+        // Recalculate tax amounts based on return quantity
+        const returnRatio = updatedItem.return_qty / updatedItem.quantity_invoiced;
+        const baseAmount = updatedItem.unit_price * updatedItem.return_qty;
+        
+        updatedItem.cgst_amount = (baseAmount * updatedItem.cgst_rate) / 100;
+        updatedItem.sgst_amount = (baseAmount * updatedItem.sgst_rate) / 100;
+        updatedItem.igst_amount = (baseAmount * updatedItem.igst_rate) / 100;
+        updatedItem.tax_amount = updatedItem.cgst_amount + updatedItem.sgst_amount + updatedItem.igst_amount;
+        updatedItem.line_total = baseAmount + updatedItem.tax_amount;
+        
+        return updatedItem;
+      }
+      return item;
+    }));
+  };
+
   const calculateTotals = () => {
     const returnItems = invoiceLineItems.filter(item => item.return_qty > 0);
     const subtotal = returnItems.reduce((sum, item) => sum + (item.line_subtotal * item.return_qty / item.quantity_invoiced), 0);
@@ -622,6 +643,12 @@ export function ReturnsModule() {
         setCreatedRsoNumber(result.rso_number);
         loadReturnOrders();
         loadReturnStats();
+        
+        // Auto-close form and reset after successful creation
+        setTimeout(() => {
+          resetForm();
+          setIsCreateReturnFormOpen(false);
+        }, 1500);
       }
     } catch (error: any) {
       toast({
@@ -812,28 +839,28 @@ export function ReturnsModule() {
         {/* Statistics Cards */}
         {returnStats && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <Card>
-              <CardContent className="p-4">
+            <Card className="shadow-md border-l-4 border-l-yellow-500">
+              <CardContent className="p-6">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm font-medium text-muted-foreground">Draft Orders</p>
-                    <p className="text-2xl font-bold">{returnStats.draft_count}</p>
+                    <p className="text-3xl font-bold text-yellow-600">{returnStats.draft_count}</p>
                   </div>
-                  <Badge className="bg-yellow-500 text-white">Draft</Badge>
+                  <Badge className="bg-yellow-500 text-white shadow-sm">Draft</Badge>
                 </div>
                 <p className="text-xs text-muted-foreground mt-2">
                   ₹{returnStats.draft_amount.toFixed(2)}
                 </p>
               </CardContent>
             </Card>
-            <Card>
-              <CardContent className="p-4">
+            <Card className="shadow-md border-l-4 border-l-green-500">
+              <CardContent className="p-6">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm font-medium text-muted-foreground">Confirmed Orders</p>
-                    <p className="text-2xl font-bold">{returnStats.confirmed_count}</p>
+                    <p className="text-3xl font-bold text-green-600">{returnStats.confirmed_count}</p>
                   </div>
-                  <Badge className="bg-green-500 text-white">Confirmed</Badge>
+                  <Badge className="bg-green-500 text-white shadow-sm">Confirmed</Badge>
                 </div>
                 <p className="text-xs text-muted-foreground mt-2">
                   ₹{returnStats.confirmed_amount.toFixed(2)}
@@ -844,12 +871,12 @@ export function ReturnsModule() {
         )}
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="returns" className="flex items-center gap-2">
+          <TabsList className="grid w-full grid-cols-2 bg-muted/50 p-1 rounded-lg">
+            <TabsTrigger value="returns" className="flex items-center gap-2 data-[state=active]:bg-background data-[state=active]:shadow-sm">
               <RotateCcw className="h-4 w-4" />
               Return Sales Orders
             </TabsTrigger>
-            <TabsTrigger value="credit-notes" className="flex items-center gap-2">
+            <TabsTrigger value="credit-notes" className="flex items-center gap-2 data-[state=active]:bg-background data-[state=active]:shadow-sm">
               <FileText className="h-4 w-4" />
               Credit Notes
             </TabsTrigger>
@@ -859,17 +886,19 @@ export function ReturnsModule() {
           <TabsContent value="returns" className="space-y-6">
             <div className="flex justify-between items-center">
               <div>
-                <h2 className="text-2xl font-bold flex items-center gap-2">
-                  <RotateCcw className="h-6 w-6" />
+                <h2 className="text-3xl font-bold flex items-center gap-3">
+                  <div className="p-2 bg-primary/10 rounded-lg">
+                    <RotateCcw className="h-6 w-6 text-primary" />
+                  </div>
                   Return Sales Orders
                 </h2>
-                <p className="text-muted-foreground">
-                  Manage product returns from customers
+                <p className="text-muted-foreground mt-1">
+                  Manage product returns from customers with enhanced tracking
                 </p>
               </div>
               <PermissionButton 
                 section="returns" 
-                className="btn-gradient"
+                className="btn-gradient hover:scale-105 transition-all duration-200 shadow-lg"
                 onClick={() => {
                   resetForm();
                   setIsCreateReturnFormOpen(true);
@@ -887,18 +916,21 @@ export function ReturnsModule() {
 
             {isCreateReturnFormOpen ? (
               /* Create/Edit Return Form */
-              <Card>
-                <CardHeader>
+              <Card className="shadow-lg border-0 bg-gradient-to-br from-background to-muted/20">
+                <CardHeader className="bg-gradient-to-r from-primary/10 to-secondary/10 border-b border-primary/20">
                   <div className="flex items-center justify-between">
                     <div>
-                      <CardTitle className="flex items-center gap-2">
-                        <RotateCcw className="h-5 w-5" />
+                      <CardTitle className="flex items-center gap-3 text-xl">
+                        <div className="p-2 bg-primary/10 rounded-lg">
+                          <RotateCcw className="h-5 w-5 text-primary" />
+                        </div>
                         {editingReturnId ? 'Edit Return Order' : 'Create Return Order'}
                       </CardTitle>
                       {createdRsoNumber && (
-                        <div className="mt-2 flex items-center gap-2 text-green-600">
-                          <Check className="h-4 w-4" />
-                          <span className="font-medium">RSO #{createdRsoNumber} - Status: Draft</span>
+                        <div className="mt-3 flex items-center gap-2 p-3 bg-green-50 text-green-700 rounded-lg border border-green-200 animate-fade-in">
+                          <Check className="h-5 w-5" />
+                          <span className="font-semibold">RSO #{createdRsoNumber} created successfully!</span>
+                          <span className="text-sm text-green-600">Auto-closing in a moment...</span>
                         </div>
                       )}
                     </div>
@@ -909,48 +941,53 @@ export function ReturnsModule() {
                         resetForm();
                         setIsCreateReturnFormOpen(false);
                       }}
+                      className="hover:bg-muted hover:scale-105 transition-all duration-200"
                     >
                       <ArrowLeft className="h-4 w-4 mr-2" />
                       Back to List
                     </Button>
                   </div>
                 </CardHeader>
-                <CardContent className="space-y-6">
+                <CardContent className="space-y-8 p-8">
                   {/* Header Section */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-6 bg-card border border-border/50 rounded-lg shadow-sm">
                     <div>
-                      <Label htmlFor="rso-date">Return Sales Order Date</Label>
+                      <Label htmlFor="rso-date" className="text-sm font-medium">Return Sales Order Date</Label>
                       <Input
                         id="rso-date"
                         type="date"
                         value={returnOrderDate}
                         onChange={(e) => setReturnOrderDate(e.target.value)}
+                        className="mt-1 transition-all hover:border-primary/50 focus:ring-primary"
                       />
                     </div>
                     <div>
-                      <Label htmlFor="customer">Customer Name *</Label>
-                      <SearchableCombobox
-                        value={selectedCustomer?.id}
-                        onSelect={handleCustomerSelect}
-                        placeholder="Search and select customer"
-                        searchPlaceholder="Type to search customers..."
-                        options={customerOptions}
-                        disabled={editingReturnId !== null}
-                        loading={customersLoading}
-                        emptyMessage="No customers found. Please add customers in the Sales section first."
-                      />
+                      <Label htmlFor="customer" className="text-sm font-medium">Customer Name *</Label>
+                      <div className="mt-1">
+                        <SearchableCombobox
+                          value={selectedCustomer?.id}
+                          onSelect={handleCustomerSelect}
+                          placeholder="Search and select customer"
+                          searchPlaceholder="Type to search customers..."
+                          options={customerOptions}
+                          disabled={editingReturnId !== null}
+                          loading={customersLoading}
+                          emptyMessage="No customers found. Please add customers in the Sales section first."
+                          className="hover:border-primary/50"
+                        />
+                      </div>
                     </div>
                   </div>
 
                   {/* Customer Registered Address */}
                   {selectedCustomer && (
-                    <div>
-                      <Label className="flex items-center gap-2">
-                        <MapPin className="h-4 w-4" />
+                    <div className="p-6 bg-card border border-border/50 rounded-lg shadow-sm">
+                      <Label className="flex items-center gap-2 text-sm font-medium mb-3">
+                        <MapPin className="h-4 w-4 text-primary" />
                         Customer Registered Address
                       </Label>
-                      <div className="mt-2 p-3 bg-gray-50 border rounded-md text-sm">
-                        <p>{selectedCustomer.address_line1 || 'No address line 1'}</p>
+                      <div className="p-4 bg-muted/30 border border-border rounded-md text-sm">
+                        <p className="font-medium">{selectedCustomer.address_line1 || 'No address line 1'}</p>
                         {selectedCustomer.address_line2 && <p>{selectedCustomer.address_line2}</p>}
                         <p>{selectedCustomer.city || ''}, {selectedCustomer.state || ''} {selectedCustomer.pin_code || ''}</p>
                         <p>{selectedCustomer.country || ''}</p>
@@ -960,64 +997,75 @@ export function ReturnsModule() {
 
                   {/* Invoice Selection */}
                   {selectedCustomer && (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-6 bg-card border border-border/50 rounded-lg shadow-sm">
                       <div>
-                        <Label htmlFor="invoice">Invoice No *</Label>
-                        <SearchableCombobox
-                          value={selectedInvoice?.id}
-                          onSelect={handleInvoiceSelect}
-                          placeholder="Select invoice (last 365 days)"
-                          searchPlaceholder="Type to search invoices..."
-                          options={invoiceOptions}
-                          disabled={editingReturnId !== null}
-                          loading={invoicesLoading}
-                          emptyMessage="No finalized invoices found in the last 365 days for this customer."
-                        />
+                        <Label htmlFor="invoice" className="text-sm font-medium">Invoice No *</Label>
+                        <div className="mt-1">
+                          <SearchableCombobox
+                            value={selectedInvoice?.id}
+                            onSelect={handleInvoiceSelect}
+                            placeholder="Search and select invoice"
+                            searchPlaceholder="Type to search invoices..."
+                            options={invoiceOptions}
+                            disabled={editingReturnId !== null}
+                            loading={invoicesLoading}
+                            emptyMessage="No finalized invoices found for this customer in the last 365 days."
+                            className="hover:border-primary/50"
+                          />
+                        </div>
                       </div>
                       {selectedInvoice && (
                         <div>
-                          <Label className="flex items-center gap-2">
-                            <Calendar className="h-4 w-4" />
-                            Invoice Date
+                          <Label className="text-sm font-medium flex items-center gap-2">
+                            <Calendar className="h-4 w-4 text-secondary" />
+                            Invoice Details
                           </Label>
-                          <Input
-                            value={selectedInvoice.invoice_date}
-                            disabled
-                            className="bg-gray-50"
-                          />
+                          <div className="mt-1 p-4 bg-secondary/10 border border-secondary/20 rounded-md text-sm">
+                            <p><span className="font-medium">Date:</span> {selectedInvoice.invoice_date}</p>
+                            <p><span className="font-medium">Customer:</span> {selectedInvoice.customer_name}</p>
+                            <p><span className="font-medium">Amount:</span> ₹{selectedInvoice.total_amount.toFixed(2)}</p>
+                          </div>
                         </div>
                       )}
                     </div>
                   )}
 
                   {/* Reason for Credit */}
-                  <div>
-                    <Label>Reason for Credit *</Label>
-                    <RadioGroup value={reasonForCredit} onValueChange={setReasonForCredit} className="mt-2">
+                  <div className="p-6 bg-card border border-border/50 rounded-lg shadow-sm">
+                    <Label className="text-sm font-medium">Reason for Credit *</Label>
+                    <RadioGroup 
+                      value={reasonForCredit} 
+                      onValueChange={setReasonForCredit}
+                      className="mt-3 grid grid-cols-2 md:grid-cols-4 gap-4"
+                    >
                       <div className="flex items-center space-x-2">
-                        <RadioGroupItem value="Return" id="return" />
-                        <Label htmlFor="return">Return</Label>
+                        <RadioGroupItem value="Defective" id="defective" />
+                        <Label htmlFor="defective" className="text-sm">Defective</Label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="Damaged" id="damaged" />
+                        <Label htmlFor="damaged" className="text-sm">Damaged</Label>
                       </div>
                       <div className="flex items-center space-x-2">
                         <RadioGroupItem value="Price Correction" id="price-correction" />
-                        <Label htmlFor="price-correction">Price Correction</Label>
+                        <Label htmlFor="price-correction" className="text-sm">Price Correction</Label>
                       </div>
                       <div className="flex items-center space-x-2">
                         <RadioGroupItem value="Discount" id="discount" />
-                        <Label htmlFor="discount">Discount</Label>
+                        <Label htmlFor="discount" className="text-sm">Discount</Label>
                       </div>
                       <div className="flex items-center space-x-2">
                         <RadioGroupItem value="Others" id="others" />
-                        <Label htmlFor="others">Others</Label>
+                        <Label htmlFor="others" className="text-sm">Others</Label>
                       </div>
                     </RadioGroup>
                   </div>
 
                   {/* Status */}
-                  <div>
-                    <Label>Status *</Label>
+                  <div className="p-6 bg-card border border-border/50 rounded-lg shadow-sm">
+                    <Label className="text-sm font-medium">Status *</Label>
                     <Select value={status} onValueChange={(value) => setStatus(value as 'Draft' | 'Confirmed')}>
-                      <SelectTrigger className="mt-2">
+                      <SelectTrigger className="mt-2 hover:border-primary/50 focus:ring-primary">
                         <SelectValue placeholder="Select status" />
                       </SelectTrigger>
                       <SelectContent>
@@ -1028,72 +1076,77 @@ export function ReturnsModule() {
                   </div>
 
                   {/* Delivery Address Section */}
-                  <div className="space-y-4">
-                    <Label>Return Delivery Address</Label>
+                  <div className="space-y-4 p-6 bg-card border border-border/50 rounded-lg shadow-sm">
+                    <Label className="text-sm font-medium">Return Delivery Address</Label>
                     <div className="flex items-center space-x-2">
                       <Checkbox
                         id="same-address"
                         checked={deliverySameAsCompany}
                         onCheckedChange={(checked) => setDeliverySameAsCompany(checked as boolean)}
                       />
-                      <Label htmlFor="same-address">Same as company registered address</Label>
+                      <Label htmlFor="same-address" className="text-sm">Same as company registered address</Label>
                     </div>
 
                     {deliverySameAsCompany ? (
                       company && (
-                        <div className="p-3 bg-blue-50 border rounded-md text-sm">
-                          <p className="font-medium">Company Address:</p>
-                          <p>{(company as any).address_line1}</p>
-                          {(company as any).address_line2 && <p>{(company as any).address_line2}</p>}
-                          <p>{(company as any).city}, {(company as any).state} {(company as any).postal_code}</p>
-                          <p>{(company as any).country}</p>
+                        <div className="p-4 bg-blue-50 border border-blue-200 rounded-md text-sm">
+                          <p className="font-medium text-blue-900">Company Address:</p>
+                          <p className="text-blue-800">{(company as any).address_line1}</p>
+                          {(company as any).address_line2 && <p className="text-blue-800">{(company as any).address_line2}</p>}
+                          <p className="text-blue-800">{(company as any).city}, {(company as any).state} {(company as any).postal_code}</p>
+                          <p className="text-blue-800">{(company as any).country}</p>
                         </div>
                       )
                     ) : (
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
-                          <Label htmlFor="address1">Address Line 1 *</Label>
+                          <Label htmlFor="address1" className="text-sm font-medium">Address Line 1 *</Label>
                           <Input
                             id="address1"
                             value={deliveryAddress.address_line1}
                             onChange={(e) => setDeliveryAddress(prev => ({ ...prev, address_line1: e.target.value }))}
                             placeholder="Enter address line 1"
+                            className="mt-1 hover:border-primary/50 focus:ring-primary"
                           />
                         </div>
                         <div>
-                          <Label htmlFor="address2">Address Line 2</Label>
+                          <Label htmlFor="address2" className="text-sm font-medium">Address Line 2</Label>
                           <Input
                             id="address2"
                             value={deliveryAddress.address_line2}
                             onChange={(e) => setDeliveryAddress(prev => ({ ...prev, address_line2: e.target.value }))}
                             placeholder="Enter address line 2 (optional)"
+                            className="mt-1 hover:border-primary/50 focus:ring-primary"
                           />
                         </div>
                         <div>
-                          <Label htmlFor="city">City *</Label>
+                          <Label htmlFor="city" className="text-sm font-medium">City *</Label>
                           <Input
                             id="city"
                             value={deliveryAddress.city}
                             onChange={(e) => setDeliveryAddress(prev => ({ ...prev, city: e.target.value }))}
                             placeholder="City"
+                            className="mt-1 hover:border-primary/50 focus:ring-primary"
                           />
                         </div>
                         <div>
-                          <Label htmlFor="country">Country</Label>
+                          <Label htmlFor="country" className="text-sm font-medium">Country</Label>
                           <Input
                             id="country"
                             value={deliveryAddress.country}
                             onChange={(e) => setDeliveryAddress(prev => ({ ...prev, country: e.target.value }))}
                             placeholder="Country"
+                            className="mt-1 hover:border-primary/50 focus:ring-primary"
                           />
                         </div>
                         <div>
-                          <Label htmlFor="pincode">Pin Code</Label>
+                          <Label htmlFor="pincode" className="text-sm font-medium">Pin Code</Label>
                           <Input
                             id="pincode"
                             value={deliveryAddress.pin_code}
                             onChange={(e) => setDeliveryAddress(prev => ({ ...prev, pin_code: e.target.value }))}
                             placeholder="Pin Code"
+                            className="mt-1 hover:border-primary/50 focus:ring-primary"
                           />
                         </div>
                       </div>
@@ -1102,39 +1155,48 @@ export function ReturnsModule() {
 
                   {/* Line Items Section */}
                   {invoiceLineItems.length > 0 && (
-                    <div className="space-y-4">
-                      <h3 className="text-lg font-semibold">Invoice Line Items</h3>
-                      <div className="overflow-x-auto">
-                        <Table>
+                    <div className="space-y-6 p-6 bg-card border border-border/50 rounded-lg shadow-sm">
+                      <div className="flex items-center gap-3 pb-4 border-b border-border/50">
+                        <div className="p-2 bg-secondary/10 rounded-lg">
+                          <FileText className="h-5 w-5 text-secondary" />
+                        </div>
+                        <h3 className="text-xl font-semibold">Invoice Line Items</h3>
+                        <Badge variant="outline" className="ml-auto">
+                          {invoiceLineItems.length} items
+                        </Badge>
+                      </div>
+                      <div className="overflow-x-auto rounded-lg border border-border/50">
+                        <Table className="border-separate border-spacing-0">
                           <TableHeader>
-                            <TableRow>
-                              <TableHead>Product</TableHead>
-                              <TableHead>SKU</TableHead>
-                              <TableHead>HSN/SAC</TableHead>
-                              <TableHead>UOM</TableHead>
-                              <TableHead>Invoice Qty</TableHead>
-                              <TableHead>Already Returned</TableHead>
-                              <TableHead>Available</TableHead>
-                              <TableHead>Return Qty</TableHead>
-                              <TableHead>Pending</TableHead>
-                              <TableHead>Unit Price</TableHead>
-                              <TableHead>CGST %</TableHead>
-                              <TableHead>SGST %</TableHead>
-                              <TableHead>IGST %</TableHead>
-                              <TableHead>Line Total</TableHead>
+                            <TableRow className="bg-gradient-to-r from-primary/5 to-secondary/5">
+                              <TableHead className="font-semibold text-foreground border-b-2 border-primary/20">Product</TableHead>
+                              <TableHead className="font-semibold text-foreground border-b-2 border-primary/20">SKU</TableHead>
+                              <TableHead className="font-semibold text-foreground border-b-2 border-primary/20">HSN/SAC</TableHead>
+                              <TableHead className="font-semibold text-foreground border-b-2 border-primary/20">UOM</TableHead>
+                              <TableHead className="font-semibold text-foreground border-b-2 border-primary/20">Invoice Qty</TableHead>
+                              <TableHead className="font-semibold text-foreground border-b-2 border-primary/20">Already Returned</TableHead>
+                              <TableHead className="font-semibold text-foreground border-b-2 border-primary/20">Available</TableHead>
+                              <TableHead className="font-semibold text-foreground border-b-2 border-primary/20">Return Qty</TableHead>
+                              <TableHead className="font-semibold text-foreground border-b-2 border-primary/20">Pending</TableHead>
+                              <TableHead className="font-semibold text-foreground border-b-2 border-primary/20">Unit Price</TableHead>
+                              <TableHead className="font-semibold text-foreground border-b-2 border-primary/20">Discount %</TableHead>
+                              <TableHead className="font-semibold text-foreground border-b-2 border-primary/20">CGST %</TableHead>
+                              <TableHead className="font-semibold text-foreground border-b-2 border-primary/20">SGST %</TableHead>
+                              <TableHead className="font-semibold text-foreground border-b-2 border-primary/20">IGST %</TableHead>
+                              <TableHead className="font-semibold text-foreground border-b-2 border-primary/20">Line Total</TableHead>
                             </TableRow>
                           </TableHeader>
                           <TableBody>
-                            {invoiceLineItems.map((item) => (
-                              <TableRow key={item.id}>
-                                <TableCell className="font-medium">{item.product_name}</TableCell>
-                                <TableCell>{item.product_sku}</TableCell>
-                                <TableCell>{item.hsn_sac_code || '-'}</TableCell>
-                                <TableCell>{item.unit_of_measure}</TableCell>
-                                <TableCell>{item.quantity_invoiced}</TableCell>
-                                <TableCell>{item.already_returned || 0}</TableCell>
-                                <TableCell>{item.available_to_return || 0}</TableCell>
-                                <TableCell>
+                            {invoiceLineItems.map((item, index) => (
+                              <TableRow key={item.id} className={`hover:bg-accent/50 transition-colors ${index % 2 === 0 ? 'bg-muted/20' : 'bg-background'}`}>
+                                <TableCell className="font-medium py-4">{item.product_name}</TableCell>
+                                <TableCell className="py-4">{item.product_sku}</TableCell>
+                                <TableCell className="py-4">{item.hsn_sac_code || '-'}</TableCell>
+                                <TableCell className="py-4">{item.unit_of_measure}</TableCell>
+                                <TableCell className="py-4 text-center font-medium">{item.quantity_invoiced}</TableCell>
+                                <TableCell className="py-4 text-center text-red-600 font-medium">{item.already_returned || 0}</TableCell>
+                                <TableCell className="py-4 text-center text-green-600 font-medium">{item.available_to_return || 0}</TableCell>
+                                <TableCell className="py-4">
                                   <div className="space-y-1">
                                     <Input
                                       type="number"
@@ -1152,22 +1214,53 @@ export function ReturnsModule() {
                                           }));
                                         }
                                       }}
-                                      className={`w-20 ${validationErrors[item.id] ? 'border-red-500' : ''}`}
+                                      className={`w-20 text-center font-medium transition-all ${validationErrors[item.id] ? 'border-destructive focus:ring-destructive' : 'focus:ring-primary border-input hover:border-primary/50'}`}
                                     />
                                     {validationErrors[item.id] && (
-                                      <div className="flex items-center gap-1 text-xs text-red-500">
+                                      <div className="flex items-center gap-1 text-xs text-destructive animate-fade-in">
                                         <AlertCircle className="h-3 w-3" />
                                         <span>{validationErrors[item.id]}</span>
                                       </div>
                                     )}
                                   </div>
                                 </TableCell>
-                                <TableCell>{item.pending_return_qty}</TableCell>
-                                <TableCell>₹{item.unit_price.toFixed(2)}</TableCell>
-                                <TableCell>{item.cgst_rate}%</TableCell>
-                                <TableCell>{item.sgst_rate}%</TableCell>
-                                <TableCell>{item.igst_rate}%</TableCell>
-                                <TableCell>₹{(item.line_total * item.return_qty / item.quantity_invoiced).toFixed(2)}</TableCell>
+                                <TableCell className="py-4 text-center text-blue-600 font-medium">{item.pending_return_qty}</TableCell>
+                                <TableCell className="py-4 font-semibold">₹{item.unit_price.toFixed(2)}</TableCell>
+                                <TableCell className="py-4 text-center font-medium text-amber-700">{item.discount_percentage}%</TableCell>
+                                <TableCell className="py-4">
+                                  <Input
+                                    type="number"
+                                    min="0"
+                                    max="100"
+                                    step="0.01"
+                                    value={item.cgst_rate}
+                                    onChange={(e) => updateItemTaxRate(item.id, 'cgst_rate', parseFloat(e.target.value) || 0)}
+                                    className="w-16 text-center text-sm border-muted hover:border-primary/50 focus:ring-primary"
+                                  />
+                                </TableCell>
+                                <TableCell className="py-4">
+                                  <Input
+                                    type="number"
+                                    min="0"
+                                    max="100"
+                                    step="0.01"
+                                    value={item.sgst_rate}
+                                    onChange={(e) => updateItemTaxRate(item.id, 'sgst_rate', parseFloat(e.target.value) || 0)}
+                                    className="w-16 text-center text-sm border-muted hover:border-primary/50 focus:ring-primary"
+                                  />
+                                </TableCell>
+                                <TableCell className="py-4">
+                                  <Input
+                                    type="number"
+                                    min="0"
+                                    max="100"
+                                    step="0.01"
+                                    value={item.igst_rate}
+                                    onChange={(e) => updateItemTaxRate(item.id, 'igst_rate', parseFloat(e.target.value) || 0)}
+                                    className="w-16 text-center text-sm border-muted hover:border-primary/50 focus:ring-primary"
+                                  />
+                                </TableCell>
+                                <TableCell className="py-4 font-bold text-lg text-primary">₹{(item.line_total * item.return_qty / item.quantity_invoiced).toFixed(2)}</TableCell>
                               </TableRow>
                             ))}
                           </TableBody>
@@ -1176,18 +1269,20 @@ export function ReturnsModule() {
 
                       {/* Totals */}
                       <div className="flex justify-end">
-                        <div className="w-64 space-y-2 p-4 bg-gray-50 rounded-md">
-                          <div className="flex justify-between">
-                            <span>Subtotal:</span>
-                            <span>₹{subtotal.toFixed(2)}</span>
+                        <div className="w-80 space-y-3 p-6 bg-gradient-to-br from-primary/5 to-secondary/5 rounded-lg border border-primary/20 shadow-sm">
+                          <div className="flex justify-between items-center text-sm">
+                            <span className="text-muted-foreground">Subtotal:</span>
+                            <span className="font-medium">₹{subtotal.toFixed(2)}</span>
                           </div>
-                          <div className="flex justify-between">
-                            <span>Tax Amount:</span>
-                            <span>₹{taxAmount.toFixed(2)}</span>
+                          <div className="flex justify-between items-center text-sm">
+                            <span className="text-muted-foreground">Tax Amount:</span>
+                            <span className="font-medium">₹{taxAmount.toFixed(2)}</span>
                           </div>
-                          <div className="flex justify-between font-bold text-lg">
-                            <span>Total:</span>
-                            <span>₹{total.toFixed(2)}</span>
+                          <div className="border-t border-primary/20 pt-3">
+                            <div className="flex justify-between items-center font-bold text-xl">
+                              <span className="text-primary">Total:</span>
+                              <span className="text-primary">₹{total.toFixed(2)}</span>
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -1195,25 +1290,26 @@ export function ReturnsModule() {
                   )}
 
                   {/* Notes */}
-                  <div>
-                    <Label htmlFor="notes">Notes</Label>
+                  <div className="p-6 bg-card border border-border/50 rounded-lg shadow-sm">
+                    <Label htmlFor="notes" className="text-sm font-medium">Notes</Label>
                     <Textarea
                       id="notes"
                       value={notes}
                       onChange={(e) => setNotes(e.target.value)}
                       placeholder="Enter any additional notes..."
                       rows={3}
+                      className="mt-2 hover:border-primary/50 focus:ring-primary"
                     />
                   </div>
 
                   {/* Actions */}
-                  <div className="flex justify-between">
+                  <div className="flex justify-between p-6 bg-muted/30 border border-border/50 rounded-lg">
                     <div>
                       {createdRsoNumber && (
                         <Button
                           onClick={() => handleConfirmReturn(editingReturnId || '')}
                           disabled={loading || !editingReturnId}
-                          className="bg-green-600 hover:bg-green-700 text-white"
+                          className="bg-green-600 hover:bg-green-700 text-white hover:scale-105 transition-all duration-200 shadow-lg"
                         >
                           <Check className="h-4 w-4 mr-2" />
                           {loading ? 'Confirming...' : 'Confirm Return'}
@@ -1227,16 +1323,17 @@ export function ReturnsModule() {
                           resetForm();
                           setIsCreateReturnFormOpen(false);
                         }}
+                        className="hover:bg-muted hover:scale-105 transition-all duration-200"
                       >
                         Cancel
                       </Button>
                       <Button
                         onClick={handleSaveReturn}
                         disabled={loading || !!createdRsoNumber}
-                        className="btn-gradient"
+                        className="btn-gradient hover:scale-105 transition-all duration-200 shadow-lg"
                       >
                         <Save className="h-4 w-4 mr-2" />
-                        {loading ? 'Saving...' : editingReturnId ? `Update (${status})` : `Save (${status})`}
+                        {loading ? 'Saving...' : 'Save'}
                       </Button>
                     </div>
                   </div>
@@ -1244,20 +1341,20 @@ export function ReturnsModule() {
               </Card>
             ) : (
               /* Return Orders List */
-              <Card>
-                <CardHeader>
+              <Card className="shadow-lg">
+                <CardHeader className="bg-gradient-to-r from-background to-muted/30 border-b">
                   <div className="flex justify-between items-center">
-                    <CardTitle>Return Orders</CardTitle>
+                    <CardTitle className="text-xl font-semibold">Return Orders</CardTitle>
                     <div className="flex gap-2">
                       <div className="relative">
                         <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
                         <PermissionInput 
                           section="returns"
                           placeholder="Search returns..." 
-                          className="pl-10 w-64" 
+                          className="pl-10 w-64 hover:border-primary/50 focus:ring-primary" 
                         />
                       </div>
-                      <PermissionButton section="returns" variant="outline" size="sm">
+                      <PermissionButton section="returns" variant="outline" size="sm" className="hover:bg-muted">
                         <Filter className="h-4 w-4 mr-2" />
                         Filter
                       </PermissionButton>
@@ -1265,139 +1362,136 @@ export function ReturnsModule() {
                   </div>
                 </CardHeader>
                 <CardContent className="p-0">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>RSO #</TableHead>
-                        <TableHead>Date</TableHead>
-                        <TableHead>Customer</TableHead>
-                        <TableHead>Invoice #</TableHead>
-                        <TableHead>Reason</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead>Amount</TableHead>
-                        <TableHead>Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {returnOrders.length === 0 ? (
-                        <TableRow>
-                          <TableCell colSpan={8} className="text-center py-8">
-                            <div className="flex flex-col items-center gap-4">
-                              <RotateCcw className="h-12 w-12 text-muted-foreground" />
-                              <div>
-                                <p className="text-lg font-semibold">No return orders yet</p>
-                                <p className="text-muted-foreground">Return orders will appear here</p>
-                              </div>
-                            </div>
-                          </TableCell>
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow className="bg-muted/30">
+                          <TableHead className="font-semibold">RSO #</TableHead>
+                          <TableHead className="font-semibold">Date</TableHead>
+                          <TableHead className="font-semibold">Customer</TableHead>
+                          <TableHead className="font-semibold">Invoice #</TableHead>
+                          <TableHead className="font-semibold">Reason</TableHead>
+                          <TableHead className="font-semibold">Status</TableHead>
+                          <TableHead className="font-semibold">Amount</TableHead>
+                          <TableHead className="font-semibold">Actions</TableHead>
                         </TableRow>
-                      ) : (
-                        returnOrders.map((returnOrder) => (
-                          <TableRow key={returnOrder.id}>
-                            <TableCell className="font-medium">{returnOrder.rso_number}</TableCell>
-                            <TableCell>{new Date(returnOrder.rso_date).toLocaleDateString()}</TableCell>
-                            <TableCell>{returnOrder.customer_name}</TableCell>
-                            <TableCell>{returnOrder.invoice_number}</TableCell>
-                            <TableCell>{returnOrder.reason_for_credit}</TableCell>
-                            <TableCell>
-                              <Badge className={getStatusColor(returnOrder.status)}>
-                                {returnOrder.status}
-                              </Badge>
-                            </TableCell>
-                            <TableCell>₹{returnOrder.total_amount.toFixed(2)}</TableCell>
-                            <TableCell>
-                              <div className="flex gap-1">
-                                <Button variant="outline" size="sm" title="View">
-                                  <Eye className="h-4 w-4" />
-                                </Button>
-                                {returnOrder.status === 'Draft' && (
-                                  <>
-                                    <Button 
-                                      variant="outline" 
-                                      size="sm" 
-                                      title="Edit"
-                                      onClick={() => handleEditReturn(returnOrder.id)}
-                                    >
-                                      <Edit className="h-4 w-4" />
-                                    </Button>
-                                    <Button 
-                                      variant="outline" 
-                                      size="sm"
-                                      title="Confirm"
-                                      onClick={() => handleConfirmReturn(returnOrder.id)}
-                                      disabled={loading}
-                                      className="bg-green-50 hover:bg-green-100"
-                                    >
-                                      <Check className="h-4 w-4" />
-                                    </Button>
-                                    <AlertDialog>
-                                      <AlertDialogTrigger asChild>
-                                        <Button 
-                                          variant="outline" 
-                                          size="sm" 
-                                          title="Delete"
-                                          className="text-red-600 hover:text-red-700"
-                                        >
-                                          <Trash2 className="h-4 w-4" />
-                                        </Button>
-                                      </AlertDialogTrigger>
-                                      <AlertDialogContent>
-                                        <AlertDialogHeader>
-                                          <AlertDialogTitle>Delete Return Order</AlertDialogTitle>
-                                          <AlertDialogDescription>
-                                            Are you sure you want to delete return order {returnOrder.rso_number}? This action cannot be undone.
-                                          </AlertDialogDescription>
-                                        </AlertDialogHeader>
-                                        <AlertDialogFooter>
-                                          <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                          <AlertDialogAction 
-                                            onClick={() => handleDeleteReturn(returnOrder.id)}
-                                            className="bg-red-600 hover:bg-red-700"
-                                          >
-                                            Delete
-                                          </AlertDialogAction>
-                                        </AlertDialogFooter>
-                                      </AlertDialogContent>
-                                    </AlertDialog>
-                                  </>
-                                )}
+                      </TableHeader>
+                      <TableBody>
+                        {returnOrders.length === 0 ? (
+                          <TableRow>
+                            <TableCell colSpan={8} className="text-center py-12">
+                              <div className="flex flex-col items-center gap-4">
+                                <div className="p-4 bg-muted/50 rounded-full">
+                                  <RotateCcw className="h-12 w-12 text-muted-foreground" />
+                                </div>
+                                <div>
+                                  <p className="text-lg font-semibold">No return orders yet</p>
+                                  <p className="text-muted-foreground">Return orders will appear here once created</p>
+                                </div>
                               </div>
                             </TableCell>
                           </TableRow>
-                        ))
-                      )}
-                    </TableBody>
-                  </Table>
+                        ) : (
+                          returnOrders.map((returnOrder, index) => (
+                            <TableRow key={returnOrder.id} className={`hover:bg-accent/50 transition-colors ${index % 2 === 0 ? 'bg-background' : 'bg-muted/20'}`}>
+                              <TableCell className="font-medium">{returnOrder.rso_number}</TableCell>
+                              <TableCell>{new Date(returnOrder.rso_date).toLocaleDateString()}</TableCell>
+                              <TableCell>{returnOrder.customer_name}</TableCell>
+                              <TableCell>{returnOrder.invoice_number}</TableCell>
+                              <TableCell><span className="text-sm bg-muted px-2 py-1 rounded">{returnOrder.reason_for_credit}</span></TableCell>
+                              <TableCell>
+                                <Badge className={getStatusColor(returnOrder.status)}>
+                                  {returnOrder.status}
+                                </Badge>
+                              </TableCell>
+                              <TableCell className="font-semibold">₹{returnOrder.total_amount.toFixed(2)}</TableCell>
+                              <TableCell>
+                                <div className="flex gap-1">
+                                  <Button variant="outline" size="sm" title="View" className="hover:bg-accent">
+                                    <Eye className="h-4 w-4" />
+                                  </Button>
+                                  {returnOrder.status === 'Draft' && (
+                                    <>
+                                      <Button 
+                                        variant="outline" 
+                                        size="sm" 
+                                        title="Edit"
+                                        onClick={() => handleEditReturn(returnOrder.id)}
+                                        className="hover:bg-blue-50"
+                                      >
+                                        <Edit className="h-4 w-4" />
+                                      </Button>
+                                      <Button 
+                                        variant="outline" 
+                                        size="sm"
+                                        title="Confirm"
+                                        onClick={() => handleConfirmReturn(returnOrder.id)}
+                                        disabled={loading}
+                                        className="bg-green-50 hover:bg-green-100"
+                                      >
+                                        <Check className="h-4 w-4" />
+                                      </Button>
+                                      <AlertDialog>
+                                        <AlertDialogTrigger asChild>
+                                          <Button 
+                                            variant="outline" 
+                                            size="sm" 
+                                            title="Delete"
+                                            className="hover:bg-red-50"
+                                          >
+                                            <Trash2 className="h-4 w-4" />
+                                          </Button>
+                                        </AlertDialogTrigger>
+                                        <AlertDialogContent>
+                                          <AlertDialogHeader>
+                                            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                                            <AlertDialogDescription>
+                                              This action cannot be undone. This will permanently delete the return order.
+                                            </AlertDialogDescription>
+                                          </AlertDialogHeader>
+                                          <AlertDialogFooter>
+                                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                            <AlertDialogAction 
+                                              onClick={() => handleDeleteReturn(returnOrder.id)}
+                                              className="bg-red-600 hover:bg-red-700"
+                                            >
+                                              Delete
+                                            </AlertDialogAction>
+                                          </AlertDialogFooter>
+                                        </AlertDialogContent>
+                                      </AlertDialog>
+                                    </>
+                                  )}
+                                  <Button variant="outline" size="sm" title="Download" className="hover:bg-accent">
+                                    <Download className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          ))
+                        )}
+                      </TableBody>
+                    </Table>
+                  </div>
                 </CardContent>
               </Card>
             )}
           </TabsContent>
 
           {/* Credit Notes Tab */}
-          <TabsContent value="credit-notes" className="space-y-6">
-            <div className="flex justify-between items-center">
-              <div>
-                <h2 className="text-2xl font-bold flex items-center gap-2">
-                  <FileText className="h-6 w-6" />
+          <TabsContent value="credit-notes">
+            <Card className="shadow-lg">
+              <CardHeader className="bg-gradient-to-r from-background to-muted/30 border-b">
+                <CardTitle className="text-xl font-semibold flex items-center gap-2">
+                  <FileText className="h-5 w-5" />
                   Credit Notes
-                </h2>
-                <p className="text-muted-foreground">
-                  Create and manage credit notes for customers
-                </p>
-              </div>
-              <PermissionButton section="returns" className="btn-gradient">
-                <Plus className="mr-2 h-4 w-4" />
-                Create Credit Note
-              </PermissionButton>
-            </div>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Credit Notes</CardTitle>
+                </CardTitle>
               </CardHeader>
               <CardContent className="p-0">
-                <div className="text-center py-8">
-                  <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                <div className="text-center py-16">
+                  <div className="p-4 bg-muted/50 rounded-full w-fit mx-auto mb-4">
+                    <FileText className="h-12 w-12 text-muted-foreground" />
+                  </div>
                   <p className="text-lg font-semibold">Credit Notes Coming Soon</p>
                   <p className="text-muted-foreground">Credit note functionality will be available soon</p>
                 </div>
