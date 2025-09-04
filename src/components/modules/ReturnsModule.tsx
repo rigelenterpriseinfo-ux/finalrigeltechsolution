@@ -694,6 +694,11 @@ export function ReturnsModule() {
       resetCreditNoteForm();
       loadCreditNotes();
       loadCreditNoteStats();
+      
+      // Refresh inventory transactions if the component is available
+      if (typeof window !== 'undefined' && window.dispatchEvent) {
+        window.dispatchEvent(new CustomEvent('refreshInventoryTransactions'));
+      }
 
     } catch (error) {
       console.error('❌ Error saving credit note:', error);
