@@ -572,6 +572,17 @@ export function ReturnsModule() {
       return;
     }
 
+    // Map UI reason values to valid database constraints
+    const mapReasonForCredit = (reason: string) => {
+      const validReasons = ['Return', 'Price Correction', 'Discount', 'Others'];
+      if (validReasons.includes(reason)) return reason;
+      
+      // Map deprecated reasons to 'Return'
+      if (['Defective', 'Damaged'].includes(reason)) return 'Return';
+      
+      return 'Others'; // fallback
+    };
+
     const returnItems = invoiceLineItems.filter(item => item.return_qty > 0);
     if (returnItems.length === 0) {
       toast({ title: "Error", description: "Please select at least one item to return", variant: "destructive" });
@@ -625,11 +636,30 @@ export function ReturnsModule() {
         line_total: proRate(item.line_total ?? 0, item)
       }));
 
+      // Map UI reason values to valid database constraints
+      const mapReasonForCredit = (reason: string) => {
+        const validReasons = ['Return', 'Price Correction', 'Discount', 'Others'];
+        if (validReasons.includes(reason)) return reason;
+        
+        // Map deprecated reasons to 'Return'
+        if (['Defective', 'Damaged'].includes(reason)) return 'Return';
+        
+        return 'Others'; // fallback
+      };
+
+      // Map reason and append original to notes if needed
+      const mappedReason = mapReasonForCredit(reasonForCredit);
+      const enhancedNotes = mappedReason !== reasonForCredit 
+        ? `${notes ? notes + '\n\n' : ''}Original reason: ${reasonForCredit}`.trim()
+        : notes;
+
+      console.debug('Reason mapping:', { original: reasonForCredit, mapped: mappedReason });
+
       const { data, error } = await supabase.rpc('create_return_order', {
         p_company_id: company.id,
         p_customer_id: selectedCustomer.id,
         p_invoice_id: selectedInvoice.id,
-        p_reason_for_credit: reasonForCredit,
+        p_reason_for_credit: mappedReason,
         p_return_lines: returnLinesData,
         p_delivery_same_as_company: deliverySameAsCompany,
         p_delivery_address_line1: deliverySameAsCompany ? null : deliveryAddress.address_line1,
@@ -637,7 +667,7 @@ export function ReturnsModule() {
         p_delivery_city: deliverySameAsCompany ? null : deliveryAddress.city,
         p_delivery_country: deliverySameAsCompany ? null : deliveryAddress.country,
         p_delivery_pin_code: deliverySameAsCompany ? null : deliveryAddress.pin_code,
-        p_notes: notes || null,
+        p_notes: enhancedNotes || null,
         p_status: status
       });
 
@@ -1043,9 +1073,10 @@ export function ReturnsModule() {
                     </div>
                   )}
 
-                  {/* Reason for Credit */}
+                   {/* Reason for Credit */}
                   <div className="p-6 bg-card border border-border/50 rounded-lg shadow-sm">
                     <Label className="text-sm font-medium">Reason for Credit *</Label>
+                    <p className="text-xs text-muted-foreground mt-1">Select the primary reason for this return</p>
                     <RadioGroup 
                       value={reasonForCredit} 
                       onValueChange={setReasonForCredit}
