@@ -66,6 +66,7 @@ export const SalesInvoiceTable: React.FC<SalesInvoiceTableProps> = ({
           sales_orders!left(order_number)
         `)
         .eq('company_id', company.id)
+        .order('invoice_date', { ascending: false })
         .order('created_at', { ascending: false });
 
       if (error) throw error;

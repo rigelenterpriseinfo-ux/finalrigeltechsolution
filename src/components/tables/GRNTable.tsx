@@ -86,6 +86,7 @@ export function GRNTable({ refreshTrigger, onView, onEdit, onDelete }: GRNTableP
           grn_line_items(*)
         `)
         .eq('company_id', profile?.company_id)
+        .order('grn_date', { ascending: false })
         .order('created_at', { ascending: false });
 
       if (error) throw error;

@@ -118,6 +118,7 @@ export function PurchaseModule() {
           purchase_order_items:purchase_order_items(*)
         `)
         .eq('company_id', profile?.company_id)
+        .order('order_date', { ascending: false })
         .order('created_at', { ascending: false });
 
       if (error) throw error;
