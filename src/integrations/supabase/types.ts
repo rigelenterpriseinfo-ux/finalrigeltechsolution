@@ -184,6 +184,211 @@ export type Database = {
           },
         ]
       }
+      credit_note_items: {
+        Row: {
+          bin_id: string | null
+          cgst_amount: number | null
+          cgst_rate: number | null
+          created_at: string
+          credit_note_id: string
+          discount_amount: number
+          discount_percentage: number | null
+          hsn_sac_code: string | null
+          id: string
+          igst_amount: number | null
+          igst_rate: number | null
+          line_subtotal: number
+          line_total: number
+          pending_return_qty: number
+          product_id: string
+          product_name: string
+          product_sku: string
+          return_qty: number
+          rso_qty: number
+          sgst_amount: number | null
+          sgst_rate: number | null
+          tax_amount: number
+          unit_of_measure: string
+          unit_price: number
+          warehouse_id: string
+        }
+        Insert: {
+          bin_id?: string | null
+          cgst_amount?: number | null
+          cgst_rate?: number | null
+          created_at?: string
+          credit_note_id: string
+          discount_amount?: number
+          discount_percentage?: number | null
+          hsn_sac_code?: string | null
+          id?: string
+          igst_amount?: number | null
+          igst_rate?: number | null
+          line_subtotal?: number
+          line_total?: number
+          pending_return_qty?: number
+          product_id: string
+          product_name: string
+          product_sku: string
+          return_qty?: number
+          rso_qty: number
+          sgst_amount?: number | null
+          sgst_rate?: number | null
+          tax_amount?: number
+          unit_of_measure?: string
+          unit_price?: number
+          warehouse_id: string
+        }
+        Update: {
+          bin_id?: string | null
+          cgst_amount?: number | null
+          cgst_rate?: number | null
+          created_at?: string
+          credit_note_id?: string
+          discount_amount?: number
+          discount_percentage?: number | null
+          hsn_sac_code?: string | null
+          id?: string
+          igst_amount?: number | null
+          igst_rate?: number | null
+          line_subtotal?: number
+          line_total?: number
+          pending_return_qty?: number
+          product_id?: string
+          product_name?: string
+          product_sku?: string
+          return_qty?: number
+          rso_qty?: number
+          sgst_amount?: number | null
+          sgst_rate?: number | null
+          tax_amount?: number
+          unit_of_measure?: string
+          unit_price?: number
+          warehouse_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_credit_note_items_bin"
+            columns: ["bin_id"]
+            isOneToOne: false
+            referencedRelation: "warehouse_bins"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_credit_note_items_credit_note"
+            columns: ["credit_note_id"]
+            isOneToOne: false
+            referencedRelation: "credit_notes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_credit_note_items_product"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_credit_note_items_warehouse"
+            columns: ["warehouse_id"]
+            isOneToOne: false
+            referencedRelation: "warehouse_bins"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      credit_notes: {
+        Row: {
+          amount_in_words: string | null
+          cn_date: string
+          cn_number: string | null
+          company_id: string
+          created_at: string
+          created_by: string
+          customer_id: string
+          customer_name: string
+          default_warehouse_id: string
+          discount_amount: number
+          id: string
+          notes: string | null
+          rso_id: string
+          status: string
+          subtotal_amount: number
+          tax_amount: number
+          total_amount: number
+          updated_at: string
+        }
+        Insert: {
+          amount_in_words?: string | null
+          cn_date?: string
+          cn_number?: string | null
+          company_id: string
+          created_at?: string
+          created_by: string
+          customer_id: string
+          customer_name: string
+          default_warehouse_id: string
+          discount_amount?: number
+          id?: string
+          notes?: string | null
+          rso_id: string
+          status?: string
+          subtotal_amount?: number
+          tax_amount?: number
+          total_amount?: number
+          updated_at?: string
+        }
+        Update: {
+          amount_in_words?: string | null
+          cn_date?: string
+          cn_number?: string | null
+          company_id?: string
+          created_at?: string
+          created_by?: string
+          customer_id?: string
+          customer_name?: string
+          default_warehouse_id?: string
+          discount_amount?: number
+          id?: string
+          notes?: string | null
+          rso_id?: string
+          status?: string
+          subtotal_amount?: number
+          tax_amount?: number
+          total_amount?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_credit_notes_company"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_credit_notes_customer"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_credit_notes_rso"
+            columns: ["rso_id"]
+            isOneToOne: false
+            referencedRelation: "return_order_header"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_credit_notes_warehouse"
+            columns: ["default_warehouse_id"]
+            isOneToOne: false
+            referencedRelation: "warehouse_bins"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       customers: {
         Row: {
           account_number: string | null
@@ -2550,6 +2755,24 @@ export type Database = {
       }
     }
     Views: {
+      credit_note_stats: {
+        Row: {
+          company_id: string | null
+          confirmed_amount: number | null
+          confirmed_count: number | null
+          draft_amount: number | null
+          draft_count: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_credit_notes_company"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       current_stock_levels: {
         Row: {
           bin_id: string | null
@@ -2675,6 +2898,10 @@ export type Database = {
       }
       generate_business_ref_no: {
         Args: { company_name: string }
+        Returns: string
+      }
+      generate_cn_number: {
+        Args: { comp_id: string }
         Returns: string
       }
       generate_company_invoice_number: {
@@ -2832,6 +3059,10 @@ export type Database = {
       is_user_admin: {
         Args: Record<PropertyKey, never>
         Returns: boolean
+      }
+      process_credit_note_inventory: {
+        Args: { p_credit_note_id: string }
+        Returns: Json
       }
       process_grn_inventory: {
         Args: { p_grn_id: string }
