@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -24,6 +24,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
@@ -35,14 +36,17 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Save, X } from 'lucide-react';
+import { Loader2, Save, X, Search } from 'lucide-react';
+import { Label } from '@/components/ui/label';
 
 // Form validation schema
 const rsoHeaderSchema = z.object({
   customer_id: z.string().min(1, 'Customer is required'),
   invoice_id: z.string().min(1, 'Invoice is required'),
   rso_date: z.string().min(1, 'RSO date is required'),
-  reason_for_credit: z.string().min(1, 'Reason for credit is required'),
+  reason_for_credit: z.enum(['Return', 'Price Correction', 'Discount', 'Others'], {
+    required_error: 'Reason for credit is required',
+  }),
   status: z.enum(['Draft', 'Confirmed']),
   delivery_same_as_company: z.boolean(),
   delivery_address_line1: z.string().optional(),
@@ -59,6 +63,12 @@ interface Customer {
   id: string;
   name: string;
   customer_ref: string;
+  address_line1?: string;
+  address_line2?: string;
+  city?: string;
+  state?: string;
+  country?: string;
+  pin_code?: string;
 }
 
 interface SalesInvoice {
@@ -110,28 +120,35 @@ interface ReturnLineItem {
   igst_rate: number;
   igst_amount: number;
   line_subtotal: number;
+  tax_amount: number;
+  line_total: number;
   available_qty: number;
-  return_line_total: number;
+  original_discount_percentage: number;
+  original_discount_amount: number;
 }
 
-interface CreateRSOFormProps {
+interface EnhancedCreateRSOFormProps {
   rsoId?: string;
   onClose: () => void;
   onSave: () => void;
 }
 
-export function CreateRSOForm({ rsoId, onClose, onSave }: CreateRSOFormProps) {
+export function EnhancedCreateRSOForm({ rsoId, onClose, onSave }: EnhancedCreateRSOFormProps) {
   const { user } = useAuth();
   const { company } = useCompany();
   const { toast } = useToast();
 
   const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [invoices, setInvoices] = useState<SalesInvoice[]>([]);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [selectedInvoice, setSelectedInvoice] = useState<SalesInvoice | null>(null);
   const [returnLineItems, setReturnLineItems] = useState<ReturnLineItem[]>([]);
   const [isLoadingExisting, setIsLoadingExisting] = useState(false);
+  const [customerSearchTerm, setCustomerSearchTerm] = useState('');
+  const [invoiceSearchTerm, setInvoiceSearchTerm] = useState('');
+  const [generatedRSONumber, setGeneratedRSONumber] = useState<string>('');
 
   const form = useForm<RSOHeaderData>({
     resolver: zodResolver(rsoHeaderSchema),
@@ -139,7 +156,7 @@ export function CreateRSOForm({ rsoId, onClose, onSave }: CreateRSOFormProps) {
       customer_id: '',
       invoice_id: '',
       rso_date: new Date().toISOString().split('T')[0],
-      reason_for_credit: '',
+      reason_for_credit: 'Return',
       status: 'Draft',
       delivery_same_as_company: true,
       delivery_address_line1: '',
@@ -152,6 +169,18 @@ export function CreateRSOForm({ rsoId, onClose, onSave }: CreateRSOFormProps) {
   });
 
   const watchDeliverySameAsCompany = form.watch('delivery_same_as_company');
+
+  // Filter customers based on search term
+  const filteredCustomers = customers.filter(customer =>
+    customer.name.toLowerCase().includes(customerSearchTerm.toLowerCase()) ||
+    customer.customer_ref.toLowerCase().includes(customerSearchTerm.toLowerCase())
+  );
+
+  // Filter invoices based on search term
+  const filteredInvoices = invoices.filter(invoice =>
+    invoice.invoice_number.toLowerCase().includes(invoiceSearchTerm.toLowerCase()) ||
+    new Date(invoice.invoice_date).toLocaleDateString().includes(invoiceSearchTerm)
+  );
 
   // Load customers on component mount
   useEffect(() => {
@@ -185,9 +214,13 @@ export function CreateRSOForm({ rsoId, onClose, onSave }: CreateRSOFormProps) {
     if (!company?.id) return;
 
     try {
+      setLoading(true);
       const { data, error } = await supabase
         .from('customers')
-        .select('id, name, customer_ref')
+        .select(`
+          id, name, customer_ref, address_line1, address_line2, 
+          city, state, country, pin_code
+        `)
         .eq('company_id', company.id)
         .eq('is_active', true)
         .order('name');
@@ -201,6 +234,8 @@ export function CreateRSOForm({ rsoId, onClose, onSave }: CreateRSOFormProps) {
         description: 'Failed to load customers',
         variant: 'destructive',
       });
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -208,12 +243,17 @@ export function CreateRSOForm({ rsoId, onClose, onSave }: CreateRSOFormProps) {
     if (!company?.id) return;
 
     try {
+      // Filter invoices from last 365 days
+      const oneYearAgo = new Date();
+      oneYearAgo.setDate(oneYearAgo.getDate() - 365);
+
       const { data, error } = await supabase
         .from('sales_invoices')
         .select('id, invoice_number, invoice_date, customer_id, total_amount')
         .eq('company_id', company.id)
         .eq('customer_id', customerId)
         .eq('status', 'finalized')
+        .gte('invoice_date', oneYearAgo.toISOString().split('T')[0])
         .order('invoice_date', { ascending: false });
 
       if (error) throw error;
@@ -258,28 +298,35 @@ export function CreateRSOForm({ rsoId, onClose, onSave }: CreateRSOFormProps) {
         returnedQtyMap.set(item.product_id, current + item.return_qty);
       });
 
-      const returnLineItems: ReturnLineItem[] = (data || []).map(item => ({
-        product_id: item.product_id,
-        product_name: item.item_description,
-        product_sku: item.item_code,
-        hsn_sac_code: item.hsn_sac_code,
-        unit_of_measure: item.unit_of_measure,
-        invoice_qty: item.quantity_invoiced,
-        return_qty: 0,
-        pending_return_qty: 0,
-        unit_price: item.unit_price,
-        discount_percentage: item.discount_percentage || 0,
-        discount_amount: item.discount_amount || 0,
-        cgst_rate: item.cgst_rate || 0,
-        cgst_amount: 0,
-        sgst_rate: item.sgst_rate || 0,
-        sgst_amount: 0,
-        igst_rate: item.igst_rate || 0,
-        igst_amount: 0,
-        line_subtotal: 0,
-        available_qty: item.quantity_invoiced - (returnedQtyMap.get(item.product_id) || 0),
-        return_line_total: 0,
-      }));
+      const returnLineItems: ReturnLineItem[] = (data || []).map(item => {
+        const availableQty = item.quantity_invoiced - (returnedQtyMap.get(item.product_id) || 0);
+        
+        return {
+          product_id: item.product_id,
+          product_name: item.item_description,
+          product_sku: item.item_code,
+          hsn_sac_code: item.hsn_sac_code,
+          unit_of_measure: item.unit_of_measure,
+          invoice_qty: item.quantity_invoiced,
+          return_qty: 0,
+          pending_return_qty: 0,
+          unit_price: item.unit_price,
+          discount_percentage: item.discount_percentage || 0,
+          discount_amount: 0,
+          cgst_rate: item.cgst_rate || 0,
+          cgst_amount: 0,
+          sgst_rate: item.sgst_rate || 0,
+          sgst_amount: 0,
+          igst_rate: item.igst_rate || 0,
+          igst_amount: 0,
+          line_subtotal: 0,
+          tax_amount: 0,
+          line_total: 0,
+          available_qty: Math.max(0, availableQty),
+          original_discount_percentage: item.discount_percentage || 0,
+          original_discount_amount: item.discount_amount || 0,
+        };
+      });
 
       setReturnLineItems(returnLineItems);
     } catch (error) {
@@ -296,7 +343,6 @@ export function CreateRSOForm({ rsoId, onClose, onSave }: CreateRSOFormProps) {
     if (!rsoId || !company?.id) return;
 
     try {
-      setLoading(true);
       setIsLoadingExisting(true);
       
       // Load RSO header
@@ -308,6 +354,11 @@ export function CreateRSOForm({ rsoId, onClose, onSave }: CreateRSOFormProps) {
         .single();
 
       if (rsoError) throw rsoError;
+
+      // Set generated RSO number for display
+      if (rsoData.rso_number) {
+        setGeneratedRSONumber(rsoData.rso_number);
+      }
 
       // Load RSO lines
       const { data: linesData, error: linesError } = await supabase
@@ -322,7 +373,7 @@ export function CreateRSOForm({ rsoId, onClose, onSave }: CreateRSOFormProps) {
         customer_id: rsoData.customer_id,
         invoice_id: rsoData.invoice_id,
         rso_date: rsoData.rso_date,
-        reason_for_credit: rsoData.reason_for_credit,
+        reason_for_credit: rsoData.reason_for_credit as 'Return' | 'Price Correction' | 'Discount' | 'Others',
         status: rsoData.status as 'Draft' | 'Confirmed',
         delivery_same_as_company: rsoData.delivery_same_as_company,
         delivery_address_line1: rsoData.delivery_address_line1 || '',
@@ -349,8 +400,11 @@ export function CreateRSOForm({ rsoId, onClose, onSave }: CreateRSOFormProps) {
       }
 
       // Build prefill map from existing lines
-      const prefillMap = new Map<string, number>();
-      (linesData || []).forEach(l => prefillMap.set(l.product_id, l.return_qty));
+      const prefillMap = new Map<string, { return_qty: number; discount_percentage: number }>();
+      (linesData || []).forEach(l => prefillMap.set(l.product_id, {
+        return_qty: l.return_qty,
+        discount_percentage: l.discount_percentage || 0
+      }));
 
       // Load invoice items and prefill return quantities
       const { data: sii, error: siiErr } = await supabase
@@ -368,6 +422,7 @@ export function CreateRSOForm({ rsoId, onClose, onSave }: CreateRSOFormProps) {
             .from('return_order_header')
             .select('id')
             .eq('invoice_id', rsoData.invoice_id)
+            .neq('id', rsoId) // Exclude current RSO from calculation
             .then(({ data }) => data?.map(r => r.id) || [])
         );
       if (returnsError) throw returnsError;
@@ -380,14 +435,18 @@ export function CreateRSOForm({ rsoId, onClose, onSave }: CreateRSOFormProps) {
 
       const returnLineItems: ReturnLineItem[] = (sii || []).map(item => {
         const available = item.quantity_invoiced - (returnedQtyMap.get(item.product_id) || 0);
-        const prefillQty = Math.min(prefillMap.get(item.product_id) || 0, Math.max(available, 0));
+        const prefillData = prefillMap.get(item.product_id);
+        const prefillQty = Math.min(prefillData?.return_qty || 0, Math.max(available, 0));
+        const discountPercentage = prefillData?.discount_percentage || item.discount_percentage || 0;
         
-        // Calculate amounts based on prefilled quantity
-        const lineSubtotal = (prefillQty * item.unit_price) - ((prefillQty * item.unit_price * item.discount_percentage) / 100);
+        // Calculate amounts based on prefilled values
+        const discountAmount = (prefillQty * item.unit_price * discountPercentage) / 100;
+        const lineSubtotal = (prefillQty * item.unit_price) - discountAmount;
         const cgstAmount = (item.cgst_rate / 100) * lineSubtotal;
         const sgstAmount = (item.sgst_rate / 100) * lineSubtotal;
         const igstAmount = (item.igst_rate / 100) * lineSubtotal;
-        const returnLineTotal = lineSubtotal + cgstAmount + sgstAmount + igstAmount;
+        const taxAmount = cgstAmount + sgstAmount + igstAmount;
+        const lineTotal = lineSubtotal + taxAmount;
 
         return {
           product_id: item.product_id,
@@ -399,8 +458,8 @@ export function CreateRSOForm({ rsoId, onClose, onSave }: CreateRSOFormProps) {
           return_qty: prefillQty,
           pending_return_qty: prefillQty,
           unit_price: item.unit_price,
-          discount_percentage: item.discount_percentage || 0,
-          discount_amount: (prefillQty * item.unit_price * item.discount_percentage) / 100,
+          discount_percentage: discountPercentage,
+          discount_amount: discountAmount,
           cgst_rate: item.cgst_rate || 0,
           cgst_amount: cgstAmount,
           sgst_rate: item.sgst_rate || 0,
@@ -408,8 +467,11 @@ export function CreateRSOForm({ rsoId, onClose, onSave }: CreateRSOFormProps) {
           igst_rate: item.igst_rate || 0,
           igst_amount: igstAmount,
           line_subtotal: lineSubtotal,
+          tax_amount: taxAmount,
+          line_total: lineTotal,
           available_qty: available,
-          return_line_total: returnLineTotal,
+          original_discount_percentage: item.discount_percentage || 0,
+          original_discount_amount: item.discount_amount || 0,
         };
       });
 
@@ -424,7 +486,6 @@ export function CreateRSOForm({ rsoId, onClose, onSave }: CreateRSOFormProps) {
       });
     } finally {
       setIsLoadingExisting(false);
-      setLoading(false);
     }
   };
 
@@ -435,6 +496,7 @@ export function CreateRSOForm({ rsoId, onClose, onSave }: CreateRSOFormProps) {
     form.setValue('invoice_id', '');
     setSelectedInvoice(null);
     setReturnLineItems([]);
+    setInvoiceSearchTerm('');
   };
 
   const handleInvoiceChange = (invoiceId: string) => {
@@ -443,7 +505,7 @@ export function CreateRSOForm({ rsoId, onClose, onSave }: CreateRSOFormProps) {
     form.setValue('invoice_id', invoiceId);
   };
 
-  const handleReturnQtyChange = (index: number, returnQty: number) => {
+  const handleReturnQtyChange = useCallback((index: number, returnQty: number) => {
     const updatedItems = [...returnLineItems];
     const item = updatedItems[index];
     
@@ -459,30 +521,60 @@ export function CreateRSOForm({ rsoId, onClose, onSave }: CreateRSOFormProps) {
     item.return_qty = returnQty;
     item.pending_return_qty = returnQty;
     
-    // Calculate return line amounts
-    const lineSubtotal = (returnQty * item.unit_price) - ((returnQty * item.unit_price * item.discount_percentage) / 100);
-    item.line_subtotal = lineSubtotal;
-    item.discount_amount = (returnQty * item.unit_price * item.discount_percentage) / 100;
-    
-    // Calculate tax amounts
-    item.cgst_amount = (item.cgst_rate / 100) * lineSubtotal;
-    item.sgst_amount = (item.sgst_rate / 100) * lineSubtotal;
-    item.igst_amount = (item.igst_rate / 100) * lineSubtotal;
-    
-    // Calculate total
-    item.return_line_total = lineSubtotal + item.cgst_amount + item.sgst_amount + item.igst_amount;
+    // Recalculate line amounts
+    calculateLineAmounts(item);
     
     setReturnLineItems(updatedItems);
+  }, [returnLineItems, toast]);
+
+  const handleDiscountPercentageChange = useCallback((index: number, discountPercentage: number) => {
+    const updatedItems = [...returnLineItems];
+    const item = updatedItems[index];
+    
+    if (discountPercentage < 0 || discountPercentage > 100) {
+      toast({
+        title: 'Error',
+        description: 'Discount percentage must be between 0 and 100',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    item.discount_percentage = discountPercentage;
+    
+    // Recalculate line amounts
+    calculateLineAmounts(item);
+    
+    setReturnLineItems(updatedItems);
+  }, [returnLineItems, toast]);
+
+  const calculateLineAmounts = (item: ReturnLineItem) => {
+    // Calculate discount amount
+    item.discount_amount = (item.return_qty * item.unit_price * item.discount_percentage) / 100;
+    
+    // Calculate line subtotal (after discount)
+    item.line_subtotal = (item.return_qty * item.unit_price) - item.discount_amount;
+    
+    // Calculate tax amounts
+    item.cgst_amount = (item.cgst_rate / 100) * item.line_subtotal;
+    item.sgst_amount = (item.sgst_rate / 100) * item.line_subtotal;
+    item.igst_amount = (item.igst_rate / 100) * item.line_subtotal;
+    
+    // Calculate total tax amount
+    item.tax_amount = item.cgst_amount + item.sgst_amount + item.igst_amount;
+    
+    // Calculate line total
+    item.line_total = item.line_subtotal + item.tax_amount;
   };
 
-  const calculateTotals = () => {
+  const calculateTotals = useCallback(() => {
     const subtotal = returnLineItems.reduce((sum, item) => sum + item.line_subtotal, 0);
-    const taxAmount = returnLineItems.reduce((sum, item) => 
-      sum + item.cgst_amount + item.sgst_amount + item.igst_amount, 0);
+    const discountAmount = returnLineItems.reduce((sum, item) => sum + item.discount_amount, 0);
+    const taxAmount = returnLineItems.reduce((sum, item) => sum + item.tax_amount, 0);
     const total = subtotal + taxAmount;
 
-    return { subtotal, taxAmount, total };
-  };
+    return { subtotal, discountAmount, taxAmount, total };
+  }, [returnLineItems]);
 
   const onSubmit = async (data: RSOHeaderData) => {
     if (!user || !company?.id) return;
@@ -499,7 +591,7 @@ export function CreateRSOForm({ rsoId, onClose, onSave }: CreateRSOFormProps) {
     }
 
     try {
-      setLoading(true);
+      setSaving(true);
       
       const totals = calculateTotals();
       
@@ -528,13 +620,16 @@ export function CreateRSOForm({ rsoId, onClose, onSave }: CreateRSOFormProps) {
       };
 
       let rsoHeaderId: string;
+      let responseData: any;
 
       if (rsoId) {
         // Update existing RSO
-        const { error: updateError } = await supabase
+        const { data: updateData, error: updateError } = await supabase
           .from('return_order_header')
           .update(headerData)
-          .eq('id', rsoId);
+          .eq('id', rsoId)
+          .select('rso_number')
+          .single();
 
         if (updateError) throw updateError;
 
@@ -547,16 +642,23 @@ export function CreateRSOForm({ rsoId, onClose, onSave }: CreateRSOFormProps) {
         if (deleteError) throw deleteError;
 
         rsoHeaderId = rsoId;
+        responseData = updateData;
       } else {
         // Create new RSO
         const { data: insertedHeader, error: insertError } = await supabase
           .from('return_order_header')
           .insert(headerData)
-          .select('id')
+          .select('id, rso_number')
           .single();
 
         if (insertError) throw insertError;
         rsoHeaderId = insertedHeader.id;
+        responseData = insertedHeader;
+      }
+
+      // Set the generated RSO number for display
+      if (responseData?.rso_number) {
+        setGeneratedRSONumber(responseData.rso_number);
       }
 
       // Insert return order lines according to table structure
@@ -582,6 +684,8 @@ export function CreateRSOForm({ rsoId, onClose, onSave }: CreateRSOFormProps) {
           igst_rate: item.igst_rate,
           igst_amount: item.igst_amount,
           line_subtotal: item.line_subtotal,
+          tax_amount: item.tax_amount,
+          line_total: item.line_total,
         }));
 
       const { error: linesError } = await supabase
@@ -592,11 +696,13 @@ export function CreateRSOForm({ rsoId, onClose, onSave }: CreateRSOFormProps) {
 
       toast({
         title: 'Success',
-        description: `RSO ${rsoId ? 'updated' : 'created'} successfully`,
+        description: `RSO ${rsoId ? 'updated' : 'created'} successfully${responseData?.rso_number ? ` - ${responseData.rso_number}` : ''}`,
       });
 
       onSave();
-      onClose();
+      if (!rsoId) {
+        onClose(); // Only close on create, keep open on update to show generated number
+      }
     } catch (error) {
       console.error('Error saving RSO:', error);
       toast({
@@ -605,18 +711,36 @@ export function CreateRSOForm({ rsoId, onClose, onSave }: CreateRSOFormProps) {
         variant: 'destructive',
       });
     } finally {
-      setLoading(false);
+      setSaving(false);
     }
   };
 
   const totals = calculateTotals();
 
+  if (loading && !customers.length) {
+    return (
+      <Card className="w-full max-w-6xl mx-auto">
+        <CardContent className="flex items-center justify-center py-8">
+          <Loader2 className="h-8 w-8 animate-spin" />
+          <span className="ml-2">Loading...</span>
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
     <Card className="w-full max-w-6xl mx-auto">
       <CardHeader>
-        <CardTitle>{rsoId ? 'Edit' : 'Create'} Return Sales Order</CardTitle>
+        <CardTitle className="flex items-center justify-between">
+          <span>{rsoId ? 'Edit' : 'Create'} Return Sales Order</span>
+          {generatedRSONumber && (
+            <Badge variant="outline" className="text-lg px-3 py-1">
+              RSO: {generatedRSONumber}
+            </Badge>
+          )}
+        </CardTitle>
       </CardHeader>
-      <CardContent>
+      <CardContent className="space-y-6">
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
             {/* Customer and Invoice Selection */}
@@ -627,20 +751,36 @@ export function CreateRSOForm({ rsoId, onClose, onSave }: CreateRSOFormProps) {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Customer *</FormLabel>
-                    <Select onValueChange={handleCustomerChange} value={field.value}>
-                      <FormControl>
-                        <SelectTrigger className="bg-background">
-                          <SelectValue placeholder="Select a customer" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent className="bg-background border z-50">
-                        {customers.map((customer) => (
-                          <SelectItem key={customer.id} value={customer.id}>
-                            {customer.name} ({customer.customer_ref})
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <div className="space-y-2">
+                      <div className="relative">
+                        <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                        <Input
+                          placeholder="Search customers..."
+                          value={customerSearchTerm}
+                          onChange={(e) => setCustomerSearchTerm(e.target.value)}
+                          className="pl-8"
+                        />
+                      </div>
+                      <Select onValueChange={handleCustomerChange} value={field.value}>
+                        <FormControl>
+                          <SelectTrigger className="bg-background">
+                            <SelectValue placeholder="Select a customer" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent className="bg-background border z-50 max-h-64">
+                          {filteredCustomers.map((customer) => (
+                            <SelectItem key={customer.id} value={customer.id}>
+                              <div className="flex flex-col">
+                                <span className="font-medium">{customer.name}</span>
+                                <span className="text-sm text-muted-foreground">
+                                  {customer.customer_ref}
+                                </span>
+                              </div>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -651,26 +791,106 @@ export function CreateRSOForm({ rsoId, onClose, onSave }: CreateRSOFormProps) {
                 name="invoice_id"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Sales Invoice *</FormLabel>
-                    <Select onValueChange={handleInvoiceChange} value={field.value} disabled={!selectedCustomer}>
-                      <FormControl>
-                        <SelectTrigger className="bg-background">
-                          <SelectValue placeholder="Select an invoice" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent className="bg-background border z-50">
-                        {invoices.map((invoice) => (
-                          <SelectItem key={invoice.id} value={invoice.id}>
-                            {invoice.invoice_number} - ₹{invoice.total_amount.toLocaleString()} ({invoice.invoice_date})
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <FormLabel>Sales Invoice * (Last 365 days)</FormLabel>
+                    <div className="space-y-2">
+                      <div className="relative">
+                        <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                        <Input
+                          placeholder="Search invoices..."
+                          value={invoiceSearchTerm}
+                          onChange={(e) => setInvoiceSearchTerm(e.target.value)}
+                          className="pl-8"
+                          disabled={!selectedCustomer}
+                        />
+                      </div>
+                      <Select onValueChange={handleInvoiceChange} value={field.value} disabled={!selectedCustomer}>
+                        <FormControl>
+                          <SelectTrigger className="bg-background">
+                            <SelectValue placeholder="Select an invoice" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent className="bg-background border z-50 max-h-64">
+                          {filteredInvoices.map((invoice) => (
+                            <SelectItem key={invoice.id} value={invoice.id}>
+                              <div className="flex flex-col">
+                                <span className="font-medium">{invoice.invoice_number}</span>
+                                <div className="flex justify-between text-sm text-muted-foreground">
+                                  <span>{new Date(invoice.invoice_date).toLocaleDateString()}</span>
+                                  <span>₹{invoice.total_amount.toLocaleString()}</span>
+                                </div>
+                              </div>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
                     <FormMessage />
                   </FormItem>
                 )}
               />
             </div>
+
+            {/* Customer Address Display */}
+            {selectedCustomer && (
+              <Card className="bg-muted/50">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm">Customer Registered Address</CardTitle>
+                </CardHeader>
+                <CardContent className="pt-0">
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
+                    <div>
+                      <Label className="text-xs text-muted-foreground">Address Line 1</Label>
+                      <p>{selectedCustomer.address_line1 || 'N/A'}</p>
+                    </div>
+                    <div>
+                      <Label className="text-xs text-muted-foreground">Address Line 2</Label>
+                      <p>{selectedCustomer.address_line2 || 'N/A'}</p>
+                    </div>
+                    <div>
+                      <Label className="text-xs text-muted-foreground">City</Label>
+                      <p>{selectedCustomer.city || 'N/A'}</p>
+                    </div>
+                    <div>
+                      <Label className="text-xs text-muted-foreground">State</Label>
+                      <p>{selectedCustomer.state || 'N/A'}</p>
+                    </div>
+                    <div>
+                      <Label className="text-xs text-muted-foreground">Country</Label>
+                      <p>{selectedCustomer.country || 'N/A'}</p>
+                    </div>
+                    <div>
+                      <Label className="text-xs text-muted-foreground">Pin Code</Label>
+                      <p>{selectedCustomer.pin_code || 'N/A'}</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Invoice Details */}
+            {selectedInvoice && (
+              <Card className="bg-muted/50">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm">Invoice Details</CardTitle>
+                </CardHeader>
+                <CardContent className="pt-0">
+                  <div className="grid grid-cols-3 gap-4 text-sm">
+                    <div>
+                      <Label className="text-xs text-muted-foreground">Invoice Number</Label>
+                      <p className="font-medium">{selectedInvoice.invoice_number}</p>
+                    </div>
+                    <div>
+                      <Label className="text-xs text-muted-foreground">Invoice Date</Label>
+                      <p>{new Date(selectedInvoice.invoice_date).toLocaleDateString()}</p>
+                    </div>
+                    <div>
+                      <Label className="text-xs text-muted-foreground">Total Amount</Label>
+                      <p className="font-medium">₹{selectedInvoice.total_amount.toLocaleString()}</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
 
             {/* RSO Details */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -694,21 +914,30 @@ export function CreateRSOForm({ rsoId, onClose, onSave }: CreateRSOFormProps) {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Reason for Credit *</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <FormControl>
-                        <SelectTrigger className="bg-background">
-                          <SelectValue placeholder="Select reason" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent className="bg-background border z-50">
-                        <SelectItem value="Return">Return</SelectItem>
-                        <SelectItem value="Damaged">Damaged</SelectItem>
-                        <SelectItem value="Wrong Item">Wrong Item</SelectItem>
-                        <SelectItem value="Price Correction">Price Correction</SelectItem>
-                        <SelectItem value="Quality Issue">Quality Issue</SelectItem>
-                        <SelectItem value="Other">Other</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <FormControl>
+                      <RadioGroup
+                        onValueChange={field.onChange}
+                        value={field.value}
+                        className="flex flex-col space-y-2"
+                      >
+                        <div className="flex items-center space-x-2">
+                          <RadioGroupItem value="Return" id="return" />
+                          <Label htmlFor="return">Return</Label>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <RadioGroupItem value="Price Correction" id="price-correction" />
+                          <Label htmlFor="price-correction">Price Correction</Label>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <RadioGroupItem value="Discount" id="discount" />
+                          <Label htmlFor="discount">Discount</Label>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <RadioGroupItem value="Others" id="others" />
+                          <Label htmlFor="others">Others</Label>
+                        </div>
+                      </RadioGroup>
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -758,7 +987,7 @@ export function CreateRSOForm({ rsoId, onClose, onSave }: CreateRSOFormProps) {
               />
 
               {!watchDeliverySameAsCompany && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   <FormField
                     control={form.control}
                     name="delivery_address_line1"
@@ -840,15 +1069,20 @@ export function CreateRSOForm({ rsoId, onClose, onSave }: CreateRSOFormProps) {
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Product Name</TableHead>
+                        <TableHead className="min-w-[150px]">Product Name</TableHead>
                         <TableHead>SKU</TableHead>
                         <TableHead>HSN/SAC</TableHead>
                         <TableHead>UOM</TableHead>
                         <TableHead>Invoice Qty</TableHead>
                         <TableHead>Available Qty</TableHead>
                         <TableHead>Return Qty</TableHead>
+                        <TableHead>Pending Qty</TableHead>
                         <TableHead>Unit Price</TableHead>
                         <TableHead>Discount %</TableHead>
+                        <TableHead>Discount Amount</TableHead>
+                        <TableHead>CGST %</TableHead>
+                        <TableHead>SGST %</TableHead>
+                        <TableHead>IGST %</TableHead>
                         <TableHead>Line Total</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -876,9 +1110,29 @@ export function CreateRSOForm({ rsoId, onClose, onSave }: CreateRSOFormProps) {
                               disabled={item.available_qty <= 0}
                             />
                           </TableCell>
+                          <TableCell>
+                            <Badge variant="outline">
+                              {item.pending_return_qty}
+                            </Badge>
+                          </TableCell>
                           <TableCell>₹{item.unit_price.toLocaleString()}</TableCell>
-                          <TableCell>{item.discount_percentage}%</TableCell>
-                          <TableCell>₹{item.return_line_total.toLocaleString()}</TableCell>
+                          <TableCell>
+                            <Input
+                              type="number"
+                              min="0"
+                              max="100"
+                              step="0.01"
+                              value={item.discount_percentage}
+                              onChange={(e) => handleDiscountPercentageChange(index, parseFloat(e.target.value) || 0)}
+                              className="w-20"
+                              disabled={item.return_qty === 0}
+                            />
+                          </TableCell>
+                          <TableCell>₹{item.discount_amount.toLocaleString()}</TableCell>
+                          <TableCell className="text-muted-foreground">{item.cgst_rate}%</TableCell>
+                          <TableCell className="text-muted-foreground">{item.sgst_rate}%</TableCell>
+                          <TableCell className="text-muted-foreground">{item.igst_rate}%</TableCell>
+                          <TableCell className="font-medium">₹{item.line_total.toLocaleString()}</TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
@@ -886,28 +1140,35 @@ export function CreateRSOForm({ rsoId, onClose, onSave }: CreateRSOFormProps) {
                 </div>
 
                 {/* Totals */}
-                <div className="flex justify-end">
-                  <div className="w-64 space-y-2">
-                    <div className="flex justify-between">
-                      <span>Subtotal:</span>
-                      <span>₹{totals.subtotal.toLocaleString()}</span>
+                <Card className="w-full md:w-96 ml-auto">
+                  <CardContent className="pt-6">
+                    <div className="space-y-2">
+                      <div className="flex justify-between">
+                        <span>Subtotal:</span>
+                        <span>₹{totals.subtotal.toLocaleString()}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Total Discount:</span>
+                        <span>₹{totals.discountAmount.toLocaleString()}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Tax Amount:</span>
+                        <span>₹{totals.taxAmount.toLocaleString()}</span>
+                      </div>
+                      <div className="flex justify-between font-bold text-lg border-t pt-2">
+                        <span>Final Amount:</span>
+                        <span>₹{totals.total.toLocaleString()}</span>
+                      </div>
                     </div>
-                    <div className="flex justify-between">
-                      <span>Tax Amount:</span>
-                      <span>₹{totals.taxAmount.toLocaleString()}</span>
-                    </div>
-                    <div className="flex justify-between font-bold border-t pt-2">
-                      <span>Total Amount:</span>
-                      <span>₹{totals.total.toLocaleString()}</span>
-                    </div>
-                  </div>
-                </div>
+                  </CardContent>
+                </Card>
               </div>
             ) : selectedInvoice ? (
               <div className="space-y-4">
                 <h3 className="text-lg font-semibold">Return Line Items</h3>
                 <div className="text-center py-8 text-muted-foreground">
-                  No items found for this invoice or loading items...
+                  <Loader2 className="h-6 w-6 animate-spin mx-auto mb-2" />
+                  Loading invoice items...
                 </div>
               </div>
             ) : null}
@@ -929,12 +1190,12 @@ export function CreateRSOForm({ rsoId, onClose, onSave }: CreateRSOFormProps) {
 
             {/* Action Buttons */}
             <div className="flex justify-end space-x-2">
-              <Button type="button" variant="outline" onClick={onClose} disabled={loading}>
+              <Button type="button" variant="outline" onClick={onClose} disabled={saving}>
                 <X className="mr-2 h-4 w-4" />
                 Cancel
               </Button>
-              <Button type="submit" disabled={loading || returnLineItems.length === 0}>
-                {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              <Button type="submit" disabled={saving || returnLineItems.length === 0}>
+                {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 <Save className="mr-2 h-4 w-4" />
                 {rsoId ? 'Update RSO' : 'Create RSO'}
               </Button>
