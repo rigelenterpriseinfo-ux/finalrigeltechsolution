@@ -769,14 +769,14 @@ export function EnhancedCreateRSOForm({ rsoId, onClose, onSave }: EnhancedCreate
                           </SelectTrigger>
                         </FormControl>
                          <SelectContent className="bg-background border z-50 max-h-64">
-                           {!companyId ? (
-                             <SelectItem value="" disabled>
-                               <span className="text-muted-foreground">Company context loading...</span>
-                             </SelectItem>
-                           ) : filteredCustomers.length === 0 ? (
-                             <SelectItem value="" disabled>
-                               <span className="text-muted-foreground">No customers found</span>
-                             </SelectItem>
+                            {!companyId ? (
+                              <SelectItem value="loading" disabled>
+                                <span className="text-muted-foreground">Company context loading...</span>
+                              </SelectItem>
+                            ) : filteredCustomers.length === 0 ? (
+                              <SelectItem value="no-customers" disabled>
+                                <span className="text-muted-foreground">No customers found</span>
+                              </SelectItem>
                            ) : (
                              filteredCustomers.map((customer) => (
                                <SelectItem key={customer.id} value={customer.id}>
@@ -821,14 +821,14 @@ export function EnhancedCreateRSOForm({ rsoId, onClose, onSave }: EnhancedCreate
                           </SelectTrigger>
                         </FormControl>
                          <SelectContent className="bg-background border z-50 max-h-64">
-                           {!selectedCustomer ? (
-                             <SelectItem value="" disabled>
-                               <span className="text-muted-foreground">Select a customer first</span>
-                             </SelectItem>
-                           ) : filteredInvoices.length === 0 ? (
-                             <SelectItem value="" disabled>
-                               <span className="text-muted-foreground">No finalized invoices found for this customer in the last 365 days</span>
-                             </SelectItem>
+                            {!selectedCustomer ? (
+                              <SelectItem value="no-customer-selected" disabled>
+                                <span className="text-muted-foreground">Select a customer first</span>
+                              </SelectItem>
+                            ) : filteredInvoices.length === 0 ? (
+                              <SelectItem value="no-invoices" disabled>
+                                <span className="text-muted-foreground">No finalized invoices found for this customer in the last 365 days</span>
+                              </SelectItem>
                            ) : (
                              filteredInvoices.map((invoice) => (
                                <SelectItem key={invoice.id} value={invoice.id}>
