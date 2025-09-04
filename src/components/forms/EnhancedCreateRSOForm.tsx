@@ -185,11 +185,17 @@ export function EnhancedCreateRSOForm({ rsoId, onClose, onSave }: EnhancedCreate
 
   // Load customers on component mount
   useEffect(() => {
-    loadCustomers();
-    if (rsoId) {
+    if (companyId) {
+      loadCustomers();
+    }
+  }, [companyId]);
+
+  // Load existing RSO only after customers are loaded
+  useEffect(() => {
+    if (rsoId && customers.length > 0) {
       loadExistingRSO();
     }
-  }, [rsoId, companyId]);
+  }, [rsoId, customers.length]);
 
   // Load invoices when customer changes (but not during existing RSO load)
   useEffect(() => {
@@ -258,7 +264,23 @@ export function EnhancedCreateRSOForm({ rsoId, onClose, onSave }: EnhancedCreate
         .order('invoice_date', { ascending: false });
 
       if (error) throw error;
-      setInvoices(data || []);
+      
+      // If we have existing invoices (from loadExistingRSO), merge them
+      const existingInvoices = invoices.filter(inv => inv.customer_id === customerId);
+      const newInvoices = data || [];
+      
+      // Merge and deduplicate invoices
+      const mergedInvoices = [...existingInvoices];
+      newInvoices.forEach(newInv => {
+        if (!mergedInvoices.find(existing => existing.id === newInv.id)) {
+          mergedInvoices.push(newInv);
+        }
+      });
+      
+      // Sort by date
+      mergedInvoices.sort((a, b) => new Date(b.invoice_date).getTime() - new Date(a.invoice_date).getTime());
+      
+      setInvoices(mergedInvoices);
     } catch (error) {
       console.error('Error loading invoices:', error);
       toast({
@@ -387,7 +409,9 @@ export function EnhancedCreateRSOForm({ rsoId, onClose, onSave }: EnhancedCreate
 
       // Set selected customer
       const customer = customers.find(c => c.id === rsoData.customer_id);
-      if (customer) setSelectedCustomer(customer);
+      if (customer) {
+        setSelectedCustomer(customer);
+      }
 
       // Load and set the selected invoice
       const { data: invoice, error: invErr } = await supabase
@@ -397,7 +421,14 @@ export function EnhancedCreateRSOForm({ rsoId, onClose, onSave }: EnhancedCreate
         .maybeSingle();
       if (invErr) throw invErr;
       if (invoice) {
+        // Add the invoice to the invoices array and set as selected
+        setInvoices([invoice as SalesInvoice]);
         setSelectedInvoice(invoice as SalesInvoice);
+      }
+
+      // Load all customer invoices for the dropdown (this will merge with the current invoice)
+      if (customer) {
+        loadCustomerInvoices(customer.id);
       }
 
       // Build prefill map from existing lines
