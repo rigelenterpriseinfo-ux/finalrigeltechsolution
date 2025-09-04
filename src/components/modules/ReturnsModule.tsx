@@ -13,6 +13,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -1015,16 +1016,15 @@ export function ReturnsModule() {
                   {/* Status */}
                   <div>
                     <Label>Status *</Label>
-                    <RadioGroup value={status} onValueChange={(value) => setStatus(value as 'Draft' | 'Confirmed')} className="mt-2">
-                      <div className="flex items-center space-x-2">
-                        <RadioGroupItem value="Draft" id="draft" />
-                        <Label htmlFor="draft">Draft</Label>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <RadioGroupItem value="Confirmed" id="confirmed" />
-                        <Label htmlFor="confirmed">Confirmed</Label>
-                      </div>
-                    </RadioGroup>
+                    <Select value={status} onValueChange={(value) => setStatus(value as 'Draft' | 'Confirmed')}>
+                      <SelectTrigger className="mt-2">
+                        <SelectValue placeholder="Select status" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Draft">Draft</SelectItem>
+                        <SelectItem value="Confirmed">Confirmed</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
 
                   {/* Delivery Address Section */}
