@@ -675,7 +675,7 @@ export function ReturnsModule() {
       // Process inventory for confirmed credit notes
       if (creditNoteStatus === 'Confirmed') {
         try {
-          await processCreditNoteInventory(creditNote.id, itemsToInsert);
+          await processCreditNoteInventory(creditNote.id, creditNote.cn_number, itemsToInsert);
           console.log('✅ Credit note inventory processing completed successfully');
         } catch (inventoryError) {
           console.error('❌ Inventory processing failed:', inventoryError);
@@ -728,7 +728,7 @@ export function ReturnsModule() {
   };
 
   // Process inventory for confirmed credit notes
-  const processCreditNoteInventory = async (creditNoteId: string, creditNoteItems: any[]) => {
+  const processCreditNoteInventory = async (creditNoteId: string, creditNoteNumber: string, creditNoteItems: any[]) => {
     try {
       console.log('Processing inventory for confirmed credit note:', creditNoteId);
       
@@ -740,7 +740,7 @@ export function ReturnsModule() {
           p_company_id: company!.id,
           p_transaction_type: 'sales_return',
           p_reference_id: creditNoteId,
-          p_reference_number: `CN-${creditNoteId.substring(0, 8)}`,
+          p_reference_number: creditNoteNumber, // Use actual credit note number
           p_product_id: item.product_id,
           p_warehouse_id: item.warehouse_id,
           p_bin_id: item.bin_id || item.warehouse_id,

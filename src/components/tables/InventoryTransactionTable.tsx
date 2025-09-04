@@ -102,6 +102,8 @@ export const InventoryTransactionTable = ({ refreshTrigger }: InventoryTransacti
     const typeConfig = {
       purchase_receipt: { label: 'Purchase Receipt', variant: 'default' as const },
       sales_issue: { label: 'Sales Issue', variant: 'secondary' as const },
+      sales_return: { label: 'Sales Return', variant: 'default' as const },
+      sales_invoice: { label: 'Sales Invoice', variant: 'secondary' as const },
       adjustment_positive: { label: 'Adjustment +', variant: 'default' as const },
       adjustment_negative: { label: 'Adjustment -', variant: 'destructive' as const },
       transfer_out: { label: 'Transfer Out', variant: 'outline' as const },
@@ -151,6 +153,8 @@ export const InventoryTransactionTable = ({ refreshTrigger }: InventoryTransacti
             <SelectItem value="all">All Types</SelectItem>
             <SelectItem value="purchase_receipt">Purchase Receipt</SelectItem>
             <SelectItem value="sales_issue">Sales Issue</SelectItem>
+            <SelectItem value="sales_return">Sales Return</SelectItem>
+            <SelectItem value="sales_invoice">Sales Invoice</SelectItem>
             <SelectItem value="adjustment_positive">Adjustment +</SelectItem>
             <SelectItem value="adjustment_negative">Adjustment -</SelectItem>
             <SelectItem value="transfer_out">Transfer Out</SelectItem>
