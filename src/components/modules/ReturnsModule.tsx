@@ -235,6 +235,8 @@ export function ReturnsModule() {
   const [returnOrderDate, setReturnOrderDate] = useState(new Date().toISOString().split('T')[0]);
   const [createdRsoNumber, setCreatedRsoNumber] = useState<string | null>(null);
   const [editingReturnId, setEditingReturnId] = useState<string | null>(null);
+  const [viewingReturnId, setViewingReturnId] = useState<string | null>(null);
+  const [isViewMode, setIsViewMode] = useState(false);
 
   // Data states
   const [customers, setCustomers] = useState<Customer[]>([]);
@@ -360,7 +362,7 @@ export function ReturnsModule() {
     }
   };
 
-  const loadInvoiceLineItems = async (invoiceId: string) => {
+  const loadInvoiceLineItems = async (invoiceId: string, existingReturnId?: string) => {
     // Load invoice items
     const { data: invoiceData, error: invoiceError } = await supabase
       .from('sales_invoice_items')
@@ -372,6 +374,55 @@ export function ReturnsModule() {
       return;
     }
 
+    // If we're viewing an existing return order, load the return data
+    if (existingReturnId && isViewMode) {
+      const { data: returnData, error: returnError } = await supabase
+        .from('return_order_lines')
+        .select('*')
+        .eq('return_order_id', existingReturnId);
+      
+      if (returnError) {
+        console.error('Error loading return order lines:', returnError);
+        toast({ title: "Error", description: "Failed to load return order data", variant: "destructive" });
+        return;
+      }
+
+      // Map existing return order data to line items for viewing
+      const lineItems: InvoiceLineItem[] = (returnData || []).map(returnItem => {
+        const invoiceItem = invoiceData?.find(inv => inv.product_id === returnItem.product_id);
+        
+        return {
+          id: returnItem.id,
+          product_id: returnItem.product_id,
+          product_name: returnItem.product_name,
+          product_sku: returnItem.product_sku,
+          hsn_sac_code: returnItem.hsn_sac_code,
+          unit_of_measure: returnItem.unit_of_measure,
+          quantity_invoiced: returnItem.invoice_qty,
+          unit_price: returnItem.unit_price,
+          discount_percentage: returnItem.discount_percentage || 0,
+          discount_amount: returnItem.discount_amount,
+          cgst_rate: returnItem.cgst_rate || 0,
+          cgst_amount: returnItem.cgst_amount || 0,
+          sgst_rate: returnItem.sgst_rate || 0,
+          sgst_amount: returnItem.sgst_amount || 0,
+          igst_rate: returnItem.igst_rate || 0,
+          igst_amount: returnItem.igst_amount || 0,
+          line_subtotal: returnItem.line_subtotal,
+          tax_amount: returnItem.tax_amount,
+          line_total: returnItem.line_total,
+          return_qty: returnItem.return_qty,
+          pending_return_qty: returnItem.pending_return_qty, // Use stored value from database
+          already_returned: returnItem.invoice_qty - returnItem.return_qty - returnItem.pending_return_qty,
+          available_to_return: returnItem.pending_return_qty + returnItem.return_qty
+        };
+      });
+      
+      setInvoiceLineItems(lineItems);
+      return;
+    }
+
+    // Original logic for creating new RSOs
     // Load previously returned quantities
     const { data: returnedData, error: returnedError } = await supabase
       .rpc('get_invoice_returned_quantities', { p_invoice_id: invoiceId });
@@ -483,12 +534,86 @@ export function ReturnsModule() {
     const invoice = invoices.find(i => i.id === invoiceId);
     if (invoice) {
       setSelectedInvoice(invoice);
-      loadInvoiceLineItems(invoiceId);
+      loadInvoiceLineItems(invoiceId, viewingReturnId || undefined);
       setValidationErrors({});
     }
-  }, [invoices]);
+  }, [invoices, viewingReturnId]);
+
+  const viewReturnOrder = async (returnOrderId: string) => {
+    try {
+      setLoading(true);
+      
+      // Load return order header
+      const { data: headerData, error: headerError } = await supabase
+        .from('return_order_header')
+        .select('*')
+        .eq('id', returnOrderId)
+        .single();
+      
+      if (headerError) {
+        console.error('Error loading return order header:', headerError);
+        toast({ title: "Error", description: "Failed to load return order", variant: "destructive" });
+        return;
+      }
+
+      // Set viewing mode and states
+      setIsViewMode(true);
+      setViewingReturnId(returnOrderId);
+      setIsCreateReturnFormOpen(true);
+      
+      // Find and set the customer
+      const customer = customers.find(c => c.id === headerData.customer_id);
+      if (customer) {
+        setSelectedCustomer(customer);
+        
+        // Load invoices for the customer
+        await loadInvoicesForCustomer(headerData.customer_id);
+        
+        // Find and set the invoice
+        const invoice = {
+          id: headerData.invoice_id,
+          invoice_number: headerData.invoice_number,
+          invoice_date: headerData.invoice_date,
+          customer_name: headerData.customer_name,
+          total_amount: 0 // We don't need this for viewing
+        };
+        setSelectedInvoice(invoice);
+        
+        // Load the line items with existing return data
+        await loadInvoiceLineItems(headerData.invoice_id, returnOrderId);
+      }
+      
+      // Set other form fields
+      setReasonForCredit(headerData.reason_for_credit);
+      setStatus(headerData.status as 'Draft' | 'Confirmed');
+      setDeliverySameAsCompany(headerData.delivery_same_as_company);
+      setReturnOrderDate(headerData.rso_date);
+      setNotes(headerData.notes || '');
+      
+      if (!headerData.delivery_same_as_company) {
+        setDeliveryAddress({
+          address_line1: headerData.delivery_address_line1 || '',
+          address_line2: headerData.delivery_address_line2 || '',
+          city: headerData.delivery_city || '',
+          country: headerData.delivery_country || '',
+          pin_code: headerData.delivery_pin_code || ''
+        });
+      }
+      
+    } catch (error) {
+      console.error('Error viewing return order:', error);
+      toast({ title: "Error", description: "Failed to load return order", variant: "destructive" });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const updateReturnQty = (lineItemId: string, returnQty: number) => {
+    // In view mode, don't allow editing
+    if (isViewMode) {
+      return;
+    }
+
     setInvoiceLineItems(prev => prev.map(item => {
       if (item.id === lineItemId) {
         const maxAllowed = item.available_to_return || 0;
@@ -1113,7 +1238,7 @@ export function ReturnsModule() {
                           placeholder="Search and select customer"
                           searchPlaceholder="Type to search customers..."
                           options={customerOptions}
-                          disabled={editingReturnId !== null}
+                          disabled={editingReturnId !== null || isViewMode}
                           loading={customersLoading}
                           emptyMessage="No customers found. Please add customers in the Sales section first."
                           className="hover:border-primary/50"
@@ -1150,7 +1275,7 @@ export function ReturnsModule() {
                             placeholder="Search and select invoice"
                             searchPlaceholder="Type to search invoices..."
                             options={invoiceOptions}
-                            disabled={editingReturnId !== null}
+                            disabled={editingReturnId !== null || isViewMode}
                             loading={invoicesLoading}
                             emptyMessage="No finalized invoices found for this customer in the last 365 days."
                             className="hover:border-primary/50"
@@ -1342,24 +1467,32 @@ export function ReturnsModule() {
                                 <TableCell className="py-4 text-center text-green-600 font-medium">{item.available_to_return || 0}</TableCell>
                                 <TableCell className="py-4">
                                   <div className="space-y-1">
-                                    <Input
-                                      type="number"
-                                      min="0"
-                                      max={item.available_to_return || 0}
-                                      value={item.return_qty}
-                                      onChange={(e) => updateReturnQty(item.id, parseInt(e.target.value) || 0)}
-                                      onBlur={(e) => {
-                                        const value = parseInt(e.target.value) || 0;
-                                        const max = item.available_to_return || 0;
-                                        if (value > max) {
-                                          setValidationErrors(prev => ({
-                                            ...prev,
-                                            [item.id]: `Maximum ${max} units available`
-                                          }));
-                                        }
-                                      }}
-                                      className={`w-20 text-center font-medium transition-all ${validationErrors[item.id] ? 'border-destructive focus:ring-destructive' : 'focus:ring-primary border-input hover:border-primary/50'}`}
-                                    />
+                                     <Input
+                                       type="number"
+                                       min="0"
+                                       max={item.available_to_return || 0}
+                                       value={item.return_qty}
+                                       onChange={(e) => updateReturnQty(item.id, parseInt(e.target.value) || 0)}
+                                       onBlur={(e) => {
+                                         const value = parseInt(e.target.value) || 0;
+                                         const max = item.available_to_return || 0;
+                                         if (value > max) {
+                                           setValidationErrors(prev => ({
+                                             ...prev,
+                                             [item.id]: `Maximum ${max} units available`
+                                           }));
+                                         }
+                                       }}
+                                       disabled={isViewMode}
+                                       readOnly={isViewMode}
+                                       className={`w-20 text-center font-medium transition-all ${
+                                         isViewMode 
+                                           ? 'bg-muted cursor-not-allowed' 
+                                           : validationErrors[item.id] 
+                                             ? 'border-destructive focus:ring-destructive' 
+                                             : 'focus:ring-primary border-input hover:border-primary/50'
+                                       }`}
+                                     />
                                     {validationErrors[item.id] && (
                                       <div className="flex items-center gap-1 text-xs text-destructive animate-fade-in">
                                         <AlertCircle className="h-3 w-3" />
@@ -1565,7 +1698,13 @@ export function ReturnsModule() {
                               <TableCell className="font-semibold">₹{returnOrder.total_amount.toFixed(2)}</TableCell>
                               <TableCell>
                                 <div className="flex gap-1">
-                                  <Button variant="outline" size="sm" title="View" className="hover:bg-accent">
+                                  <Button 
+                                    variant="outline" 
+                                    size="sm" 
+                                    title="View" 
+                                    onClick={() => viewReturnOrder(returnOrder.id)}
+                                    className="hover:bg-accent"
+                                  >
                                     <Eye className="h-4 w-4" />
                                   </Button>
                                    {returnOrder.status === 'Draft' && (
