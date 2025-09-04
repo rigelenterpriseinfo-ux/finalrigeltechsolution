@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -11,6 +11,10 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { PermissionWrapper, PermissionButton, PermissionInput, PermissionTextarea, PermissionSelect } from '@/components/ui/permission-wrapper';
 import { useToast } from '@/hooks/use-toast';
+import { Checkbox } from '@/components/ui/checkbox';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { supabase } from '@/integrations/supabase/client';
+import { Separator } from '@/components/ui/separator';
 import { 
   RotateCcw, 
   FileText, 
@@ -23,19 +27,68 @@ import {
   ArrowLeft,
   Calendar,
   User,
-  Package
+  Package,
+  Save,
+  Check,
+  Trash2,
+  ChevronDown
 } from 'lucide-react';
 
 interface ReturnOrder {
   id: string;
-  return_number: string;
-  sales_order_number: string;
+  rso_number: string;
+  rso_date: string;
   customer_name: string;
-  return_date: string;
-  status: 'pending' | 'approved' | 'rejected' | 'completed';
-  reason: string;
+  invoice_number: string;
+  status: 'Draft' | 'Confirmed';
+  reason_for_credit: string;
   total_amount: number;
-  items: number;
+  created_at: string;
+}
+
+interface Customer {
+  id: string;
+  name: string;
+  customer_ref: string;
+  address_line1?: string;
+  address_line2?: string;
+  city?: string;
+  state?: string;
+  country?: string;
+  pin_code?: string;
+}
+
+interface Invoice {
+  id: string;
+  invoice_number: string;
+  invoice_date: string;
+  customer_id: string;
+  customer_name: string;
+  total_amount: number;
+}
+
+interface InvoiceLineItem {
+  id: string;
+  product_id: string;
+  product_name: string;
+  product_sku: string;
+  hsn_sac_code?: string;
+  unit_of_measure: string;
+  quantity_invoiced: number;
+  unit_price: number;
+  discount_percentage?: number;
+  discount_amount: number;
+  cgst_rate?: number;
+  cgst_amount?: number;
+  sgst_rate?: number;
+  sgst_amount?: number;
+  igst_rate?: number;
+  igst_amount?: number;
+  line_subtotal: number;
+  tax_amount: number;
+  line_total: number;
+  return_qty: number;
+  pending_return_qty: number;
 }
 
 interface CreditNote {
@@ -54,19 +107,408 @@ export function ReturnsModule() {
   const [activeTab, setActiveTab] = useState('returns');
   const [isReturnDialogOpen, setIsReturnDialogOpen] = useState(false);
   const [isCreditNoteDialogOpen, setIsCreditNoteDialogOpen] = useState(false);
+  
+  // Return form state
+  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
+  const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
+  const [invoiceItems, setInvoiceItems] = useState<InvoiceLineItem[]>([]);
+  const [reasonForCredit, setReasonForCredit] = useState('');
+  const [deliverySameAsCompany, setDeliverySameAsCompany] = useState(true);
+  const [deliveryAddress, setDeliveryAddress] = useState({
+    address_line1: '',
+    address_line2: '',
+    city: '',
+    country: '',
+    pin_code: ''
+  });
+  const [notes, setNotes] = useState('');
+  const [currentRSO, setCurrentRSO] = useState<ReturnOrder | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  
+  // Reference data
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [returnOrders, setReturnOrders] = useState<ReturnOrder[]>([]);
+  const [recentInvoices, setRecentInvoices] = useState<Invoice[]>([]);
+
+  // Load data
+  useEffect(() => {
+    loadCustomers();
+    loadReturnOrders();
+  }, []);
+
+  const loadCustomers = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('customers')
+        .select('id, name, customer_ref, address_line1, address_line2, city, state, country, pin_code')
+        .eq('is_active', true)
+        .order('name');
+      
+      if (error) throw error;
+      setCustomers(data || []);
+    } catch (error) {
+      console.error('Error loading customers:', error);
+    }
+  };
+
+  const loadReturnOrders = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('return_order_header')
+        .select('id, rso_number, rso_date, customer_name, invoice_number, status, reason_for_credit, total_amount, created_at')
+        .order('created_at', { ascending: false })
+        .limit(5);
+      
+      if (error) throw error;
+      
+      // Map database records to ReturnOrder interface
+      const mappedData: ReturnOrder[] = (data || []).map(record => ({
+        id: record.id,
+        rso_number: record.rso_number || '',
+        rso_date: record.rso_date || '',
+        customer_name: record.customer_name || '',
+        invoice_number: record.invoice_number || '',
+        status: (record.status === 'Draft' || record.status === 'Confirmed') ? record.status : 'Draft',
+        reason_for_credit: record.reason_for_credit || '',
+        total_amount: record.total_amount || 0,
+        created_at: record.created_at || ''
+      }));
+      
+      setReturnOrders(mappedData);
+    } catch (error) {
+      console.error('Error loading return orders:', error);
+    }
+  };
+
+  const loadInvoicesForCustomer = async (customerId: string) => {
+    if (!customerId) return;
+    
+    try {
+      const oneYearAgo = new Date();
+      oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+      
+      const { data, error } = await supabase
+        .from('sales_invoices')
+        .select('id, invoice_number, invoice_date, customer_id, customer_name, total_amount')
+        .eq('customer_id', customerId)
+        .eq('status', 'finalized')
+        .gte('invoice_date', oneYearAgo.toISOString().split('T')[0])
+        .order('invoice_date', { ascending: false });
+      
+      if (error) throw error;
+      setInvoices(data || []);
+      
+      // Load recent invoices for reference
+      setRecentInvoices(data?.slice(0, 5) || []);
+    } catch (error) {
+      console.error('Error loading invoices:', error);
+    }
+  };
+
+  const loadInvoiceItems = async (invoiceId: string) => {
+    if (!invoiceId) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from('sales_invoice_items')
+        .select('id, product_id, item_description, item_code, hsn_sac_code, unit_of_measure, quantity_invoiced, unit_price, discount_percentage, discount_amount, cgst_rate, cgst_amount, sgst_rate, sgst_amount, igst_rate, igst_amount, line_subtotal, tax_amount, line_total')
+        .eq('sales_invoice_id', invoiceId);
+      
+      if (error) throw error;
+      
+      const processedItems: InvoiceLineItem[] = (data || []).map(item => ({
+        id: item.id,
+        product_id: item.product_id,
+        product_name: item.item_description || 'Unknown Product',
+        product_sku: item.item_code || 'N/A',
+        hsn_sac_code: item.hsn_sac_code,
+        unit_of_measure: item.unit_of_measure,
+        quantity_invoiced: item.quantity_invoiced,
+        unit_price: item.unit_price,
+        discount_percentage: item.discount_percentage,
+        discount_amount: item.discount_amount,
+        cgst_rate: item.cgst_rate,
+        cgst_amount: item.cgst_amount,
+        sgst_rate: item.sgst_rate,
+        sgst_amount: item.sgst_amount,
+        igst_rate: item.igst_rate,
+        igst_amount: item.igst_amount,
+        line_subtotal: item.line_subtotal,
+        tax_amount: item.tax_amount,
+        line_total: item.line_total,
+        return_qty: 0,
+        pending_return_qty: item.quantity_invoiced
+      }));
+      
+      setInvoiceItems(processedItems);
+    } catch (error) {
+      console.error('Error loading invoice items:', error);
+    }
+  };
+
+  const handleCustomerSelect = (customerId: string) => {
+    const customer = customers.find(c => c.id === customerId);
+    setSelectedCustomer(customer || null);
+    setSelectedInvoice(null);
+    setInvoiceItems([]);
+    
+    if (customer) {
+      loadInvoicesForCustomer(customerId);
+    }
+  };
+
+  const handleInvoiceSelect = (invoiceId: string) => {
+    const invoice = invoices.find(i => i.id === invoiceId);
+    setSelectedInvoice(invoice || null);
+    
+    if (invoice) {
+      loadInvoiceItems(invoiceId);
+    }
+  };
+
+  const handleReturnQtyChange = (itemIndex: number, returnQty: number) => {
+    const updatedItems = [...invoiceItems];
+    const item = updatedItems[itemIndex];
+    
+    // Validation: cannot exceed invoice quantity
+    if (returnQty > item.quantity_invoiced) {
+      toast({
+        title: "Invalid Quantity",
+        description: `Return quantity cannot exceed invoice quantity (${item.quantity_invoiced})`,
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    item.return_qty = Math.max(0, returnQty);
+    item.pending_return_qty = item.quantity_invoiced - item.return_qty;
+    
+    setInvoiceItems(updatedItems);
+  };
+
+  const calculateTotals = () => {
+    return invoiceItems.reduce((totals, item) => {
+      if (item.return_qty > 0) {
+        const ratio = item.return_qty / item.quantity_invoiced;
+        const lineSubtotal = item.line_subtotal * ratio;
+        const taxAmount = item.tax_amount * ratio;
+        const lineTotal = item.line_total * ratio;
+        
+        totals.subtotal += lineSubtotal;
+        totals.tax += taxAmount;
+        totals.total += lineTotal;
+      }
+      return totals;
+    }, { subtotal: 0, tax: 0, total: 0 });
+  };
+
+  const validateForm = () => {
+    if (!selectedCustomer) {
+      toast({
+        title: "Validation Error",
+        description: "Please select a customer",
+        variant: "destructive"
+      });
+      return false;
+    }
+    
+    if (!selectedInvoice) {
+      toast({
+        title: "Validation Error", 
+        description: "Please select an invoice",
+        variant: "destructive"
+      });
+      return false;
+    }
+    
+    if (!reasonForCredit) {
+      toast({
+        title: "Validation Error",
+        description: "Please select a reason for credit",
+        variant: "destructive"
+      });
+      return false;
+    }
+    
+    const hasReturnItems = invoiceItems.some(item => item.return_qty > 0);
+    if (!hasReturnItems) {
+      toast({
+        title: "Validation Error",
+        description: "Please specify return quantities for at least one item",
+        variant: "destructive"
+      });
+      return false;
+    }
+    
+    if (!deliverySameAsCompany) {
+      const { address_line1, city, country, pin_code } = deliveryAddress;
+      if (!address_line1 || !city || !country || !pin_code) {
+        toast({
+          title: "Validation Error",
+          description: "Please fill in all required delivery address fields",
+          variant: "destructive"
+        });
+        return false;
+      }
+    }
+    
+    return true;
+  };
+
+  const handleSaveReturn = async () => {
+    if (!validateForm()) return;
+    
+    setIsLoading(true);
+    try {
+      const returnLines = invoiceItems
+        .filter(item => item.return_qty > 0)
+        .map(item => ({
+          product_id: item.product_id,
+          product_name: item.product_name,
+          product_sku: item.product_sku,
+          hsn_sac_code: item.hsn_sac_code,
+          unit_of_measure: item.unit_of_measure,
+          invoice_qty: item.quantity_invoiced,
+          return_qty: item.return_qty,
+          unit_price: item.unit_price,
+          discount_percentage: item.discount_percentage || 0,
+          discount_amount: (item.discount_amount * item.return_qty) / item.quantity_invoiced,
+          cgst_rate: item.cgst_rate || 0,
+          cgst_amount: (item.cgst_amount || 0) * item.return_qty / item.quantity_invoiced,
+          sgst_rate: item.sgst_rate || 0,
+          sgst_amount: (item.sgst_amount || 0) * item.return_qty / item.quantity_invoiced,
+          igst_rate: item.igst_rate || 0,
+          igst_amount: (item.igst_amount || 0) * item.return_qty / item.quantity_invoiced,
+          line_subtotal: item.line_subtotal * item.return_qty / item.quantity_invoiced,
+          tax_amount: item.tax_amount * item.return_qty / item.quantity_invoiced,
+          line_total: item.line_total * item.return_qty / item.quantity_invoiced
+        }));
+
+      const { data: companyData } = await supabase
+        .from('profiles')
+        .select('company_id')
+        .eq('user_id', (await supabase.auth.getUser()).data.user?.id)
+        .single();
+
+      const { data, error } = await supabase.rpc('create_return_order', {
+        p_company_id: companyData?.company_id,
+        p_customer_id: selectedCustomer!.id,
+        p_invoice_id: selectedInvoice!.id,
+        p_reason_for_credit: reasonForCredit,
+        p_return_lines: JSON.stringify(returnLines),
+        p_delivery_same_as_company: deliverySameAsCompany,
+        p_delivery_address_line1: deliverySameAsCompany ? null : deliveryAddress.address_line1,
+        p_delivery_address_line2: deliverySameAsCompany ? null : deliveryAddress.address_line2,
+        p_delivery_city: deliverySameAsCompany ? null : deliveryAddress.city,
+        p_delivery_country: deliverySameAsCompany ? null : deliveryAddress.country,
+        p_delivery_pin_code: deliverySameAsCompany ? null : deliveryAddress.pin_code,
+        p_notes: notes || null
+      });
+
+      if (error) throw error;
+
+      const result = data as any;
+      if (result.success) {
+        toast({
+          title: "Success",
+          description: `Return order ${result.rso_number} created successfully`
+        });
+        
+        // Create a return order object for display
+        setCurrentRSO({
+          id: result.return_order_id,
+          rso_number: result.rso_number,
+          rso_date: new Date().toISOString().split('T')[0],
+          customer_name: selectedCustomer!.name,
+          invoice_number: selectedInvoice!.invoice_number,
+          status: 'Draft',
+          reason_for_credit: reasonForCredit,
+          total_amount: calculateTotals().total,
+          created_at: new Date().toISOString()
+        });
+        
+        loadReturnOrders();
+      }
+    } catch (error) {
+      console.error('Error creating return order:', error);
+      toast({
+        title: "Error",
+        description: "Failed to create return order",
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleConfirmReturn = async () => {
+    if (!currentRSO) return;
+    
+    setIsLoading(true);
+    try {
+      const { data, error } = await supabase.rpc('confirm_return_order', {
+        p_return_order_id: currentRSO.id
+      });
+
+      if (error) throw error;
+
+      if (data.success) {
+        toast({
+          title: "Success",
+          description: `Return order ${data.rso_number} confirmed and posted successfully`
+        });
+        
+        setCurrentRSO({
+          ...currentRSO,
+          status: 'Confirmed'
+        });
+        
+        loadReturnOrders();
+      }
+    } catch (error) {
+      console.error('Error confirming return order:', error);
+      toast({
+        title: "Error",
+        description: "Failed to confirm return order",
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const resetForm = () => {
+    setSelectedCustomer(null);
+    setSelectedInvoice(null);
+    setInvoiceItems([]);
+    setReasonForCredit('');
+    setDeliverySameAsCompany(true);
+    setDeliveryAddress({
+      address_line1: '',
+      address_line2: '',
+      city: '',
+      country: '',
+      pin_code: ''
+    });
+    setNotes('');
+    setCurrentRSO(null);
+  };
+
+  const totals = calculateTotals();
 
   // Sample data - replace with actual API calls
-  const sampleReturnOrders: ReturnOrder[] = [
+  const sampleReturnOrders: ReturnOrder[] = returnOrders.length > 0 ? returnOrders : [
     {
       id: '1',
-      return_number: 'RET-001',
-      sales_order_number: 'SO-001',
+      rso_number: 'ABCRSO1001',
+      rso_date: '2024-01-15',
       customer_name: 'ABC Corp',
-      return_date: '2024-01-15',
-      status: 'pending',
-      reason: 'Defective product',
+      invoice_number: 'ABCINV1001',
+      status: 'Draft',
+      reason_for_credit: 'Return',
       total_amount: 1500.00,
-      items: 3
+      created_at: '2024-01-15T10:00:00Z'
     }
   ];
 
@@ -85,23 +527,13 @@ export function ReturnsModule() {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'pending': return 'bg-yellow-500 hover:bg-yellow-600';
-      case 'approved': return 'bg-blue-500 hover:bg-blue-600';
-      case 'completed': return 'bg-green-500 hover:bg-green-600';
-      case 'rejected': return 'bg-red-500 hover:bg-red-600';
+      case 'Draft': return 'bg-yellow-500 hover:bg-yellow-600';
+      case 'Confirmed': return 'bg-green-500 hover:bg-green-600';
       case 'draft': return 'bg-gray-500 hover:bg-gray-600';
       case 'issued': return 'bg-blue-500 hover:bg-blue-600';
       case 'applied': return 'bg-green-500 hover:bg-green-600';
       default: return 'bg-gray-500 hover:bg-gray-600';
     }
-  };
-
-  const handleCreateReturn = () => {
-    toast({
-      title: "Return order created",
-      description: "Return order has been created successfully."
-    });
-    setIsReturnDialogOpen(false);
   };
 
   const handleCreateCreditNote = () => {
@@ -232,13 +664,13 @@ export function ReturnsModule() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Return #</TableHead>
-                      <TableHead>Sales Order</TableHead>
+                      <TableHead>RSO #</TableHead>
+                      <TableHead>Invoice #</TableHead>
                       <TableHead>Customer</TableHead>
                       <TableHead>Date</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead>Amount</TableHead>
-                      <TableHead>Items</TableHead>
+                      <TableHead>Reason</TableHead>
                       <TableHead>Actions</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -258,17 +690,17 @@ export function ReturnsModule() {
                     ) : (
                       sampleReturnOrders.map((returnOrder) => (
                         <TableRow key={returnOrder.id}>
-                          <TableCell className="font-medium">{returnOrder.return_number}</TableCell>
-                          <TableCell>{returnOrder.sales_order_number}</TableCell>
+                          <TableCell className="font-medium">{returnOrder.rso_number}</TableCell>
+                          <TableCell>{returnOrder.invoice_number}</TableCell>
                           <TableCell>{returnOrder.customer_name}</TableCell>
-                          <TableCell>{returnOrder.return_date}</TableCell>
+                          <TableCell>{returnOrder.rso_date}</TableCell>
                           <TableCell>
                             <Badge className={getStatusColor(returnOrder.status)}>
-                              {returnOrder.status.charAt(0).toUpperCase() + returnOrder.status.slice(1)}
+                              {returnOrder.status}
                             </Badge>
                           </TableCell>
                           <TableCell>₹{returnOrder.total_amount.toFixed(2)}</TableCell>
-                          <TableCell>{returnOrder.items}</TableCell>
+                          <TableCell>{returnOrder.reason_for_credit}</TableCell>
                           <TableCell>
                             <div className="flex gap-2">
                               <PermissionButton section="returns" variant="outline" size="sm">

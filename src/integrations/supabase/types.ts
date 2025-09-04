@@ -2594,6 +2594,27 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: undefined
       }
+      confirm_return_order: {
+        Args: { p_return_order_id: string }
+        Returns: Json
+      }
+      create_return_order: {
+        Args: {
+          p_company_id: string
+          p_customer_id: string
+          p_delivery_address_line1?: string
+          p_delivery_address_line2?: string
+          p_delivery_city?: string
+          p_delivery_country?: string
+          p_delivery_pin_code?: string
+          p_delivery_same_as_company?: boolean
+          p_invoice_id: string
+          p_notes?: string
+          p_reason_for_credit: string
+          p_return_lines: Json
+        }
+        Returns: Json
+      }
       find_and_fix_missing_grn_transactions: {
         Args: { p_company_id?: string }
         Returns: {
