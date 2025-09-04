@@ -173,28 +173,6 @@ export const checkRateLimit = async (
   }
 };
 
-// Security audit logging
-export const logSecurityEvent = async (
-  supabase: any,
-  action: string,
-  details: Record<string, any> = {},
-  userId?: string
-) => {
-  try {
-    await supabase
-      .from('security_audit_log')
-      .insert({
-        user_id: userId,
-        action,
-        details,
-        ip_address: '127.0.0.1', // In production, get real IP
-        user_agent: navigator.userAgent
-      });
-  } catch (error) {
-    console.error('Failed to log security event:', error);
-  }
-};
-
 // Validate numeric inputs to prevent SQL injection
 export const sanitizeNumericInput = (value: any): number | null => {
   if (typeof value === 'number' && !isNaN(value) && isFinite(value)) {
@@ -211,9 +189,145 @@ export const sanitizeNumericInput = (value: any): number | null => {
   return null;
 };
 
-// Generate secure random strings
+// Generate secure random strings with enhanced entropy
 export const generateSecureToken = (length: number = 32): string => {
+  if (length < 16 || length > 128) {
+    throw new Error('Token length must be between 16 and 128 characters');
+  }
+  
   const array = new Uint8Array(length);
   crypto.getRandomValues(array);
   return Array.from(array, byte => byte.toString(16).padStart(2, '0')).join('');
+};
+
+// Enhanced XSS protection for user content
+export const sanitizeUserInput = (input: string, options: {
+  allowHtml?: boolean;
+  maxLength?: number;
+} = {}): string => {
+  if (!input || typeof input !== 'string') {
+    return '';
+  }
+
+  const { allowHtml = false, maxLength = 1000 } = options;
+  
+  // Truncate if too long to prevent DoS
+  let sanitized = input.substring(0, maxLength);
+  
+  if (allowHtml) {
+    // Use DOMPurify for HTML content
+    sanitized = sanitizeHtml(sanitized);
+  } else {
+    // For non-HTML content, escape dangerous characters
+    sanitized = sanitized
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#x27;')
+      .replace(/\//g, '&#x2F;');
+  }
+  
+  return sanitized.trim();
+};
+
+// Validate and sanitize JSON input to prevent injection
+export const sanitizeJsonInput = (input: any): any => {
+  if (input === null || input === undefined) {
+    return null;
+  }
+  
+  if (typeof input === 'string') {
+    return sanitizeUserInput(input, { maxLength: 500 });
+  }
+  
+  if (typeof input === 'number') {
+    // Validate number bounds
+    if (!isFinite(input) || input > Number.MAX_SAFE_INTEGER || input < Number.MIN_SAFE_INTEGER) {
+      return 0;
+    }
+    return input;
+  }
+  
+  if (typeof input === 'boolean') {
+    return input;
+  }
+  
+  if (Array.isArray(input)) {
+    // Limit array size and sanitize elements
+    return input.slice(0, 100).map(sanitizeJsonInput);
+  }
+  
+  if (typeof input === 'object') {
+    const sanitized: any = {};
+    let keyCount = 0;
+    
+    for (const [key, value] of Object.entries(input)) {
+      if (keyCount >= 50) break; // Limit object keys
+      
+      const cleanKey = sanitizeUserInput(key, { maxLength: 100 });
+      if (cleanKey && /^[a-zA-Z_][a-zA-Z0-9_-]*$/.test(cleanKey)) {
+        sanitized[cleanKey] = sanitizeJsonInput(value);
+        keyCount++;
+      }
+    }
+    
+    return sanitized;
+  }
+  
+  return null;
+};
+
+// Enhanced Content Security Policy helper
+export const getSecurityHeaders = () => ({
+  'Content-Security-Policy': [
+    "default-src 'self'",
+    "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net",
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+    "font-src 'self' https://fonts.gstatic.com",
+    "img-src 'self' data: https:",
+    "connect-src 'self' wss: https:",
+    "frame-ancestors 'none'",
+  ].join('; '),
+  'X-Frame-Options': 'DENY',
+  'X-Content-Type-Options': 'nosniff',
+  'Referrer-Policy': 'strict-origin-when-cross-origin',
+  'Permissions-Policy': 'geolocation=(), microphone=(), camera=()',
+});
+
+// Security event severity levels
+export enum SecuritySeverity {
+  LOW = 'low',
+  MEDIUM = 'medium',
+  HIGH = 'high',
+  CRITICAL = 'critical'
+}
+
+// Enhanced security event logging with severity
+export const logSecurityEvent = async (
+  supabase: any,
+  action: string,
+  details: Record<string, any> = {},
+  userId?: string,
+  severity: SecuritySeverity = SecuritySeverity.MEDIUM
+) => {
+  try {
+    const sanitizedDetails = sanitizeJsonInput(details);
+    
+    await supabase
+      .from('security_audit_log')
+      .insert({
+        user_id: userId,
+        action: sanitizeUserInput(action, { maxLength: 50 }),
+        details: {
+          ...sanitizedDetails,
+          severity,
+          timestamp: new Date().toISOString(),
+          user_agent: typeof navigator !== 'undefined' ? navigator.userAgent : 'server'
+        },
+        ip_address: '127.0.0.1' // In production, get real IP
+      });
+  } catch (error) {
+    console.error('Failed to log security event:', error);
+  }
 };

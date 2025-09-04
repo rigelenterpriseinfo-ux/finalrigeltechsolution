@@ -72,19 +72,52 @@ export const useBusinessAuth = () => {
     }
   };
 
+  // Consolidated role checking to prevent privilege escalation
+  const getEffectiveRole = (): 'OWNER' | 'ADMIN' | 'MANAGER' | 'USER' => {
+    // Primary source: profile.role (from Supabase auth system)
+    if (profile?.role === 'owner') return 'OWNER';
+    if (profile?.role === 'admin') return 'ADMIN';
+    if (profile?.role === 'manager') return 'MANAGER';
+    
+    // Fallback: businessUser.access_type (company-specific roles)
+    // Only use if profile role is not set to prevent conflicts
+    if (!profile?.role && businessUser?.access_type) {
+      return businessUser.access_type;
+    }
+    
+    return 'USER'; // Default to lowest privilege
+  };
+
   const hasAccess = (section: string): boolean => {
-    // Owners/Admins always have access
-    if (businessUser?.access_type === 'OWNER' || businessUser?.access_type === 'ADMIN') return true;
-    if (profile?.role === 'owner' || profile?.role === 'admin') return true;
-    // For regular users, check section permissions
+    const effectiveRole = getEffectiveRole();
+    
+    // Owners and Admins always have access
+    if (effectiveRole === 'OWNER' || effectiveRole === 'ADMIN') return true;
+    
+    // Managers have access but may be restricted in some sections
+    if (effectiveRole === 'MANAGER') return true;
+    
+    // Regular users need explicit section permissions
     return sectionPermissions[section] === 'read' || sectionPermissions[section] === 'edit';
   };
 
   const hasEditAccess = (section: string): boolean => {
-    // Owners/Admins always have edit access
-    if (businessUser?.access_type === 'OWNER' || businessUser?.access_type === 'ADMIN') return true;
-    if (profile?.role === 'owner' || profile?.role === 'admin') return true;
-    // For regular users, must have explicit edit access
+    const effectiveRole = getEffectiveRole();
+    
+    // Owners and Admins always have edit access
+    if (effectiveRole === 'OWNER' || effectiveRole === 'ADMIN') return true;
+    
+    // Managers may have edit access depending on section
+    if (effectiveRole === 'MANAGER') {
+      // Define manager restrictions for sensitive sections
+      const restrictedSections = ['user-management', 'company-settings', 'billing'];
+      if (restrictedSections.includes(section)) {
+        return false; // Managers cannot edit these sections
+      }
+      return true;
+    }
+    
+    // Regular users need explicit edit permissions
     return sectionPermissions[section] === 'edit';
   };
 
@@ -96,12 +129,33 @@ export const useBusinessAuth = () => {
   };
 
   const isOwnerOrAdmin = (): boolean => {
-    return (
-      businessUser?.access_type === 'OWNER' ||
-      businessUser?.access_type === 'ADMIN' ||
-      profile?.role === 'owner' ||
-      profile?.role === 'admin'
-    );
+    const effectiveRole = getEffectiveRole();
+    return effectiveRole === 'OWNER' || effectiveRole === 'ADMIN';
+  };
+
+  const canManageUsers = (): boolean => {
+    const effectiveRole = getEffectiveRole();
+    return effectiveRole === 'OWNER' || effectiveRole === 'ADMIN';
+  };
+
+  const canManageRoles = (targetRole: 'owner' | 'admin' | 'manager' | 'staff'): boolean => {
+    const effectiveRole = getEffectiveRole();
+    
+    // Only owners can create other owners
+    if (targetRole === 'owner') {
+      return effectiveRole === 'OWNER';
+    }
+    
+    // Owners and admins can manage other roles below them
+    if (targetRole === 'admin') {
+      return effectiveRole === 'OWNER';
+    }
+    
+    if (targetRole === 'manager' || targetRole === 'staff') {
+      return effectiveRole === 'OWNER' || effectiveRole === 'ADMIN';
+    }
+    
+    return false;
   };
 
   const canManageCompany = (): boolean => {
@@ -143,6 +197,9 @@ export const useBusinessAuth = () => {
     canPerformAction,
     isOwnerOrAdmin,
     canManageCompany,
+    canManageUsers,
+    canManageRoles,
+    getEffectiveRole,
     updateSectionPermissions,
     refetch: fetchBusinessUser
   };

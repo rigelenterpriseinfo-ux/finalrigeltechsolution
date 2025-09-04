@@ -2586,11 +2586,27 @@ export type Database = {
       }
     }
     Functions: {
+      can_manage_user_role: {
+        Args: { current_user_id?: string; target_role: string }
+        Returns: boolean
+      }
       check_email_exists: {
         Args: { email_to_check: string }
         Returns: boolean
       }
+      check_security_anomalies: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          anomaly_type: string
+          count: number
+          details: Json
+        }[]
+      }
       cleanup_expired_otps: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
+      cleanup_expired_tokens: {
         Args: Record<PropertyKey, never>
         Returns: undefined
       }
@@ -2806,6 +2822,10 @@ export type Database = {
         }[]
       }
       get_user_company_id: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
+      get_user_role_safe: {
         Args: Record<PropertyKey, never>
         Returns: string
       }

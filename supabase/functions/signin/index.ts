@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import * as bcrypt from "https://deno.land/x/bcrypt@v0.4.1/mod.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -12,8 +13,25 @@ interface SigninRequest {
   password: string;
 }
 
-// Helper function to hash password
+// Helper function to hash password using bcrypt (secure)
 async function hashPassword(password: string): Promise<string> {
+  // Use bcrypt with salt rounds of 12 for security
+  return await bcrypt.hash(password, 12);
+}
+
+// Helper to check if stored value is a bcrypt hash
+function isBcryptHash(value: string): boolean {
+  // Bcrypt hashes start with $2a$, $2b$, $2x$, or $2y$ and are 60 characters long
+  return /^\$2[abxy]\$\d{2}\$/.test(value) && value.length === 60;
+}
+
+// Helper to check if stored value is SHA-256 hex (legacy)
+function isLegacySHA256Hash(value: string): boolean {
+  return value.length === 64 && /^[a-fA-F0-9]+$/.test(value);
+}
+
+// Legacy SHA-256 hash function for migration purposes only
+async function legacyHashPassword(password: string): Promise<string> {
   const encoder = new TextEncoder();
   const data = encoder.encode(password);
   const hashBuffer = await crypto.subtle.digest('SHA-256', data);
@@ -21,24 +39,27 @@ async function hashPassword(password: string): Promise<string> {
   return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
-// Helper to check if stored value is SHA-256 hex (length 64, hex chars)
-function isHashedPassword(value: string): boolean {
-  return value.length === 64 && /^[a-fA-F0-9]+$/.test(value);
-}
-
-// Verify password with legacy compatibility
+// Verify password with multiple format support
 async function verifyPassword(providedPassword: string, storedPasswordHash: string): Promise<boolean> {
-  if (isHashedPassword(storedPasswordHash)) {
-    // Modern hashed password - compare hashes
-    const providedHash = await hashPassword(providedPassword);
-    return providedHash === storedPasswordHash;
-  } else {
-    // Legacy plaintext password - direct comparison
-    return providedPassword === storedPasswordHash;
+  try {
+    if (isBcryptHash(storedPasswordHash)) {
+      // Modern bcrypt password - use bcrypt verification
+      return await bcrypt.compare(providedPassword, storedPasswordHash);
+    } else if (isLegacySHA256Hash(storedPasswordHash)) {
+      // Legacy SHA-256 hashed password - compare hashes (will be upgraded)
+      const providedHash = await legacyHashPassword(providedPassword);
+      return providedHash === storedPasswordHash;
+    } else {
+      // Legacy plaintext password - direct comparison (will be upgraded)
+      return providedPassword === storedPasswordHash;
+    }
+  } catch (error) {
+    console.error('Password verification error:', error);
+    return false;
   }
 }
 
-// Helper function to generate session token (kept for compatibility, unused now)
+// Helper function to generate session token (kept for compatibility)
 function generateSessionToken(): string {
   const array = new Uint8Array(32);
   crypto.getRandomValues(array);
@@ -66,11 +87,20 @@ serve(async (req) => {
       );
     }
 
-    // Normalize inputs
+    // Enhanced input validation and normalization
     const normalizedUsername = username.trim().toLowerCase();
     const trimmedPassword = password.trim();
     
-    console.log(`Login attempt for: ${normalizedUsername}, business: ${businessRefNo || 'none'}`);
+    // Validate input lengths for security
+    if (normalizedUsername.length > 254 || trimmedPassword.length > 128) {
+      console.log("Input validation failed: length limits exceeded");
+      return new Response(
+        JSON.stringify({ error: "Invalid input parameters" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+    
+    console.log(`Secure login attempt for: ${normalizedUsername}, business: ${businessRefNo || 'none'}`);
 
     // Initialize Supabase client with service role key
     const supabase = createClient(
@@ -80,7 +110,6 @@ serve(async (req) => {
     );
 
     // Query company_users with case-insensitive matching on both username and email
-    // Include password_hash in selection for verification
     let query = supabase
       .from("company_users")
       .select(`
@@ -131,12 +160,27 @@ serve(async (req) => {
       );
     }
 
-    console.log(`User found: ${userData.email}, verifying password...`);
+    console.log(`User found: ${userData.email}, verifying password securely...`);
 
-    // Verify password with legacy compatibility
+    // Verify password with enhanced security
     const passwordMatches = await verifyPassword(trimmedPassword, userData.password_hash);
     if (!passwordMatches) {
-      console.log(`Password mismatch for user: ${userData.email}`);
+      console.log(`Password verification failed for user: ${userData.email}`);
+      
+      // Log security event for failed login
+      try {
+        await supabase.from('security_audit_log').insert({
+          action: 'login_failed',
+          details: {
+            email: userData.email,
+            reason: 'invalid_password',
+            ip_address: '127.0.0.1'
+          }
+        });
+      } catch (logError) {
+        console.warn('Failed to log security event:', logError);
+      }
+      
       return new Response(
         JSON.stringify({ success: false, error: "Invalid credentials" }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -145,15 +189,30 @@ serve(async (req) => {
 
     console.log(`Password verified for user: ${userData.email}`);
 
-    // If password was stored as plaintext, upgrade it to hashed
-    if (!isHashedPassword(userData.password_hash)) {
-      console.log(`Upgrading legacy password for user: ${userData.email}`);
-      const newHash = await hashPassword(trimmedPassword);
-      await supabase
-        .from("company_users")
-        .update({ password_hash: newHash })
-        .eq("id", userData.id);
-      console.log(`Password upgraded to SHA-256 for user: ${userData.email}`);
+    // Upgrade password hash if using legacy format
+    if (!isBcryptHash(userData.password_hash)) {
+      console.log(`Upgrading password security for user: ${userData.email}`);
+      try {
+        const newHash = await hashPassword(trimmedPassword);
+        await supabase
+          .from("company_users")
+          .update({ password_hash: newHash })
+          .eq("id", userData.id);
+        console.log(`Password upgraded to bcrypt for user: ${userData.email}`);
+        
+        // Log security event for password upgrade
+        await supabase.from('security_audit_log').insert({
+          action: 'password_upgraded',
+          details: {
+            email: userData.email,
+            from_format: isLegacySHA256Hash(userData.password_hash) ? 'sha256' : 'plaintext',
+            to_format: 'bcrypt'
+          }
+        });
+      } catch (upgradeError) {
+        console.error('Password upgrade failed:', upgradeError);
+        // Continue with login even if upgrade fails
+      }
     }
 
     // Check if company status is valid
@@ -216,8 +275,8 @@ serve(async (req) => {
       return new Response(JSON.stringify({ error: createErr.message || 'Failed to create auth user' }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    // Ensure profile is linked
-    console.log(`Upserting profile for user: ${userData.email}`);
+    // Ensure profile is linked with secure role assignment
+    console.log(`Upserting secure profile for user: ${userData.email}`);
     await supabase.from('profiles').upsert({
       user_id: authUserId!,
       company_id: userData.company_id,
@@ -225,7 +284,22 @@ serve(async (req) => {
       is_active: true,
     }, { onConflict: 'user_id' });
 
-    console.log(`Signin successful for: ${userData.email}`);
+    // Log successful login for security monitoring
+    try {
+      await supabase.from('security_audit_log').insert({
+        action: 'login_success',
+        details: {
+          email: userData.email,
+          company_id: userData.company_id,
+          role: mapRoleToProfile(userData.access_type),
+          ip_address: '127.0.0.1'
+        }
+      });
+    } catch (logError) {
+      console.warn('Failed to log security event:', logError);
+    }
+
+    console.log(`Secure signin successful for: ${userData.email}`);
 
     // Return success; frontend should now sign in via auth API
     const responseData = {

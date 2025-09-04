@@ -2,7 +2,7 @@ import { createContext, useContext, useEffect, useState, ReactNode } from 'react
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { emailSchema, passwordSchema, nameSchema, phoneSchema, otpSchema, checkRateLimit, logSecurityEvent } from '@/lib/security';
+import { emailSchema, passwordSchema, nameSchema, phoneSchema, otpSchema, checkRateLimit, logSecurityEvent, SecuritySeverity } from '@/lib/security';
 
 interface Profile {
   id: string;
@@ -218,7 +218,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
       // If function responded with a block flag, stop immediately
       if (precheck?.blocked) {
-        await logSecurityEvent(supabase, 'login_blocked', { email: normalizedEmail }, '127.0.0.1');
+        await logSecurityEvent(supabase, 'login_blocked', { email: normalizedEmail }, undefined, SecuritySeverity.HIGH);
         toast({ title: 'Sign in blocked', description: precheck?.error || 'Your account is inactive. Please contact your administrator.', variant: 'destructive' });
         return { error: new Error('Account blocked') };
       }
@@ -243,7 +243,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
       if (!authError) {
         // Authentication successful
-        await logSecurityEvent(supabase, 'login_success', { email: normalizedEmail }, '127.0.0.1');
+        await logSecurityEvent(supabase, 'login_success', { email: normalizedEmail }, undefined, SecuritySeverity.LOW);
         toast({ title: 'Welcome back!', description: 'You have been signed in successfully.' });
         return { error: null };
       }
@@ -256,7 +256,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           password: trimmedPassword 
         });
         if (!secondAuthError) {
-          await logSecurityEvent(supabase, 'login_success', { email: normalizedEmail, type: 'business_user' }, '127.0.0.1');
+          await logSecurityEvent(supabase, 'login_success', { email: normalizedEmail, type: 'business_user' }, undefined, SecuritySeverity.LOW);
           toast({ title: 'Welcome back!', description: 'You have been signed in successfully.' });
           return { error: null };
         }
@@ -273,7 +273,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
 
       console.error('Sign in failed after precheck:', { authError: authError.message, precheckError });
-      await logSecurityEvent(supabase, 'login_failed', { email: normalizedEmail, authError: authError.message, precheckError }, '127.0.0.1');
+      await logSecurityEvent(supabase, 'login_failed', { email: normalizedEmail, authError: authError.message, precheckError }, undefined, SecuritySeverity.MEDIUM);
 
       toast({ title: 'Sign in failed', description: errorMessage, variant: 'destructive' });
       return { error: authError };
