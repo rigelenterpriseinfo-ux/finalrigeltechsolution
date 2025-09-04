@@ -15,7 +15,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { useCompany } from '@/contexts/CompanyContext';
+import { useAuth } from '@/hooks/useAuth';
 import { 
   RotateCcw, 
   FileText, 
@@ -212,7 +212,7 @@ function SearchableCombobox({
 
 export function ReturnsModule() {
   const { toast } = useToast();
-  const { company } = useCompany();
+  const { company } = useAuth();
   const [activeTab, setActiveTab] = useState('returns');
   const [isCreateReturnFormOpen, setIsCreateReturnFormOpen] = useState(false);
   
@@ -285,7 +285,6 @@ export function ReturnsModule() {
         .from('customers')
         .select('id, name, customer_ref, address_line1, address_line2, city, state, country, pin_code')
         .eq('company_id', company.id)
-        .eq('is_active', true)
         .order('name');
       
       if (error) {
