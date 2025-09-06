@@ -64,14 +64,14 @@ export const Captcha: React.FC<CaptchaProps> = ({ onVerify, onExpire }) => {
 
   const siteKeyPresent = !!document.querySelector('meta[name="turnstile-sitekey"]')?.getAttribute('content');
 
+  // If no site key is configured, render nothing (captcha disabled)
+  if (!siteKeyPresent) {
+    return null;
+  }
+
   return (
     <div className="mt-2">
       <div ref={containerRef} />
-      {!siteKeyPresent && (
-        <p className="text-xs text-muted-foreground mt-2">
-          Captcha is enabled on your Supabase project but no Turnstile site key is configured in index.html. Add meta name="turnstile-sitekey".
-        </p>
-      )}
     </div>
   );
 };
