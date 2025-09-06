@@ -388,8 +388,8 @@ export function InventoryModule() {
 
   return (
     <div className="space-y-6 p-6">
-      <div className="flex justify-end items-center">
-        <div className="flex space-x-2">
+      <div className="flex items-center">
+        <div className="grid grid-cols-4 gap-4 w-full">
           {canEdit && (
             <>
               <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
