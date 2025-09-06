@@ -173,249 +173,212 @@ export function WarehouseBinForm({ open, onOpenChange, onSuccess, editingBin }: 
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 text-xl">
+      <DialogContent className="max-w-5xl max-h-[95vh] overflow-y-auto">
+        <DialogHeader className="pb-4">
+          <DialogTitle className="flex items-center gap-2 text-lg">
             <Building2 className="h-5 w-5" />
-            {editingBin ? 'Edit Warehouse and BIN Location' : 'Create New Warehouse and BIN Location'}
+            {editingBin ? 'Edit Warehouse & BIN' : 'Create Warehouse & BIN Location'}
           </DialogTitle>
-          <DialogDescription>
-            {editingBin ? 'Update the warehouse and bin details' : 'Create a comprehensive warehouse location with bin details to organize your inventory efficiently'}
+          <DialogDescription className="text-sm">
+            {editingBin ? 'Update warehouse and bin details' : 'Create warehouse location with bin details to organize inventory'}
           </DialogDescription>
         </DialogHeader>
         
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Warehouse Information */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-lg">
-                <Building2 className="h-4 w-4" />
-                Warehouse Information
-              </CardTitle>
-              <CardDescription>
-                Basic warehouse details and identification
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="warehouse_name">Warehouse Name</Label>
-                  <Input 
-                    id="warehouse_name" 
-                    name="warehouse_name" 
-                    placeholder="e.g., Main Distribution Center"
-                    defaultValue={editingBin?.warehouse_name || ''}
-                    maxLength={100}
-                  />
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Optional: Descriptive name for the warehouse
-                  </p>
-                </div>
-                
-                <div>
-                  <Label htmlFor="warehouse_code">Warehouse Code</Label>
-                  <Input 
-                    id="warehouse_code" 
-                    name="warehouse_code" 
-                    placeholder="e.g., WH001"
-                    defaultValue={editingBin?.warehouse_code || ''}
-                    maxLength={20}
-                    className="uppercase"
-                    style={{ textTransform: 'uppercase' }}
-                  />
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Optional: Unique identifier for the warehouse
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* BIN Location Details */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-lg">
-                <MapPin className="h-4 w-4" />
-                BIN Location Details
-              </CardTitle>
-              <CardDescription>
-                Specific bin identification within the warehouse
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="wh_bin_code">BIN Code *</Label>
-                  <Input 
-                    id="wh_bin_code" 
-                    name="wh_bin_code" 
-                    required 
-                    maxLength={4}
-                    minLength={4}
-                    placeholder="e.g., A001"
-                    defaultValue={editingBin?.wh_bin_code || ''}
-                    pattern="[A-Za-z0-9]{4}"
-                    title="Exactly 4 characters (letters and numbers only)"
-                    className="uppercase"
-                    style={{ textTransform: 'uppercase' }}
-                  />
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Required: Exactly 4 characters - combination of letters and numbers
-                  </p>
-                </div>
-                
-                <div>
-                  <Label htmlFor="bin_name">BIN Name *</Label>
-                  <Input 
-                    id="bin_name" 
-                    name="bin_name" 
-                    required 
-                    maxLength={50}
-                    placeholder="e.g., Electronics Section A"
-                    defaultValue={editingBin?.bin_name || ''}
-                  />
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Required: Descriptive name for this bin location
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Address Information */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-lg">
-                <MapPin className="h-4 w-4" />
-                Warehouse Address
-              </CardTitle>
-              <CardDescription>
-                Physical location of the warehouse
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 gap-4">
-                <div>
-                  <Label htmlFor="address_line1">Address Line 1</Label>
-                  <Input 
-                    id="address_line1" 
-                    name="address_line1" 
-                    placeholder="e.g., 123 Industrial Street"
-                    defaultValue={editingBin?.address_line1 || ''}
-                    maxLength={255}
-                  />
-                </div>
-                
-                <div>
-                  <Label htmlFor="address_line2">Address Line 2</Label>
-                  <Input 
-                    id="address_line2" 
-                    name="address_line2" 
-                    placeholder="e.g., Building B, Floor 2"
-                    defaultValue={editingBin?.address_line2 || ''}
-                    maxLength={255}
-                  />
-                </div>
-              </div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                  <Label htmlFor="city">City</Label>
-                  <Input 
-                    id="city" 
-                    name="city" 
-                    placeholder="e.g., Mumbai"
-                    defaultValue={editingBin?.city || ''}
-                    maxLength={100}
-                  />
-                </div>
-                
-                <div>
-                  <Label htmlFor="state">State</Label>
-                  <Input 
-                    id="state" 
-                    name="state" 
-                    placeholder="e.g., Maharashtra"
-                    defaultValue={editingBin?.state || ''}
-                    maxLength={100}
-                  />
-                </div>
-                
-                <div>
-                  <Label htmlFor="postal_code">PIN Code</Label>
-                  <Input 
-                    id="postal_code" 
-                    name="postal_code" 
-                    placeholder="e.g., 400001"
-                    defaultValue={editingBin?.postal_code || ''}
-                    maxLength={10}
-                  />
-                </div>
+        <form onSubmit={handleSubmit} className="space-y-5">
+          {/* Warehouse & BIN Information - Combined in one row */}
+          <div className="space-y-3">
+            <div className="flex items-center gap-2 pb-2 border-b">
+              <Building2 className="h-4 w-4 text-primary" />
+              <h3 className="font-medium">Warehouse & BIN Information</h3>
+            </div>
+            
+            <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
+              <div>
+                <Label htmlFor="warehouse_name" className="text-sm">Warehouse Name</Label>
+                <Input 
+                  id="warehouse_name" 
+                  name="warehouse_name" 
+                  placeholder="Main Distribution Center"
+                  defaultValue={editingBin?.warehouse_name || ''}
+                  maxLength={100}
+                  className="h-9"
+                />
               </div>
               
               <div>
-                <Label htmlFor="country">Country</Label>
+                <Label htmlFor="warehouse_code" className="text-sm">Warehouse Code</Label>
+                <Input 
+                  id="warehouse_code" 
+                  name="warehouse_code" 
+                  placeholder="WH001"
+                  defaultValue={editingBin?.warehouse_code || ''}
+                  maxLength={20}
+                  className="h-9 uppercase"
+                  style={{ textTransform: 'uppercase' }}
+                />
+              </div>
+              
+              <div>
+                <Label htmlFor="wh_bin_code" className="text-sm">BIN Code *</Label>
+                <Input 
+                  id="wh_bin_code" 
+                  name="wh_bin_code" 
+                  required 
+                  maxLength={4}
+                  minLength={4}
+                  placeholder="A001"
+                  defaultValue={editingBin?.wh_bin_code || ''}
+                  pattern="[A-Za-z0-9]{4}"
+                  title="Exactly 4 characters (letters and numbers only)"
+                  className="h-9 uppercase"
+                  style={{ textTransform: 'uppercase' }}
+                />
+              </div>
+              
+              <div>
+                <Label htmlFor="bin_name" className="text-sm">BIN Name *</Label>
+                <Input 
+                  id="bin_name" 
+                  name="bin_name" 
+                  required 
+                  maxLength={50}
+                  placeholder="Electronics Section A"
+                  defaultValue={editingBin?.bin_name || ''}
+                  className="h-9"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Address Information - Optimized layout */}
+          <div className="space-y-3">
+            <div className="flex items-center gap-2 pb-2 border-b">
+              <MapPin className="h-4 w-4 text-primary" />
+              <h3 className="font-medium">Warehouse Address</h3>
+            </div>
+            
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="address_line1" className="text-sm">Address Line 1</Label>
+                <Input 
+                  id="address_line1" 
+                  name="address_line1" 
+                  placeholder="123 Industrial Street"
+                  defaultValue={editingBin?.address_line1 || ''}
+                  maxLength={255}
+                  className="h-9"
+                />
+              </div>
+              
+              <div>
+                <Label htmlFor="address_line2" className="text-sm">Address Line 2</Label>
+                <Input 
+                  id="address_line2" 
+                  name="address_line2" 
+                  placeholder="Building B, Floor 2"
+                  defaultValue={editingBin?.address_line2 || ''}
+                  maxLength={255}
+                  className="h-9"
+                />
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+              <div>
+                <Label htmlFor="city" className="text-sm">City</Label>
+                <Input 
+                  id="city" 
+                  name="city" 
+                  placeholder="Mumbai"
+                  defaultValue={editingBin?.city || ''}
+                  maxLength={100}
+                  className="h-9"
+                />
+              </div>
+              
+              <div>
+                <Label htmlFor="state" className="text-sm">State</Label>
+                <Input 
+                  id="state" 
+                  name="state" 
+                  placeholder="Maharashtra"
+                  defaultValue={editingBin?.state || ''}
+                  maxLength={100}
+                  className="h-9"
+                />
+              </div>
+              
+              <div>
+                <Label htmlFor="postal_code" className="text-sm">PIN Code</Label>
+                <Input 
+                  id="postal_code" 
+                  name="postal_code" 
+                  placeholder="400001"
+                  defaultValue={editingBin?.postal_code || ''}
+                  maxLength={10}
+                  className="h-9"
+                />
+              </div>
+              
+              <div>
+                <Label htmlFor="country" className="text-sm">Country</Label>
                 <Input 
                   id="country" 
                   name="country" 
-                  placeholder="e.g., India"
+                  placeholder="India"
                   defaultValue={editingBin?.country || ''}
                   maxLength={100}
+                  className="h-9"
                 />
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
 
           {/* Contact Information */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-lg">
-                <User className="h-4 w-4" />
-                Contact Information
-              </CardTitle>
-              <CardDescription>
-                Point of contact for this warehouse location
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="contact_person_name">Contact Person Name</Label>
-                  <Input 
-                    id="contact_person_name" 
-                    name="contact_person_name" 
-                    placeholder="e.g., John Smith"
-                    defaultValue={editingBin?.contact_person_name || ''}
-                    maxLength={100}
-                  />
-                </div>
-                
-                <div>
-                  <Label htmlFor="contact_person_phone">Contact Person Phone</Label>
-                  <Input 
-                    id="contact_person_phone" 
-                    name="contact_person_phone" 
-                    type="tel"
-                    placeholder="e.g., +91 98765 43210"
-                    defaultValue={editingBin?.contact_person_phone || ''}
-                    maxLength={20}
-                  />
-                </div>
+          <div className="space-y-3">
+            <div className="flex items-center gap-2 pb-2 border-b">
+              <User className="h-4 w-4 text-primary" />
+              <h3 className="font-medium">Contact Information</h3>
+            </div>
+            
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="contact_person_name" className="text-sm">Contact Person</Label>
+                <Input 
+                  id="contact_person_name" 
+                  name="contact_person_name" 
+                  placeholder="John Smith"
+                  defaultValue={editingBin?.contact_person_name || ''}
+                  maxLength={100}
+                  className="h-9"
+                />
               </div>
-            </CardContent>
-          </Card>
-
-          <Separator />
+              
+              <div>
+                <Label htmlFor="contact_person_phone" className="text-sm">Phone Number</Label>
+                <Input 
+                  id="contact_person_phone" 
+                  name="contact_person_phone" 
+                  type="tel"
+                  placeholder="+91 98765 43210"
+                  defaultValue={editingBin?.contact_person_phone || ''}
+                  maxLength={20}
+                  className="h-9"
+                />
+              </div>
+            </div>
+          </div>
           
-          <div className="flex gap-3 pt-4">
-            <Button type="submit" disabled={loading} className="flex-1">
-              {loading ? 'Processing...' : (editingBin ? 'Update Warehouse and BIN' : 'Create Warehouse and BIN')}
+          {/* Action Buttons */}
+          <div className="flex gap-3 pt-4 border-t">
+            <Button type="submit" disabled={loading} className="flex-1 h-10">
+              {loading ? 'Processing...' : (editingBin ? 'Update Location' : 'Create Location')}
             </Button>
             <Button 
               type="button" 
               variant="outline" 
               onClick={() => onOpenChange(false)}
-              className="flex-1"
+              className="flex-1 h-10"
             >
               Cancel
             </Button>
