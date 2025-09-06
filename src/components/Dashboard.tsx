@@ -145,7 +145,7 @@ export default function Dashboard() {
           <DashboardLayout
             title="Inventory Management"
             subtitle="Manage your products and stock levels"
-            showWelcome={true}
+            showWelcome={false}
             activeView="inventory"
             onNavigate={handleNavigation}
             headerActions={
