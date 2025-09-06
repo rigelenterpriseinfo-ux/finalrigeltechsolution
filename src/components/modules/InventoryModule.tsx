@@ -192,7 +192,7 @@ export function InventoryModule() {
           material_cost_per_unit: bomCostSummary.materialCost,
           total_cost_per_unit: bomCostSummary.totalCost,
           warehouse_id: bomWarehouse || null,
-          bin_id: bomBin || null,
+          bin_id: bomBin === 'none' ? null : bomBin || null,
           notes: bomNotes || null
         })
         .select()
@@ -296,7 +296,7 @@ export function InventoryModule() {
         p_quantity: productionQuantity,
         p_company_id: profile.company_id,
         p_warehouse_id: bomWarehouse,
-        p_bin_id: bomBin || null
+        p_bin_id: bomBin === 'none' ? null : bomBin || null
       });
 
       if (error) throw error;
@@ -1315,7 +1315,7 @@ export function InventoryModule() {
                                   <SelectValue placeholder="Select bin" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                  <SelectItem value="">No specific bin</SelectItem>
+                                  <SelectItem value="none">No specific bin</SelectItem>
                                   {warehouseBins.filter(bin => bin.id === bomWarehouse).map(bin => (
                                     <SelectItem key={bin.id} value={bin.id}>
                                       {bin.bin_code}
