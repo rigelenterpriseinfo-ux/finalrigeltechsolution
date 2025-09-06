@@ -105,8 +105,16 @@ export function InventoryModule() {
   const [productionQuantity, setProductionQuantity] = useState(1);
   const [isProducing, setIsProducing] = useState(false);
   
-  const bomCandidateProducts = useMemo(() => products.filter(p => p.product_category !== 'finished_goods'), [products]);
-  const finishedGoodsProducts = useMemo(() => products.filter(p => p.product_category === 'finished_goods'), [products]);
+  const bomCandidateProducts = useMemo(() => {
+    const filtered = products.filter(p => p.product_category !== 'finished_goods' && p.id && p.id.trim() !== '');
+    console.log('BOM candidate products:', filtered.map(p => ({ id: p.id, name: p.name })));
+    return filtered;
+  }, [products]);
+  const finishedGoodsProducts = useMemo(() => {
+    const filtered = products.filter(p => p.product_category === 'finished_goods');
+    console.log('Finished goods products:', filtered.map(p => ({ id: p.id, name: p.name })));
+    return filtered;
+  }, [products]);
   
   const addBomComponent = () => {
     setBomComponents(prev => [
@@ -1227,7 +1235,9 @@ export function InventoryModule() {
                               <SelectValue placeholder="Select finished product" />
                             </SelectTrigger>
                             <SelectContent>
-                              {finishedGoodsProducts.map(product => (
+                              {finishedGoodsProducts
+                                .filter(product => product.id && product.id.trim() !== '')
+                                .map(product => (
                                 <SelectItem key={product.id} value={product.id}>
                                   {product.name} ({product.sku})
                                 </SelectItem>
@@ -1300,7 +1310,9 @@ export function InventoryModule() {
                                   <SelectValue placeholder="Select warehouse" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                  {warehouseBins.map(bin => (
+                                  {warehouseBins
+                                    .filter(bin => bin.id && bin.id.trim() !== '')
+                                    .map(bin => (
                                     <SelectItem key={bin.id} value={bin.id}>
                                       {bin.warehouse_name} - {bin.bin_code}
                                     </SelectItem>
@@ -1316,7 +1328,9 @@ export function InventoryModule() {
                                 </SelectTrigger>
                                 <SelectContent>
                                   <SelectItem value="none">No specific bin</SelectItem>
-                                  {warehouseBins.filter(bin => bin.id === bomWarehouse).map(bin => (
+                                  {warehouseBins
+                                    .filter(bin => bin.id && bin.id.trim() !== '' && bin.id === bomWarehouse)
+                                    .map(bin => (
                                     <SelectItem key={bin.id} value={bin.id}>
                                       {bin.bin_code}
                                     </SelectItem>
@@ -1381,7 +1395,9 @@ export function InventoryModule() {
                                           <SelectValue placeholder="Select component" />
                                         </SelectTrigger>
                                         <SelectContent className="z-[60]">
-                                          {bomCandidateProducts.map((p) => (
+                                          {bomCandidateProducts
+                                            .filter(p => p.id && p.id.trim() !== '')
+                                            .map((p) => (
                                             <SelectItem key={p.id} value={p.id}>
                                               {p.name} ({p.sku})
                                             </SelectItem>
