@@ -548,16 +548,16 @@ export function WarehouseBinForm({ open, onOpenChange, onSuccess, editingBin }: 
                 <Label htmlFor="postal_code" className="text-sm">
                   PIN Code <span className="text-red-500">*</span>
                 </Label>
-                <Input 
-                  id="postal_code" 
-                  name="postal_code" 
-                  placeholder="400001"
-                  defaultValue={editingBin?.postal_code || ''}
-                  onChange={(e) => handleFieldChange('postal_code', e.target.value)}
-                  className={`h-9 ${errors.postal_code ? 'border-red-500' : ''}`}
-                  required
-                />
-                {errors.postal_code && <p className="text-sm text-red-500 mt-1">{errors.postal_code}</p>}
+                 <Input 
+                   id="postal_code" 
+                   name="postal_code" 
+                   placeholder="400001"
+                   defaultValue={editingBin?.postal_code || ''}
+                   onChange={(e) => handleFieldChange('postal_code', e.target.value)}
+                   className={`h-9 ${errors.postal_code ? 'border-red-500' : ''}`}
+                   required
+                 />
+                 {errors.postal_code && <p className="text-sm text-red-500 mt-1">{errors.postal_code}</p>}
               </div>
               
               <div>
