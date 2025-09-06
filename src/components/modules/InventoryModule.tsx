@@ -388,12 +388,7 @@ export function InventoryModule() {
 
   return (
     <div className="space-y-6 p-6">
-      {/* Header */}
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold">Inventory Management</h1>
-          <p className="text-muted-foreground">Manage your product inventory</p>
-        </div>
+      <div className="flex justify-end items-center">
         <div className="flex space-x-2">
           {canEdit && (
             <>
