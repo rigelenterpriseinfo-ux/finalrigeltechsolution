@@ -12,6 +12,7 @@ interface DashboardLayoutProps {
   headerActions?: React.ReactNode;
   showSearch?: boolean;
   showWelcome?: boolean;
+  showHeader?: boolean;
   activeView?: string;
   onNavigate?: (view: string) => void;
   className?: string;
@@ -24,6 +25,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
   headerActions,
   showSearch = true,
   showWelcome = false,
+  showHeader = false,
   activeView = 'dashboard',
   onNavigate = () => {},
   className,
@@ -35,13 +37,15 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
   
   return (
     <div className="flex flex-col min-h-screen">
-      <Header 
-        title={title} 
-        subtitle={subtitle} 
-        actions={headerActions}
-        showSearch={showSearch}
-        showWelcome={showWelcome}
-      />
+      {showHeader && (
+        <Header 
+          title={title} 
+          subtitle={subtitle} 
+          actions={headerActions}
+          showSearch={showSearch}
+          showWelcome={showWelcome}
+        />
+      )}
       <div className="flex flex-1">
         <NavigationSidebar 
           activeView={activeView} 

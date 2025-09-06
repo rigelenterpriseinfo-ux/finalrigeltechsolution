@@ -145,7 +145,7 @@ export default function Dashboard() {
           <DashboardLayout
             title="Inventory Management"
             subtitle="Manage your products and stock levels"
-            showWelcome={false}
+            showHeader={false}
             activeView="inventory"
             onNavigate={handleNavigation}
             headerActions={
@@ -162,6 +162,7 @@ export default function Dashboard() {
           <DashboardLayout
             title="Purchase Orders"
             subtitle="Create and manage purchase orders"
+            showHeader={false}
             activeView="purchase"
             onNavigate={handleNavigation}
             headerActions={
@@ -178,6 +179,7 @@ export default function Dashboard() {
           <DashboardLayout
             title="Sales Orders"
             subtitle="Process sales and manage customers"
+            showHeader={false}
             activeView="sales"
             onNavigate={handleNavigation}
             headerActions={
@@ -194,6 +196,7 @@ export default function Dashboard() {
           <DashboardLayout
             title="Returns Management"
             subtitle="Handle return orders and credit notes"
+            showHeader={false}
             activeView="returns"
             onNavigate={handleNavigation}
             headerActions={
@@ -210,6 +213,7 @@ export default function Dashboard() {
           <DashboardLayout
             title="Payment Management"
             subtitle="Track payments and financial transactions"
+            showHeader={false}
             activeView="payments"
             onNavigate={handleNavigation}
             headerActions={
@@ -226,6 +230,7 @@ export default function Dashboard() {
           <DashboardLayout
             title="Reports & Analytics"
             subtitle="View business insights and reports"
+            showHeader={false}
             activeView="reports"
             onNavigate={handleNavigation}
             headerActions={
@@ -242,6 +247,7 @@ export default function Dashboard() {
           <DashboardLayout
             title="Track & Trace"
             subtitle="Monitor order status and shipments"
+            showHeader={false}
             activeView="tracking"
             onNavigate={handleNavigation}
             headerActions={
@@ -258,6 +264,7 @@ export default function Dashboard() {
           <DashboardLayout
             title="AI Assistant"
             subtitle="Get intelligent business insights and assistance"
+            showHeader={false}
             activeView="ai"
             onNavigate={handleNavigation}
             headerActions={
@@ -278,6 +285,7 @@ export default function Dashboard() {
           <DashboardLayout
             title="Company Profile"
             subtitle="Manage your company information and settings"
+            showHeader={false}
             activeView="profile"
             onNavigate={handleNavigation}
             headerActions={
