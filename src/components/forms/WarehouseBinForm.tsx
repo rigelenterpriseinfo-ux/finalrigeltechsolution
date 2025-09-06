@@ -390,7 +390,6 @@ export function WarehouseBinForm({ open, onOpenChange, onSuccess, editingBin }: 
       postal_code: (formData.get('postal_code') as string)?.trim() || null,
       contact_person_name: (formData.get('contact_person_name') as string)?.trim() || null,
       contact_person_phone: phone || null,
-      contact_person_email: (formData.get('contact_person_email') as string)?.trim() || null,
       is_active: isActive,
       is_default: isDefault,
       company_id: profile.company_id,
