@@ -22,6 +22,7 @@ import { InventoryTransferForm } from '@/components/forms/InventoryTransferForm'
 import { InventoryAdjustmentTable } from '@/components/tables/InventoryAdjustmentTable';
 import { InventoryTransactionTable } from '@/components/tables/InventoryTransactionTable';
 import { CurrentStockTable } from '@/components/tables/CurrentStockTable';
+import { BOMModule } from '@/components/modules/BOMModule';
 import * as XLSX from 'xlsx';
 
 interface Product {
