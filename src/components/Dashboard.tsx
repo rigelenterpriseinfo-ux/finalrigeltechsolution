@@ -77,6 +77,15 @@ export default function Dashboard() {
     totalCost: 0
   });
 
+  // Navigation handler to convert string to ActiveModule
+  const handleNavigation = (view: string) => {
+    if (view === 'dashboard' || view === 'inventory' || view === 'purchase' || view === 'sales' || 
+        view === 'returns' || view === 'payments' || view === 'reports' || view === 'tracking' || 
+        view === 'ai' || view === 'users' || view === 'profile') {
+      setActiveModule(view as ActiveModule);
+    }
+  };
+
   // moved early returns below hooks
 
   useEffect(() => {
@@ -149,6 +158,8 @@ export default function Dashboard() {
             title="Inventory Management"
             subtitle="Manage your products and stock levels"
             showWelcome={true}
+            activeView="inventory"
+            onNavigate={handleNavigation}
             headerActions={
               <Button onClick={() => setActiveModule('dashboard')} variant="outline">
                 Back to Dashboard
@@ -163,6 +174,8 @@ export default function Dashboard() {
           <DashboardLayout
             title="Purchase Orders"
             subtitle="Create and manage purchase orders"
+            activeView="purchase"
+            onNavigate={handleNavigation}
             headerActions={
               <Button onClick={() => setActiveModule('dashboard')} variant="outline">
                 Back to Dashboard
@@ -177,6 +190,8 @@ export default function Dashboard() {
           <DashboardLayout
             title="Sales Orders"
             subtitle="Process sales and manage customers"
+            activeView="sales"
+            onNavigate={handleNavigation}
             headerActions={
               <Button onClick={() => setActiveModule('dashboard')} variant="outline">
                 Back to Dashboard
@@ -191,6 +206,8 @@ export default function Dashboard() {
           <DashboardLayout
             title="Returns Management"
             subtitle="Handle return orders and credit notes"
+            activeView="returns"
+            onNavigate={handleNavigation}
             headerActions={
               <Button onClick={() => setActiveModule('dashboard')} variant="outline">
                 Back to Dashboard
@@ -205,6 +222,8 @@ export default function Dashboard() {
           <DashboardLayout
             title="Payment Management"
             subtitle="Track payments and financial transactions"
+            activeView="payments"
+            onNavigate={handleNavigation}
             headerActions={
               <Button onClick={() => setActiveModule('dashboard')} variant="outline">
                 Back to Dashboard
@@ -219,6 +238,8 @@ export default function Dashboard() {
           <DashboardLayout
             title="Reports & Analytics"
             subtitle="View business insights and reports"
+            activeView="reports"
+            onNavigate={handleNavigation}
             headerActions={
               <Button onClick={() => setActiveModule('dashboard')} variant="outline">
                 Back to Dashboard
@@ -233,6 +254,8 @@ export default function Dashboard() {
           <DashboardLayout
             title="Track & Trace"
             subtitle="Monitor order status and shipments"
+            activeView="tracking"
+            onNavigate={handleNavigation}
             headerActions={
               <Button onClick={() => setActiveModule('dashboard')} variant="outline">
                 Back to Dashboard
@@ -247,6 +270,8 @@ export default function Dashboard() {
           <DashboardLayout
             title="AI Assistant"
             subtitle="Get intelligent business insights and assistance"
+            activeView="ai"
+            onNavigate={handleNavigation}
             headerActions={
               <Button onClick={() => setActiveModule('dashboard')} variant="outline">
                 Back to Dashboard
@@ -265,6 +290,8 @@ export default function Dashboard() {
           <DashboardLayout
             title="Company Profile"
             subtitle="Manage your company information and settings"
+            activeView="profile"
+            onNavigate={handleNavigation}
             headerActions={
               <Button onClick={() => setActiveModule('dashboard')} variant="outline">
                 Back to Dashboard
@@ -472,80 +499,18 @@ export default function Dashboard() {
 
   console.log('About to render main dashboard layout');
 
-  // For dashboard view, use full layout with sidebar
+  // For dashboard view, use DashboardLayout with navigation sidebar
   if (activeModule === 'dashboard') {
     return (
-      <SidebarProvider>
-        <div className="min-h-screen flex w-full">
-          <Sidebar className="w-64">
-            <SidebarContent className="p-4">
-              {/* Brand Header */}
-              <div className="flex items-center gap-3 p-4 mb-6 bg-gradient-primary text-white rounded-lg">
-                <Building2 className="h-6 w-6" />
-                <div>
-                  <h2 className="font-semibold">PrismERP</h2>
-                  <p className="text-xs text-white/80">{company?.name || 'Business Suite'}</p>
-                </div>
-              </div>
-
-              {/* Navigation Menu */}
-              <SidebarMenu className="space-y-2">
-                {menuItems
-                  .filter(item => {
-                    if (item.restricted) {
-                      return isOwnerOrAdmin();
-                    }
-                    if (item.section) {
-                      return hasAccess(item.section);
-                    }
-                    return true;
-                  })
-                  .map((item) => (
-                    <SidebarMenuItem key={item.id}>
-                      <SidebarMenuButton
-                        onClick={() => setActiveModule(item.id)}
-                        isActive={activeModule === item.id}
-                        className={`w-full justify-start p-3 rounded-lg transition-colors ${
-                          activeModule === item.id 
-                            ? 'bg-primary text-primary-foreground' 
-                            : 'hover:bg-muted'
-                        }`}
-                      >
-                        <item.icon className="h-5 w-5 mr-3" />
-                        <span className="font-medium">{item.label}</span>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  ))}
-              </SidebarMenu>
-
-              {/* User Section */}
-              <div className="mt-auto pt-6 space-y-2">
-                <SidebarMenuButton 
-                  onClick={() => setActiveModule('profile')}
-                  className="w-full justify-start p-3 rounded-lg hover:bg-muted"
-                >
-                  <User className="h-5 w-5 mr-3" />
-                  <span>{profile?.first_name} {profile?.last_name}</span>
-                </SidebarMenuButton>
-                
-                <SidebarMenuButton 
-                  onClick={signOut}
-                  className="w-full justify-start p-4 rounded-lg text-white bg-destructive hover:bg-destructive/90 font-medium shadow-md"
-                >
-                  <LogOut className="h-5 w-5 mr-3" />
-                  <span>Sign Out</span>
-                </SidebarMenuButton>
-              </div>
-            </SidebarContent>
-          </Sidebar>
-
-          <main className="flex-1 flex flex-col">
-            <div className="flex-1 p-4 overflow-auto">
-              {renderActiveModule()}
-            </div>
-          </main>
-        </div>
-      </SidebarProvider>
+      <DashboardLayout
+        title="Dashboard"
+        subtitle="Overview & Analytics"
+        activeView="dashboard"
+        onNavigate={handleNavigation}
+        showWelcome={false}
+      >
+        {renderActiveModule()}
+      </DashboardLayout>
     );
   }
 

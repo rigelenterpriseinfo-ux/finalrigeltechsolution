@@ -1,5 +1,6 @@
 import React from 'react';
 import { Header } from '@/components/ui/header';
+import { NavigationSidebar } from '@/components/ui/navigation-sidebar';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/hooks/useAuth';
 import { useBusinessAuth } from '@/hooks/useBusinessAuth';
@@ -11,6 +12,8 @@ interface DashboardLayoutProps {
   headerActions?: React.ReactNode;
   showSearch?: boolean;
   showWelcome?: boolean;
+  activeView?: string;
+  onNavigate?: (view: string) => void;
   className?: string;
 }
 
@@ -21,12 +24,15 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
   headerActions,
   showSearch = true,
   showWelcome = false,
+  activeView = 'dashboard',
+  onNavigate = () => {},
   className,
 }) => {
   const { user, profile } = useAuth();
   const { businessUser } = useBusinessAuth();
   const emailToShow = user?.email || businessUser?.email || '';
   const roleLabel = (businessUser?.access_type === 'ADMIN' || businessUser?.access_type === 'OWNER' || profile?.role === 'admin' || profile?.role === 'owner') ? 'Admin' : 'User';
+  
   return (
     <div className="flex flex-col min-h-screen">
       <Header 
@@ -36,14 +42,21 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
         showSearch={showSearch}
         showWelcome={showWelcome}
       />
-      <main className={cn('flex-1 bg-gradient-subtle', className)}>
-        <div className="section-padding content-container">
-          <div className="animate-fade-up">
-            {children}
+      <div className="flex flex-1">
+        <NavigationSidebar 
+          activeView={activeView} 
+          onNavigate={onNavigate}
+          className="flex-shrink-0"
+        />
+        <main className={cn('flex-1 bg-gradient-subtle', className)}>
+          <div className="section-padding content-container">
+            <div className="animate-fade-up">
+              {children}
+            </div>
           </div>
-        </div>
-      </main>
-      <aside aria-label="current-user" className="fixed left-4 bottom-4 text-xs text-muted-foreground bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60 border border-border rounded-md px-3 py-2 shadow">
+        </main>
+      </div>
+      <aside aria-label="current-user" className="fixed left-4 bottom-4 text-xs text-muted-foreground bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60 border border-border rounded-md px-3 py-2 shadow z-50">
         <span>{emailToShow || 'Signed out'}</span>
         <span className="mx-2">•</span>
         <span>{roleLabel}</span>

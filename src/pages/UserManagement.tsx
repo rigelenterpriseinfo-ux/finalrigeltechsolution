@@ -339,6 +339,10 @@ const UserManagement = () => {
     <DashboardLayout 
       title="Team Management" 
       subtitle="Manage your team members and their access permissions"
+      activeView="users"
+      onNavigate={(view) => {
+        if (view === 'dashboard') navigate('/dashboard');
+      }}
       headerActions={
         <Button onClick={() => navigate('/dashboard')} variant="outline">
           <ArrowLeft className="mr-2 h-4 w-4" />
