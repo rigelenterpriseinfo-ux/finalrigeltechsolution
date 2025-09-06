@@ -270,9 +270,8 @@ export default function Dashboard() {
           </DashboardLayout>
         );
       case 'users':
-        // Navigate to User Management page instead of rendering inline
-        window.location.href = '/user-management';
-        return null;
+        // Navigate to User Management page instead of forcing a full reload
+        return <Navigate to="/user-management" replace />;
       case 'profile':
         return (
           <DashboardLayout
