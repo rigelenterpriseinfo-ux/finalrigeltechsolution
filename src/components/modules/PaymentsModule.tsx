@@ -623,10 +623,10 @@ export function PaymentsModule() {
                           <TableCell className="p-2 text-xs font-medium truncate">{item.supplier_name || 'N/A'}</TableCell>
                           <TableCell className="p-2 text-xs truncate">{item.grn_number}</TableCell>
                           <TableCell className="p-2 text-xs">{new Date(item.grn_date).toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: '2-digit' })}</TableCell>
-                          <TableCell className="p-2 text-xs">₹{(item.total_amount / 1000).toFixed(0)}k</TableCell>
-                          <TableCell className="p-2 text-xs">₹{(item.advance_payment / 1000).toFixed(0)}k</TableCell>
-                          <TableCell className="p-2 text-xs">₹{(item.amount_received / 1000).toFixed(0)}k</TableCell>
-                          <TableCell className="p-2 text-xs">₹{(item.pending_payment / 1000).toFixed(0)}k</TableCell>
+                          <TableCell className="p-2 text-xs">₹{item.total_amount.toLocaleString('en-IN')}</TableCell>
+                          <TableCell className="p-2 text-xs">₹{item.advance_payment.toLocaleString('en-IN')}</TableCell>
+                          <TableCell className="p-2 text-xs">₹{item.amount_received.toLocaleString('en-IN')}</TableCell>
+                          <TableCell className="p-2 text-xs">₹{item.pending_payment.toLocaleString('en-IN')}</TableCell>
                           <TableCell className="p-2">
                             <Badge variant={
                               item.invoice_status === 'Fully Paid' ? 'default' :
@@ -822,10 +822,10 @@ export function PaymentsModule() {
                           <TableCell className="p-2 text-xs font-medium truncate">{item.customer?.name || 'N/A'}</TableCell>
                           <TableCell className="p-2 text-xs truncate">{item.invoice_number || 'N/A'}</TableCell>
                           <TableCell className="p-2 text-xs">{new Date(item.invoice_date).toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: '2-digit' })}</TableCell>
-                          <TableCell className="p-2 text-xs">₹{(item.total_amount / 1000).toFixed(0)}k</TableCell>
-                          <TableCell className="p-2 text-xs">₹{(item.advance_payment / 1000).toFixed(0)}k</TableCell>
-                          <TableCell className="p-2 text-xs">₹{(item.amount_received / 1000).toFixed(0)}k</TableCell>
-                          <TableCell className="p-2 text-xs">₹{(item.pending_payment / 1000).toFixed(0)}k</TableCell>
+                          <TableCell className="p-2 text-xs">₹{item.total_amount.toLocaleString('en-IN')}</TableCell>
+                          <TableCell className="p-2 text-xs">₹{item.advance_payment.toLocaleString('en-IN')}</TableCell>
+                          <TableCell className="p-2 text-xs">₹{item.amount_received.toLocaleString('en-IN')}</TableCell>
+                          <TableCell className="p-2 text-xs">₹{item.pending_payment.toLocaleString('en-IN')}</TableCell>
                           <TableCell className="p-2">
                             <Badge variant={
                               item.invoice_status === 'Fully Paid' ? 'default' :
