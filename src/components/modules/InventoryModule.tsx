@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -13,7 +13,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { useBusinessAuth } from '@/hooks/useBusinessAuth';
-import { Plus, Search, Package, AlertTriangle, Edit, Trash2, Download, ArrowUpDown, ArrowUp, ArrowDown, ChevronLeft, ChevronRight, MapPin, TrendingUp, ClipboardList, ArrowRightLeft } from 'lucide-react';
+import { Plus, Search, Package, AlertTriangle, Edit, Trash2, Download, ArrowUpDown, ArrowUp, ArrowDown, ChevronLeft, ChevronRight, MapPin, TrendingUp, ClipboardList, ArrowRightLeft, CheckCircle, XCircle, RotateCcw } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { WarehouseBinForm } from '@/components/forms/WarehouseBinForm';
 import { WarehouseBinTable } from '@/components/tables/WarehouseBinTable';
@@ -80,6 +80,15 @@ export function InventoryModule() {
   // Form state for auto-calculations and conditional display
   const [isTaxable, setIsTaxable] = useState(true);
   const [dimensions, setDimensions] = useState({ length: '', width: '', height: '' });
+  
+  // SKU validation state
+  const [skuValue, setSkuValue] = useState('');
+  const [skuValidation, setSkuValidation] = useState<{
+    status: 'idle' | 'checking' | 'valid' | 'duplicate' | 'inactive_found';
+    message: string;
+    inactiveProduct?: any;
+  }>({ status: 'idle', message: '' });
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Calculate volume when dimensions change
   const calculateVolume = (length: string, width: string, height: string) => {
@@ -87,6 +96,87 @@ export function InventoryModule() {
     const w = parseFloat(width) || 0;
     const h = parseFloat(height) || 0;
     return l > 0 && w > 0 && h > 0 ? (l * w * h).toFixed(2) : '';
+  };
+
+  // Debounced SKU validation
+  const validateSKU = useCallback(async (sku: string) => {
+    if (!sku.trim()) {
+      setSkuValidation({ status: 'idle', message: '' });
+      return;
+    }
+
+    setSkuValidation({ status: 'checking', message: 'Checking availability...' });
+
+    try {
+      const { data, error } = await supabase
+        .from('products')
+        .select('id, sku, name, is_active')
+        .eq('company_id', profile?.company_id)
+        .eq('sku', sku.trim())
+        .maybeSingle();
+
+      if (error) throw error;
+
+      if (!data) {
+        setSkuValidation({ status: 'valid', message: 'SKU is available' });
+      } else if (data.is_active) {
+        setSkuValidation({ 
+          status: 'duplicate', 
+          message: `SKU already exists for "${data.name}"` 
+        });
+      } else {
+        setSkuValidation({ 
+          status: 'inactive_found', 
+          message: `Inactive product "${data.name}" uses this SKU`,
+          inactiveProduct: data 
+        });
+      }
+    } catch (error) {
+      console.error('Error validating SKU:', error);
+      setSkuValidation({ status: 'idle', message: '' });
+    }
+  }, [profile?.company_id]);
+
+  // Debounce the SKU validation
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      if (skuValue) {
+        validateSKU(skuValue);
+      }
+    }, 500);
+
+    return () => clearTimeout(timeoutId);
+  }, [skuValue, validateSKU]);
+
+  // Handle SKU reactivation
+  const handleReactivateProduct = async () => {
+    if (!skuValidation.inactiveProduct) return;
+
+    try {
+      const { error } = await supabase
+        .from('products')
+        .update({ is_active: true })
+        .eq('id', skuValidation.inactiveProduct.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: `Product "${skuValidation.inactiveProduct.name}" has been reactivated`,
+      });
+
+      setShowAddDialog(false);
+      fetchProducts();
+      setSkuValue('');
+      setSkuValidation({ status: 'idle', message: '' });
+    } catch (error) {
+      console.error('Error reactivating product:', error);
+      toast({
+        title: "Error",
+        description: "Failed to reactivate product",
+        variant: "destructive",
+      });
+    }
   };
 
   // Fetch warehouse bins
@@ -184,6 +274,19 @@ export function InventoryModule() {
       return;
     }
 
+    // Prevent submission if SKU validation failed
+    if (skuValidation.status === 'duplicate') {
+      toast({
+        title: "Validation Error",
+        description: "SKU already exists. Please use a different SKU.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+
     try {
       const formData = new FormData(e.currentTarget);
       const form = e.currentTarget;
@@ -268,7 +371,18 @@ export function InventoryModule() {
         .from('products')
         .insert([productData]);
 
-      if (error) throw error;
+      if (error) {
+        // Handle specific database constraint errors
+        if (error.code === '23505' && error.message.includes('products_company_id_sku_key')) {
+          toast({
+            title: "Duplicate SKU",
+            description: "This SKU already exists. Please use a different SKU.",
+            variant: "destructive",
+          });
+          return;
+        }
+        throw error;
+      }
 
       toast({
         title: "Success",
@@ -281,13 +395,17 @@ export function InventoryModule() {
       form.reset();
       setIsTaxable(true);
       setDimensions({ length: '', width: '', height: '' });
+      setSkuValue('');
+      setSkuValidation({ status: 'idle', message: '' });
     } catch (error) {
       console.error('Error adding product:', error);
       toast({
         title: "Error",
-        description: "Failed to add product",
+        description: "Failed to add product. Please try again.",
         variant: "destructive",
       });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -477,6 +595,9 @@ export function InventoryModule() {
                     // Reset form state when dialog closes
                     setIsTaxable(true);
                     setDimensions({ length: '', width: '', height: '' });
+                    setSkuValue('');
+                    setSkuValidation({ status: 'idle', message: '' });
+                    setIsSubmitting(false);
                   }
                 }}
               >
@@ -509,7 +630,57 @@ export function InventoryModule() {
                             </div>
                             <div>
                               <Label htmlFor="sku" className="text-xs font-medium text-muted-foreground">SKU *</Label>
-                              <Input id="sku" name="sku" required className="mt-0.5 h-8 text-xs transition-all focus:scale-[1.02]" placeholder="Product SKU" />
+                              <div className="relative">
+                                <Input 
+                                  id="sku" 
+                                  name="sku" 
+                                  required 
+                                  value={skuValue}
+                                  onChange={(e) => setSkuValue(e.target.value)}
+                                  className={`mt-0.5 h-8 text-xs transition-all focus:scale-[1.02] pr-8 ${
+                                    skuValidation.status === 'valid' ? 'border-green-500' :
+                                    skuValidation.status === 'duplicate' ? 'border-red-500' :
+                                    skuValidation.status === 'inactive_found' ? 'border-yellow-500' : ''
+                                  }`}
+                                  placeholder="Product SKU" 
+                                />
+                                <div className="absolute right-2 top-1/2 -translate-y-1/2">
+                                  {skuValidation.status === 'checking' && (
+                                    <div className="animate-spin rounded-full h-3 w-3 border-b border-primary"></div>
+                                  )}
+                                  {skuValidation.status === 'valid' && (
+                                    <CheckCircle className="h-3 w-3 text-green-500" />
+                                  )}
+                                  {skuValidation.status === 'duplicate' && (
+                                    <XCircle className="h-3 w-3 text-red-500" />
+                                  )}
+                                  {skuValidation.status === 'inactive_found' && (
+                                    <AlertTriangle className="h-3 w-3 text-yellow-500" />
+                                  )}
+                                </div>
+                              </div>
+                              {skuValidation.message && (
+                                <div className={`text-xs mt-1 flex items-center gap-1 ${
+                                  skuValidation.status === 'valid' ? 'text-green-600' :
+                                  skuValidation.status === 'duplicate' ? 'text-red-600' :
+                                  skuValidation.status === 'inactive_found' ? 'text-yellow-600' :
+                                  'text-muted-foreground'
+                                }`}>
+                                  {skuValidation.message}
+                                  {skuValidation.status === 'inactive_found' && (
+                                    <Button
+                                      type="button"
+                                      variant="link"
+                                      size="sm"
+                                      onClick={handleReactivateProduct}
+                                      className="h-auto p-0 ml-2 text-xs text-blue-600 hover:text-blue-800"
+                                    >
+                                      <RotateCcw className="h-3 w-3 mr-1" />
+                                      Reactivate
+                                    </Button>
+                                  )}
+                                </div>
+                              )}
                             </div>
                           </div>
                           <div>
@@ -760,10 +931,20 @@ export function InventoryModule() {
                         </Button>
                         <Button 
                           type="submit" 
+                          disabled={skuValidation.status === 'duplicate' || isSubmitting}
                           className="h-8 px-4 text-xs hover-scale bg-gradient-to-r from-primary to-primary/80"
                         >
-                          <Plus className="h-3 w-3 mr-1" />
-                          Add Product
+                          {isSubmitting ? (
+                            <>
+                              <div className="animate-spin rounded-full h-3 w-3 border-b border-white mr-1"></div>
+                              Adding...
+                            </>
+                          ) : (
+                            <>
+                              <Plus className="h-3 w-3 mr-1" />
+                              Add Product
+                            </>
+                          )}
                         </Button>
                       </div>
                     </div>
