@@ -45,10 +45,19 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({
 
     try {
       const amount = parseFloat(formData.amount);
-      if (isNaN(amount)) {
+      if (isNaN(amount) || amount <= 0) {
         toast({
           title: "Error",
-          description: "Please enter a valid amount",
+          description: "Please enter a valid positive amount",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      if (maxAmount && amount > maxAmount) {
+        toast({
+          title: "Error", 
+          description: `Amount cannot exceed ₹${maxAmount.toLocaleString()}`,
           variant: "destructive"
         });
         return;
@@ -148,6 +157,7 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({
             id="amount"
             type="number"
             step="0.01"
+            min="0"
             placeholder="0.00"
             value={formData.amount}
             onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
