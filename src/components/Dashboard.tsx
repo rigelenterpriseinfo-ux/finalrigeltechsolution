@@ -310,9 +310,7 @@ export default function Dashboard() {
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-4">
                     <div className="p-4 rounded-2xl bg-primary/10 text-primary">
-                      <SidebarTrigger className="p-0">
-                        <Menu className="h-8 w-8" />
-                      </SidebarTrigger>
+                      <BarChart3 className="h-8 w-8" />
                     </div>
                     <div className="space-y-1">
                       <p className="text-sm font-medium text-muted-foreground uppercase tracking-wide">Dashboard Overview</p>
