@@ -40,7 +40,7 @@ export const EnhancedInventoryModule: React.FC<EnhancedInventoryModuleProps> = (
 
     // Search for product in offline storage first
     try {
-      const products = await offlineManager.searchData('products', 'by-sku', result);
+      const products = await offlineManager.searchProducts('by-sku', result);
       if (products.length > 0) {
         toast({
           title: "Product Found",

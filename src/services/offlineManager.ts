@@ -150,15 +150,57 @@ class OfflineManager {
     }
   }
 
-  async searchData(storeName: 'products' | 'orders' | 'inventory', indexName: string, query: any) {
+  // Overloaded search methods for type safety
+  async searchProducts(indexName: 'by-sku' | 'by-category' | 'by-updated', query: any) {
     if (!this.db) return [];
 
     try {
-      const tx = this.db.transaction(storeName, 'readonly');
+      const tx = this.db.transaction('products', 'readonly');
       return await tx.store.index(indexName).getAll(query);
     } catch (error) {
-      console.error(`Error searching data in ${storeName}:`, error);
+      console.error('Error searching products:', error);
       return [];
+    }
+  }
+
+  async searchOrders(indexName: 'by-status' | 'by-date', query: any) {
+    if (!this.db) return [];
+
+    try {
+      const tx = this.db.transaction('orders', 'readonly');
+      return await tx.store.index(indexName).getAll(query);
+    } catch (error) {
+      console.error('Error searching orders:', error);
+      return [];
+    }
+  }
+
+  async searchInventory(indexName: 'by-product' | 'by-location', query: any) {
+    if (!this.db) return [];
+
+    try {
+      const tx = this.db.transaction('inventory', 'readonly');
+      return await tx.store.index(indexName).getAll(query);
+    } catch (error) {
+      console.error('Error searching inventory:', error);
+      return [];
+    }
+  }
+
+  // Generic search method for backward compatibility
+  async searchData(storeName: 'products', indexName: 'by-sku' | 'by-category' | 'by-updated', query: any): Promise<any[]>;
+  async searchData(storeName: 'orders', indexName: 'by-status' | 'by-date', query: any): Promise<any[]>;
+  async searchData(storeName: 'inventory', indexName: 'by-product' | 'by-location', query: any): Promise<any[]>;
+  async searchData(storeName: 'products' | 'orders' | 'inventory', indexName: string, query: any): Promise<any[]> {
+    switch (storeName) {
+      case 'products':
+        return this.searchProducts(indexName as any, query);
+      case 'orders':
+        return this.searchOrders(indexName as any, query);
+      case 'inventory':
+        return this.searchInventory(indexName as any, query);
+      default:
+        return [];
     }
   }
 
