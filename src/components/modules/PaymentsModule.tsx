@@ -45,6 +45,13 @@ interface GRNPayable {
   total_amount: number;
   supplier_name: string;
   status: string;
+  advance_payment: number;
+  amount_received: number;
+  payment_date: string | null;
+  payment_method: string | null;
+  payment_reference_no: string | null;
+  pending_payment: number;
+  invoice_status: string;
 }
 
 interface SalesInvoiceReceivable {
@@ -56,6 +63,13 @@ interface SalesInvoiceReceivable {
   customer: {
     name: string;
   };
+  advance_payment: number;
+  amount_received: number;
+  payment_date: string | null;
+  payment_method: string | null;
+  payment_reference_no: string | null;
+  pending_payment: number;
+  invoice_status: string;
 }
 
 export function PaymentsModule() {
@@ -91,7 +105,9 @@ export function PaymentsModule() {
   const fetchAccountPayable = async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
+      
+      // First get GRN data
+      const { data: grnData, error: grnError } = await supabase
         .from('grn_header')
         .select(`
           id,
@@ -99,17 +115,67 @@ export function PaymentsModule() {
           grn_date,
           total_amount,
           supplier_name,
-          status
+          status,
+          purchase_order_id
         `)
         .in('status', ['accepted', 'received', 'partially_received'])
         .order('grn_date', { ascending: false });
 
-      if (error) {
-        console.error('Error fetching account payable:', error);
+      if (grnError) {
+        console.error('Error fetching GRN data:', grnError);
         return;
       }
 
-      setAccountPayable(data || []);
+      // Get payment data for all purchase orders
+      const purchaseOrderIds = grnData?.map(grn => grn.purchase_order_id).filter(Boolean) || [];
+      let paymentsData: any[] = [];
+      
+      if (purchaseOrderIds.length > 0) {
+        const { data: payments, error: paymentsError } = await supabase
+          .from('payments')
+          .select('*')
+          .in('purchase_order_id', purchaseOrderIds);
+          
+        if (!paymentsError) {
+          paymentsData = payments || [];
+        }
+      }
+
+      // Transform data to include payment information
+      const transformedData = (grnData || []).map(grn => {
+        const relatedPayments = paymentsData.filter(payment => payment.purchase_order_id === grn.purchase_order_id);
+        const totalAdvancePayment = 0; // Advance payments not implemented yet
+        const totalAmountReceived = relatedPayments.reduce((sum, payment) => sum + payment.amount, 0);
+        const pendingPayment = grn.total_amount - totalAdvancePayment - totalAmountReceived;
+        const latestPayment = relatedPayments.sort((a, b) => 
+          new Date(b.payment_date).getTime() - new Date(a.payment_date).getTime()
+        )[0];
+
+        let invoiceStatus = 'Outstanding';
+        if (pendingPayment <= 0) {
+          invoiceStatus = 'Fully Paid';
+        } else if (totalAmountReceived > 0) {
+          invoiceStatus = 'Partially Paid';
+        }
+
+        return {
+          id: grn.id,
+          grn_number: grn.grn_number,
+          grn_date: grn.grn_date,
+          total_amount: grn.total_amount,
+          supplier_name: grn.supplier_name,
+          status: grn.status,
+          advance_payment: totalAdvancePayment,
+          amount_received: totalAmountReceived,
+          payment_date: latestPayment?.payment_date || null,
+          payment_method: latestPayment?.payment_method || null,
+          payment_reference_no: latestPayment?.reference_number || null,
+          pending_payment: Math.max(0, pendingPayment),
+          invoice_status: invoiceStatus
+        };
+      });
+
+      setAccountPayable(transformedData);
     } catch (error) {
       console.error('Error fetching account payable:', error);
     } finally {
@@ -119,7 +185,8 @@ export function PaymentsModule() {
 
   const fetchAccountReceivable = async () => {
     try {
-      const { data, error } = await supabase
+      // First get sales invoice data
+      const { data: invoiceData, error: invoiceError } = await supabase
         .from('sales_invoices')
         .select(`
           id,
@@ -128,21 +195,78 @@ export function PaymentsModule() {
           total_amount,
           payment_terms,
           customer_id,
-          customer_name
+          customer_name,
+          sales_order_id
         `)
         .eq('status', 'finalized')
         .order('invoice_date', { ascending: false });
 
-      if (error) {
-        console.error('Error fetching account receivable:', error);
+      if (invoiceError) {
+        console.error('Error fetching sales invoice data:', invoiceError);
         return;
       }
 
-      // Transform data to match interface
-      const transformedData = (data || []).map(invoice => ({
-        ...invoice,
-        customer: { name: invoice.customer_name }
-      }));
+      // Get payment data for all sales orders
+      const salesOrderIds = invoiceData?.map(invoice => invoice.sales_order_id).filter(Boolean) || [];
+      let paymentsData: any[] = [];
+      
+      if (salesOrderIds.length > 0) {
+        const { data: payments, error: paymentsError } = await supabase
+          .from('payments')
+          .select('*')
+          .in('sales_order_id', salesOrderIds);
+          
+        if (!paymentsError) {
+          paymentsData = payments || [];
+        }
+      }
+
+      // Transform data to include payment information and status logic
+      const transformedData = (invoiceData || []).map(invoice => {
+        const relatedPayments = paymentsData.filter(payment => payment.sales_order_id === invoice.sales_order_id);
+        const totalAdvancePayment = 0; // Advance payments not implemented yet
+        const totalAmountReceived = relatedPayments.reduce((sum, payment) => sum + payment.amount, 0);
+        const pendingPayment = invoice.total_amount - totalAdvancePayment - totalAmountReceived;
+        const latestPayment = relatedPayments.sort((a, b) => 
+          new Date(b.payment_date).getTime() - new Date(a.payment_date).getTime()
+        )[0];
+
+        // Calculate invoice status including overdue logic
+        let invoiceStatus = 'Outstanding';
+        if (pendingPayment <= 0) {
+          invoiceStatus = 'Fully Paid';
+        } else if (totalAmountReceived > 0) {
+          invoiceStatus = 'Partially Paid';
+        }
+
+        // Check for overdue status
+        if (pendingPayment > 0) {
+          const invoiceDate = new Date(invoice.invoice_date);
+          const paymentTermDays = parseInt(invoice.payment_terms?.replace(/\D/g, '') || '30');
+          const dueDate = new Date(invoiceDate.getTime() + (paymentTermDays * 24 * 60 * 60 * 1000));
+          const currentDate = new Date();
+          
+          if (currentDate > dueDate) {
+            invoiceStatus = 'Overdue';
+          }
+        }
+
+        return {
+          id: invoice.id,
+          invoice_number: invoice.invoice_number,
+          invoice_date: invoice.invoice_date,
+          total_amount: invoice.total_amount,
+          payment_terms: invoice.payment_terms,
+          customer: { name: invoice.customer_name },
+          advance_payment: totalAdvancePayment,
+          amount_received: totalAmountReceived,
+          payment_date: latestPayment?.payment_date || null,
+          payment_method: latestPayment?.payment_method || null,
+          payment_reference_no: latestPayment?.reference_number || null,
+          pending_payment: Math.max(0, pendingPayment),
+          invoice_status: invoiceStatus
+        };
+      });
 
       setAccountReceivable(transformedData);
     } catch (error) {
@@ -176,7 +300,9 @@ export function PaymentsModule() {
   const filteredAndSortedAP = accountPayable
     .filter(item =>
       item.supplier_name.toLowerCase().includes(apSearchTerm.toLowerCase()) ||
-      item.grn_number.toLowerCase().includes(apSearchTerm.toLowerCase())
+      item.grn_number.toLowerCase().includes(apSearchTerm.toLowerCase()) ||
+      (item.payment_reference_no && item.payment_reference_no.toLowerCase().includes(apSearchTerm.toLowerCase())) ||
+      item.invoice_status.toLowerCase().includes(apSearchTerm.toLowerCase())
     )
     .sort((a, b) => {
       const aValue = a[apSortField];
@@ -198,7 +324,9 @@ export function PaymentsModule() {
   const filteredAndSortedAR = accountReceivable
     .filter(item =>
       item.customer?.name.toLowerCase().includes(arSearchTerm.toLowerCase()) ||
-      item.invoice_number?.toLowerCase().includes(arSearchTerm.toLowerCase())
+      item.invoice_number?.toLowerCase().includes(arSearchTerm.toLowerCase()) ||
+      (item.payment_reference_no && item.payment_reference_no.toLowerCase().includes(arSearchTerm.toLowerCase())) ||
+      item.invoice_status.toLowerCase().includes(arSearchTerm.toLowerCase())
     )
     .sort((a, b) => {
       let aValue: any, bValue: any;
@@ -265,8 +393,15 @@ export function PaymentsModule() {
       'Vendor Name': item.supplier_name,
       'GRN Number': item.grn_number,
       'GRN Date': new Date(item.grn_date).toLocaleDateString(),
-      'Amount': item.total_amount,
-      'Status': item.status
+      'Total Amount': item.total_amount,
+      'Advance Payment': item.advance_payment,
+      'Amount Received': item.amount_received,
+      'Payment Date': item.payment_date ? new Date(item.payment_date).toLocaleDateString() : '',
+      'Payment Method': item.payment_method || '',
+      'Payment Reference': item.payment_reference_no || '',
+      'Pending Payment': item.pending_payment,
+      'Invoice Status': item.invoice_status,
+      'GRN Status': item.status
     }));
     exportToCSV(exportData, 'account_payable');
     toast({ title: "Export successful", description: "Account Payable data exported to CSV" });
@@ -277,7 +412,14 @@ export function PaymentsModule() {
       'Customer Name': item.customer?.name || 'N/A',
       'Invoice Number': item.invoice_number || 'N/A',
       'Invoice Date': new Date(item.invoice_date).toLocaleDateString(),
-      'Amount': item.total_amount,
+      'Total Amount': item.total_amount,
+      'Advance Payment': item.advance_payment,
+      'Amount Received': item.amount_received,
+      'Payment Date': item.payment_date ? new Date(item.payment_date).toLocaleDateString() : '',
+      'Payment Method': item.payment_method || '',
+      'Payment Reference': item.payment_reference_no || '',
+      'Pending Payment': item.pending_payment,
+      'Invoice Status': item.invoice_status,
       'Payment Terms': item.payment_terms || 'Net 30'
     }));
     exportToCSV(exportData, 'account_receivable');
@@ -371,7 +513,7 @@ export function PaymentsModule() {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="rounded-md border">
+            <div className="rounded-md border overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -401,16 +543,64 @@ export function PaymentsModule() {
                     </TableHead>
                     <TableHead>
                       <Button variant="ghost" className="h-8 p-0 font-semibold hover:bg-transparent" onClick={() => handleApSort('total_amount')}>
-                        Amount
+                        Total Amount
                         {apSortField === 'total_amount' ? (
                           apSortDirection === 'asc' ? <ArrowUp className="ml-1 h-3 w-3" /> : <ArrowDown className="ml-1 h-3 w-3" />
                         ) : <ArrowUpDown className="ml-1 h-3 w-3" />}
                       </Button>
                     </TableHead>
                     <TableHead>
-                      <Button variant="ghost" className="h-8 p-0 font-semibold hover:bg-transparent" onClick={() => handleApSort('status')}>
-                        Status
-                        {apSortField === 'status' ? (
+                      <Button variant="ghost" className="h-8 p-0 font-semibold hover:bg-transparent" onClick={() => handleApSort('advance_payment')}>
+                        Advance Payment
+                        {apSortField === 'advance_payment' ? (
+                          apSortDirection === 'asc' ? <ArrowUp className="ml-1 h-3 w-3" /> : <ArrowDown className="ml-1 h-3 w-3" />
+                        ) : <ArrowUpDown className="ml-1 h-3 w-3" />}
+                      </Button>
+                    </TableHead>
+                    <TableHead>
+                      <Button variant="ghost" className="h-8 p-0 font-semibold hover:bg-transparent" onClick={() => handleApSort('amount_received')}>
+                        Amount Received
+                        {apSortField === 'amount_received' ? (
+                          apSortDirection === 'asc' ? <ArrowUp className="ml-1 h-3 w-3" /> : <ArrowDown className="ml-1 h-3 w-3" />
+                        ) : <ArrowUpDown className="ml-1 h-3 w-3" />}
+                      </Button>
+                    </TableHead>
+                    <TableHead>
+                      <Button variant="ghost" className="h-8 p-0 font-semibold hover:bg-transparent" onClick={() => handleApSort('payment_date')}>
+                        Payment Date
+                        {apSortField === 'payment_date' ? (
+                          apSortDirection === 'asc' ? <ArrowUp className="ml-1 h-3 w-3" /> : <ArrowDown className="ml-1 h-3 w-3" />
+                        ) : <ArrowUpDown className="ml-1 h-3 w-3" />}
+                      </Button>
+                    </TableHead>
+                    <TableHead>
+                      <Button variant="ghost" className="h-8 p-0 font-semibold hover:bg-transparent" onClick={() => handleApSort('payment_method')}>
+                        Payment Method
+                        {apSortField === 'payment_method' ? (
+                          apSortDirection === 'asc' ? <ArrowUp className="ml-1 h-3 w-3" /> : <ArrowDown className="ml-1 h-3 w-3" />
+                        ) : <ArrowUpDown className="ml-1 h-3 w-3" />}
+                      </Button>
+                    </TableHead>
+                    <TableHead>
+                      <Button variant="ghost" className="h-8 p-0 font-semibold hover:bg-transparent" onClick={() => handleApSort('payment_reference_no')}>
+                        Payment Ref
+                        {apSortField === 'payment_reference_no' ? (
+                          apSortDirection === 'asc' ? <ArrowUp className="ml-1 h-3 w-3" /> : <ArrowDown className="ml-1 h-3 w-3" />
+                        ) : <ArrowUpDown className="ml-1 h-3 w-3" />}
+                      </Button>
+                    </TableHead>
+                    <TableHead>
+                      <Button variant="ghost" className="h-8 p-0 font-semibold hover:bg-transparent" onClick={() => handleApSort('pending_payment')}>
+                        Pending Payment
+                        {apSortField === 'pending_payment' ? (
+                          apSortDirection === 'asc' ? <ArrowUp className="ml-1 h-3 w-3" /> : <ArrowDown className="ml-1 h-3 w-3" />
+                        ) : <ArrowUpDown className="ml-1 h-3 w-3" />}
+                      </Button>
+                    </TableHead>
+                    <TableHead>
+                      <Button variant="ghost" className="h-8 p-0 font-semibold hover:bg-transparent" onClick={() => handleApSort('invoice_status')}>
+                        Payment Status
+                        {apSortField === 'invoice_status' ? (
                           apSortDirection === 'asc' ? <ArrowUp className="ml-1 h-3 w-3" /> : <ArrowDown className="ml-1 h-3 w-3" />
                         ) : <ArrowUpDown className="ml-1 h-3 w-3" />}
                       </Button>
@@ -420,7 +610,7 @@ export function PaymentsModule() {
                 <TableBody>
                   {paginatedAP.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={5} className="text-center text-muted-foreground">
+                      <TableCell colSpan={11} className="text-center text-muted-foreground">
                         No GRN records found
                       </TableCell>
                     </TableRow>
@@ -431,7 +621,21 @@ export function PaymentsModule() {
                         <TableCell>{item.grn_number}</TableCell>
                         <TableCell>{new Date(item.grn_date).toLocaleDateString()}</TableCell>
                         <TableCell>₹{item.total_amount.toLocaleString()}</TableCell>
-                        <TableCell className="capitalize">{item.status}</TableCell>
+                        <TableCell>₹{item.advance_payment.toLocaleString()}</TableCell>
+                        <TableCell>₹{item.amount_received.toLocaleString()}</TableCell>
+                        <TableCell>{item.payment_date ? new Date(item.payment_date).toLocaleDateString() : '-'}</TableCell>
+                        <TableCell>{item.payment_method || '-'}</TableCell>
+                        <TableCell>{item.payment_reference_no || '-'}</TableCell>
+                        <TableCell>₹{item.pending_payment.toLocaleString()}</TableCell>
+                        <TableCell>
+                          <Badge variant={
+                            item.invoice_status === 'Fully Paid' ? 'default' :
+                            item.invoice_status === 'Partially Paid' ? 'secondary' :
+                            item.invoice_status === 'Overdue' ? 'destructive' : 'outline'
+                          }>
+                            {item.invoice_status}
+                          </Badge>
+                        </TableCell>
                       </TableRow>
                     ))
                   )}
@@ -494,7 +698,7 @@ export function PaymentsModule() {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="rounded-md border">
+            <div className="rounded-md border overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -524,8 +728,64 @@ export function PaymentsModule() {
                     </TableHead>
                     <TableHead>
                       <Button variant="ghost" className="h-8 p-0 font-semibold hover:bg-transparent" onClick={() => handleArSort('total_amount')}>
-                        Amount
+                        Total Amount
                         {arSortField === 'total_amount' ? (
+                          arSortDirection === 'asc' ? <ArrowUp className="ml-1 h-3 w-3" /> : <ArrowDown className="ml-1 h-3 w-3" />
+                        ) : <ArrowUpDown className="ml-1 h-3 w-3" />}
+                      </Button>
+                    </TableHead>
+                    <TableHead>
+                      <Button variant="ghost" className="h-8 p-0 font-semibold hover:bg-transparent" onClick={() => handleArSort('advance_payment')}>
+                        Advance Payment
+                        {arSortField === 'advance_payment' ? (
+                          arSortDirection === 'asc' ? <ArrowUp className="ml-1 h-3 w-3" /> : <ArrowDown className="ml-1 h-3 w-3" />
+                        ) : <ArrowUpDown className="ml-1 h-3 w-3" />}
+                      </Button>
+                    </TableHead>
+                    <TableHead>
+                      <Button variant="ghost" className="h-8 p-0 font-semibold hover:bg-transparent" onClick={() => handleArSort('amount_received')}>
+                        Amount Received
+                        {arSortField === 'amount_received' ? (
+                          arSortDirection === 'asc' ? <ArrowUp className="ml-1 h-3 w-3" /> : <ArrowDown className="ml-1 h-3 w-3" />
+                        ) : <ArrowUpDown className="ml-1 h-3 w-3" />}
+                      </Button>
+                    </TableHead>
+                    <TableHead>
+                      <Button variant="ghost" className="h-8 p-0 font-semibold hover:bg-transparent" onClick={() => handleArSort('payment_date')}>
+                        Payment Date
+                        {arSortField === 'payment_date' ? (
+                          arSortDirection === 'asc' ? <ArrowUp className="ml-1 h-3 w-3" /> : <ArrowDown className="ml-1 h-3 w-3" />
+                        ) : <ArrowUpDown className="ml-1 h-3 w-3" />}
+                      </Button>
+                    </TableHead>
+                    <TableHead>
+                      <Button variant="ghost" className="h-8 p-0 font-semibold hover:bg-transparent" onClick={() => handleArSort('payment_method')}>
+                        Payment Method
+                        {arSortField === 'payment_method' ? (
+                          arSortDirection === 'asc' ? <ArrowUp className="ml-1 h-3 w-3" /> : <ArrowDown className="ml-1 h-3 w-3" />
+                        ) : <ArrowUpDown className="ml-1 h-3 w-3" />}
+                      </Button>
+                    </TableHead>
+                    <TableHead>
+                      <Button variant="ghost" className="h-8 p-0 font-semibold hover:bg-transparent" onClick={() => handleArSort('payment_reference_no')}>
+                        Payment Ref
+                        {arSortField === 'payment_reference_no' ? (
+                          arSortDirection === 'asc' ? <ArrowUp className="ml-1 h-3 w-3" /> : <ArrowDown className="ml-1 h-3 w-3" />
+                        ) : <ArrowUpDown className="ml-1 h-3 w-3" />}
+                      </Button>
+                    </TableHead>
+                    <TableHead>
+                      <Button variant="ghost" className="h-8 p-0 font-semibold hover:bg-transparent" onClick={() => handleArSort('pending_payment')}>
+                        Pending Payment
+                        {arSortField === 'pending_payment' ? (
+                          arSortDirection === 'asc' ? <ArrowUp className="ml-1 h-3 w-3" /> : <ArrowDown className="ml-1 h-3 w-3" />
+                        ) : <ArrowUpDown className="ml-1 h-3 w-3" />}
+                      </Button>
+                    </TableHead>
+                    <TableHead>
+                      <Button variant="ghost" className="h-8 p-0 font-semibold hover:bg-transparent" onClick={() => handleArSort('invoice_status')}>
+                        Payment Status
+                        {arSortField === 'invoice_status' ? (
                           arSortDirection === 'asc' ? <ArrowUp className="ml-1 h-3 w-3" /> : <ArrowDown className="ml-1 h-3 w-3" />
                         ) : <ArrowUpDown className="ml-1 h-3 w-3" />}
                       </Button>
@@ -543,7 +803,7 @@ export function PaymentsModule() {
                 <TableBody>
                   {paginatedAR.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={5} className="text-center text-muted-foreground">
+                      <TableCell colSpan={12} className="text-center text-muted-foreground">
                         No invoices found
                       </TableCell>
                     </TableRow>
@@ -554,6 +814,21 @@ export function PaymentsModule() {
                         <TableCell>{item.invoice_number || 'N/A'}</TableCell>
                         <TableCell>{new Date(item.invoice_date).toLocaleDateString()}</TableCell>
                         <TableCell>₹{item.total_amount.toLocaleString()}</TableCell>
+                        <TableCell>₹{item.advance_payment.toLocaleString()}</TableCell>
+                        <TableCell>₹{item.amount_received.toLocaleString()}</TableCell>
+                        <TableCell>{item.payment_date ? new Date(item.payment_date).toLocaleDateString() : '-'}</TableCell>
+                        <TableCell>{item.payment_method || '-'}</TableCell>
+                        <TableCell>{item.payment_reference_no || '-'}</TableCell>
+                        <TableCell>₹{item.pending_payment.toLocaleString()}</TableCell>
+                        <TableCell>
+                          <Badge variant={
+                            item.invoice_status === 'Fully Paid' ? 'default' :
+                            item.invoice_status === 'Partially Paid' ? 'secondary' :
+                            item.invoice_status === 'Overdue' ? 'destructive' : 'outline'
+                          }>
+                            {item.invoice_status}
+                          </Badge>
+                        </TableCell>
                         <TableCell>{item.payment_terms || 'Net 30'}</TableCell>
                       </TableRow>
                     ))
