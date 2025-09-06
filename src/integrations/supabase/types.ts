@@ -100,6 +100,7 @@ export type Database = {
           material_cost_per_unit: number
           notes: string | null
           overhead_cost_per_unit: number
+          production_ready: boolean
           total_cost_per_unit: number
           updated_at: string
           version: string
@@ -119,6 +120,7 @@ export type Database = {
           material_cost_per_unit?: number
           notes?: string | null
           overhead_cost_per_unit?: number
+          production_ready?: boolean
           total_cost_per_unit?: number
           updated_at?: string
           version?: string
@@ -138,6 +140,7 @@ export type Database = {
           material_cost_per_unit?: number
           notes?: string | null
           overhead_cost_per_unit?: number
+          production_ready?: boolean
           total_cost_per_unit?: number
           updated_at?: string
           version?: string

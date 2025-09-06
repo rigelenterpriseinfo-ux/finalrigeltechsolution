@@ -1617,7 +1617,7 @@ export function InventoryModule() {
       </div>
 
       <Tabs defaultValue="products" className="w-full">
-        <TabsList className="grid w-full grid-cols-5">
+         <TabsList className="grid w-full grid-cols-6">
           <TabsTrigger 
             value="products" 
             className="data-[state=active]:bg-green-500 data-[state=active]:text-white"
@@ -1647,6 +1647,12 @@ export function InventoryModule() {
             className="data-[state=active]:bg-green-500 data-[state=active]:text-white"
           >
             Current Stock
+          </TabsTrigger>
+          <TabsTrigger 
+            value="bom"
+            className="data-[state=active]:bg-green-500 data-[state=active]:text-white"
+          >
+            BOM
           </TabsTrigger>
         </TabsList>
 
@@ -1886,6 +1892,10 @@ export function InventoryModule() {
               <CurrentStockTable refreshTrigger={adjustmentRefreshTrigger} />
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="bom">
+          <BOMModule />
         </TabsContent>
       </Tabs>
 
