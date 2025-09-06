@@ -15,6 +15,8 @@ import { useToast } from '@/hooks/use-toast';
 import { useBusinessAuth } from '@/hooks/useBusinessAuth';
 import { Plus, Search, CreditCard, TrendingUp, TrendingDown, ChevronDown, ChevronUp, Download, ChevronLeft, ChevronRight, ArrowUpDown, ArrowUp, ArrowDown, History } from 'lucide-react';
 import { PaymentHistoryDialog } from '@/components/dialogs/PaymentHistoryDialog';
+import { GRNDetailsDialog } from '@/components/dialogs/GRNDetailsDialog';
+import { SalesInvoiceDetailsDialog } from '@/components/dialogs/SalesInvoiceDetailsDialog';
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from '@/components/ui/pagination';
 
 interface Payment {
@@ -96,6 +98,23 @@ export function PaymentsModule() {
     type: 'grn' | 'sales_invoice';
     totalAmount: number;
   } | null>(null);
+
+  // Dialog states
+  const [grnDetailsDialog, setGRNDetailsDialog] = useState<{
+    open: boolean;
+    grnId: string | null;
+  }>({
+    open: false,
+    grnId: null,
+  });
+
+  const [invoiceDetailsDialog, setInvoiceDetailsDialog] = useState<{
+    open: boolean;
+    invoiceId: string | null;
+  }>({
+    open: false,
+    invoiceId: null,
+  });
   
   // Pagination states
   const [apCurrentPage, setApCurrentPage] = useState(1);
@@ -621,7 +640,16 @@ export function PaymentsModule() {
                      paginatedAP.map((item) => (
                         <TableRow key={item.id} className="h-12">
                           <TableCell className="p-2 text-xs font-medium truncate">{item.supplier_name || 'N/A'}</TableCell>
-                          <TableCell className="p-2 text-xs truncate">{item.grn_number}</TableCell>
+                          <TableCell className="p-2 text-xs truncate">
+                            <Button
+                              variant="link"
+                              size="sm"
+                              className="p-0 h-auto font-normal text-blue-600 hover:text-blue-800"
+                              onClick={() => setGRNDetailsDialog({ open: true, grnId: item.id })}
+                            >
+                              {item.grn_number}
+                            </Button>
+                          </TableCell>
                           <TableCell className="p-2 text-xs">{new Date(item.grn_date).toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: '2-digit' })}</TableCell>
                           <TableCell className="p-2 text-xs">₹{item.total_amount.toLocaleString('en-IN')}</TableCell>
                           <TableCell className="p-2 text-xs">₹{item.advance_payment.toLocaleString('en-IN')}</TableCell>
@@ -820,7 +848,20 @@ export function PaymentsModule() {
                      paginatedAR.map((item) => (
                         <TableRow key={item.id} className="h-12">
                           <TableCell className="p-2 text-xs font-medium truncate">{item.customer?.name || 'N/A'}</TableCell>
-                          <TableCell className="p-2 text-xs truncate">{item.invoice_number || 'N/A'}</TableCell>
+                          <TableCell className="p-2 text-xs truncate">
+                            {item.invoice_number ? (
+                              <Button
+                                variant="link"
+                                size="sm"
+                                className="p-0 h-auto font-normal text-blue-600 hover:text-blue-800"
+                                onClick={() => setInvoiceDetailsDialog({ open: true, invoiceId: item.id })}
+                              >
+                                {item.invoice_number}
+                              </Button>
+                            ) : (
+                              'N/A'
+                            )}
+                          </TableCell>
                           <TableCell className="p-2 text-xs">{new Date(item.invoice_date).toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: '2-digit' })}</TableCell>
                           <TableCell className="p-2 text-xs">₹{item.total_amount.toLocaleString('en-IN')}</TableCell>
                           <TableCell className="p-2 text-xs">₹{item.advance_payment.toLocaleString('en-IN')}</TableCell>
@@ -912,6 +953,20 @@ export function PaymentsModule() {
           }}
         />
       )}
+
+      {/* GRN Details Dialog */}
+      <GRNDetailsDialog
+        open={grnDetailsDialog.open}
+        onOpenChange={(open) => setGRNDetailsDialog(prev => ({ ...prev, open }))}
+        grnId={grnDetailsDialog.grnId || ''}
+      />
+
+      {/* Sales Invoice Details Dialog */}
+      <SalesInvoiceDetailsDialog
+        open={invoiceDetailsDialog.open}
+        onOpenChange={(open) => setInvoiceDetailsDialog(prev => ({ ...prev, open }))}
+        invoiceId={invoiceDetailsDialog.invoiceId || ''}
+      />
     </div>
   );
 }
