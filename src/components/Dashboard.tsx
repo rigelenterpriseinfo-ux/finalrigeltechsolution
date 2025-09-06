@@ -39,7 +39,7 @@ import { CompanyProfile } from '@/components/CompanyProfile';
 import { ReturnsModule } from '@/components/modules/ReturnsModule';
 
 const menuItems: Array<{ id: ActiveModule; icon: any; label: string; description: string; restricted?: boolean; section?: string }> = [
-  { id: 'dashboard', icon: BarChart3, label: 'Dashboard', description: 'Overview & Analytics' },
+  { id: 'dashboard', icon: BarChart3, label: 'Welcome back, Girish!', description: "Here's what's happening with your business today" },
   { id: 'inventory', icon: Package, label: 'Inventory', description: 'Manage Products & Stock', section: 'inventory' },
   { id: 'purchase', icon: ShoppingCart, label: 'Purchase', description: 'Purchase Orders & Suppliers', section: 'purchases' },
   { id: 'sales', icon: FileText, label: 'Sales', description: 'Sales Orders & Customers', section: 'sales' },
