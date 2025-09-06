@@ -1202,348 +1202,17 @@ export function InventoryModule() {
                 </DialogContent>
               </Dialog>
 
+              {/* Create BOM Dialog */}
               <Dialog open={showBOMDialog} onOpenChange={setShowBOMDialog}>
-                <DialogTrigger asChild>
-                  <Button variant="outline">
-                    <ClipboardList className="w-4 h-4 mr-2" />
-                    BOM
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
+                <DialogContent className="max-w-7xl max-h-[95vh] overflow-hidden">
                   <DialogHeader>
-                    <DialogTitle>Bill of Materials (BOM)</DialogTitle>
+                    <DialogTitle>Bill of Materials Management</DialogTitle>
                     <DialogDescription>
-                      Create and manage product recipes and component lists
+                      Create and manage production recipes with proper warehouse/bin mapping
                     </DialogDescription>
                   </DialogHeader>
-                  <div className="space-y-6 p-4">
-                    {/* Basic BOM Info */}
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                      <div className="space-y-4">
-                        <div>
-                          <Label htmlFor="bom_name">BOM Name *</Label>
-                          <Input 
-                            id="bom_name" 
-                            placeholder="Enter BOM name" 
-                            value={bomName}
-                            onChange={(e) => setBomName(e.target.value)}
-                          />
-                        </div>
-                        <div>
-                          <Label htmlFor="finished_product">Finished Product *</Label>
-                          <Select value={bomFinishedProduct} onValueChange={setBomFinishedProduct}>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select finished product" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {finishedGoodsProducts
-                                .filter(product => product.id && product.id.trim() !== '')
-                                .map(product => (
-                                <SelectItem key={product.id} value={product.id}>
-                                  {product.name} ({product.sku})
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div>
-                          <Label htmlFor="yield_quantity">Yield Quantity *</Label>
-                          <Input 
-                            id="yield_quantity" 
-                            type="number" 
-                            min="1" 
-                            value={bomYield}
-                            onChange={(e) => setBomYield(parseInt(e.target.value) || 1)}
-                            placeholder="Quantity produced" 
-                          />
-                        </div>
-                      </div>
-                      
-                      <div className="space-y-4">
-                        <div>
-                          <Label htmlFor="labor_cost">Labor Cost per Unit</Label>
-                          <Input 
-                            id="labor_cost" 
-                            type="number" 
-                            step="0.01" 
-                            min="0" 
-                            value={bomLaborCost}
-                            onChange={(e) => setBomLaborCost(parseFloat(e.target.value) || 0)}
-                            placeholder="0.00" 
-                          />
-                        </div>
-                        <div>
-                          <Label htmlFor="overhead_cost">Overhead Cost per Unit</Label>
-                          <Input 
-                            id="overhead_cost" 
-                            type="number" 
-                            step="0.01" 
-                            min="0" 
-                            value={bomOverheadCost}
-                            onChange={(e) => setBomOverheadCost(parseFloat(e.target.value) || 0)}
-                            placeholder="0.00" 
-                          />
-                        </div>
-                        <div>
-                          <Label htmlFor="bom_notes">Notes</Label>
-                          <Textarea 
-                            id="bom_notes" 
-                            placeholder="Additional notes or instructions"
-                            value={bomNotes}
-                            onChange={(e) => setBomNotes(e.target.value)}
-                            className="resize-none"
-                            rows={3}
-                          />
-                        </div>
-                      </div>
-                      
-                      <div className="space-y-4">
-                        <div className="bg-blue-50 p-3 rounded-lg border border-blue-200">
-                          <p className="text-sm font-medium text-blue-800 mb-2">📍 Warehouse & Bin Location</p>
-                          <p className="text-xs text-blue-600 mb-3">
-                            For clarity: The same Warehouse/Bin will be used for consuming components and receiving finished goods.
-                          </p>
-                          <div className="space-y-2">
-                            <div>
-                              <Label htmlFor="bom_warehouse">Warehouse</Label>
-                              <Select value={bomWarehouse} onValueChange={setBomWarehouse}>
-                                <SelectTrigger>
-                                  <SelectValue placeholder="Select warehouse" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {warehouseBins
-                                    .filter(bin => bin.id && bin.id.trim() !== '')
-                                    .map(bin => (
-                                    <SelectItem key={bin.id} value={bin.id}>
-                                      {bin.warehouse_name} - {bin.bin_code}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                            </div>
-                            <div>
-                              <Label htmlFor="bom_bin">Bin (Optional)</Label>
-                              <Select value={bomBin} onValueChange={setBomBin}>
-                                <SelectTrigger>
-                                  <SelectValue placeholder="Select bin" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="none">No specific bin</SelectItem>
-                                  {warehouseBins
-                                    .filter(bin => bin.id && bin.id.trim() !== '' && bin.id === bomWarehouse)
-                                    .map(bin => (
-                                    <SelectItem key={bin.id} value={bin.id}>
-                                      {bin.bin_code}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                    
-                    {/* BOM Components Section */}
-                    <div className="space-y-4">
-                      <div className="flex items-center justify-between">
-                        <h3 className="text-lg font-semibold">Components & Raw Materials</h3>
-                        <Button size="sm" onClick={addBomComponent}>
-                          <Plus className="w-4 h-4 mr-1" />
-                          Add Component
-                        </Button>
-                      </div>
-                      
-                      <Card>
-                        <CardContent className="p-4">
-                          <Table>
-                            <TableHeader>
-                              <TableRow>
-                                <TableHead>Component</TableHead>
-                                <TableHead>SKU</TableHead>
-                                <TableHead>Quantity</TableHead>
-                                <TableHead>Unit</TableHead>
-                                <TableHead>Cost per Unit</TableHead>
-                                <TableHead>Total Cost</TableHead>
-                                <TableHead>Actions</TableHead>
-                              </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                              {bomComponents.length === 0 ? (
-                                <TableRow>
-                                  <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
-                                    No components added yet. Click "Add Component" to start building your BOM.
-                                  </TableCell>
-                                </TableRow>
-                              ) : (
-                                bomComponents.map((item) => (
-                                  <TableRow key={item.id}>
-                                    <TableCell className="min-w-[220px]">
-                                      <Select
-                                        value={item.productId}
-                                        onValueChange={(val) => {
-                                          const p = products.find((pr) => pr.id === val);
-                                          updateBomComponent(item.id, {
-                                            productId: val,
-                                            name: p?.name,
-                                            sku: p?.sku,
-                                            unit: p?.unit ?? '',
-                                            cost: (p?.cost_price ?? item.cost)
-                                          });
-                                        }}
-                                      >
-                                        <SelectTrigger>
-                                          <SelectValue placeholder="Select component" />
-                                        </SelectTrigger>
-                                        <SelectContent className="z-[60]">
-                                          {bomCandidateProducts
-                                            .filter(p => p.id && p.id.trim() !== '')
-                                            .map((p) => (
-                                            <SelectItem key={p.id} value={p.id}>
-                                              {p.name} ({p.sku})
-                                            </SelectItem>
-                                          ))}
-                                        </SelectContent>
-                                      </Select>
-                                    </TableCell>
-                                    <TableCell className="font-mono">{item.sku || '-'}</TableCell>
-                                    <TableCell>
-                                      <Input
-                                        type="number"
-                                        min="0"
-                                        step="0.01"
-                                        value={item.quantity}
-                                        onChange={(e) =>
-                                          updateBomComponent(item.id, { quantity: parseFloat(e.target.value || '0') })
-                                        }
-                                      />
-                                    </TableCell>
-                                    <TableCell>{item.unit || '—'}</TableCell>
-                                    <TableCell>
-                                      <Input
-                                        type="number"
-                                        min="0"
-                                        step="0.01"
-                                        value={item.cost}
-                                        onChange={(e) =>
-                                          updateBomComponent(item.id, { cost: parseFloat(e.target.value || '0') })
-                                        }
-                                      />
-                                    </TableCell>
-                                    <TableCell>
-                                      ₹{((item.quantity || 0) * (item.cost || 0)).toFixed(2)}
-                                    </TableCell>
-                                    <TableCell>
-                                      <Button variant="outline" size="sm" onClick={() => removeBomComponent(item.id)}>
-                                        <Trash2 className="w-4 h-4" />
-                                      </Button>
-                                    </TableCell>
-                                  </TableRow>
-                                ))
-                              )}
-                            </TableBody>
-                          </Table>
-                        </CardContent>
-                      </Card>
-                    </div>
-
-                    {/* Cost Summary */}
-                    <Card>
-                      <CardHeader>
-                        <CardTitle className="text-lg">Cost Summary</CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                          <div className="text-center">
-                            <div className="text-2xl font-bold text-primary">₹{bomCostSummary.materialCost.toFixed(2)}</div>
-                            <div className="text-sm text-muted-foreground">Material Cost</div>
-                          </div>
-                          <div className="text-center">
-                            <div className="text-2xl font-bold text-primary">₹{bomCostSummary.laborCost.toFixed(2)}</div>
-                            <div className="text-sm text-muted-foreground">Labor Cost</div>
-                          </div>
-                          <div className="text-center">
-                            <div className="text-2xl font-bold text-primary">₹{bomCostSummary.overheadCost.toFixed(2)}</div>
-                            <div className="text-sm text-muted-foreground">Overhead Cost</div>
-                          </div>
-                          <div className="text-center">
-                            <div className="text-2xl font-bold text-destructive">₹{bomCostSummary.totalCost.toFixed(2)}</div>
-                            <div className="text-sm text-muted-foreground">Total Cost per Unit</div>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-
-                    {/* Production Section */}
-                    {bomName && bomFinishedProduct && bomComponents.length > 0 && (
-                      <Card className="bg-green-50 border-green-200">
-                        <CardHeader>
-                          <CardTitle className="text-lg flex items-center gap-2">
-                            <CheckCircle className="w-5 h-5 text-green-600" />
-                            Production Ready
-                          </CardTitle>
-                          <CardDescription>
-                            This BOM is ready for production. Enter quantity to produce and update inventory.
-                          </CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                          <div className="flex items-center gap-4">
-                            <div>
-                              <Label htmlFor="production_quantity">Production Quantity</Label>
-                              <Input
-                                id="production_quantity"
-                                type="number"
-                                min="1"
-                                value={productionQuantity}
-                                onChange={(e) => setProductionQuantity(parseInt(e.target.value) || 1)}
-                                className="w-24"
-                              />
-                            </div>
-                            <div className="flex flex-col gap-2">
-                              <Button 
-                                onClick={handleProduction}
-                                disabled={isProducing || !bomWarehouse}
-                                className="bg-green-600 hover:bg-green-700"
-                              >
-                                {isProducing ? (
-                                  <>
-                                    <div className="animate-spin rounded-full h-4 w-4 border-b border-white mr-2"></div>
-                                    Producing...
-                                  </>
-                                ) : (
-                                  <>
-                                    <CheckCircle className="w-4 h-4 mr-2" />
-                                    Produce {productionQuantity} Unit{productionQuantity > 1 ? 's' : ''}
-                                  </>
-                                )}
-                              </Button>
-                              {!bomWarehouse && (
-                                <p className="text-xs text-red-600">Please select a warehouse to proceed</p>
-                              )}
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    )}
-                  </div>
-                  
-                  <div className="flex justify-end space-x-2 p-4 border-t">
-                    <Button variant="outline" onClick={() => { setShowBOMDialog(false); resetBomForm(); }}>
-                      Cancel
-                    </Button>
-                    <Button 
-                      onClick={saveBOM}
-                      disabled={isSubmitting || !bomName.trim() || !bomFinishedProduct || bomComponents.length === 0}
-                    >
-                      {isSubmitting ? (
-                        <>
-                          <div className="animate-spin rounded-full h-4 w-4 border-b border-current mr-2"></div>
-                          Saving...
-                        </>
-                      ) : (
-                        'Save BOM'
-                      )}
-                    </Button>
+                  <div className="flex-1 overflow-hidden">
+                    <BOMModule />
                   </div>
                 </DialogContent>
               </Dialog>
@@ -1694,21 +1363,32 @@ export function InventoryModule() {
           </div>
 
           {/* Search and Export */}
-          <div className="flex justify-between items-center">
-            <div className="relative w-72">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
-              <Input
-                placeholder="Search products..." aria-label="Search products by name, SKU, or description"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
-              />
+            <div className="flex justify-between items-center">
+              <div className="relative w-72">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+                <Input
+                  placeholder="Search products..." aria-label="Search products by name, SKU, or description"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+              <div className="flex items-center gap-2">
+                {canEdit && (
+                  <Button 
+                    className="bg-green-600 hover:bg-green-700 text-white"
+                    onClick={() => setShowBOMDialog(true)}
+                  >
+                    <Plus className="w-4 h-4 mr-2" />
+                    Create BOM
+                  </Button>
+                )}
+                <Button variant="outline" onClick={exportToExcel}>
+                  <Download className="w-4 h-4 mr-2" />
+                  Export to Excel
+                </Button>
+              </div>
             </div>
-            <Button variant="outline" onClick={exportToExcel}>
-              <Download className="w-4 h-4 mr-2" />
-              Export to Excel
-            </Button>
-          </div>
 
           {/* Products Table */}
           <Card>
