@@ -83,10 +83,14 @@ export function PaymentsModule() {
   const canEdit = hasEditAccess('payments');
   const [accountPayable, setAccountPayable] = useState<GRNPayable[]>([]);
   const [accountReceivable, setAccountReceivable] = useState<SalesInvoiceReceivable[]>([]);
+  const [overdueVendors, setOverdueVendors] = useState<{name: string, amount: number}[]>([]);
+  const [overdueCustomers, setOverdueCustomers] = useState<{name: string, amount: number}[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [showAPDetails, setShowAPDetails] = useState(false);
   const [showARDetails, setShowARDetails] = useState(false);
+  const [showOverdueVendors, setShowOverdueVendors] = useState(false);
+  const [showOverdueCustomers, setShowOverdueCustomers] = useState(false);
   const [apSearchTerm, setApSearchTerm] = useState('');
   const [arSearchTerm, setArSearchTerm] = useState('');
   
@@ -316,6 +320,109 @@ export function PaymentsModule() {
     }
   };
 
+  // Fetch top 5 overdue vendors
+  const fetchOverdueVendors = async () => {
+    if (!profile?.company_id) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('grn_header')
+        .select(`
+          supplier_name,
+          total_amount,
+          grn_date,
+          status,
+          payments(amount, payment_status)
+        `)
+        .eq('company_id', profile.company_id)
+        .in('status', ['accepted', 'received', 'partially_received']);
+
+      if (error) throw error;
+
+      // Calculate overdue amounts per vendor
+      const vendorOverdues: { [key: string]: number } = {};
+      
+      data?.forEach((grn) => {
+        const grnDate = new Date(grn.grn_date);
+        const daysOld = Math.floor((Date.now() - grnDate.getTime()) / (1000 * 60 * 60 * 24));
+        
+        if (daysOld > 30) { // Consider overdue after 30 days
+          const totalPaid = grn.payments
+            ?.filter((p: any) => p.payment_status === 'completed')
+            ?.reduce((sum: number, p: any) => sum + p.amount, 0) || 0;
+          
+          const overdueAmount = grn.total_amount - totalPaid;
+          if (overdueAmount > 0) {
+            vendorOverdues[grn.supplier_name] = (vendorOverdues[grn.supplier_name] || 0) + overdueAmount;
+          }
+        }
+      });
+
+      // Get top 5 overdue vendors
+      const sortedVendors = Object.entries(vendorOverdues)
+        .map(([name, amount]) => ({ name, amount }))
+        .sort((a, b) => b.amount - a.amount)
+        .slice(0, 5);
+
+      setOverdueVendors(sortedVendors);
+    } catch (error) {
+      console.error('Error fetching overdue vendors:', error);
+    }
+  };
+
+  // Fetch top 5 overdue customers
+  const fetchOverdueCustomers = async () => {
+    if (!profile?.company_id) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('sales_invoices')
+        .select(`
+          customer_name,
+          total_amount,
+          invoice_date,
+          due_date,
+          status,
+          payments(amount, payment_status)
+        `)
+        .eq('company_id', profile.company_id)
+        .eq('status', 'finalized');
+
+      if (error) throw error;
+
+      // Calculate overdue amounts per customer
+      const customerOverdues: { [key: string]: number } = {};
+      
+      data?.forEach((invoice) => {
+        const dueDate = invoice.due_date ? new Date(invoice.due_date) : new Date(invoice.invoice_date);
+        dueDate.setDate(dueDate.getDate() + 30); // Add 30 days if no due date
+        const isOverdue = Date.now() > dueDate.getTime();
+        
+        if (isOverdue) {
+          const totalPaid = invoice.payments
+            ?.filter((p: any) => p.payment_status === 'completed')
+            ?.reduce((sum: number, p: any) => sum + p.amount, 0) || 0;
+          
+          const overdueAmount = invoice.total_amount - totalPaid;
+          if (overdueAmount > 0) {
+            const customerName = invoice.customer_name;
+            customerOverdues[customerName] = (customerOverdues[customerName] || 0) + overdueAmount;
+          }
+        }
+      });
+
+      // Get top 5 overdue customers
+      const sortedCustomers = Object.entries(customerOverdues)
+        .map(([name, amount]) => ({ name, amount }))
+        .sort((a, b) => b.amount - a.amount)
+        .slice(0, 5);
+
+      setOverdueCustomers(sortedCustomers);
+    } catch (error) {
+      console.error('Error fetching overdue customers:', error);
+    }
+  };
+
 
   // Sorting functions
   const handleApSort = (field: keyof GRNPayable) => {
@@ -461,6 +568,8 @@ export function PaymentsModule() {
   };
 
   // Calculate totals
+  const totalOverdueVendors = overdueVendors.reduce((sum, vendor) => sum + vendor.amount, 0);
+  const totalOverdueCustomers = overdueCustomers.reduce((sum, customer) => sum + customer.amount, 0);
   const totalAP = accountPayable.reduce((sum, item) => sum + item.total_amount, 0);
   const totalAR = accountReceivable.reduce((sum, item) => sum + item.total_amount, 0);
 
@@ -480,46 +589,100 @@ export function PaymentsModule() {
         <p className="text-muted-foreground">Track payments received and made</p>
       </div>
 
-      {/* AP and AR Summary Cards */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 max-w-4xl">
+      {/* Summary Cards */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-4 gap-4">
         {/* Account Payable Section */}
-        <Card className="cursor-pointer hover:bg-accent/50 transition-colors" onClick={() => { setShowAPDetails(!showAPDetails); setShowARDetails(false); }}>
+        <Card className="cursor-pointer hover:bg-accent/50 transition-colors" onClick={() => { 
+          setShowAPDetails(!showAPDetails); 
+          setShowARDetails(false); 
+          setShowOverdueVendors(false); 
+          setShowOverdueCustomers(false); 
+        }}>
           <CardHeader className="pb-3">
-            <CardTitle className="flex items-center justify-between text-lg">
+            <CardTitle className="flex items-center justify-between text-sm">
               <div className="flex items-center gap-2">
-                <TrendingDown className="h-5 w-5 text-destructive" />
+                <TrendingDown className="h-4 w-4 text-destructive" />
                 Account Payable (AP)
               </div>
-              <div className="flex items-center gap-2">
-                <span className="text-2xl font-bold">₹{totalAP.toLocaleString()}</span>
-                {showAPDetails ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-              </div>
+              {showAPDetails ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
             </CardTitle>
           </CardHeader>
           <CardContent className="pt-0">
-            <p className="text-sm text-muted-foreground">
+            <div className="text-xl font-bold">₹{totalAP.toLocaleString()}</div>
+            <p className="text-xs text-muted-foreground">
               {accountPayable.length} received GRN records
             </p>
           </CardContent>
         </Card>
 
         {/* Account Receivable Section */}
-        <Card className="cursor-pointer hover:bg-accent/50 transition-colors" onClick={() => { setShowARDetails(!showARDetails); setShowAPDetails(false); }}>
+        <Card className="cursor-pointer hover:bg-accent/50 transition-colors" onClick={() => { 
+          setShowARDetails(!showARDetails); 
+          setShowAPDetails(false); 
+          setShowOverdueVendors(false); 
+          setShowOverdueCustomers(false); 
+        }}>
           <CardHeader className="pb-3">
-            <CardTitle className="flex items-center justify-between text-lg">
+            <CardTitle className="flex items-center justify-between text-sm">
               <div className="flex items-center gap-2">
-                <TrendingUp className="h-5 w-5 text-green-600" />
+                <TrendingUp className="h-4 w-4 text-green-600" />
                 Account Receivable (AR)
               </div>
-              <div className="flex items-center gap-2">
-                <span className="text-2xl font-bold">₹{totalAR.toLocaleString()}</span>
-                {showARDetails ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-              </div>
+              {showARDetails ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
             </CardTitle>
           </CardHeader>
           <CardContent className="pt-0">
-            <p className="text-sm text-muted-foreground">
+            <div className="text-xl font-bold">₹{totalAR.toLocaleString()}</div>
+            <p className="text-xs text-muted-foreground">
               {accountReceivable.length} outstanding invoices
+            </p>
+          </CardContent>
+        </Card>
+
+        {/* Top 5 Overdue Vendors */}
+        <Card className="cursor-pointer hover:bg-accent/50 transition-colors" onClick={() => { 
+          setShowOverdueVendors(!showOverdueVendors); 
+          setShowAPDetails(false); 
+          setShowARDetails(false); 
+          setShowOverdueCustomers(false); 
+        }}>
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center justify-between text-sm">
+              <div className="flex items-center gap-2">
+                <History className="h-4 w-4 text-orange-600" />
+                Top 5 Overdue Vendors
+              </div>
+              {showOverdueVendors ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="pt-0">
+            <div className="text-xl font-bold">₹{totalOverdueVendors.toLocaleString()}</div>
+            <p className="text-xs text-muted-foreground">
+              {overdueVendors.length} vendors with overdue payments
+            </p>
+          </CardContent>
+        </Card>
+
+        {/* Top 5 Overdue Customers */}
+        <Card className="cursor-pointer hover:bg-accent/50 transition-colors" onClick={() => { 
+          setShowOverdueCustomers(!showOverdueCustomers); 
+          setShowAPDetails(false); 
+          setShowARDetails(false); 
+          setShowOverdueVendors(false); 
+        }}>
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center justify-between text-sm">
+              <div className="flex items-center gap-2">
+                <History className="h-4 w-4 text-red-600" />
+                Top 5 Overdue Customers
+              </div>
+              {showOverdueCustomers ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="pt-0">
+            <div className="text-xl font-bold">₹{totalOverdueCustomers.toLocaleString()}</div>
+            <p className="text-xs text-muted-foreground">
+              {overdueCustomers.length} customers with overdue payments
             </p>
           </CardContent>
         </Card>
@@ -899,7 +1062,79 @@ export function PaymentsModule() {
                          </TableCell>
                        </TableRow>
                     ))
-                  )}
+      )}
+
+      {/* Overdue Vendors Details */}
+      {showOverdueVendors && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Top 5 Overdue Vendors</CardTitle>
+            <CardDescription>Vendors with the highest overdue payment amounts (30+ days old)</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {overdueVendors.length === 0 ? (
+              <div className="text-center py-8">
+                <p className="text-muted-foreground">No overdue vendor payments found</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {overdueVendors.map((vendor, index) => (
+                  <div key={vendor.name} className="flex items-center justify-between p-3 bg-orange-50 rounded-lg border">
+                    <div className="flex items-center gap-3">
+                      <div className="w-6 h-6 bg-orange-100 rounded-full flex items-center justify-center text-xs font-medium text-orange-700">
+                        {index + 1}
+                      </div>
+                      <div>
+                        <p className="font-medium text-sm">{vendor.name}</p>
+                        <p className="text-xs text-muted-foreground">Overdue Amount</p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-bold text-orange-700">₹{vendor.amount.toLocaleString()}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Overdue Customers Details */}
+      {showOverdueCustomers && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Top 5 Overdue Customers</CardTitle>
+            <CardDescription>Customers with the highest overdue payment amounts (past due date)</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {overdueCustomers.length === 0 ? (
+              <div className="text-center py-8">
+                <p className="text-muted-foreground">No overdue customer payments found</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {overdueCustomers.map((customer, index) => (
+                  <div key={customer.name} className="flex items-center justify-between p-3 bg-red-50 rounded-lg border">
+                    <div className="flex items-center gap-3">
+                      <div className="w-6 h-6 bg-red-100 rounded-full flex items-center justify-center text-xs font-medium text-red-700">
+                        {index + 1}
+                      </div>
+                      <div>
+                        <p className="font-medium text-sm">{customer.name}</p>
+                        <p className="text-xs text-muted-foreground">Overdue Amount</p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-bold text-red-700">₹{customer.amount.toLocaleString()}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
                 </TableBody>
                 </Table>
             </ScrollArea>
