@@ -81,9 +81,28 @@ export function WarehouseBinForm({ open, onOpenChange, onSuccess, editingBin }: 
     return undefined;
   };
 
-  const validateWarehouseCode = (value: string): string | undefined => {
+  const validateWarehouseCode = async (value: string): Promise<string | undefined> => {
     if (!value) return undefined; // Optional
-    if (!/^[A-Z0-9-_]{1,10}$/.test(value)) return "Use only A–Z, 0–9, hyphen (-) or underscore (_).";
+    const trimmed = value.trim();
+    
+    if (!/^[A-Z0-9]{1,10}$/.test(trimmed)) {
+      return "Use only A–Z, 0–9 (max 10 characters).";
+    }
+
+    // Check for duplicates in database
+    if (profile?.company_id) {
+      const { data: existingBins } = await supabase
+        .from('warehouse_bins')
+        .select('id')
+        .eq('company_id', profile.company_id)
+        .eq('warehouse_code', trimmed)
+        .neq('id', editingBin?.id || '');
+      
+      if (existingBins && existingBins.length > 0) {
+        return "Warehouse code already exists.";
+      }
+    }
+    
     return undefined;
   };
 
@@ -168,7 +187,7 @@ export function WarehouseBinForm({ open, onOpenChange, onSuccess, editingBin }: 
     return undefined;
   };
 
-  const validateField = (name: keyof ValidationErrors, value: string, formData?: FormData) => {
+  const validateField = async (name: keyof ValidationErrors, value: string, formData?: FormData) => {
     let error: string | undefined;
     
     switch (name) {
@@ -176,7 +195,7 @@ export function WarehouseBinForm({ open, onOpenChange, onSuccess, editingBin }: 
         error = validateWarehouseName(value);
         break;
       case 'warehouse_code':
-        error = validateWarehouseCode(value.toUpperCase());
+        error = await validateWarehouseCode(value.toUpperCase());
         break;
       case 'wh_bin_code':
         error = validateBinCode(value.toUpperCase());
@@ -225,15 +244,15 @@ export function WarehouseBinForm({ open, onOpenChange, onSuccess, editingBin }: 
     }));
   };
 
-  const handleFieldChange = (name: keyof ValidationErrors, value: string) => {
+  const handleFieldChange = async (name: keyof ValidationErrors, value: string) => {
     // Auto-uppercase for specific fields
     if (name === 'warehouse_code' || name === 'wh_bin_code') {
       value = value.toUpperCase();
     }
-    validateField(name, value);
+    await validateField(name, value);
   };
 
-  const validateForm = (formData: FormData): boolean => {
+  const validateForm = async (formData: FormData): Promise<boolean> => {
     const newErrors: ValidationErrors = {};
     
     const phone = formData.get('contact_person_phone') as string || '';
@@ -242,7 +261,7 @@ export function WarehouseBinForm({ open, onOpenChange, onSuccess, editingBin }: 
     
     // Required field validations
     newErrors.warehouse_name = validateWarehouseName(formData.get('warehouse_name') as string || '');
-    newErrors.warehouse_code = validateWarehouseCode(formData.get('warehouse_code') as string || '');
+    newErrors.warehouse_code = await validateWarehouseCode(formData.get('warehouse_code') as string || '');
     newErrors.wh_bin_code = validateBinCode(formData.get('wh_bin_code') as string || '');
     newErrors.bin_name = validateBinName(formData.get('bin_name') as string || '');
     newErrors.address_line1 = validateAddressLine1(formData.get('address_line1') as string || '');
@@ -280,7 +299,7 @@ export function WarehouseBinForm({ open, onOpenChange, onSuccess, editingBin }: 
     
     const formData = new FormData(e.currentTarget);
     
-    if (!validateForm(formData)) {
+    if (!await validateForm(formData)) {
       toast({
         title: "Validation Error",
         description: "Please fix the errors in the form",
