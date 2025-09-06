@@ -209,33 +209,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         return { error: new Error('Rate limited') };
       }
 
-      console.log('Pre-check via business signin function for:', normalizedEmail);
+      console.log('Attempting sign in for:', normalizedEmail);
 
-      // Call edge function first to enforce company user status (blocks inactive users)
-      const { data: precheck, error: precheckError } = await supabase.functions.invoke('signin', {
-        body: { username: normalizedEmail, password: trimmedPassword }
-      });
-
-      // If function responded with a block flag, stop immediately
-      if (precheck?.blocked) {
-        await logSecurityEvent(supabase, 'login_blocked', { email: normalizedEmail }, undefined, SecuritySeverity.HIGH);
-        toast({ title: 'Sign in blocked', description: precheck?.error || 'Your account is inactive. Please contact your administrator.', variant: 'destructive' });
-        return { error: new Error('Account blocked') };
-      }
-
-      if (precheckError) {
-        const msg = (precheckError as any)?.message?.toLowerCase?.() || '';
-        console.log('Business signin precheck error:', precheckError);
-        if (msg.includes('invalid credentials')) {
-          console.log('Falling back to regular Supabase auth…');
-        } else {
-          console.warn('Precheck returned error; stopping sign-in');
-          toast({ title: 'Sign in blocked', description: 'Unable to sign in. Please contact your administrator.', variant: 'destructive' });
-          return { error: new Error('Precheck failed') };
-        }
-      }
-
-      // Proceed with regular Supabase authentication
+      // Proceed directly with Supabase authentication (bypass edge function for now due to captcha issues)
       const { error: authError } = await supabase.auth.signInWithPassword({
         email: normalizedEmail,
         password: trimmedPassword,
@@ -248,20 +224,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         return { error: null };
       }
 
-      // If function indicated success (provisioned auth user), retry once
-      if (precheck?.success) {
-        console.log('Business precheck succeeded; retrying auth…');
-        const { error: secondAuthError } = await supabase.auth.signInWithPassword({ 
-          email: normalizedEmail, 
-          password: trimmedPassword 
-        });
-        if (!secondAuthError) {
-          await logSecurityEvent(supabase, 'login_success', { email: normalizedEmail, type: 'business_user' }, undefined, SecuritySeverity.LOW);
-          toast({ title: 'Welcome back!', description: 'You have been signed in successfully.' });
-          return { error: null };
-        }
-      }
-
       // Handle failure
       let errorMessage = 'Invalid email or password';
       if (typeof authError.message === 'string') {
@@ -272,8 +234,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         }
       }
 
-      console.error('Sign in failed after precheck:', { authError: authError.message, precheckError });
-      await logSecurityEvent(supabase, 'login_failed', { email: normalizedEmail, authError: authError.message, precheckError }, undefined, SecuritySeverity.MEDIUM);
+      console.error('Sign in failed:', { authError: authError.message });
+      await logSecurityEvent(supabase, 'login_failed', { email: normalizedEmail, authError: authError.message }, undefined, SecuritySeverity.MEDIUM);
 
       toast({ title: 'Sign in failed', description: errorMessage, variant: 'destructive' });
       return { error: authError };
