@@ -175,7 +175,7 @@ export function PaymentsModule() {
       {/* AP and AR Summary Cards */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 max-w-4xl">
         {/* Account Payable Section */}
-        <Card className="cursor-pointer hover:bg-accent/50 transition-colors" onClick={() => setShowAPDetails(!showAPDetails)}>
+        <Card className="cursor-pointer hover:bg-accent/50 transition-colors" onClick={() => { setShowAPDetails(!showAPDetails); setShowARDetails(false); }}>
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center justify-between text-lg">
               <div className="flex items-center gap-2">
@@ -196,7 +196,7 @@ export function PaymentsModule() {
         </Card>
 
         {/* Account Receivable Section */}
-        <Card className="cursor-pointer hover:bg-accent/50 transition-colors" onClick={() => setShowARDetails(!showARDetails)}>
+        <Card className="cursor-pointer hover:bg-accent/50 transition-colors" onClick={() => { setShowARDetails(!showARDetails); setShowAPDetails(false); }}>
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center justify-between text-lg">
               <div className="flex items-center gap-2">
