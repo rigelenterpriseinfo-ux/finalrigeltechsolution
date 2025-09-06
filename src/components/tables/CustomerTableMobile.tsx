@@ -40,12 +40,12 @@ export const CustomerTableMobile: React.FC<CustomerTableMobileProps> = ({
   const filteredCustomers = customers.filter(customer => {
     const searchLower = searchTerm.toLowerCase();
     return (
-      customer.name.toLowerCase().includes(searchLower) ||
-      customer.customer_ref.toLowerCase().includes(searchLower) ||
-      (customer.email && customer.email.toLowerCase().includes(searchLower)) ||
-      (customer.phone && customer.phone.toLowerCase().includes(searchLower)) ||
-      (customer.city && customer.city.toLowerCase().includes(searchLower)) ||
-      (customer.state && customer.state.toLowerCase().includes(searchLower))
+      (customer.name?.toLowerCase() ?? '').includes(searchLower) ||
+      (customer.customer_ref?.toLowerCase() ?? '').includes(searchLower) ||
+      (customer.email?.toLowerCase() ?? '').includes(searchLower) ||
+      (customer.phone?.toLowerCase() ?? '').includes(searchLower) ||
+      (customer.city?.toLowerCase() ?? '').includes(searchLower) ||
+      (customer.state?.toLowerCase() ?? '').includes(searchLower)
     );
   });
 

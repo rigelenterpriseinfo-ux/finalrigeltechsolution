@@ -119,11 +119,11 @@ export const WarehouseBinTableMobile: React.FC<WarehouseBinTableMobileProps> = (
   const filteredBins = bins.filter(bin => {
     const searchLower = searchTerm.toLowerCase();
     return (
-      bin.wh_bin_code.toLowerCase().includes(searchLower) ||
-      bin.bin_name.toLowerCase().includes(searchLower) ||
-      (bin.warehouse_name && bin.warehouse_name.toLowerCase().includes(searchLower)) ||
-      (bin.warehouse_code && bin.warehouse_code.toLowerCase().includes(searchLower)) ||
-      (bin.city && bin.city.toLowerCase().includes(searchLower))
+      (bin.wh_bin_code?.toLowerCase() ?? '').includes(searchLower) ||
+      (bin.bin_name?.toLowerCase() ?? '').includes(searchLower) ||
+      (bin.warehouse_name?.toLowerCase() ?? '').includes(searchLower) ||
+      (bin.warehouse_code?.toLowerCase() ?? '').includes(searchLower) ||
+      (bin.city?.toLowerCase() ?? '').includes(searchLower)
     );
   });
 

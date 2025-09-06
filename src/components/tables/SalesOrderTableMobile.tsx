@@ -57,9 +57,9 @@ export function SalesOrderTableMobile({
 
   // Filter sales orders based on search term
   const filteredOrders = salesOrders.filter(order =>
-    order.order_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (order.customer_name && order.customer_name.toLowerCase().includes(searchTerm.toLowerCase())) ||
-    order.status.toLowerCase().includes(searchTerm.toLowerCase())
+    (order.order_number?.toLowerCase() ?? '').includes(searchTerm.toLowerCase()) ||
+    (order.customer_name?.toLowerCase() ?? '').includes(searchTerm.toLowerCase()) ||
+    (order.status?.toLowerCase() ?? '').includes(searchTerm.toLowerCase())
   );
 
   // Pagination

@@ -54,9 +54,9 @@ export function PurchaseOrderTableMobile({
 
   // Filter purchase orders based on search term
   const filteredOrders = purchaseOrders.filter(order =>
-    order.po_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    order.supplier.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    order.status.toLowerCase().includes(searchTerm.toLowerCase())
+    (order.po_number?.toLowerCase() ?? '').includes(searchTerm.toLowerCase()) ||
+    (order.supplier?.name?.toLowerCase() ?? '').includes(searchTerm.toLowerCase()) ||
+    (order.status?.toLowerCase() ?? '').includes(searchTerm.toLowerCase())
   );
 
   // Pagination
