@@ -63,6 +63,7 @@ export function InventoryModule() {
   const [searchTerm, setSearchTerm] = useState('');
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
+  const [showBOMDialog, setShowBOMDialog] = useState(false);
   const [showBinDialog, setShowBinDialog] = useState(false);
   const [showAdjustmentDialog, setShowAdjustmentDialog] = useState(false);
   const [showTransferDialog, setShowTransferDialog] = useState(false);
@@ -584,7 +585,7 @@ export function InventoryModule() {
   return (
     <div className="space-y-6 p-6">
       <div className="flex items-center">
-        <div className="grid grid-cols-4 gap-4 w-full">
+        <div className="grid grid-cols-5 gap-4 w-full">
           {canEdit && (
             <>
               <Dialog 
@@ -949,6 +950,138 @@ export function InventoryModule() {
                       </div>
                     </div>
                   </form>
+                </DialogContent>
+              </Dialog>
+
+              <Dialog open={showBOMDialog} onOpenChange={setShowBOMDialog}>
+                <DialogTrigger asChild>
+                  <Button variant="outline">
+                    <ClipboardList className="w-4 h-4 mr-2" />
+                    BOM
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+                  <DialogHeader>
+                    <DialogTitle>Bill of Materials (BOM)</DialogTitle>
+                    <DialogDescription>
+                      Create and manage product recipes and component lists
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="space-y-6 p-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className="space-y-4">
+                        <div>
+                          <Label htmlFor="finished_product">Finished Product</Label>
+                          <Select>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select finished product" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {products.filter(p => p.product_category === 'finished_goods').map(product => (
+                                <SelectItem key={product.id} value={product.id}>
+                                  {product.name} ({product.sku})
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div>
+                          <Label htmlFor="bom_name">BOM Name</Label>
+                          <Input id="bom_name" placeholder="Enter BOM name" />
+                        </div>
+                        <div>
+                          <Label htmlFor="bom_version">Version</Label>
+                          <Input id="bom_version" placeholder="e.g., v1.0" defaultValue="v1.0" />
+                        </div>
+                      </div>
+                      <div className="space-y-4">
+                        <div>
+                          <Label htmlFor="yield_quantity">Yield Quantity</Label>
+                          <Input id="yield_quantity" type="number" min="1" defaultValue="1" placeholder="Quantity produced" />
+                        </div>
+                        <div>
+                          <Label htmlFor="labor_cost">Labor Cost per Unit</Label>
+                          <Input id="labor_cost" type="number" step="0.01" min="0" placeholder="0.00" />
+                        </div>
+                        <div>
+                          <Label htmlFor="overhead_cost">Overhead Cost per Unit</Label>
+                          <Input id="overhead_cost" type="number" step="0.01" min="0" placeholder="0.00" />
+                        </div>
+                      </div>
+                    </div>
+                    
+                    {/* BOM Components Section */}
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <h3 className="text-lg font-semibold">Components & Raw Materials</h3>
+                        <Button size="sm">
+                          <Plus className="w-4 h-4 mr-1" />
+                          Add Component
+                        </Button>
+                      </div>
+                      
+                      <Card>
+                        <CardContent className="p-4">
+                          <Table>
+                            <TableHeader>
+                              <TableRow>
+                                <TableHead>Component</TableHead>
+                                <TableHead>SKU</TableHead>
+                                <TableHead>Quantity</TableHead>
+                                <TableHead>Unit</TableHead>
+                                <TableHead>Cost per Unit</TableHead>
+                                <TableHead>Total Cost</TableHead>
+                                <TableHead>Actions</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              <TableRow>
+                                <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
+                                  No components added yet. Click "Add Component" to start building your BOM.
+                                </TableCell>
+                              </TableRow>
+                            </TableBody>
+                          </Table>
+                        </CardContent>
+                      </Card>
+                    </div>
+
+                    {/* Cost Summary */}
+                    <Card>
+                      <CardHeader>
+                        <CardTitle className="text-lg">Cost Summary</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                          <div className="text-center">
+                            <div className="text-2xl font-bold text-primary">₹0.00</div>
+                            <div className="text-sm text-muted-foreground">Material Cost</div>
+                          </div>
+                          <div className="text-center">
+                            <div className="text-2xl font-bold text-primary">₹0.00</div>
+                            <div className="text-sm text-muted-foreground">Labor Cost</div>
+                          </div>
+                          <div className="text-center">
+                            <div className="text-2xl font-bold text-primary">₹0.00</div>
+                            <div className="text-sm text-muted-foreground">Overhead Cost</div>
+                          </div>
+                          <div className="text-center">
+                            <div className="text-2xl font-bold text-destructive">₹0.00</div>
+                            <div className="text-sm text-muted-foreground">Total Cost per Unit</div>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </div>
+                  
+                  <div className="flex justify-end space-x-2 p-4 border-t">
+                    <Button variant="outline" onClick={() => setShowBOMDialog(false)}>
+                      Cancel
+                    </Button>
+                    <Button>
+                      Save BOM
+                    </Button>
+                  </div>
                 </DialogContent>
               </Dialog>
 
