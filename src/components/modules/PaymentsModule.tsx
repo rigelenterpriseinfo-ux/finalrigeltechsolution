@@ -530,7 +530,7 @@ export function PaymentsModule() {
           <CardContent>
             <div className="rounded-md border overflow-x-auto">
               <ScrollArea className="h-[500px]">
-                <Table>
+                <Table className="min-w-[1100px] whitespace-nowrap">
                 <TableHeader>
                   <TableRow>
                     <TableHead>
@@ -709,7 +709,7 @@ export function PaymentsModule() {
           <CardContent>
             <div className="rounded-md border overflow-x-auto">
               <ScrollArea className="h-[500px]">
-                <Table>
+                <Table className="min-w-[1100px] whitespace-nowrap">
                 <TableHeader>
                   <TableRow>
                     <TableHead>
