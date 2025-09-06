@@ -449,25 +449,7 @@ export function PurchaseModule() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
-      {/* Hero Header Section */}
-      <div className="relative bg-gradient-to-r from-blue-600 via-blue-700 to-indigo-800 text-white">
-        <div className="absolute inset-0 bg-black/10"></div>
-        <div className="relative px-6 py-12">
-          <div className="max-w-7xl mx-auto">
-            <div className="flex items-center gap-4 mb-4">
-              <div className="p-3 bg-white/20 rounded-xl backdrop-blur-sm">
-                <Building2 className="h-8 w-8" />
-              </div>
-              <div>
-                <h1 className="text-4xl font-bold tracking-tight">Purchase Management</h1>
-                <p className="text-blue-100 text-lg mt-2">Streamline your procurement process with smart analytics</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div className="max-w-7xl mx-auto px-6 -mt-8 relative z-10">
+      <div className="max-w-7xl mx-auto px-6 pt-8 relative z-10">
         {/* Enhanced Stats Dashboard */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
           <div className="group hover:scale-105 transition-all duration-300 animate-fade-in">
