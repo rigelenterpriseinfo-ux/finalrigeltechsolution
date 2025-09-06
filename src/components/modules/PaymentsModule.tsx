@@ -12,7 +12,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { useBusinessAuth } from '@/hooks/useBusinessAuth';
-import { Plus, Search, CreditCard, TrendingUp, TrendingDown, ChevronDown, ChevronUp } from 'lucide-react';
+import { Plus, Search, CreditCard, TrendingUp, TrendingDown, ChevronDown, ChevronUp, Download, ChevronLeft, ChevronRight, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
+import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from '@/components/ui/pagination';
 
 interface Payment {
   id: string;
@@ -70,6 +71,17 @@ export function PaymentsModule() {
   const [showARDetails, setShowARDetails] = useState(false);
   const [apSearchTerm, setApSearchTerm] = useState('');
   const [arSearchTerm, setArSearchTerm] = useState('');
+  
+  // Pagination states
+  const [apCurrentPage, setApCurrentPage] = useState(1);
+  const [arCurrentPage, setArCurrentPage] = useState(1);
+  const itemsPerPage = 10;
+  
+  // Sorting states
+  const [apSortField, setApSortField] = useState<keyof GRNPayable>('grn_date');
+  const [apSortDirection, setApSortDirection] = useState<'asc' | 'desc'>('desc');
+  const [arSortField, setArSortField] = useState<keyof SalesInvoiceReceivable | 'customer_name'>('invoice_date');
+  const [arSortDirection, setArSortDirection] = useState<'asc' | 'desc'>('desc');
 
   useEffect(() => {
     fetchAccountPayable();
@@ -139,16 +151,138 @@ export function PaymentsModule() {
   };
 
 
-  // Filter functions for search
-  const filteredAccountPayable = accountPayable.filter(item =>
-    item.supplier_name.toLowerCase().includes(apSearchTerm.toLowerCase()) ||
-    item.grn_number.toLowerCase().includes(apSearchTerm.toLowerCase())
+  // Sorting functions
+  const handleApSort = (field: keyof GRNPayable) => {
+    if (apSortField === field) {
+      setApSortDirection(apSortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setApSortField(field);
+      setApSortDirection('asc');
+    }
+    setApCurrentPage(1);
+  };
+
+  const handleArSort = (field: keyof SalesInvoiceReceivable | 'customer_name') => {
+    if (arSortField === field) {
+      setArSortDirection(arSortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setArSortField(field);
+      setArSortDirection('asc');
+    }
+    setArCurrentPage(1);
+  };
+
+  // Filter and sort functions
+  const filteredAndSortedAP = accountPayable
+    .filter(item =>
+      item.supplier_name.toLowerCase().includes(apSearchTerm.toLowerCase()) ||
+      item.grn_number.toLowerCase().includes(apSearchTerm.toLowerCase())
+    )
+    .sort((a, b) => {
+      const aValue = a[apSortField];
+      const bValue = b[apSortField];
+      
+      if (typeof aValue === 'string' && typeof bValue === 'string') {
+        return apSortDirection === 'asc' 
+          ? aValue.localeCompare(bValue)
+          : bValue.localeCompare(aValue);
+      }
+      
+      if (typeof aValue === 'number' && typeof bValue === 'number') {
+        return apSortDirection === 'asc' ? aValue - bValue : bValue - aValue;
+      }
+      
+      return 0;
+    });
+
+  const filteredAndSortedAR = accountReceivable
+    .filter(item =>
+      item.customer?.name.toLowerCase().includes(arSearchTerm.toLowerCase()) ||
+      item.invoice_number?.toLowerCase().includes(arSearchTerm.toLowerCase())
+    )
+    .sort((a, b) => {
+      let aValue: any, bValue: any;
+      
+      // Special handling for customer name
+      if (arSortField === 'customer_name') {
+        aValue = a.customer?.name || '';
+        bValue = b.customer?.name || '';
+      } else {
+        aValue = a[arSortField];
+        bValue = b[arSortField];
+      }
+      
+      if (typeof aValue === 'string' && typeof bValue === 'string') {
+        return arSortDirection === 'asc' 
+          ? aValue.localeCompare(bValue)
+          : bValue.localeCompare(aValue);
+      }
+      
+      if (typeof aValue === 'number' && typeof bValue === 'number') {
+        return arSortDirection === 'asc' ? aValue - bValue : bValue - aValue;
+      }
+      
+      return 0;
+    });
+
+  // Pagination
+  const paginatedAP = filteredAndSortedAP.slice(
+    (apCurrentPage - 1) * itemsPerPage,
+    apCurrentPage * itemsPerPage
   );
 
-  const filteredAccountReceivable = accountReceivable.filter(item =>
-    item.customer?.name.toLowerCase().includes(arSearchTerm.toLowerCase()) ||
-    item.invoice_number?.toLowerCase().includes(arSearchTerm.toLowerCase())
+  const paginatedAR = filteredAndSortedAR.slice(
+    (arCurrentPage - 1) * itemsPerPage,
+    arCurrentPage * itemsPerPage
   );
+
+  const totalAPPages = Math.ceil(filteredAndSortedAP.length / itemsPerPage);
+  const totalARPages = Math.ceil(filteredAndSortedAR.length / itemsPerPage);
+
+  // Export functions
+  const exportToCSV = (data: any[], filename: string) => {
+    if (data.length === 0) return;
+    
+    const headers = Object.keys(data[0]).join(',');
+    const rows = data.map(item => 
+      Object.values(item).map(value => 
+        typeof value === 'string' && value.includes(',') ? `"${value}"` : value
+      ).join(',')
+    ).join('\n');
+    
+    const csvContent = `${headers}\n${rows}`;
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${filename}.csv`;
+    link.click();
+    window.URL.revokeObjectURL(url);
+  };
+
+  const handleAPExport = () => {
+    const exportData = filteredAndSortedAP.map(item => ({
+      'Vendor Name': item.supplier_name,
+      'GRN Number': item.grn_number,
+      'GRN Date': new Date(item.grn_date).toLocaleDateString(),
+      'Amount': item.total_amount,
+      'Status': item.status
+    }));
+    exportToCSV(exportData, 'account_payable');
+    toast({ title: "Export successful", description: "Account Payable data exported to CSV" });
+  };
+
+  const handleARExport = () => {
+    const exportData = filteredAndSortedAR.map(item => ({
+      'Customer Name': item.customer?.name || 'N/A',
+      'Invoice Number': item.invoice_number || 'N/A',
+      'Invoice Date': new Date(item.invoice_date).toLocaleDateString(),
+      'Amount': item.total_amount,
+      'Payment Terms': item.payment_terms || 'Net 30'
+    }));
+    exportToCSV(exportData, 'account_receivable');
+    toast({ title: "Export successful", description: "Account Receivable data exported to CSV" });
+  };
 
   // Calculate totals
   const totalAP = accountPayable.reduce((sum, item) => sum + item.total_amount, 0);
@@ -226,10 +360,14 @@ export function PaymentsModule() {
                 <Input
                   placeholder="Search vendors or GRN numbers..."
                   value={apSearchTerm}
-                  onChange={(e) => setApSearchTerm(e.target.value)}
+                  onChange={(e) => { setApSearchTerm(e.target.value); setApCurrentPage(1); }}
                   className="pl-10"
                 />
               </div>
+              <Button onClick={handleAPExport} variant="outline" size="sm">
+                <Download className="h-4 w-4 mr-2" />
+                Export
+              </Button>
             </div>
           </CardHeader>
           <CardContent>
@@ -237,22 +375,57 @@ export function PaymentsModule() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Vendor Name</TableHead>
-                    <TableHead>GRN Number</TableHead>
-                    <TableHead>GRN Date</TableHead>
-                    <TableHead>Amount</TableHead>
-                    <TableHead>Status</TableHead>
+                    <TableHead>
+                      <Button variant="ghost" className="h-8 p-0 font-semibold hover:bg-transparent" onClick={() => handleApSort('supplier_name')}>
+                        Vendor Name
+                        {apSortField === 'supplier_name' ? (
+                          apSortDirection === 'asc' ? <ArrowUp className="ml-1 h-3 w-3" /> : <ArrowDown className="ml-1 h-3 w-3" />
+                        ) : <ArrowUpDown className="ml-1 h-3 w-3" />}
+                      </Button>
+                    </TableHead>
+                    <TableHead>
+                      <Button variant="ghost" className="h-8 p-0 font-semibold hover:bg-transparent" onClick={() => handleApSort('grn_number')}>
+                        GRN Number
+                        {apSortField === 'grn_number' ? (
+                          apSortDirection === 'asc' ? <ArrowUp className="ml-1 h-3 w-3" /> : <ArrowDown className="ml-1 h-3 w-3" />
+                        ) : <ArrowUpDown className="ml-1 h-3 w-3" />}
+                      </Button>
+                    </TableHead>
+                    <TableHead>
+                      <Button variant="ghost" className="h-8 p-0 font-semibold hover:bg-transparent" onClick={() => handleApSort('grn_date')}>
+                        GRN Date
+                        {apSortField === 'grn_date' ? (
+                          apSortDirection === 'asc' ? <ArrowUp className="ml-1 h-3 w-3" /> : <ArrowDown className="ml-1 h-3 w-3" />
+                        ) : <ArrowUpDown className="ml-1 h-3 w-3" />}
+                      </Button>
+                    </TableHead>
+                    <TableHead>
+                      <Button variant="ghost" className="h-8 p-0 font-semibold hover:bg-transparent" onClick={() => handleApSort('total_amount')}>
+                        Amount
+                        {apSortField === 'total_amount' ? (
+                          apSortDirection === 'asc' ? <ArrowUp className="ml-1 h-3 w-3" /> : <ArrowDown className="ml-1 h-3 w-3" />
+                        ) : <ArrowUpDown className="ml-1 h-3 w-3" />}
+                      </Button>
+                    </TableHead>
+                    <TableHead>
+                      <Button variant="ghost" className="h-8 p-0 font-semibold hover:bg-transparent" onClick={() => handleApSort('status')}>
+                        Status
+                        {apSortField === 'status' ? (
+                          apSortDirection === 'asc' ? <ArrowUp className="ml-1 h-3 w-3" /> : <ArrowDown className="ml-1 h-3 w-3" />
+                        ) : <ArrowUpDown className="ml-1 h-3 w-3" />}
+                      </Button>
+                    </TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredAccountPayable.length === 0 ? (
+                  {paginatedAP.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={5} className="text-center text-muted-foreground">
                         No GRN records found
                       </TableCell>
                     </TableRow>
                   ) : (
-                    filteredAccountPayable.map((item) => (
+                    paginatedAP.map((item) => (
                       <TableRow key={item.id}>
                         <TableCell className="font-medium">{item.supplier_name || 'N/A'}</TableCell>
                         <TableCell>{item.grn_number}</TableCell>
@@ -265,6 +438,36 @@ export function PaymentsModule() {
                 </TableBody>
               </Table>
             </div>
+            {totalAPPages > 1 && (
+              <div className="flex items-center justify-between px-2 py-4">
+                <div className="text-sm text-muted-foreground">
+                  Showing {((apCurrentPage - 1) * itemsPerPage) + 1} to {Math.min(apCurrentPage * itemsPerPage, filteredAndSortedAP.length)} of {filteredAndSortedAP.length} entries
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setApCurrentPage(apCurrentPage - 1)}
+                    disabled={apCurrentPage === 1}
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                    Previous
+                  </Button>
+                  <span className="text-sm font-medium">
+                    Page {apCurrentPage} of {totalAPPages}
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setApCurrentPage(apCurrentPage + 1)}
+                    disabled={apCurrentPage === totalAPPages}
+                  >
+                    Next
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
       )}
@@ -280,10 +483,14 @@ export function PaymentsModule() {
                 <Input
                   placeholder="Search customers or invoice numbers..."
                   value={arSearchTerm}
-                  onChange={(e) => setArSearchTerm(e.target.value)}
+                  onChange={(e) => { setArSearchTerm(e.target.value); setArCurrentPage(1); }}
                   className="pl-10"
                 />
               </div>
+              <Button onClick={handleARExport} variant="outline" size="sm">
+                <Download className="h-4 w-4 mr-2" />
+                Export
+              </Button>
             </div>
           </CardHeader>
           <CardContent>
@@ -291,22 +498,57 @@ export function PaymentsModule() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Customer Name</TableHead>
-                    <TableHead>Invoice Number</TableHead>
-                    <TableHead>Invoice Date</TableHead>
-                    <TableHead>Amount</TableHead>
-                    <TableHead>Payment Terms</TableHead>
+                    <TableHead>
+                      <Button variant="ghost" className="h-8 p-0 font-semibold hover:bg-transparent" onClick={() => handleArSort('customer_name')}>
+                        Customer Name
+                        {arSortField === 'customer_name' ? (
+                          arSortDirection === 'asc' ? <ArrowUp className="ml-1 h-3 w-3" /> : <ArrowDown className="ml-1 h-3 w-3" />
+                        ) : <ArrowUpDown className="ml-1 h-3 w-3" />}
+                      </Button>
+                    </TableHead>
+                    <TableHead>
+                      <Button variant="ghost" className="h-8 p-0 font-semibold hover:bg-transparent" onClick={() => handleArSort('invoice_number')}>
+                        Invoice Number
+                        {arSortField === 'invoice_number' ? (
+                          arSortDirection === 'asc' ? <ArrowUp className="ml-1 h-3 w-3" /> : <ArrowDown className="ml-1 h-3 w-3" />
+                        ) : <ArrowUpDown className="ml-1 h-3 w-3" />}
+                      </Button>
+                    </TableHead>
+                    <TableHead>
+                      <Button variant="ghost" className="h-8 p-0 font-semibold hover:bg-transparent" onClick={() => handleArSort('invoice_date')}>
+                        Invoice Date
+                        {arSortField === 'invoice_date' ? (
+                          arSortDirection === 'asc' ? <ArrowUp className="ml-1 h-3 w-3" /> : <ArrowDown className="ml-1 h-3 w-3" />
+                        ) : <ArrowUpDown className="ml-1 h-3 w-3" />}
+                      </Button>
+                    </TableHead>
+                    <TableHead>
+                      <Button variant="ghost" className="h-8 p-0 font-semibold hover:bg-transparent" onClick={() => handleArSort('total_amount')}>
+                        Amount
+                        {arSortField === 'total_amount' ? (
+                          arSortDirection === 'asc' ? <ArrowUp className="ml-1 h-3 w-3" /> : <ArrowDown className="ml-1 h-3 w-3" />
+                        ) : <ArrowUpDown className="ml-1 h-3 w-3" />}
+                      </Button>
+                    </TableHead>
+                    <TableHead>
+                      <Button variant="ghost" className="h-8 p-0 font-semibold hover:bg-transparent" onClick={() => handleArSort('payment_terms')}>
+                        Payment Terms
+                        {arSortField === 'payment_terms' ? (
+                          arSortDirection === 'asc' ? <ArrowUp className="ml-1 h-3 w-3" /> : <ArrowDown className="ml-1 h-3 w-3" />
+                        ) : <ArrowUpDown className="ml-1 h-3 w-3" />}
+                      </Button>
+                    </TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredAccountReceivable.length === 0 ? (
+                  {paginatedAR.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={5} className="text-center text-muted-foreground">
                         No invoices found
                       </TableCell>
                     </TableRow>
                   ) : (
-                    filteredAccountReceivable.map((item) => (
+                    paginatedAR.map((item) => (
                       <TableRow key={item.id}>
                         <TableCell className="font-medium">{item.customer?.name || 'N/A'}</TableCell>
                         <TableCell>{item.invoice_number || 'N/A'}</TableCell>
@@ -319,6 +561,36 @@ export function PaymentsModule() {
                 </TableBody>
               </Table>
             </div>
+            {totalARPages > 1 && (
+              <div className="flex items-center justify-between px-2 py-4">
+                <div className="text-sm text-muted-foreground">
+                  Showing {((arCurrentPage - 1) * itemsPerPage) + 1} to {Math.min(arCurrentPage * itemsPerPage, filteredAndSortedAR.length)} of {filteredAndSortedAR.length} entries
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setArCurrentPage(arCurrentPage - 1)}
+                    disabled={arCurrentPage === 1}
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                    Previous
+                  </Button>
+                  <span className="text-sm font-medium">
+                    Page {arCurrentPage} of {totalARPages}
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setArCurrentPage(arCurrentPage + 1)}
+                    disabled={arCurrentPage === totalARPages}
+                  >
+                    Next
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
       )}
