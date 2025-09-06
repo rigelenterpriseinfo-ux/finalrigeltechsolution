@@ -292,38 +292,6 @@ export default function Dashboard() {
       default:
         return (
           <div className="space-y-6">
-            {/* Welcome & Company Info Card - Full Width at Top */}
-            <Card className="card-interactive shadow-card hover:shadow-elevated transition-all duration-300 bg-gradient-to-br from-primary/5 to-primary/10 border-primary/20">
-              <CardContent className="p-8">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-4">
-                    <div className="p-4 rounded-2xl bg-primary/10 text-primary">
-                      <BarChart3 className="h-8 w-8" />
-                    </div>
-                    <div className="space-y-1">
-                      <p className="text-sm font-medium text-muted-foreground uppercase tracking-wide">Dashboard Overview</p>
-                      <h1 className="text-3xl font-bold tracking-tight text-foreground">
-                        Welcome back, {profile?.first_name || 'User'}!
-                      </h1>
-                      <p className="text-base text-muted-foreground">
-                        Here's what's happening with your business today
-                      </p>
-                    </div>
-                  </div>
-                  
-                  {/* Company ID - Right Side */}
-                  {company?.business_ref_no && (
-                    <div className="text-right">
-                      <p className="text-sm font-medium text-muted-foreground mb-1">Company ID</p>
-                      <div className="inline-flex items-center px-4 py-2 rounded-lg bg-primary/10 border border-primary/20">
-                        <span className="font-mono text-lg font-semibold text-primary">{company.business_ref_no}</span>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-
             {/* Key Metrics Grid */}
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 stagger-animation">
               <StatsCard
