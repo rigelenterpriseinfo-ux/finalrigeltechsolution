@@ -30,24 +30,38 @@ export function SalesInvoiceDetailsDialog({ invoiceId, open, onOpenChange }: Sal
 
     try {
       setLoading(true);
-      const { data, error } = await supabase
-        .from('sales_invoices')
-        .select(`
-          *,
-          customer:customers(*),
-          sales_order:sales_orders(order_number, order_date),
-          sales_invoice_items(
-            *,
-            product:products(name, sku, unit)
-          ),
-          payments(amount, payment_date, payment_method, payment_status)
-        `)
-        .eq('id', invoiceId)
-        .single();
-
-      if (error) throw error;
-      setInvoiceDetails(data);
       setError(null);
+
+      // 1) Fetch header only
+      const { data: header, error: headerError } = await supabase
+        .from('sales_invoices')
+        .select('*')
+        .eq('id', invoiceId)
+        .maybeSingle();
+      if (headerError) throw headerError;
+      if (!header) throw new Error('Invoice not found');
+
+      // 2) Fetch related records separately (avoid relationship joins)
+      const [itemsRes, paymentsRes, customerRes, soRes] = await Promise.all([
+        supabase.from('sales_invoice_items').select('*').eq('sales_invoice_id', invoiceId),
+        supabase.from('payments').select('amount, payment_date, payment_method, payment_status').eq('sales_invoice_id', invoiceId),
+        header.customer_id
+          ? supabase.from('customers').select('*').eq('id', header.customer_id).maybeSingle()
+          : Promise.resolve({ data: null, error: null }),
+        header.sales_order_id
+          ? supabase.from('sales_orders').select('order_number, order_date').eq('id', header.sales_order_id).maybeSingle()
+          : Promise.resolve({ data: null, error: null }),
+      ]);
+
+      const composed = {
+        ...header,
+        customer: customerRes.data || null,
+        sales_order: soRes.data || null,
+        sales_invoice_items: itemsRes.data || [],
+        payments: paymentsRes.data || [],
+      };
+
+      setInvoiceDetails(composed);
     } catch (err) {
       console.error('Error fetching sales invoice details:', err);
       setError('Failed to load invoice details');
@@ -103,7 +117,7 @@ export function SalesInvoiceDetailsDialog({ invoiceId, open, onOpenChange }: Sal
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto" onInteractOutside={(e) => e.preventDefault()} onEscapeKeyDown={(e) => e.preventDefault()}>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <FileText className="h-5 w-5 text-blue-600" />

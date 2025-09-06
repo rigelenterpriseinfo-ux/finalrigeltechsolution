@@ -30,24 +30,38 @@ export function GRNDetailsDialog({ grnId, open, onOpenChange }: GRNDetailsProps)
 
     try {
       setLoading(true);
-      const { data, error } = await supabase
-        .from('grn_header')
-        .select(`
-          *,
-          supplier:suppliers(*),
-          purchase_order:purchase_orders(po_number, order_date),
-          grn_line_items(
-            *,
-            product:products(name, sku, unit)
-          ),
-          payments(amount, payment_date, payment_method, payment_status)
-        `)
-        .eq('id', grnId)
-        .single();
-
-      if (error) throw error;
-      setGRNDetails(data);
       setError(null);
+
+      // 1) Fetch header only
+      const { data: header, error: headerError } = await supabase
+        .from('grn_header')
+        .select('*')
+        .eq('id', grnId)
+        .maybeSingle();
+      if (headerError) throw headerError;
+      if (!header) throw new Error('GRN not found');
+
+      // 2) Fetch related records separately (avoid relationship joins)
+      const [itemsRes, paymentsRes, supplierRes, poRes] = await Promise.all([
+        supabase.from('grn_line_items').select('*').eq('grn_header_id', grnId),
+        supabase.from('payments').select('amount, payment_date, payment_method, payment_status').eq('grn_id', grnId),
+        header.supplier_id
+          ? supabase.from('suppliers').select('*').eq('id', header.supplier_id).maybeSingle()
+          : Promise.resolve({ data: null, error: null }),
+        header.purchase_order_id
+          ? supabase.from('purchase_orders').select('po_number, order_date').eq('id', header.purchase_order_id).maybeSingle()
+          : Promise.resolve({ data: null, error: null }),
+      ]);
+
+      const composed = {
+        ...header,
+        supplier: supplierRes.data || null,
+        purchase_order: poRes.data || null,
+        grn_line_items: itemsRes.data || [],
+        payments: paymentsRes.data || [],
+      };
+
+      setGRNDetails(composed);
     } catch (err) {
       console.error('Error fetching GRN details:', err);
       setError('Failed to load GRN details');
@@ -103,7 +117,7 @@ export function GRNDetailsDialog({ grnId, open, onOpenChange }: GRNDetailsProps)
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto" onInteractOutside={(e) => e.preventDefault()} onEscapeKeyDown={(e) => e.preventDefault()}>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Receipt className="h-5 w-5 text-green-600" />
