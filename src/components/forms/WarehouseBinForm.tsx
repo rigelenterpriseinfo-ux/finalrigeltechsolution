@@ -82,27 +82,48 @@ export function WarehouseBinForm({ open, onOpenChange, onSuccess, editingBin }: 
   };
 
   const validateWarehouseCode = async (value: string): Promise<string | undefined> => {
-    if (!value) return undefined; // Optional
+    console.log('Validating warehouse code:', value);
+    if (!value) {
+      console.log('Warehouse code is empty, returning undefined');
+      return undefined; // Optional
+    }
+    
     const trimmed = value.trim();
+    console.log('Trimmed warehouse code:', trimmed);
     
     if (!/^[A-Z0-9]{1,10}$/.test(trimmed)) {
+      console.log('Warehouse code failed regex test');
       return "Use only A–Z, 0–9 (max 10 characters).";
     }
 
     // Check for duplicates in database
     if (profile?.company_id) {
-      const { data: existingBins } = await supabase
-        .from('warehouse_bins')
-        .select('id')
-        .eq('company_id', profile.company_id)
-        .eq('warehouse_code', trimmed)
-        .neq('id', editingBin?.id || '');
-      
-      if (existingBins && existingBins.length > 0) {
-        return "Warehouse code already exists.";
+      console.log('Checking for duplicates in database...');
+      try {
+        const { data: existingBins, error } = await supabase
+          .from('warehouse_bins')
+          .select('id')
+          .eq('company_id', profile.company_id)
+          .eq('warehouse_code', trimmed)
+          .neq('id', editingBin?.id || '');
+        
+        if (error) {
+          console.error('Database error while checking warehouse code:', error);
+          return "Error checking warehouse code uniqueness.";
+        }
+        
+        console.log('Existing bins found:', existingBins);
+        if (existingBins && existingBins.length > 0) {
+          console.log('Duplicate warehouse code found');
+          return "Warehouse code already exists.";
+        }
+      } catch (error) {
+        console.error('Exception while checking warehouse code:', error);
+        return "Error checking warehouse code uniqueness.";
       }
     }
     
+    console.log('Warehouse code validation passed');
     return undefined;
   };
 
@@ -253,26 +274,101 @@ export function WarehouseBinForm({ open, onOpenChange, onSuccess, editingBin }: 
   };
 
   const validateForm = async (formData: FormData): Promise<boolean> => {
+    console.log('Starting form validation...');
     const newErrors: ValidationErrors = {};
     
     const phone = formData.get('contact_person_phone') as string || '';
     const email = formData.get('contact_person_email') as string || '';
     const contactName = formData.get('contact_person_name') as string || '';
     
+    console.log('Form data extracted:', {
+      warehouse_name: formData.get('warehouse_name'),
+      warehouse_code: formData.get('warehouse_code'),
+      wh_bin_code: formData.get('wh_bin_code'),
+      bin_name: formData.get('bin_name'),
+      phone,
+      email,
+      contactName
+    });
+    
     // Required field validations
-    newErrors.warehouse_name = validateWarehouseName(formData.get('warehouse_name') as string || '');
-    newErrors.warehouse_code = await validateWarehouseCode(formData.get('warehouse_code') as string || '');
-    newErrors.wh_bin_code = validateBinCode(formData.get('wh_bin_code') as string || '');
-    newErrors.bin_name = validateBinName(formData.get('bin_name') as string || '');
-    newErrors.address_line1 = validateAddressLine1(formData.get('address_line1') as string || '');
-    newErrors.address_line2 = validateAddressLine2(formData.get('address_line2') as string || '');
-    newErrors.city = validateCity(formData.get('city') as string || '');
-    newErrors.state = validateState(formData.get('state') as string || '');
-    newErrors.postal_code = validatePinCode(formData.get('postal_code') as string || '');
-    newErrors.country = validateCountry(formData.get('country') as string || 'IN');
-    newErrors.contact_person_name = validateContactPerson(contactName, phone, email);
-    newErrors.contact_person_phone = validatePhone(phone);
-    newErrors.contact_person_email = validateEmail(email);
+    const warehouseNameError = validateWarehouseName(formData.get('warehouse_name') as string || '');
+    if (warehouseNameError) {
+      newErrors.warehouse_name = warehouseNameError;
+      console.log('Warehouse name error:', warehouseNameError);
+    }
+    
+    const warehouseCodeError = await validateWarehouseCode(formData.get('warehouse_code') as string || '');
+    if (warehouseCodeError) {
+      newErrors.warehouse_code = warehouseCodeError;
+      console.log('Warehouse code error:', warehouseCodeError);
+    }
+    
+    const binCodeError = validateBinCode(formData.get('wh_bin_code') as string || '');
+    if (binCodeError) {
+      newErrors.wh_bin_code = binCodeError;
+      console.log('BIN code error:', binCodeError);
+    }
+    
+    const binNameError = validateBinName(formData.get('bin_name') as string || '');
+    if (binNameError) {
+      newErrors.bin_name = binNameError;
+      console.log('BIN name error:', binNameError);
+    }
+    
+    const addressLine1Error = validateAddressLine1(formData.get('address_line1') as string || '');
+    if (addressLine1Error) {
+      newErrors.address_line1 = addressLine1Error;
+      console.log('Address line 1 error:', addressLine1Error);
+    }
+    
+    const addressLine2Error = validateAddressLine2(formData.get('address_line2') as string || '');
+    if (addressLine2Error) {
+      newErrors.address_line2 = addressLine2Error;
+      console.log('Address line 2 error:', addressLine2Error);
+    }
+    
+    const cityError = validateCity(formData.get('city') as string || '');
+    if (cityError) {
+      newErrors.city = cityError;
+      console.log('City error:', cityError);
+    }
+    
+    const stateError = validateState(formData.get('state') as string || '');
+    if (stateError) {
+      newErrors.state = stateError;
+      console.log('State error:', stateError);
+    }
+    
+    const pinCodeError = validatePinCode(formData.get('postal_code') as string || '');
+    if (pinCodeError) {
+      newErrors.postal_code = pinCodeError;
+      console.log('PIN code error:', pinCodeError);
+    }
+    
+    const countryError = validateCountry(formData.get('country') as string || 'IN');
+    if (countryError) {
+      newErrors.country = countryError;
+      console.log('Country error:', countryError);
+    }
+    
+    const contactPersonError = validateContactPerson(contactName, phone, email);
+    if (contactPersonError) {
+      newErrors.contact_person_name = contactPersonError;
+      console.log('Contact person error:', contactPersonError);
+    }
+    
+    const phoneError = validatePhone(phone);
+    if (phoneError) {
+      newErrors.contact_person_phone = phoneError;
+      console.log('Phone error:', phoneError);
+    }
+    
+    const emailError = validateEmail(email);
+    if (emailError) {
+      newErrors.contact_person_email = emailError;
+      console.log('Email error:', emailError);
+    }
 
     // Remove undefined errors
     Object.keys(newErrors).forEach(key => {
@@ -281,6 +377,9 @@ export function WarehouseBinForm({ open, onOpenChange, onSuccess, editingBin }: 
       }
     });
 
+    console.log('Final validation errors:', newErrors);
+    console.log('Form is valid:', Object.keys(newErrors).length === 0);
+    
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
