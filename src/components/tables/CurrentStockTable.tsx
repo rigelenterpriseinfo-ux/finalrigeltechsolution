@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
@@ -13,7 +13,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Search, AlertTriangle, Package } from 'lucide-react';
+import { Search, AlertTriangle, Package, ArrowUpDown, ArrowUp, ArrowDown, ChevronLeft, ChevronRight } from 'lucide-react';
 import { format } from 'date-fns';
 
 interface CurrentStock {
@@ -48,6 +48,12 @@ export const CurrentStockTable = ({ refreshTrigger }: CurrentStockTableProps) =>
     totalValue: 0
   });
   const [topLowStockItems, setTopLowStockItems] = useState<{name: string, qty: number}[]>([]);
+  const [sortConfig, setSortConfig] = useState<{
+    key: string;
+    direction: 'asc' | 'desc';
+  } | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 5;
 
   useEffect(() => {
     fetchCurrentStock();
@@ -231,17 +237,83 @@ export const CurrentStockTable = ({ refreshTrigger }: CurrentStockTableProps) =>
     }
   };
 
-  const filteredStock = stockLevels.filter((stock) => {
+  // Handle sorting
+  const handleSort = (key: string) => {
+    let direction: 'asc' | 'desc' = 'asc';
+    if (sortConfig && sortConfig.key === key && sortConfig.direction === 'asc') {
+      direction = 'desc';
+    }
+    setSortConfig({ key, direction });
+  };
+
+  // Get sort icon
+  const getSortIcon = (key: string) => {
+    if (!sortConfig || sortConfig.key !== key) {
+      return <ArrowUpDown className="w-4 h-4" />;
+    }
+    return sortConfig.direction === 'asc' ? 
+      <ArrowUp className="w-4 h-4" /> : 
+      <ArrowDown className="w-4 h-4" />;
+  };
+
+  const filteredAndSortedStock = useMemo(() => {
+    let filtered = stockLevels.filter((stock) => {
     const matchesSearch = 
       stock.product_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       stock.product_sku.toLowerCase().includes(searchTerm.toLowerCase()) ||
       stock.warehouse_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       stock.bin_name.toLowerCase().includes(searchTerm.toLowerCase());
     
-    const matchesLowStock = !showLowStockOnly || stock.current_stock <= stock.min_stock_level;
-    
-    return matchesSearch && matchesLowStock;
-  });
+      const matchesLowStock = !showLowStockOnly || stock.current_stock <= stock.min_stock_level;
+      
+      return matchesSearch && matchesLowStock;
+    });
+
+    if (sortConfig) {
+      filtered.sort((a, b) => {
+        let aValue: any;
+        let bValue: any;
+
+        switch (sortConfig.key) {
+          case 'product_name':
+            aValue = a.product_name;
+            bValue = b.product_name;
+            break;
+          case 'current_stock':
+            aValue = a.current_stock;
+            bValue = b.current_stock;
+            break;
+          case 'min_stock_level':
+            aValue = a.min_stock_level;
+            bValue = b.min_stock_level;
+            break;
+          case 'last_transaction_date':
+            aValue = new Date(a.last_transaction_date);
+            bValue = new Date(b.last_transaction_date);
+            break;
+          default:
+            aValue = a[sortConfig.key as keyof CurrentStock];
+            bValue = b[sortConfig.key as keyof CurrentStock];
+        }
+        
+        if (aValue < bValue) {
+          return sortConfig.direction === 'asc' ? -1 : 1;
+        }
+        if (aValue > bValue) {
+          return sortConfig.direction === 'asc' ? 1 : -1;
+        }
+        return 0;
+      });
+    }
+
+    return filtered;
+  }, [stockLevels, searchTerm, showLowStockOnly, sortConfig]);
+
+  // Pagination
+  const totalPages = Math.ceil(filteredAndSortedStock.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const currentStock = filteredAndSortedStock.slice(startIndex, endIndex);
 
   const totalProducts = stockLevels.length;
   const lowStockItems = stockLevels.filter(stock => stock.current_stock <= stock.min_stock_level && stock.current_stock > 0).length;
@@ -317,25 +389,46 @@ export const CurrentStockTable = ({ refreshTrigger }: CurrentStockTableProps) =>
       </div>
 
       {/* Stock Table */}
-      {filteredStock.length === 0 ? (
+      {filteredAndSortedStock.length === 0 ? (
         <div className="text-center py-8 text-muted-foreground">
           {searchTerm || showLowStockOnly ? 'No stock levels match your filters.' : 'No stock data found.'}
         </div>
       ) : (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Product</TableHead>
-              <TableHead>Location</TableHead>
-              <TableHead className="text-right">Current Stock</TableHead>
-              <TableHead className="text-right">Min Stock</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Last Transaction</TableHead>
-              <TableHead className="text-right">Transactions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filteredStock.map((stock) => (
+        <>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="cursor-pointer" onClick={() => handleSort('product_name')}>
+                  <div className="flex items-center space-x-2">
+                    <span>Product</span>
+                    {getSortIcon('product_name')}
+                  </div>
+                </TableHead>
+                <TableHead>Location</TableHead>
+                <TableHead className="text-right cursor-pointer" onClick={() => handleSort('current_stock')}>
+                  <div className="flex items-center justify-end space-x-2">
+                    <span>Current Stock</span>
+                    {getSortIcon('current_stock')}
+                  </div>
+                </TableHead>
+                <TableHead className="text-right cursor-pointer" onClick={() => handleSort('min_stock_level')}>
+                  <div className="flex items-center justify-end space-x-2">
+                    <span>Min Stock</span>
+                    {getSortIcon('min_stock_level')}
+                  </div>
+                </TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead className="cursor-pointer" onClick={() => handleSort('last_transaction_date')}>
+                  <div className="flex items-center space-x-2">
+                    <span>Last Transaction</span>
+                    {getSortIcon('last_transaction_date')}
+                  </div>
+                </TableHead>
+                <TableHead className="text-right">Transactions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {currentStock.map((stock) => (
               <TableRow key={`${stock.product_id}-${stock.warehouse_id}-${stock.bin_id}`}>
                 <TableCell>
                   <div>
@@ -368,9 +461,42 @@ export const CurrentStockTable = ({ refreshTrigger }: CurrentStockTableProps) =>
                   {stock.transaction_count}
                 </TableCell>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+              ))}
+            </TableBody>
+          </Table>
+
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between mt-4">
+              <p className="text-sm text-muted-foreground">
+                Showing {startIndex + 1} to {Math.min(endIndex, filteredAndSortedStock.length)} of {filteredAndSortedStock.length} stock items
+              </p>
+              <div className="flex items-center space-x-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                  disabled={currentPage === 1}
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                  Previous
+                </Button>
+                <span className="text-sm">
+                  Page {currentPage} of {totalPages}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                  disabled={currentPage === totalPages}
+                >
+                  Next
+                  <ChevronRight className="w-4 h-4" />
+                </Button>
+              </div>
+            </div>
+          )}
+        </>
       )}
     </div>
   );

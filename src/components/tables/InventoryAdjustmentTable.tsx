@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import {
@@ -11,7 +11,7 @@ import {
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Eye } from 'lucide-react';
+import { Eye, ArrowUpDown, ArrowUp, ArrowDown, ChevronLeft, ChevronRight } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 
@@ -51,6 +51,12 @@ export const InventoryAdjustmentTable: React.FC<InventoryAdjustmentTableProps> =
   const { company } = useAuth();
   const [adjustments, setAdjustments] = useState<InventoryAdjustment[]>([]);
   const [loading, setLoading] = useState(true);
+  const [sortConfig, setSortConfig] = useState<{
+    key: string;
+    direction: 'asc' | 'desc';
+  } | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 5;
 
   useEffect(() => {
     if (company) {
@@ -135,6 +141,75 @@ export const InventoryAdjustmentTable: React.FC<InventoryAdjustmentTableProps> =
     return `${profile.first_name || ''} ${profile.last_name || ''}`.trim() || 'Unknown User';
   };
 
+  // Handle sorting
+  const handleSort = (key: string) => {
+    let direction: 'asc' | 'desc' = 'asc';
+    if (sortConfig && sortConfig.key === key && sortConfig.direction === 'asc') {
+      direction = 'desc';
+    }
+    setSortConfig({ key, direction });
+  };
+
+  // Get sort icon
+  const getSortIcon = (key: string) => {
+    if (!sortConfig || sortConfig.key !== key) {
+      return <ArrowUpDown className="w-4 h-4" />;
+    }
+    return sortConfig.direction === 'asc' ? 
+      <ArrowUp className="w-4 h-4" /> : 
+      <ArrowDown className="w-4 h-4" />;
+  };
+
+  // Filter and sort adjustments
+  const sortedAdjustments = useMemo(() => {
+    let sorted = [...adjustments];
+
+    if (sortConfig) {
+      sorted.sort((a, b) => {
+        let aValue: any;
+        let bValue: any;
+
+        switch (sortConfig.key) {
+          case 'created_at':
+            aValue = new Date(a.created_at);
+            bValue = new Date(b.created_at);
+            break;
+          case 'product_name':
+            aValue = a.products.name;
+            bValue = b.products.name;
+            break;
+          case 'adjustment_quantity':
+            aValue = a.adjustment_quantity;
+            bValue = b.adjustment_quantity;
+            break;
+          case 'adjustment_amount':
+            aValue = a.adjustment_amount;
+            bValue = b.adjustment_amount;
+            break;
+          default:
+            aValue = a[sortConfig.key as keyof InventoryAdjustment];
+            bValue = b[sortConfig.key as keyof InventoryAdjustment];
+        }
+        
+        if (aValue < bValue) {
+          return sortConfig.direction === 'asc' ? -1 : 1;
+        }
+        if (aValue > bValue) {
+          return sortConfig.direction === 'asc' ? 1 : -1;
+        }
+        return 0;
+      });
+    }
+
+    return sorted;
+  }, [adjustments, sortConfig]);
+
+  // Pagination
+  const totalPages = Math.ceil(sortedAdjustments.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const currentAdjustments = sortedAdjustments.slice(startIndex, endIndex);
+
   if (loading) {
     return (
       <div className="flex justify-center items-center py-8">
@@ -152,26 +227,46 @@ export const InventoryAdjustmentTable: React.FC<InventoryAdjustmentTableProps> =
   }
 
   return (
-    <div className="w-full">
+    <div className="w-full space-y-4">
       <div className="rounded-md border">
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Date</TableHead>
-              <TableHead>Product</TableHead>
+              <TableHead className="cursor-pointer" onClick={() => handleSort('created_at')}>
+                <div className="flex items-center space-x-2">
+                  <span>Date</span>
+                  {getSortIcon('created_at')}
+                </div>
+              </TableHead>
+              <TableHead className="cursor-pointer" onClick={() => handleSort('product_name')}>
+                <div className="flex items-center space-x-2">
+                  <span>Product</span>
+                  {getSortIcon('product_name')}
+                </div>
+              </TableHead>
               <TableHead>Warehouse & Bin</TableHead>
               <TableHead>Type</TableHead>
               <TableHead>Reason</TableHead>
-              <TableHead className="text-right">Quantity</TableHead>
+              <TableHead className="text-right cursor-pointer" onClick={() => handleSort('adjustment_quantity')}>
+                <div className="flex items-center justify-end space-x-2">
+                  <span>Quantity</span>
+                  {getSortIcon('adjustment_quantity')}
+                </div>
+              </TableHead>
               <TableHead className="text-right">Stock Before</TableHead>
               <TableHead className="text-right">Stock After</TableHead>
               <TableHead>Created By</TableHead>
-              <TableHead className="text-right">Amount</TableHead>
+              <TableHead className="text-right cursor-pointer" onClick={() => handleSort('adjustment_amount')}>
+                <div className="flex items-center justify-end space-x-2">
+                  <span>Amount</span>
+                  {getSortIcon('adjustment_amount')}
+                </div>
+              </TableHead>
               <TableHead>Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {adjustments.map((adjustment) => (
+            {currentAdjustments.map((adjustment) => (
               <TableRow key={adjustment.id}>
                 <TableCell>
                   {format(new Date(adjustment.created_at), 'MMM dd, yyyy HH:mm')}
@@ -233,6 +328,38 @@ export const InventoryAdjustmentTable: React.FC<InventoryAdjustmentTableProps> =
           </TableBody>
         </Table>
       </div>
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between">
+          <p className="text-sm text-muted-foreground">
+            Showing {startIndex + 1} to {Math.min(endIndex, sortedAdjustments.length)} of {sortedAdjustments.length} adjustments
+          </p>
+          <div className="flex items-center space-x-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+              disabled={currentPage === 1}
+            >
+              <ChevronLeft className="w-4 h-4" />
+              Previous
+            </Button>
+            <span className="text-sm">
+              Page {currentPage} of {totalPages}
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+              disabled={currentPage === totalPages}
+            >
+              Next
+              <ChevronRight className="w-4 h-4" />
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

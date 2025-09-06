@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
@@ -15,7 +15,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { format } from 'date-fns';
-import { Search, Filter } from 'lucide-react';
+import { Search, Filter, ArrowUpDown, ArrowUp, ArrowDown, ChevronLeft, ChevronRight } from 'lucide-react';
 
 interface InventoryTransaction {
   id: string;
@@ -44,6 +44,12 @@ export const InventoryTransactionTable = ({ refreshTrigger }: InventoryTransacti
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [typeFilter, setTypeFilter] = useState<string>('all');
+  const [sortConfig, setSortConfig] = useState<{
+    key: string;
+    direction: 'asc' | 'desc';
+  } | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 5;
 
   useEffect(() => {
     fetchTransactions();
@@ -130,7 +136,27 @@ export const InventoryTransactionTable = ({ refreshTrigger }: InventoryTransacti
     return <Badge variant={config.variant}>{config.label}</Badge>;
   };
 
-  const filteredTransactions = transactions.filter((transaction) => {
+  // Handle sorting
+  const handleSort = (key: string) => {
+    let direction: 'asc' | 'desc' = 'asc';
+    if (sortConfig && sortConfig.key === key && sortConfig.direction === 'asc') {
+      direction = 'desc';
+    }
+    setSortConfig({ key, direction });
+  };
+
+  // Get sort icon
+  const getSortIcon = (key: string) => {
+    if (!sortConfig || sortConfig.key !== key) {
+      return <ArrowUpDown className="w-4 h-4" />;
+    }
+    return sortConfig.direction === 'asc' ? 
+      <ArrowUp className="w-4 h-4" /> : 
+      <ArrowDown className="w-4 h-4" />;
+  };
+
+  const filteredAndSortedTransactions = useMemo(() => {
+    let filtered = transactions.filter((transaction) => {
     const matchesSearch = 
       transaction.product_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       transaction.product_sku.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -138,10 +164,56 @@ export const InventoryTransactionTable = ({ refreshTrigger }: InventoryTransacti
       transaction.warehouse_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       transaction.bin_name.toLowerCase().includes(searchTerm.toLowerCase());
     
-    const matchesType = typeFilter === 'all' || transaction.transaction_type === typeFilter;
-    
-    return matchesSearch && matchesType;
-  });
+      const matchesType = typeFilter === 'all' || transaction.transaction_type === typeFilter;
+      
+      return matchesSearch && matchesType;
+    });
+
+    if (sortConfig) {
+      filtered.sort((a, b) => {
+        let aValue: any;
+        let bValue: any;
+
+        switch (sortConfig.key) {
+          case 'transaction_date':
+            aValue = new Date(a.transaction_date);
+            bValue = new Date(b.transaction_date);
+            break;
+          case 'product_name':
+            aValue = a.product_name;
+            bValue = b.product_name;
+            break;
+          case 'quantity_change':
+            aValue = a.quantity_change;
+            bValue = b.quantity_change;
+            break;
+          case 'total_value':
+            aValue = a.total_value;
+            bValue = b.total_value;
+            break;
+          default:
+            aValue = a[sortConfig.key as keyof InventoryTransaction];
+            bValue = b[sortConfig.key as keyof InventoryTransaction];
+        }
+        
+        if (aValue < bValue) {
+          return sortConfig.direction === 'asc' ? -1 : 1;
+        }
+        if (aValue > bValue) {
+          return sortConfig.direction === 'asc' ? 1 : -1;
+        }
+        return 0;
+      });
+    }
+
+    return filtered;
+  }, [transactions, searchTerm, typeFilter, sortConfig]);
+
+  // Pagination
+  const totalPages = Math.ceil(filteredAndSortedTransactions.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const currentTransactions = filteredAndSortedTransactions.slice(startIndex, endIndex);
 
   if (loading) {
     return <div className="flex justify-center items-center p-8">Loading inventory transactions...</div>;
@@ -180,27 +252,48 @@ export const InventoryTransactionTable = ({ refreshTrigger }: InventoryTransacti
       </div>
 
       {/* Transaction Table */}
-      {filteredTransactions.length === 0 ? (
+      {filteredAndSortedTransactions.length === 0 ? (
         <div className="text-center py-8 text-muted-foreground">
           {searchTerm || typeFilter !== 'all' ? 'No transactions match your filters.' : 'No inventory transactions found.'}
         </div>
       ) : (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Date</TableHead>
-              <TableHead>Type</TableHead>
-              <TableHead>Reference</TableHead>
-              <TableHead>Product</TableHead>
-              <TableHead>Location</TableHead>
-              <TableHead className="text-right">Qty Change</TableHead>
-              <TableHead className="text-right">Unit Cost</TableHead>
-              <TableHead className="text-right">Total Value</TableHead>
-              <TableHead>Created By</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filteredTransactions.map((transaction) => (
+        <>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="cursor-pointer" onClick={() => handleSort('transaction_date')}>
+                  <div className="flex items-center space-x-2">
+                    <span>Date</span>
+                    {getSortIcon('transaction_date')}
+                  </div>
+                </TableHead>
+                <TableHead>Type</TableHead>
+                <TableHead>Reference</TableHead>
+                <TableHead className="cursor-pointer" onClick={() => handleSort('product_name')}>
+                  <div className="flex items-center space-x-2">
+                    <span>Product</span>
+                    {getSortIcon('product_name')}
+                  </div>
+                </TableHead>
+                <TableHead>Location</TableHead>
+                <TableHead className="text-right cursor-pointer" onClick={() => handleSort('quantity_change')}>
+                  <div className="flex items-center justify-end space-x-2">
+                    <span>Qty Change</span>
+                    {getSortIcon('quantity_change')}
+                  </div>
+                </TableHead>
+                <TableHead className="text-right">Unit Cost</TableHead>
+                <TableHead className="text-right cursor-pointer" onClick={() => handleSort('total_value')}>
+                  <div className="flex items-center justify-end space-x-2">
+                    <span>Total Value</span>
+                    {getSortIcon('total_value')}
+                  </div>
+                </TableHead>
+                <TableHead>Created By</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {currentTransactions.map((transaction) => (
               <TableRow key={transaction.id}>
                 <TableCell>
                   {format(new Date(transaction.transaction_date), 'MMM dd, yyyy HH:mm')}
@@ -238,9 +331,42 @@ export const InventoryTransactionTable = ({ refreshTrigger }: InventoryTransacti
                 </TableCell>
                 <TableCell>{transaction.created_by_name}</TableCell>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+              ))}
+            </TableBody>
+          </Table>
+
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between mt-4">
+              <p className="text-sm text-muted-foreground">
+                Showing {startIndex + 1} to {Math.min(endIndex, filteredAndSortedTransactions.length)} of {filteredAndSortedTransactions.length} transactions
+              </p>
+              <div className="flex items-center space-x-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                  disabled={currentPage === 1}
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                  Previous
+                </Button>
+                <span className="text-sm">
+                  Page {currentPage} of {totalPages}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                  disabled={currentPage === totalPages}
+                >
+                  Next
+                  <ChevronRight className="w-4 h-4" />
+                </Button>
+              </div>
+            </div>
+          )}
+        </>
       )}
     </div>
   );
