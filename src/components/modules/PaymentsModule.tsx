@@ -37,15 +37,13 @@ interface Payment {
   };
 }
 
-interface PurchaseOrderPayable {
+interface GRNPayable {
   id: string;
-  po_number: string;
-  order_date: string;
+  grn_number: string;
+  grn_date: string;
   total_amount: number;
-  payment_terms: string | null;
-  supplier: {
-    name: string;
-  };
+  supplier_name: string;
+  status: string;
 }
 
 interface SalesInvoiceReceivable {
@@ -64,7 +62,7 @@ export function PaymentsModule() {
   const { toast } = useToast();
   const { hasEditAccess } = useBusinessAuth();
   const canEdit = hasEditAccess('payments');
-  const [accountPayable, setAccountPayable] = useState<PurchaseOrderPayable[]>([]);
+  const [accountPayable, setAccountPayable] = useState<GRNPayable[]>([]);
   const [accountReceivable, setAccountReceivable] = useState<SalesInvoiceReceivable[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -82,17 +80,17 @@ export function PaymentsModule() {
     try {
       setLoading(true);
       const { data, error } = await supabase
-        .from('purchase_orders')
+        .from('grn_header')
         .select(`
           id,
-          po_number,
-          order_date,
+          grn_number,
+          grn_date,
           total_amount,
-          payment_terms,
-          supplier:suppliers(name)
+          supplier_name,
+          status
         `)
-        .eq('status', 'confirmed')
-        .order('order_date', { ascending: false });
+        .in('status', ['accepted', 'received', 'partially_received'])
+        .order('grn_date', { ascending: false });
 
       if (error) {
         console.error('Error fetching account payable:', error);
@@ -143,8 +141,8 @@ export function PaymentsModule() {
 
   // Filter functions for search
   const filteredAccountPayable = accountPayable.filter(item =>
-    item.supplier?.name.toLowerCase().includes(apSearchTerm.toLowerCase()) ||
-    item.po_number.toLowerCase().includes(apSearchTerm.toLowerCase())
+    item.supplier_name.toLowerCase().includes(apSearchTerm.toLowerCase()) ||
+    item.grn_number.toLowerCase().includes(apSearchTerm.toLowerCase())
   );
 
   const filteredAccountReceivable = accountReceivable.filter(item =>
@@ -190,7 +188,7 @@ export function PaymentsModule() {
           </CardHeader>
           <CardContent className="pt-0">
             <p className="text-sm text-muted-foreground">
-              {accountPayable.length} outstanding purchase orders
+              {accountPayable.length} received GRN records
             </p>
           </CardContent>
         </Card>
@@ -226,7 +224,7 @@ export function PaymentsModule() {
               <div className="relative flex-1 max-w-sm">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
                 <Input
-                  placeholder="Search vendors or PO numbers..."
+                  placeholder="Search vendors or GRN numbers..."
                   value={apSearchTerm}
                   onChange={(e) => setApSearchTerm(e.target.value)}
                   className="pl-10"
@@ -240,27 +238,27 @@ export function PaymentsModule() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Vendor Name</TableHead>
-                    <TableHead>PO Number</TableHead>
-                    <TableHead>Order Date</TableHead>
+                    <TableHead>GRN Number</TableHead>
+                    <TableHead>GRN Date</TableHead>
                     <TableHead>Amount</TableHead>
-                    <TableHead>Payment Terms</TableHead>
+                    <TableHead>Status</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {filteredAccountPayable.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={5} className="text-center text-muted-foreground">
-                        No purchase orders found
+                        No GRN records found
                       </TableCell>
                     </TableRow>
                   ) : (
                     filteredAccountPayable.map((item) => (
                       <TableRow key={item.id}>
-                        <TableCell className="font-medium">{item.supplier?.name || 'N/A'}</TableCell>
-                        <TableCell>{item.po_number}</TableCell>
-                        <TableCell>{new Date(item.order_date).toLocaleDateString()}</TableCell>
+                        <TableCell className="font-medium">{item.supplier_name || 'N/A'}</TableCell>
+                        <TableCell>{item.grn_number}</TableCell>
+                        <TableCell>{new Date(item.grn_date).toLocaleDateString()}</TableCell>
                         <TableCell>₹{item.total_amount.toLocaleString()}</TableCell>
-                        <TableCell>{item.payment_terms || 'Net 30'}</TableCell>
+                        <TableCell className="capitalize">{item.status}</TableCell>
                       </TableRow>
                     ))
                   )}
