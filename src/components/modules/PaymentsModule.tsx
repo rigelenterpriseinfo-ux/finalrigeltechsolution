@@ -589,56 +589,8 @@ export function PaymentsModule() {
         <p className="text-muted-foreground">Track payments received and made</p>
       </div>
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-4 gap-4">
-        {/* Account Payable Section */}
-        <Card className="cursor-pointer hover:bg-accent/50 transition-colors" onClick={() => { 
-          setShowAPDetails(!showAPDetails); 
-          setShowARDetails(false); 
-          setShowOverdueVendors(false); 
-          setShowOverdueCustomers(false); 
-        }}>
-          <CardHeader className="pb-3">
-            <CardTitle className="flex items-center justify-between text-sm">
-              <div className="flex items-center gap-2">
-                <TrendingDown className="h-4 w-4 text-destructive" />
-                Account Payable (AP)
-              </div>
-              {showAPDetails ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="pt-0">
-            <div className="text-xl font-bold">₹{totalAP.toLocaleString()}</div>
-            <p className="text-xs text-muted-foreground">
-              {accountPayable.length} received GRN records
-            </p>
-          </CardContent>
-        </Card>
-
-        {/* Account Receivable Section */}
-        <Card className="cursor-pointer hover:bg-accent/50 transition-colors" onClick={() => { 
-          setShowARDetails(!showARDetails); 
-          setShowAPDetails(false); 
-          setShowOverdueVendors(false); 
-          setShowOverdueCustomers(false); 
-        }}>
-          <CardHeader className="pb-3">
-            <CardTitle className="flex items-center justify-between text-sm">
-              <div className="flex items-center gap-2">
-                <TrendingUp className="h-4 w-4 text-green-600" />
-                Account Receivable (AR)
-              </div>
-              {showARDetails ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="pt-0">
-            <div className="text-xl font-bold">₹{totalAR.toLocaleString()}</div>
-            <p className="text-xs text-muted-foreground">
-              {accountReceivable.length} outstanding invoices
-            </p>
-          </CardContent>
-        </Card>
-
+      {/* Top Summary Cards Row */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
         {/* Top 5 Overdue Vendors */}
         <Card className="cursor-pointer hover:bg-accent/50 transition-colors" onClick={() => { 
           setShowOverdueVendors(!showOverdueVendors); 
@@ -683,6 +635,78 @@ export function PaymentsModule() {
             <div className="text-xl font-bold">₹{totalOverdueCustomers.toLocaleString()}</div>
             <p className="text-xs text-muted-foreground">
               {overdueCustomers.length} customers with overdue payments
+            </p>
+          </CardContent>
+        </Card>
+
+        {/* Placeholder cards for balance */}
+        <Card className="opacity-50">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm">Summary Card 3</CardTitle>
+          </CardHeader>
+          <CardContent className="pt-0">
+            <div className="text-xl font-bold">-</div>
+            <p className="text-xs text-muted-foreground">Coming soon</p>
+          </CardContent>
+        </Card>
+
+        <Card className="opacity-50">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm">Summary Card 4</CardTitle>
+          </CardHeader>
+          <CardContent className="pt-0">
+            <div className="text-xl font-bold">-</div>
+            <p className="text-xs text-muted-foreground">Coming soon</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* AP/AR Cards Row */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {/* Account Payable Section */}
+        <Card className="cursor-pointer hover:bg-accent/50 transition-colors" onClick={() => { 
+          setShowAPDetails(!showAPDetails); 
+          setShowARDetails(false); 
+          setShowOverdueVendors(false); 
+          setShowOverdueCustomers(false); 
+        }}>
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center justify-between text-sm">
+              <div className="flex items-center gap-2">
+                <TrendingDown className="h-4 w-4 text-destructive" />
+                Account Payable (AP)
+              </div>
+              {showAPDetails ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="pt-0">
+            <div className="text-xl font-bold">₹{totalAP.toLocaleString()}</div>
+            <p className="text-xs text-muted-foreground">
+              {accountPayable.length} received GRN records
+            </p>
+          </CardContent>
+        </Card>
+
+        {/* Account Receivable Section */}
+        <Card className="cursor-pointer hover:bg-accent/50 transition-colors" onClick={() => { 
+          setShowARDetails(!showARDetails); 
+          setShowAPDetails(false); 
+          setShowOverdueVendors(false); 
+          setShowOverdueCustomers(false); 
+        }}>
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center justify-between text-sm">
+              <div className="flex items-center gap-2">
+                <TrendingUp className="h-4 w-4 text-green-600" />
+                Account Receivable (AR)
+              </div>
+              {showARDetails ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="pt-0">
+            <div className="text-xl font-bold">₹{totalAR.toLocaleString()}</div>
+            <p className="text-xs text-muted-foreground">
+              {accountReceivable.length} outstanding invoices
             </p>
           </CardContent>
         </Card>
