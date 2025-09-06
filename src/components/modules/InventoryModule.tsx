@@ -94,17 +94,242 @@ export function InventoryModule() {
   // BOM state
   type BomComponent = { id: string; productId?: string; name?: string; sku?: string; unit?: string | null; quantity: number; cost: number };
   const [bomComponents, setBomComponents] = useState<BomComponent[]>([]);
+  const [bomName, setBomName] = useState('');
+  const [bomFinishedProduct, setBomFinishedProduct] = useState('');
+  const [bomYield, setBomYield] = useState(1);
+  const [bomLaborCost, setBomLaborCost] = useState(0);
+  const [bomOverheadCost, setBomOverheadCost] = useState(0);
+  const [bomWarehouse, setBomWarehouse] = useState('');
+  const [bomBin, setBomBin] = useState('');
+  const [bomNotes, setBomNotes] = useState('');
+  const [productionQuantity, setProductionQuantity] = useState(1);
+  const [isProducing, setIsProducing] = useState(false);
+  
   const bomCandidateProducts = useMemo(() => products.filter(p => p.product_category !== 'finished_goods'), [products]);
+  const finishedGoodsProducts = useMemo(() => products.filter(p => p.product_category === 'finished_goods'), [products]);
+  
   const addBomComponent = () => {
     setBomComponents(prev => [
       ...prev,
       { id: `${Date.now()}-${Math.random().toString(36).slice(2,8)}`, quantity: 1, cost: 0 }
     ]);
   };
+  
   const updateBomComponent = (id: string, partial: Partial<BomComponent>) => {
     setBomComponents(prev => prev.map(i => (i.id === id ? { ...i, ...partial } : i)));
   };
+  
   const removeBomComponent = (id: string) => setBomComponents(prev => prev.filter(i => i.id !== id));
+
+  // Calculate BOM cost summary
+  const bomCostSummary = useMemo(() => {
+    const materialCost = bomComponents.reduce((sum, comp) => sum + (comp.quantity * comp.cost), 0);
+    const totalCost = materialCost + bomLaborCost + bomOverheadCost;
+    return {
+      materialCost,
+      laborCost: bomLaborCost,
+      overheadCost: bomOverheadCost,
+      totalCost
+    };
+  }, [bomComponents, bomLaborCost, bomOverheadCost]);
+
+  const resetBomForm = () => {
+    setBomName('');
+    setBomFinishedProduct('');
+    setBomYield(1);
+    setBomLaborCost(0);
+    setBomOverheadCost(0);
+    setBomWarehouse('');
+    setBomBin('');
+    setBomNotes('');
+    setBomComponents([]);
+    setProductionQuantity(1);
+  };
+
+  const saveBOM = async () => {
+    if (!profile?.company_id) return;
+    
+    if (!bomName.trim()) {
+      toast({
+        title: "Error",
+        description: "BOM name is required",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!bomFinishedProduct) {
+      toast({
+        title: "Error", 
+        description: "Please select a finished product",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (bomComponents.length === 0) {
+      toast({
+        title: "Error",
+        description: "Please add at least one component",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+
+      // Insert BOM header
+      const { data: bomHeader, error: headerError } = await supabase
+        .from('bom_headers')
+        .insert({
+          company_id: profile.company_id,
+          finished_product_id: bomFinishedProduct,
+          bom_name: bomName,
+          yield_quantity: bomYield,
+          labor_cost_per_unit: bomLaborCost,
+          overhead_cost_per_unit: bomOverheadCost,
+          material_cost_per_unit: bomCostSummary.materialCost,
+          total_cost_per_unit: bomCostSummary.totalCost,
+          warehouse_id: bomWarehouse || null,
+          bin_id: bomBin || null,
+          notes: bomNotes || null
+        })
+        .select()
+        .single();
+
+      if (headerError) throw headerError;
+
+      // Insert BOM components
+      const componentInserts = bomComponents
+        .filter(comp => comp.productId && comp.quantity > 0)
+        .map(comp => ({
+          bom_id: bomHeader.id,
+          component_product_id: comp.productId!,
+          quantity_per_unit: comp.quantity,
+          unit_cost: comp.cost
+        }));
+
+      if (componentInserts.length > 0) {
+        const { error: componentsError } = await supabase
+          .from('bom_components')
+          .insert(componentInserts);
+
+        if (componentsError) throw componentsError;
+      }
+
+      toast({
+        title: "Success",
+        description: "BOM saved successfully",
+      });
+
+      setShowBOMDialog(false);
+      resetBomForm();
+
+    } catch (error) {
+      console.error('Error saving BOM:', error);
+      toast({
+        title: "Error",
+        description: "Failed to save BOM",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleProduction = async () => {
+    if (!profile?.company_id || !bomFinishedProduct || !bomWarehouse) return;
+
+    if (productionQuantity <= 0) {
+      toast({
+        title: "Error",
+        description: "Production quantity must be greater than 0",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      setIsProducing(true);
+
+      // First save the BOM if it's not saved yet
+      if (!bomName.trim()) {
+        toast({
+          title: "Error",
+          description: "Please save the BOM before producing",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Get the BOM ID (we'll need to save first if new)
+      const { data: existingBom } = await supabase
+        .from('bom_headers')
+        .select('id')
+        .eq('company_id', profile.company_id)
+        .eq('bom_name', bomName)
+        .single();
+
+      let bomId = existingBom?.id;
+
+      if (!bomId) {
+        // Save BOM first
+        await saveBOM();
+        // Get the newly created BOM
+        const { data: newBom } = await supabase
+          .from('bom_headers')
+          .select('id')
+          .eq('company_id', profile.company_id)
+          .eq('bom_name', bomName)
+          .single();
+        
+        bomId = newBom?.id;
+      }
+
+      if (!bomId) {
+        throw new Error('Failed to create or find BOM');
+      }
+
+      const { data: result, error } = await supabase.rpc('process_bom_production', {
+        p_bom_id: bomId,
+        p_quantity: productionQuantity,
+        p_company_id: profile.company_id,
+        p_warehouse_id: bomWarehouse,
+        p_bin_id: bomBin || null
+      });
+
+      if (error) throw error;
+
+      const productionResult = result as {
+        success: boolean;
+        finished_goods_qty: number;
+        material_cost_total: number;
+        labor_cost_total: number;
+        overhead_cost_total: number;
+        total_cost: number;
+      };
+
+      toast({
+        title: "Success",
+        description: `Production completed! Produced ${productionResult.finished_goods_qty} units`,
+      });
+
+      // Refresh products to show updated stock
+      fetchProducts();
+      setAdjustmentRefreshTrigger(prev => prev + 1);
+
+    } catch (error) {
+      console.error('Error processing production:', error);
+      toast({
+        title: "Error",
+        description: "Failed to process production",
+        variant: "destructive", 
+      });
+    } finally {
+      setIsProducing(false);
+    }
+  };
 
   // Calculate volume when dimensions change
   const calculateVolume = (length: string, width: string, height: string) => {
@@ -975,7 +1200,7 @@ export function InventoryModule() {
                     BOM
                   </Button>
                 </DialogTrigger>
-                <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+                <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
                   <DialogHeader>
                     <DialogTitle>Bill of Materials (BOM)</DialogTitle>
                     <DialogDescription>
@@ -983,16 +1208,26 @@ export function InventoryModule() {
                     </DialogDescription>
                   </DialogHeader>
                   <div className="space-y-6 p-4">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {/* Basic BOM Info */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                       <div className="space-y-4">
                         <div>
-                          <Label htmlFor="finished_product">Finished Product</Label>
-                          <Select>
+                          <Label htmlFor="bom_name">BOM Name *</Label>
+                          <Input 
+                            id="bom_name" 
+                            placeholder="Enter BOM name" 
+                            value={bomName}
+                            onChange={(e) => setBomName(e.target.value)}
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="finished_product">Finished Product *</Label>
+                          <Select value={bomFinishedProduct} onValueChange={setBomFinishedProduct}>
                             <SelectTrigger>
                               <SelectValue placeholder="Select finished product" />
                             </SelectTrigger>
                             <SelectContent>
-                              {products.filter(p => p.product_category === 'finished_goods').map(product => (
+                              {finishedGoodsProducts.map(product => (
                                 <SelectItem key={product.id} value={product.id}>
                                   {product.name} ({product.sku})
                                 </SelectItem>
@@ -1001,26 +1236,95 @@ export function InventoryModule() {
                           </Select>
                         </div>
                         <div>
-                          <Label htmlFor="bom_name">BOM Name</Label>
-                          <Input id="bom_name" placeholder="Enter BOM name" />
-                        </div>
-                        <div>
-                          <Label htmlFor="bom_version">Version</Label>
-                          <Input id="bom_version" placeholder="e.g., v1.0" defaultValue="v1.0" />
+                          <Label htmlFor="yield_quantity">Yield Quantity *</Label>
+                          <Input 
+                            id="yield_quantity" 
+                            type="number" 
+                            min="1" 
+                            value={bomYield}
+                            onChange={(e) => setBomYield(parseInt(e.target.value) || 1)}
+                            placeholder="Quantity produced" 
+                          />
                         </div>
                       </div>
+                      
                       <div className="space-y-4">
                         <div>
-                          <Label htmlFor="yield_quantity">Yield Quantity</Label>
-                          <Input id="yield_quantity" type="number" min="1" defaultValue="1" placeholder="Quantity produced" />
-                        </div>
-                        <div>
                           <Label htmlFor="labor_cost">Labor Cost per Unit</Label>
-                          <Input id="labor_cost" type="number" step="0.01" min="0" placeholder="0.00" />
+                          <Input 
+                            id="labor_cost" 
+                            type="number" 
+                            step="0.01" 
+                            min="0" 
+                            value={bomLaborCost}
+                            onChange={(e) => setBomLaborCost(parseFloat(e.target.value) || 0)}
+                            placeholder="0.00" 
+                          />
                         </div>
                         <div>
                           <Label htmlFor="overhead_cost">Overhead Cost per Unit</Label>
-                          <Input id="overhead_cost" type="number" step="0.01" min="0" placeholder="0.00" />
+                          <Input 
+                            id="overhead_cost" 
+                            type="number" 
+                            step="0.01" 
+                            min="0" 
+                            value={bomOverheadCost}
+                            onChange={(e) => setBomOverheadCost(parseFloat(e.target.value) || 0)}
+                            placeholder="0.00" 
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="bom_notes">Notes</Label>
+                          <Textarea 
+                            id="bom_notes" 
+                            placeholder="Additional notes or instructions"
+                            value={bomNotes}
+                            onChange={(e) => setBomNotes(e.target.value)}
+                            className="resize-none"
+                            rows={3}
+                          />
+                        </div>
+                      </div>
+                      
+                      <div className="space-y-4">
+                        <div className="bg-blue-50 p-3 rounded-lg border border-blue-200">
+                          <p className="text-sm font-medium text-blue-800 mb-2">📍 Warehouse & Bin Location</p>
+                          <p className="text-xs text-blue-600 mb-3">
+                            For clarity: The same Warehouse/Bin will be used for consuming components and receiving finished goods.
+                          </p>
+                          <div className="space-y-2">
+                            <div>
+                              <Label htmlFor="bom_warehouse">Warehouse</Label>
+                              <Select value={bomWarehouse} onValueChange={setBomWarehouse}>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select warehouse" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {warehouseBins.map(bin => (
+                                    <SelectItem key={bin.id} value={bin.id}>
+                                      {bin.warehouse_name} - {bin.bin_code}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <div>
+                              <Label htmlFor="bom_bin">Bin (Optional)</Label>
+                              <Select value={bomBin} onValueChange={setBomBin}>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select bin" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="">No specific bin</SelectItem>
+                                  {warehouseBins.filter(bin => bin.id === bomWarehouse).map(bin => (
+                                    <SelectItem key={bin.id} value={bin.id}>
+                                      {bin.bin_code}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -1134,32 +1438,94 @@ export function InventoryModule() {
                       <CardContent>
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                           <div className="text-center">
-                            <div className="text-2xl font-bold text-primary">₹0.00</div>
+                            <div className="text-2xl font-bold text-primary">₹{bomCostSummary.materialCost.toFixed(2)}</div>
                             <div className="text-sm text-muted-foreground">Material Cost</div>
                           </div>
                           <div className="text-center">
-                            <div className="text-2xl font-bold text-primary">₹0.00</div>
+                            <div className="text-2xl font-bold text-primary">₹{bomCostSummary.laborCost.toFixed(2)}</div>
                             <div className="text-sm text-muted-foreground">Labor Cost</div>
                           </div>
                           <div className="text-center">
-                            <div className="text-2xl font-bold text-primary">₹0.00</div>
+                            <div className="text-2xl font-bold text-primary">₹{bomCostSummary.overheadCost.toFixed(2)}</div>
                             <div className="text-sm text-muted-foreground">Overhead Cost</div>
                           </div>
                           <div className="text-center">
-                            <div className="text-2xl font-bold text-destructive">₹0.00</div>
+                            <div className="text-2xl font-bold text-destructive">₹{bomCostSummary.totalCost.toFixed(2)}</div>
                             <div className="text-sm text-muted-foreground">Total Cost per Unit</div>
                           </div>
                         </div>
                       </CardContent>
                     </Card>
+
+                    {/* Production Section */}
+                    {bomName && bomFinishedProduct && bomComponents.length > 0 && (
+                      <Card className="bg-green-50 border-green-200">
+                        <CardHeader>
+                          <CardTitle className="text-lg flex items-center gap-2">
+                            <CheckCircle className="w-5 h-5 text-green-600" />
+                            Production Ready
+                          </CardTitle>
+                          <CardDescription>
+                            This BOM is ready for production. Enter quantity to produce and update inventory.
+                          </CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="flex items-center gap-4">
+                            <div>
+                              <Label htmlFor="production_quantity">Production Quantity</Label>
+                              <Input
+                                id="production_quantity"
+                                type="number"
+                                min="1"
+                                value={productionQuantity}
+                                onChange={(e) => setProductionQuantity(parseInt(e.target.value) || 1)}
+                                className="w-24"
+                              />
+                            </div>
+                            <div className="flex flex-col gap-2">
+                              <Button 
+                                onClick={handleProduction}
+                                disabled={isProducing || !bomWarehouse}
+                                className="bg-green-600 hover:bg-green-700"
+                              >
+                                {isProducing ? (
+                                  <>
+                                    <div className="animate-spin rounded-full h-4 w-4 border-b border-white mr-2"></div>
+                                    Producing...
+                                  </>
+                                ) : (
+                                  <>
+                                    <CheckCircle className="w-4 h-4 mr-2" />
+                                    Produce {productionQuantity} Unit{productionQuantity > 1 ? 's' : ''}
+                                  </>
+                                )}
+                              </Button>
+                              {!bomWarehouse && (
+                                <p className="text-xs text-red-600">Please select a warehouse to proceed</p>
+                              )}
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    )}
                   </div>
                   
                   <div className="flex justify-end space-x-2 p-4 border-t">
-                    <Button variant="outline" onClick={() => setShowBOMDialog(false)}>
+                    <Button variant="outline" onClick={() => { setShowBOMDialog(false); resetBomForm(); }}>
                       Cancel
                     </Button>
-                    <Button>
-                      Save BOM
+                    <Button 
+                      onClick={saveBOM}
+                      disabled={isSubmitting || !bomName.trim() || !bomFinishedProduct || bomComponents.length === 0}
+                    >
+                      {isSubmitting ? (
+                        <>
+                          <div className="animate-spin rounded-full h-4 w-4 border-b border-current mr-2"></div>
+                          Saving...
+                        </>
+                      ) : (
+                        'Save BOM'
+                      )}
                     </Button>
                   </div>
                 </DialogContent>

@@ -44,6 +44,137 @@ export type Database = {
         }
         Relationships: []
       }
+      bom_components: {
+        Row: {
+          bom_id: string
+          component_product_id: string
+          created_at: string
+          id: string
+          quantity_per_unit: number
+          unit_cost: number
+        }
+        Insert: {
+          bom_id: string
+          component_product_id: string
+          created_at?: string
+          id?: string
+          quantity_per_unit: number
+          unit_cost?: number
+        }
+        Update: {
+          bom_id?: string
+          component_product_id?: string
+          created_at?: string
+          id?: string
+          quantity_per_unit?: number
+          unit_cost?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bom_components_bom_id_fkey"
+            columns: ["bom_id"]
+            isOneToOne: false
+            referencedRelation: "bom_headers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bom_components_component_product_id_fkey"
+            columns: ["component_product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      bom_headers: {
+        Row: {
+          bin_id: string | null
+          bom_name: string
+          company_id: string
+          created_at: string
+          created_by: string
+          finished_product_id: string
+          id: string
+          is_active: boolean
+          labor_cost_per_unit: number
+          material_cost_per_unit: number
+          notes: string | null
+          overhead_cost_per_unit: number
+          total_cost_per_unit: number
+          updated_at: string
+          version: string
+          warehouse_id: string | null
+          yield_quantity: number
+        }
+        Insert: {
+          bin_id?: string | null
+          bom_name: string
+          company_id: string
+          created_at?: string
+          created_by?: string
+          finished_product_id: string
+          id?: string
+          is_active?: boolean
+          labor_cost_per_unit?: number
+          material_cost_per_unit?: number
+          notes?: string | null
+          overhead_cost_per_unit?: number
+          total_cost_per_unit?: number
+          updated_at?: string
+          version?: string
+          warehouse_id?: string | null
+          yield_quantity?: number
+        }
+        Update: {
+          bin_id?: string | null
+          bom_name?: string
+          company_id?: string
+          created_at?: string
+          created_by?: string
+          finished_product_id?: string
+          id?: string
+          is_active?: boolean
+          labor_cost_per_unit?: number
+          material_cost_per_unit?: number
+          notes?: string | null
+          overhead_cost_per_unit?: number
+          total_cost_per_unit?: number
+          updated_at?: string
+          version?: string
+          warehouse_id?: string | null
+          yield_quantity?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bom_headers_bin_id_fkey"
+            columns: ["bin_id"]
+            isOneToOne: false
+            referencedRelation: "warehouse_bins"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bom_headers_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bom_headers_finished_product_id_fkey"
+            columns: ["finished_product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bom_headers_warehouse_id_fkey"
+            columns: ["warehouse_id"]
+            isOneToOne: false
+            referencedRelation: "warehouse_bins"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       companies: {
         Row: {
           address: string | null
@@ -1256,6 +1387,90 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      production_runs: {
+        Row: {
+          bin_id: string | null
+          bom_id: string
+          company_id: string
+          created_at: string
+          created_by: string
+          finished_product_id: string
+          id: string
+          labor_cost_total: number
+          material_cost_total: number
+          overhead_cost_total: number
+          quantity_produced: number
+          total_cost: number
+          warehouse_id: string
+        }
+        Insert: {
+          bin_id?: string | null
+          bom_id: string
+          company_id: string
+          created_at?: string
+          created_by?: string
+          finished_product_id: string
+          id?: string
+          labor_cost_total?: number
+          material_cost_total?: number
+          overhead_cost_total?: number
+          quantity_produced: number
+          total_cost?: number
+          warehouse_id: string
+        }
+        Update: {
+          bin_id?: string | null
+          bom_id?: string
+          company_id?: string
+          created_at?: string
+          created_by?: string
+          finished_product_id?: string
+          id?: string
+          labor_cost_total?: number
+          material_cost_total?: number
+          overhead_cost_total?: number
+          quantity_produced?: number
+          total_cost?: number
+          warehouse_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "production_runs_bin_id_fkey"
+            columns: ["bin_id"]
+            isOneToOne: false
+            referencedRelation: "warehouse_bins"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "production_runs_bom_id_fkey"
+            columns: ["bom_id"]
+            isOneToOne: false
+            referencedRelation: "bom_headers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "production_runs_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "production_runs_finished_product_id_fkey"
+            columns: ["finished_product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "production_runs_warehouse_id_fkey"
+            columns: ["warehouse_id"]
+            isOneToOne: false
+            referencedRelation: "warehouse_bins"
             referencedColumns: ["id"]
           },
         ]
@@ -3104,6 +3319,17 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: boolean
       }
+      process_bom_production: {
+        Args: {
+          p_bin_id?: string
+          p_bom_id: string
+          p_company_id: string
+          p_created_by?: string
+          p_quantity: number
+          p_warehouse_id: string
+        }
+        Returns: Json
+      }
       process_credit_note_inventory: {
         Args: { p_credit_note_id: string }
         Returns: Json
@@ -3156,6 +3382,8 @@ export type Database = {
         | "transfer_in"
         | "sales_invoice"
         | "sales_return"
+        | "production_receipt"
+        | "production_consumption"
       user_role: "Admin" | "User" | "ViewOnly"
     }
     CompositeTypes: {
@@ -3298,6 +3526,8 @@ export const Constants = {
         "transfer_in",
         "sales_invoice",
         "sales_return",
+        "production_receipt",
+        "production_consumption",
       ],
       user_role: ["Admin", "User", "ViewOnly"],
     },
