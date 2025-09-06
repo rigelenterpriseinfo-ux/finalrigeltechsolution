@@ -486,47 +486,53 @@ export function InventoryModule() {
                     Add Product
                   </Button>
                 </DialogTrigger>
-                <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-                  <DialogHeader>
-                    <DialogTitle>Add New Product</DialogTitle>
-                    <DialogDescription>
+                <DialogContent className="max-w-6xl max-h-[95vh] overflow-y-auto">
+                  <DialogHeader className="pb-3">
+                    <DialogTitle className="text-xl">Add New Product</DialogTitle>
+                    <DialogDescription className="text-sm">
                       Enter the product details below
                     </DialogDescription>
                   </DialogHeader>
-                  <form onSubmit={handleAddProduct} className="space-y-6">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      {/* Basic Information */}
-                      <div className="space-y-4">
-                        <h3 className="text-lg font-semibold text-primary">Basic Information</h3>
-                        <div className="space-y-4">
+                  <form onSubmit={handleAddProduct} className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      {/* Column 1: Basic Information */}
+                      <div className="space-y-3">
+                        <h3 className="text-base font-semibold text-primary border-b pb-1">Basic Information</h3>
+                        <div className="space-y-3">
                           <div>
-                            <Label htmlFor="name" className="text-sm font-medium">Product Name *</Label>
-                            <Input id="name" name="name" required className="mt-1" />
+                            <Label htmlFor="name" className="text-xs font-medium">Product Name *</Label>
+                            <Input id="name" name="name" required className="mt-0.5 h-8" />
                           </div>
                           <div>
-                            <Label htmlFor="sku" className="text-sm font-medium">SKU *</Label>
-                            <Input id="sku" name="sku" required className="mt-1" />
+                            <Label htmlFor="sku" className="text-xs font-medium">SKU *</Label>
+                            <Input id="sku" name="sku" required className="mt-0.5 h-8" />
                           </div>
                           <div>
-                            <Label htmlFor="description" className="text-sm font-medium">Description</Label>
-                            <Textarea id="description" name="description" className="mt-1" />
+                            <Label htmlFor="description" className="text-xs font-medium">Description</Label>
+                            <Textarea id="description" name="description" className="mt-0.5 min-h-[60px] resize-none" />
                           </div>
-                          <div>
-                            <Label htmlFor="product_type" className="text-sm font-medium">Product Type *</Label>
-                            <Select name="product_type" required>
-                              <SelectTrigger className="mt-1">
-                                <SelectValue placeholder="Select product type" />
+                          <div className="grid grid-cols-2 gap-2">
+                            <div>
+                              <Label htmlFor="product_type" className="text-xs font-medium">Product Type *</Label>
+                              <Select name="product_type" required>
+                              <SelectTrigger className="mt-0.5 h-8">
+                                <SelectValue placeholder="Select type" />
                               </SelectTrigger>
                               <SelectContent>
                                 <SelectItem value="goods">Goods</SelectItem>
                                 <SelectItem value="service">Service</SelectItem>
                               </SelectContent>
                             </Select>
+                            </div>
+                            <div>
+                              <Label htmlFor="unit" className="text-xs font-medium">Unit</Label>
+                              <Input id="unit" name="unit" placeholder="pcs, kg, ltr" className="mt-0.5 h-8" />
+                            </div>
                           </div>
                           <div>
-                            <Label htmlFor="product_category" className="text-sm font-medium">Product Category *</Label>
+                            <Label htmlFor="product_category" className="text-xs font-medium">Product Category *</Label>
                             <Select name="product_category" required>
-                              <SelectTrigger className="mt-1">
+                              <SelectTrigger className="mt-0.5 h-8">
                                 <SelectValue placeholder="Select category" />
                               </SelectTrigger>
                               <SelectContent>
@@ -539,23 +545,19 @@ export function InventoryModule() {
                             </Select>
                           </div>
                           <div>
-                            <Label htmlFor="barcode" className="text-sm font-medium">Barcode (Optional)</Label>
-                            <Input id="barcode" name="barcode" placeholder="Enter barcode" className="mt-1" />
+                            <Label htmlFor="barcode" className="text-xs font-medium">Barcode (Optional)</Label>
+                            <Input id="barcode" name="barcode" placeholder="Enter barcode" className="mt-0.5 h-8" />
                           </div>
                         </div>
                       </div>
 
-                      {/* Pricing */}
-                      <div className="space-y-4">
-                        <h3 className="text-lg font-semibold text-primary">Pricing</h3>
-                        <div className="space-y-4">
-                          <div>
-                            <Label htmlFor="unit" className="text-sm font-medium">Unit</Label>
-                            <Input id="unit" name="unit" placeholder="e.g., pcs, kg, ltr" className="mt-1" />
-                          </div>
-                          <div className="grid grid-cols-2 gap-4">
+                      {/* Column 2: Pricing & Tax */}
+                      <div className="space-y-3">
+                        <h3 className="text-base font-semibold text-primary border-b pb-1">Pricing & Tax</h3>
+                        <div className="space-y-3">
+                          <div className="grid grid-cols-2 gap-2">
                             <div>
-                              <Label htmlFor="cost_price" className="text-sm font-medium">Cost Price *</Label>
+                              <Label htmlFor="cost_price" className="text-xs font-medium">Cost Price *</Label>
                               <Input 
                                 id="cost_price" 
                                 name="cost_price" 
@@ -563,11 +565,11 @@ export function InventoryModule() {
                                 step="0.01" 
                                 min="0"
                                 required 
-                                className="mt-1" 
+                                className="mt-0.5 h-8" 
                               />
                             </div>
                             <div>
-                              <Label htmlFor="unit_price" className="text-sm font-medium">Selling Price *</Label>
+                              <Label htmlFor="unit_price" className="text-xs font-medium">Selling Price *</Label>
                               <Input 
                                 id="unit_price" 
                                 name="unit_price" 
@@ -575,12 +577,12 @@ export function InventoryModule() {
                                 step="0.01" 
                                 min="0"
                                 required 
-                                className="mt-1" 
+                                className="mt-0.5 h-8" 
                               />
                             </div>
                           </div>
                           <div>
-                            <Label htmlFor="mrp" className="text-sm font-medium">MRP (Optional)</Label>
+                            <Label htmlFor="mrp" className="text-xs font-medium">MRP (Optional)</Label>
                             <Input 
                               id="mrp" 
                               name="mrp" 
@@ -588,18 +590,11 @@ export function InventoryModule() {
                               step="0.01" 
                               min="0"
                               placeholder="Maximum Retail Price" 
-                              className="mt-1" 
+                              className="mt-0.5 h-8" 
                             />
                           </div>
-                        </div>
-                      </div>
-
-                      {/* Tax Information */}
-                      <div className="space-y-4">
-                        <h3 className="text-lg font-semibold text-primary">Tax Information</h3>
-                        <div className="space-y-4">
-                          <div className="flex items-center justify-between">
-                            <Label htmlFor="is_taxable" className="text-sm font-medium">Taxable Item</Label>
+                          <div className="flex items-center justify-between py-1">
+                            <Label htmlFor="is_taxable" className="text-xs font-medium">Taxable Item</Label>
                             <Switch 
                               id="is_taxable"
                               name="is_taxable"
@@ -610,13 +605,13 @@ export function InventoryModule() {
                           {isTaxable && (
                             <>
                               <div>
-                                <Label htmlFor="hsn_code" className="text-sm font-medium">HSN Code</Label>
-                                <Input id="hsn_code" name="hsn_code" className="mt-1" />
+                                <Label htmlFor="hsn_code" className="text-xs font-medium">HSN Code</Label>
+                                <Input id="hsn_code" name="hsn_code" className="mt-0.5 h-8" />
                               </div>
                               <div>
-                                <Label htmlFor="gst_percentage" className="text-sm font-medium">GST Percentage</Label>
+                                <Label htmlFor="gst_percentage" className="text-xs font-medium">GST Percentage</Label>
                                 <Select name="gst_percentage" defaultValue="0">
-                                  <SelectTrigger className="mt-1">
+                                  <SelectTrigger className="mt-0.5 h-8">
                                     <SelectValue placeholder="Select GST rate" />
                                   </SelectTrigger>
                                   <SelectContent>
@@ -633,13 +628,13 @@ export function InventoryModule() {
                         </div>
                       </div>
 
-                      {/* Stock & Status */}
-                      <div className="space-y-4">
-                        <h3 className="text-lg font-semibold text-primary">Stock & Status</h3>
-                        <div className="space-y-4">
-                          <div className="grid grid-cols-2 gap-4">
+                      {/* Column 3: Stock & Dimensions */}
+                      <div className="space-y-3">
+                        <h3 className="text-base font-semibold text-primary border-b pb-1">Stock & Dimensions</h3>
+                        <div className="space-y-3">
+                          <div className="grid grid-cols-2 gap-2">
                             <div>
-                              <Label htmlFor="min_stock_level" className="text-sm font-medium">Min Stock Level *</Label>
+                              <Label htmlFor="min_stock_level" className="text-xs font-medium">Min Stock *</Label>
                               <Input 
                                 id="min_stock_level" 
                                 name="min_stock_level" 
@@ -647,49 +642,42 @@ export function InventoryModule() {
                                 min="0"
                                 defaultValue="0"
                                 required 
-                                className="mt-1" 
+                                className="mt-0.5 h-8" 
                               />
                             </div>
                             <div>
-                              <Label htmlFor="max_stock_level" className="text-sm font-medium">Max Stock Level</Label>
+                              <Label htmlFor="max_stock_level" className="text-xs font-medium">Max Stock</Label>
                               <Input 
                                 id="max_stock_level" 
                                 name="max_stock_level" 
                                 type="number" 
                                 min="0"
-                                className="mt-1" 
+                                className="mt-0.5 h-8" 
                               />
                             </div>
                           </div>
-                          <div className="flex items-center justify-between">
-                            <Label htmlFor="is_active" className="text-sm font-medium">Active Product</Label>
+                          <div className="flex items-center justify-between py-1">
+                            <Label htmlFor="is_active" className="text-xs font-medium">Active Product</Label>
                             <Switch 
                               id="is_active"
                               name="is_active"
                               defaultChecked={true}
                             />
                           </div>
-                        </div>
-                      </div>
-
-                      {/* Physical Dimensions */}
-                      <div className="space-y-4">
-                        <h3 className="text-lg font-semibold text-primary">Physical Dimensions</h3>
-                        <div className="space-y-4">
                           <div>
-                            <Label htmlFor="weight_kg" className="text-sm font-medium">Weight (kg)</Label>
+                            <Label htmlFor="weight_kg" className="text-xs font-medium">Weight (kg)</Label>
                             <Input 
                               id="weight_kg" 
                               name="weight_kg" 
                               type="number" 
                               step="0.01" 
                               min="0"
-                              className="mt-1" 
+                              className="mt-0.5 h-8" 
                             />
                           </div>
-                          <div className="grid grid-cols-3 gap-4">
+                          <div className="grid grid-cols-3 gap-1">
                             <div>
-                              <Label htmlFor="length_cm" className="text-sm font-medium">Length (cm)</Label>
+                              <Label htmlFor="length_cm" className="text-xs font-medium">L (cm)</Label>
                               <Input 
                                 id="length_cm" 
                                 name="length_cm" 
@@ -698,11 +686,11 @@ export function InventoryModule() {
                                 min="0"
                                 value={dimensions.length}
                                 onChange={(e) => setDimensions(prev => ({ ...prev, length: e.target.value }))}
-                                className="mt-1" 
+                                className="mt-0.5 h-8" 
                               />
                             </div>
                             <div>
-                              <Label htmlFor="width_cm" className="text-sm font-medium">Width (cm)</Label>
+                              <Label htmlFor="width_cm" className="text-xs font-medium">W (cm)</Label>
                               <Input 
                                 id="width_cm" 
                                 name="width_cm" 
@@ -711,11 +699,11 @@ export function InventoryModule() {
                                 min="0"
                                 value={dimensions.width}
                                 onChange={(e) => setDimensions(prev => ({ ...prev, width: e.target.value }))}
-                                className="mt-1" 
+                                className="mt-0.5 h-8" 
                               />
                             </div>
                             <div>
-                              <Label htmlFor="height_cm" className="text-sm font-medium">Height (cm)</Label>
+                              <Label htmlFor="height_cm" className="text-xs font-medium">H (cm)</Label>
                               <Input 
                                 id="height_cm" 
                                 name="height_cm" 
@@ -724,17 +712,17 @@ export function InventoryModule() {
                                 min="0"
                                 value={dimensions.height}
                                 onChange={(e) => setDimensions(prev => ({ ...prev, height: e.target.value }))}
-                                className="mt-1" 
+                                className="mt-0.5 h-8" 
                               />
                             </div>
                           </div>
                           {calculateVolume(dimensions.length, dimensions.width, dimensions.height) && (
                             <div>
-                              <Label className="text-sm font-medium">Volume (cubic cm)</Label>
+                              <Label className="text-xs font-medium">Volume (cm³)</Label>
                               <Input 
-                                value={calculateVolume(dimensions.length, dimensions.width, dimensions.height)}
+                                value={calculateVolume(dimensions.length, dimensions.width, dimensions.height) + ' cm³'}
                                 readOnly
-                                className="mt-1 bg-muted" 
+                                className="mt-0.5 h-8 bg-muted text-xs" 
                               />
                             </div>
                           )}
@@ -742,11 +730,11 @@ export function InventoryModule() {
                       </div>
                     </div>
 
-                    <div className="flex justify-end space-x-2 pt-4 border-t">
-                      <Button type="button" variant="outline" onClick={() => setShowAddDialog(false)}>
+                    <div className="flex justify-end space-x-2 pt-3 border-t mt-4">
+                      <Button type="button" variant="outline" onClick={() => setShowAddDialog(false)} className="h-8 px-3 text-xs">
                         Cancel
                       </Button>
-                      <Button type="submit">Add Product</Button>
+                      <Button type="submit" className="h-8 px-3 text-xs">Add Product</Button>
                     </div>
                   </form>
                 </DialogContent>
