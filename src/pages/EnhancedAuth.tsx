@@ -11,6 +11,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { Loader2, Building2, Mail, Lock, Eye, EyeOff, Shield, CheckCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { emailSchema, passwordSchema, nameSchema } from '@/lib/security';
+import Captcha from '@/components/ui/captcha';
 
 export default function EnhancedAuth() {
   const { user, signIn, signUp, resetPassword, loading } = useAuth();
@@ -20,6 +21,7 @@ export default function EnhancedAuth() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [activeTab, setActiveTab] = useState('signin');
+  const [captchaToken, setCaptchaToken] = useState<string | undefined>(undefined);
   const [searchParams] = useSearchParams();
   const location = useLocation();
   const { toast } = useToast();
@@ -59,7 +61,7 @@ export default function EnhancedAuth() {
     const email = formData.get('email') as string;
     const password = formData.get('password') as string;
     
-    const result = await signIn(email, password);
+    const result = await signIn(email, password, captchaToken);
     setIsLoading(false);
   };
 
@@ -230,6 +232,7 @@ export default function EnhancedAuth() {
                     </div>
                   </div>
                   
+                  <Captcha onVerify={(t) => setCaptchaToken(t)} />
                   <Button type="submit" className="w-full h-12 btn-gradient text-base" disabled={isLoading}>
                     {isLoading ? (
                       <>

@@ -37,7 +37,7 @@ interface AuthContextType {
   profile: Profile | null;
   company: Company | null;
   loading: boolean;
-  signIn: (email: string, password: string) => Promise<{ error: any }>;
+  signIn: (email: string, password: string, captchaToken?: string) => Promise<{ error: any }>;
   signUp: (
     email: string, 
     password: string, 
@@ -169,7 +169,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     return () => subscription.unsubscribe();
   }, []);
 
-  const signIn = async (email: string, password: string) => {
+  const signIn = async (email: string, password: string, captchaToken?: string) => {
     try {
       // Normalize inputs
       const normalizedEmail = email.trim().toLowerCase();
@@ -211,11 +211,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
       console.log('Attempting sign in for:', normalizedEmail);
 
-      // Proceed directly with Supabase authentication (bypass edge function for now due to captcha issues)
+      // Proceed with Supabase authentication and optional captcha token
       const { error: authError } = await supabase.auth.signInWithPassword({
         email: normalizedEmail,
         password: trimmedPassword,
-      });
+        options: captchaToken ? { captchaToken } : undefined as any,
+      } as any);
 
       if (!authError) {
         // Authentication successful

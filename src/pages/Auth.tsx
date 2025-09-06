@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import Captcha from '@/components/ui/captcha';
 
 import { AlertDialog, AlertDialogAction, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { PasswordStrength } from '@/components/ui/password-strength';
@@ -19,6 +20,7 @@ export default function Auth() {
   const [showExistingUserDialog, setShowExistingUserDialog] = useState(false);
   const [existingUserMessage, setExistingUserMessage] = useState('');
   const [searchParams] = useSearchParams();
+  const [captchaToken, setCaptchaToken] = useState<string | undefined>(undefined);
   const defaultTab = searchParams.get('tab') || 'signin';
 
   // Redirect if already authenticated
