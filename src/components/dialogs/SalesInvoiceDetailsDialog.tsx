@@ -17,6 +17,7 @@ interface SalesInvoiceDetailsProps {
 export function SalesInvoiceDetailsDialog({ invoiceId, open, onOpenChange }: SalesInvoiceDetailsProps) {
   const [invoiceDetails, setInvoiceDetails] = useState<any>(null);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (open && invoiceId) {
@@ -46,8 +47,10 @@ export function SalesInvoiceDetailsDialog({ invoiceId, open, onOpenChange }: Sal
 
       if (error) throw error;
       setInvoiceDetails(data);
-    } catch (error) {
-      console.error('Error fetching sales invoice details:', error);
+      setError(null);
+    } catch (err) {
+      console.error('Error fetching sales invoice details:', err);
+      setError('Failed to load invoice details');
     } finally {
       setLoading(false);
     }
@@ -96,7 +99,7 @@ export function SalesInvoiceDetailsDialog({ invoiceId, open, onOpenChange }: Sal
   const totals = calculateTotals();
   const paymentSummary = calculatePaymentSummary();
 
-  if (!invoiceDetails && !loading) return null;
+  
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -111,7 +114,11 @@ export function SalesInvoiceDetailsDialog({ invoiceId, open, onOpenChange }: Sal
           </DialogDescription>
         </DialogHeader>
 
-        {loading ? (
+        {error ? (
+          <div className="flex justify-center py-8">
+            <div className="text-destructive">{error}</div>
+          </div>
+        ) : (loading || !invoiceDetails) ? (
           <div className="flex justify-center py-8">
             <div className="text-muted-foreground">Loading invoice details...</div>
           </div>
