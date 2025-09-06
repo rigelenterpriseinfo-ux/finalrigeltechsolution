@@ -427,53 +427,6 @@ export function PaymentsModule() {
         </Dialog>
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid gap-6 md:grid-cols-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Pending AP</CardTitle>
-            <TrendingDown className="h-4 w-4 text-red-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-red-600">₹{pendingAP.toLocaleString()}</div>
-            <p className="text-xs text-muted-foreground">Accounts Payable</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Pending AR</CardTitle>
-            <TrendingUp className="h-4 w-4 text-green-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-green-600">₹{pendingAR.toLocaleString()}</div>
-            <p className="text-xs text-muted-foreground">Accounts Receivable</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Received (Last 15 Days)</CardTitle>
-            <TrendingUp className="h-4 w-4 text-green-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-green-600">₹{paymentsLast15Days.toLocaleString()}</div>
-            <p className="text-xs text-muted-foreground">Recent receipts</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Due Next 15-30 Days</CardTitle>
-            <CreditCard className="h-4 w-4 text-orange-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-orange-600">₹{paymentsDueNext30Days.toLocaleString()}</div>
-            <p className="text-xs text-muted-foreground">Upcoming payments</p>
-          </CardContent>
-        </Card>
-      </div>
-
       {/* Search */}
       <div className="flex items-center gap-4">
         <div className="relative flex-1 max-w-sm">
@@ -484,6 +437,70 @@ export function PaymentsModule() {
             onChange={(e) => setSearchTerm(e.target.value)}
             className="pl-10"
           />
+        </div>
+      </div>
+
+      {/* Account Payable Section */}
+      <div className="space-y-4">
+        <div className="flex items-center gap-2">
+          <TrendingDown className="h-6 w-6 text-red-600" />
+          <h2 className="text-2xl font-semibold">Account Payable</h2>
+        </div>
+        
+        <div className="grid gap-6 md:grid-cols-2">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Total Pending AP</CardTitle>
+              <TrendingDown className="h-4 w-4 text-red-600" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-red-600">₹{pendingAP.toLocaleString()}</div>
+              <p className="text-xs text-muted-foreground">Accounts Payable</p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Due Next 15-30 Days</CardTitle>
+              <CreditCard className="h-4 w-4 text-orange-600" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-orange-600">₹{paymentsDueNext30Days.toLocaleString()}</div>
+              <p className="text-xs text-muted-foreground">Upcoming payments</p>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+
+      {/* Account Receivable Section */}
+      <div className="space-y-4">
+        <div className="flex items-center gap-2">
+          <TrendingUp className="h-6 w-6 text-green-600" />
+          <h2 className="text-2xl font-semibold">Account Receivable</h2>
+        </div>
+        
+        <div className="grid gap-6 md:grid-cols-2">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Total Pending AR</CardTitle>
+              <TrendingUp className="h-4 w-4 text-green-600" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-green-600">₹{pendingAR.toLocaleString()}</div>
+              <p className="text-xs text-muted-foreground">Accounts Receivable</p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Received (Last 15 Days)</CardTitle>
+              <TrendingUp className="h-4 w-4 text-green-600" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-green-600">₹{paymentsLast15Days.toLocaleString()}</div>
+              <p className="text-xs text-muted-foreground">Recent receipts</p>
+            </CardContent>
+          </Card>
         </div>
       </div>
 
