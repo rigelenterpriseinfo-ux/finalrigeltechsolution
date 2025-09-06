@@ -162,12 +162,6 @@ export function AIAssistant() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold">AI Business Assistant</h1>
-        <p className="text-muted-foreground">Get real-time insights and analysis of your business data powered by Google Gemini</p>
-      </div>
-
       {/* Quick Actions */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         {quickActions.map((action, index) => (
