@@ -12,7 +12,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { useBusinessAuth } from '@/hooks/useBusinessAuth';
-import { Plus, Search, CreditCard, TrendingUp, TrendingDown } from 'lucide-react';
+import { Plus, Search, CreditCard, TrendingUp, TrendingDown, ChevronDown, ChevronUp } from 'lucide-react';
 
 interface Payment {
   id: string;
@@ -37,18 +37,24 @@ interface Payment {
   };
 }
 
-interface SalesOrder {
+interface PurchaseOrderPayable {
   id: string;
-  order_number: string;
-  customer: {
+  po_number: string;
+  order_date: string;
+  total_amount: number;
+  payment_terms: string | null;
+  supplier: {
     name: string;
   };
 }
 
-interface PurchaseOrder {
+interface SalesInvoiceReceivable {
   id: string;
-  po_number: string;
-  supplier: {
+  invoice_number: string;
+  invoice_date: string;
+  total_amount: number;
+  payment_terms: string | null;
+  customer: {
     name: string;
   };
 }
@@ -58,101 +64,23 @@ export function PaymentsModule() {
   const { toast } = useToast();
   const { hasEditAccess } = useBusinessAuth();
   const canEdit = hasEditAccess('payments');
-  const [payments, setPayments] = useState<Payment[]>([]);
-  const [salesOrders, setSalesOrders] = useState<SalesOrder[]>([]);
-  const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>([]);
-  const [accountPayable, setAccountPayable] = useState<any[]>([]);
-  const [accountReceivable, setAccountReceivable] = useState<any[]>([]);
+  const [accountPayable, setAccountPayable] = useState<PurchaseOrderPayable[]>([]);
+  const [accountReceivable, setAccountReceivable] = useState<SalesInvoiceReceivable[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [showAddDialog, setShowAddDialog] = useState(false);
+  const [showAPDetails, setShowAPDetails] = useState(false);
+  const [showARDetails, setShowARDetails] = useState(false);
+  const [apSearchTerm, setApSearchTerm] = useState('');
+  const [arSearchTerm, setArSearchTerm] = useState('');
 
   useEffect(() => {
-    fetchPayments();
-    fetchSalesOrders();
-    fetchPurchaseOrders();
     fetchAccountPayable();
     fetchAccountReceivable();
   }, []);
 
-  const fetchPayments = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('payments')
-        .select(`
-          *,
-          sales_order:sales_orders(
-            order_number,
-            customer:customers(name)
-          ),
-          purchase_order:purchase_orders(
-            po_number,
-            supplier:suppliers(name)
-          )
-        `)
-        .order('payment_date', { ascending: false });
-
-      if (error) {
-        console.error('Error fetching payments:', error);
-        return;
-      }
-
-      setPayments(data || []);
-    } catch (error) {
-      console.error('Error fetching payments:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchSalesOrders = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('sales_orders')
-        .select(`
-          id,
-          order_number,
-          customer:customers(name)
-        `)
-        .eq('status', 'confirmed')
-        .order('order_number');
-
-      if (error) {
-        console.error('Error fetching sales orders:', error);
-        return;
-      }
-
-      setSalesOrders(data || []);
-    } catch (error) {
-      console.error('Error fetching sales orders:', error);
-    }
-  };
-
-  const fetchPurchaseOrders = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('purchase_orders')
-        .select(`
-          id,
-          po_number,
-          supplier:suppliers(name)
-        `)
-        .eq('status', 'confirmed')
-        .order('po_number');
-
-      if (error) {
-        console.error('Error fetching purchase orders:', error);
-        return;
-      }
-
-      setPurchaseOrders(data || []);
-    } catch (error) {
-      console.error('Error fetching purchase orders:', error);
-    }
-  };
-
   const fetchAccountPayable = async () => {
     try {
+      setLoading(true);
       const { data, error } = await supabase
         .from('purchase_orders')
         .select(`
@@ -160,10 +88,10 @@ export function PaymentsModule() {
           po_number,
           order_date,
           total_amount,
-          status,
+          payment_terms,
           supplier:suppliers(name)
         `)
-        .in('status', ['confirmed', 'pending'])
+        .eq('status', 'confirmed')
         .order('order_date', { ascending: false });
 
       if (error) {
@@ -171,153 +99,62 @@ export function PaymentsModule() {
         return;
       }
 
-      // Calculate due date and ageing for each order
-      const processedData = (data || []).map(order => {
-        const orderDate = new Date(order.order_date);
-        const dueDate = new Date(orderDate.getTime() + 30 * 24 * 60 * 60 * 1000); // 30 days payment terms
-        const today = new Date();
-        const ageingDays = Math.floor((today.getTime() - dueDate.getTime()) / (1000 * 60 * 60 * 24));
-        
-        return {
-          ...order,
-          due_date: dueDate,
-          ageing_days: ageingDays
-        };
-      });
-
-      setAccountPayable(processedData);
+      setAccountPayable(data || []);
     } catch (error) {
       console.error('Error fetching account payable:', error);
+    } finally {
+      setLoading(false);
     }
   };
 
   const fetchAccountReceivable = async () => {
     try {
       const { data, error } = await supabase
-        .from('performa_invoices')
+        .from('sales_invoices')
         .select(`
           id,
-          performa_invoice_number,
-          performa_invoice_date,
+          invoice_number,
+          invoice_date,
           total_amount,
-          status,
-          customer:customers(name)
+          payment_terms,
+          customer_id,
+          customer_name
         `)
-        .in('status', ['invoiced', 'sent'])
-        .order('performa_invoice_date', { ascending: false });
+        .eq('status', 'finalized')
+        .order('invoice_date', { ascending: false });
 
       if (error) {
         console.error('Error fetching account receivable:', error);
         return;
       }
 
-      // Calculate due date and ageing for each invoice
-      const processedData = (data || []).map(invoice => {
-        const invoiceDate = new Date(invoice.performa_invoice_date);
-        const dueDate = new Date(invoiceDate.getTime() + 30 * 24 * 60 * 60 * 1000); // 30 days payment terms
-        const today = new Date();
-        const ageingDays = Math.floor((today.getTime() - dueDate.getTime()) / (1000 * 60 * 60 * 24));
-        
-        return {
-          ...invoice,
-          due_date: dueDate,
-          ageing_days: ageingDays
-        };
-      });
+      // Transform data to match interface
+      const transformedData = (data || []).map(invoice => ({
+        ...invoice,
+        customer: { name: invoice.customer_name }
+      }));
 
-      setAccountReceivable(processedData);
+      setAccountReceivable(transformedData);
     } catch (error) {
       console.error('Error fetching account receivable:', error);
     }
   };
 
-  const handleAddPayment = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    
-    if (!canEdit) {
-      toast({ title: 'Permission denied', description: "You don't have edit access to Payments.", variant: 'destructive' });
-      return;
-    }
-    const formData = new FormData(e.currentTarget);
-    const paymentType = formData.get('payment_type') as string;
-    
-    const paymentData = {
-      amount: parseFloat(formData.get('amount') as string),
-      payment_method: formData.get('payment_method') as string,
-      payment_date: formData.get('payment_date') as string,
-      reference_number: formData.get('reference_number') as string || null,
-      notes: formData.get('notes') as string || null,
-      sales_order_id: paymentType === 'sales' ? formData.get('order_id') as string : null,
-      purchase_order_id: paymentType === 'purchase' ? formData.get('order_id') as string : null,
-      company_id: profile?.company_id,
-      created_by: profile?.id,
-    };
 
-    try {
-      const { error } = await supabase
-        .from('payments')
-        .insert([paymentData]);
-
-      if (error) {
-        toast({
-          title: "Error",
-          description: error.message,
-          variant: "destructive",
-        });
-        return;
-      }
-
-      toast({
-        title: "Success",
-        description: "Payment recorded successfully",
-      });
-
-      setShowAddDialog(false);
-      fetchPayments();
-      e.currentTarget.reset();
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: "Failed to record payment",
-        variant: "destructive",
-      });
-    }
-  };
-
-  // Calculate payment statistics
-  const totalReceived = payments
-    .filter(p => p.sales_order_id)
-    .reduce((sum, p) => sum + p.amount, 0);
-
-  const totalPaid = payments
-    .filter(p => p.purchase_order_id)
-    .reduce((sum, p) => sum + p.amount, 0);
-
-  // Calculate pending amounts (this would need order total amounts - placeholder for now)
-  const pendingAP = 50000; // Placeholder - would calculate from unpaid purchase orders
-  const pendingAR = 35000; // Placeholder - would calculate from unpaid sales orders
-
-  // Calculate payments in time ranges
-  const now = new Date();
-  const fifteenDaysAgo = new Date(now.getTime() - 15 * 24 * 60 * 60 * 1000);
-  const fifteenDaysFromNow = new Date(now.getTime() + 15 * 24 * 60 * 60 * 1000);
-  const thirtyDaysFromNow = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
-
-  const paymentsLast15Days = payments
-    .filter(p => p.sales_order_id && new Date(p.payment_date) >= fifteenDaysAgo)
-    .reduce((sum, p) => sum + p.amount, 0);
-
-  // For future payments, we'd need due dates from orders - using placeholder
-  const paymentsDueNext15Days = 25000; // Placeholder
-  const paymentsDueNext30Days = 45000; // Placeholder
-
-  const filteredPayments = payments.filter(payment =>
-    payment.reference_number?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    payment.sales_order?.order_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    payment.purchase_order?.po_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    payment.sales_order?.customer?.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    payment.purchase_order?.supplier?.name.toLowerCase().includes(searchTerm.toLowerCase())
+  // Filter functions for search
+  const filteredAccountPayable = accountPayable.filter(item =>
+    item.supplier?.name.toLowerCase().includes(apSearchTerm.toLowerCase()) ||
+    item.po_number.toLowerCase().includes(apSearchTerm.toLowerCase())
   );
+
+  const filteredAccountReceivable = accountReceivable.filter(item =>
+    item.customer?.name.toLowerCase().includes(arSearchTerm.toLowerCase()) ||
+    item.invoice_number?.toLowerCase().includes(arSearchTerm.toLowerCase())
+  );
+
+  // Calculate totals
+  const totalAP = accountPayable.reduce((sum, item) => sum + item.total_amount, 0);
+  const totalAR = accountReceivable.reduce((sum, item) => sum + item.total_amount, 0);
 
   if (loading) {
     return (
@@ -335,50 +172,158 @@ export function PaymentsModule() {
         <p className="text-muted-foreground">Track payments received and made</p>
       </div>
 
-      {/* AP and AR Sections */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      {/* AP and AR Summary Cards */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 max-w-4xl">
         {/* Account Payable Section */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <TrendingDown className="h-5 w-5 text-destructive" />
-              Account Payable (AP)
+        <Card className="cursor-pointer hover:bg-accent/50 transition-colors" onClick={() => setShowAPDetails(!showAPDetails)}>
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center justify-between text-lg">
+              <div className="flex items-center gap-2">
+                <TrendingDown className="h-5 w-5 text-destructive" />
+                Account Payable (AP)
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-2xl font-bold">₹{totalAP.toLocaleString()}</span>
+                {showAPDetails ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+              </div>
             </CardTitle>
-            <CardDescription>
-              Track amounts owed to suppliers
-            </CardDescription>
           </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <p className="text-sm text-muted-foreground">
-                View and manage outstanding payments to suppliers
-              </p>
-              {/* AP content will go here */}
-            </div>
+          <CardContent className="pt-0">
+            <p className="text-sm text-muted-foreground">
+              {accountPayable.length} outstanding purchase orders
+            </p>
           </CardContent>
         </Card>
 
         {/* Account Receivable Section */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <TrendingUp className="h-5 w-5 text-success" />
-              Account Receivable (AR)
+        <Card className="cursor-pointer hover:bg-accent/50 transition-colors" onClick={() => setShowARDetails(!showARDetails)}>
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center justify-between text-lg">
+              <div className="flex items-center gap-2">
+                <TrendingUp className="h-5 w-5 text-green-600" />
+                Account Receivable (AR)
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-2xl font-bold">₹{totalAR.toLocaleString()}</span>
+                {showARDetails ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+              </div>
             </CardTitle>
-            <CardDescription>
-              Track amounts owed by customers
-            </CardDescription>
           </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <p className="text-sm text-muted-foreground">
-                View and manage outstanding payments from customers
-              </p>
-              {/* AR content will go here */}
-            </div>
+          <CardContent className="pt-0">
+            <p className="text-sm text-muted-foreground">
+              {accountReceivable.length} outstanding invoices
+            </p>
           </CardContent>
         </Card>
       </div>
+
+      {/* Account Payable Details */}
+      {showAPDetails && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Account Payable Details</CardTitle>
+            <div className="flex gap-4">
+              <div className="relative flex-1 max-w-sm">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+                <Input
+                  placeholder="Search vendors or PO numbers..."
+                  value={apSearchTerm}
+                  onChange={(e) => setApSearchTerm(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="rounded-md border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Vendor Name</TableHead>
+                    <TableHead>PO Number</TableHead>
+                    <TableHead>Order Date</TableHead>
+                    <TableHead>Amount</TableHead>
+                    <TableHead>Payment Terms</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredAccountPayable.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={5} className="text-center text-muted-foreground">
+                        No purchase orders found
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    filteredAccountPayable.map((item) => (
+                      <TableRow key={item.id}>
+                        <TableCell className="font-medium">{item.supplier?.name || 'N/A'}</TableCell>
+                        <TableCell>{item.po_number}</TableCell>
+                        <TableCell>{new Date(item.order_date).toLocaleDateString()}</TableCell>
+                        <TableCell>₹{item.total_amount.toLocaleString()}</TableCell>
+                        <TableCell>{item.payment_terms || 'Net 30'}</TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Account Receivable Details */}
+      {showARDetails && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Account Receivable Details</CardTitle>
+            <div className="flex gap-4">
+              <div className="relative flex-1 max-w-sm">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+                <Input
+                  placeholder="Search customers or invoice numbers..."
+                  value={arSearchTerm}
+                  onChange={(e) => setArSearchTerm(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="rounded-md border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Customer Name</TableHead>
+                    <TableHead>Invoice Number</TableHead>
+                    <TableHead>Invoice Date</TableHead>
+                    <TableHead>Amount</TableHead>
+                    <TableHead>Payment Terms</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredAccountReceivable.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={5} className="text-center text-muted-foreground">
+                        No invoices found
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    filteredAccountReceivable.map((item) => (
+                      <TableRow key={item.id}>
+                        <TableCell className="font-medium">{item.customer?.name || 'N/A'}</TableCell>
+                        <TableCell>{item.invoice_number || 'N/A'}</TableCell>
+                        <TableCell>{new Date(item.invoice_date).toLocaleDateString()}</TableCell>
+                        <TableCell>₹{item.total_amount.toLocaleString()}</TableCell>
+                        <TableCell>{item.payment_terms || 'Net 30'}</TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
     </div>
   );
