@@ -178,14 +178,6 @@ export function TrackingModule() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold">Track & Trace</h1>
-          <p className="text-muted-foreground">Monitor order status and delivery progress</p>
-        </div>
-      </div>
-
       {/* Stats Cards */}
       <div className="grid gap-6 md:grid-cols-4">
         <Card>
