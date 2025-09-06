@@ -292,8 +292,8 @@ export default function Dashboard() {
       default:
         return (
           <div className="space-y-6">
-            {/* Key Metrics Grid */}
-            <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 stagger-animation">
+            {/* Key Metrics Grid - Mobile Optimized */}
+            <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 stagger-animation">
               <StatsCard
                 title="Total Revenue"
                 value="$0"
@@ -328,25 +328,25 @@ export default function Dashboard() {
               />
             </div>
 
-            {/* Quick Actions Grid */}
-            <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+            {/* Quick Actions Grid - Mobile Optimized */}
+            <div className="grid gap-3 sm:gap-4 grid-cols-1 lg:grid-cols-3">
               {/* Inventory Card */}
               <Card className="card-interactive card-elevated">
-                <CardHeader>
-                  <div className="flex items-center gap-3">
-                    <div className="p-3 rounded-xl bg-primary/10 text-primary">
-                      <Package className="h-6 w-6" />
+                <CardHeader className="pb-3">
+                  <div className="flex items-start gap-3">
+                    <div className="p-2 sm:p-3 rounded-xl bg-primary/10 text-primary flex-shrink-0">
+                      <Package className="h-5 w-5 sm:h-6 sm:w-6" />
                     </div>
-                    <div>
-                      <CardTitle>Inventory Management</CardTitle>
-                      <CardDescription>Manage products and stock levels</CardDescription>
+                    <div className="min-w-0 flex-1">
+                      <CardTitle className="text-base sm:text-lg">Inventory Management</CardTitle>
+                      <CardDescription className="text-sm">Manage products and stock levels</CardDescription>
                     </div>
                   </div>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="pt-0">
                   <Button 
                     onClick={() => setActiveModule('inventory')}
-                    className="w-full btn-gradient min-h-[44px]"
+                    className="w-full btn-gradient min-h-[48px] text-sm sm:text-base"
                   >
                     <Plus className="h-4 w-4 mr-2" />
                     Add Products
@@ -356,22 +356,22 @@ export default function Dashboard() {
 
               {/* Purchase Card */}
               <Card className="card-interactive card-elevated">
-                <CardHeader>
-                  <div className="flex items-center gap-3">
-                    <div className="p-3 rounded-xl bg-secondary/10 text-secondary">
-                      <ShoppingCart className="h-6 w-6" />
+                <CardHeader className="pb-3">
+                  <div className="flex items-start gap-3">
+                    <div className="p-2 sm:p-3 rounded-xl bg-secondary/10 text-secondary flex-shrink-0">
+                      <ShoppingCart className="h-5 w-5 sm:h-6 sm:w-6" />
                     </div>
-                    <div>
-                      <CardTitle>Purchase Orders</CardTitle>
-                      <CardDescription>Create and manage purchase orders</CardDescription>
+                    <div className="min-w-0 flex-1">
+                      <CardTitle className="text-base sm:text-lg">Purchase Orders</CardTitle>
+                      <CardDescription className="text-sm">Create and manage purchase orders</CardDescription>
                     </div>
                   </div>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="pt-0">
                   <Button 
                     onClick={() => setActiveModule('purchase')}
                     variant="outline"
-                    className="w-full min-h-[44px]"
+                    className="w-full min-h-[48px] text-sm sm:text-base"
                   >
                     Create Order
                   </Button>
@@ -380,22 +380,22 @@ export default function Dashboard() {
 
               {/* Sales Card */}
               <Card className="card-interactive card-elevated">
-                <CardHeader>
-                  <div className="flex items-center gap-3">
-                    <div className="p-3 rounded-xl bg-accent/10 text-accent">
-                      <FileText className="h-6 w-6" />
+                <CardHeader className="pb-3">
+                  <div className="flex items-start gap-3">
+                    <div className="p-2 sm:p-3 rounded-xl bg-accent/10 text-accent flex-shrink-0">
+                      <FileText className="h-5 w-5 sm:h-6 sm:w-6" />
                     </div>
-                    <div>
-                      <CardTitle>Sales Orders</CardTitle>
-                      <CardDescription>Process sales and invoicing</CardDescription>
+                    <div className="min-w-0 flex-1">
+                      <CardTitle className="text-base sm:text-lg">Sales Orders</CardTitle>
+                      <CardDescription className="text-sm">Process sales and invoicing</CardDescription>
                     </div>
                   </div>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="pt-0">
                   <Button 
                     onClick={() => setActiveModule('sales')}
                     variant="outline"
-                    className="w-full min-h-[44px]"
+                    className="w-full min-h-[48px] text-sm sm:text-base"
                   >
                     New Sale
                   </Button>
@@ -403,40 +403,40 @@ export default function Dashboard() {
               </Card>
             </div>
 
-            {/* Business Insights */}
-            <div className="grid gap-4 grid-cols-1 lg:grid-cols-2">
+            {/* Business Insights - Mobile Optimized */}
+            <div className="grid gap-3 sm:gap-4 grid-cols-1 lg:grid-cols-2">
               <Card className="card-elevated">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Activity className="h-5 w-5" />
+                <CardHeader className="pb-3">
+                  <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+                    <Activity className="h-4 w-4 sm:h-5 sm:w-5" />
                     Recent Activity
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-center py-8 text-muted-foreground">
-                    <Activity className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                    <p>No recent activity</p>
-                    <p className="text-sm">Your business activities will appear here</p>
+                  <div className="text-center py-6 sm:py-8 text-muted-foreground">
+                    <Activity className="h-10 w-10 sm:h-12 sm:w-12 mx-auto mb-3 sm:mb-4 opacity-50" />
+                    <p className="text-sm sm:text-base">No recent activity</p>
+                    <p className="text-xs sm:text-sm">Your business activities will appear here</p>
                   </div>
                 </CardContent>
               </Card>
 
               <Card className="card-elevated">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Bot className="h-5 w-5" />
+                <CardHeader className="pb-3">
+                  <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+                    <Bot className="h-4 w-4 sm:h-5 sm:w-5" />
                     AI Assistant
                   </CardTitle>
-                  <CardDescription>Get insights and assistance</CardDescription>
+                  <CardDescription className="text-sm">Get insights and assistance</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-4">
-                    <p className="text-sm text-muted-foreground">
+                  <div className="space-y-3 sm:space-y-4">
+                    <p className="text-xs sm:text-sm text-muted-foreground">
                       Ask me anything about your business operations, analytics, or how to use this system.
                     </p>
                     <Button 
                       onClick={() => setActiveModule('ai')}
-                      className="w-full min-h-[44px]"
+                      className="w-full min-h-[48px] text-sm sm:text-base"
                       variant="outline"
                     >
                       <Bot className="h-4 w-4 mr-2" />

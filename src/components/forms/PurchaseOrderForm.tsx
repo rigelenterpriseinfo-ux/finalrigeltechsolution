@@ -363,7 +363,7 @@ export function PurchaseOrderForm({
             <CardHeader>
               <CardTitle>Purchase Order Information</CardTitle>
             </CardHeader>
-            <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <CardContent className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
               <FormField
                 control={form.control}
                 name="po_number"
@@ -386,7 +386,7 @@ export function PurchaseOrderForm({
                     <FormLabel>Supplier *</FormLabel>
                     <Select value={field.value} onValueChange={field.onChange} disabled={readOnly}>
                       <FormControl>
-                        <SelectTrigger>
+                        <SelectTrigger className="min-h-[48px]">
                           <SelectValue placeholder="Select supplier" />
                         </SelectTrigger>
                       </FormControl>
@@ -410,7 +410,7 @@ export function PurchaseOrderForm({
                   <FormItem>
                     <FormLabel>PO Date *</FormLabel>
                     <FormControl>
-                      <Input type="date" {...field} disabled={readOnly} />
+                      <Input type="date" {...field} disabled={readOnly} className="min-h-[48px]" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -425,7 +425,7 @@ export function PurchaseOrderForm({
                     <FormLabel>Currency *</FormLabel>
                     <Select value={field.value} onValueChange={field.onChange} disabled={readOnly}>
                       <FormControl>
-                        <SelectTrigger>
+                        <SelectTrigger className="min-h-[48px]">
                           <SelectValue />
                         </SelectTrigger>
                       </FormControl>
@@ -448,7 +448,7 @@ export function PurchaseOrderForm({
                   <FormItem>
                     <FormLabel>Payment Terms</FormLabel>
                     <FormControl>
-                      <Input placeholder="e.g., Net 30 days" {...field} disabled={readOnly} />
+                      <Input placeholder="e.g., Net 30 days" {...field} disabled={readOnly} className="min-h-[48px]" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -462,7 +462,7 @@ export function PurchaseOrderForm({
                   <FormItem>
                     <FormLabel>Expected Delivery Date</FormLabel>
                     <FormControl>
-                      <Input type="date" {...field} disabled={readOnly} />
+                      <Input type="date" {...field} disabled={readOnly} className="min-h-[48px]" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

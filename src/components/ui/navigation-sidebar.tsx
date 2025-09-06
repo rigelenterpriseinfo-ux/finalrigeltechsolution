@@ -50,8 +50,8 @@ export const NavigationSidebar: React.FC<NavigationSidebarProps> = ({
       "w-64 bg-background border-r border-border flex flex-col h-full",
       className
     )}>
-      <div className="p-4 border-b border-border">
-        <h2 className="text-lg font-semibold text-foreground">Navigation</h2>
+      <div className="p-3 sm:p-4 border-b border-border">
+        <h2 className="text-base sm:text-lg font-semibold text-foreground">Navigation</h2>
       </div>
       
       <nav className="flex-1 p-2">
@@ -65,14 +65,14 @@ export const NavigationSidebar: React.FC<NavigationSidebarProps> = ({
                 <button
                   onClick={() => onNavigate(item.id)}
                   className={cn(
-                    "w-full flex items-center gap-3 px-3 py-2 text-sm rounded-md transition-colors text-left",
+                    "w-full flex items-center gap-2 sm:gap-3 px-2 sm:px-3 py-3 text-sm rounded-md transition-colors text-left min-h-[48px]",
                     isActive 
                       ? "bg-primary text-primary-foreground font-medium" 
                       : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
                   )}
                 >
                   <Icon className="h-4 w-4 flex-shrink-0" />
-                  <span>{item.label}</span>
+                  <span className="truncate">{item.label}</span>
                 </button>
               </li>
             );

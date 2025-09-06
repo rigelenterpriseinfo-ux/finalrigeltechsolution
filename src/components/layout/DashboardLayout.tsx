@@ -84,9 +84,8 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
           </div>
         </main>
       </div>
-      {/* Hide user info on mobile */}
-      <aside aria-label="current-user" className="hidden md:block fixed left-4 bottom-4 text-xs text-muted-foreground bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60 border border-border rounded-md px-3 py-2 shadow z-50">
-        <span>{emailToShow || 'Signed out'}</span>
+      <aside aria-label="current-user" className="hidden lg:block fixed left-4 bottom-4 text-xs text-muted-foreground bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60 border border-border rounded-md px-3 py-2 shadow z-50">
+        <span className="truncate max-w-[200px] inline-block">{emailToShow || 'Signed out'}</span>
         <span className="mx-2">•</span>
         <span>{roleLabel}</span>
       </aside>

@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { supabase } from '@/integrations/supabase/client';
 import { 
   Eye, 
@@ -24,6 +25,7 @@ import {
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
+import { PurchaseOrderTableMobile } from './PurchaseOrderTableMobile';
 
 interface PurchaseOrder {
   id: string;
@@ -60,6 +62,7 @@ export function PurchaseOrderTable({
 }: PurchaseOrderTableProps) {
   const { toast } = useToast();
   const { profile } = useAuth();
+  const isMobile = useIsMobile();
   const [currentPage, setCurrentPage] = useState(1);
   const [searchTerm, setSearchTerm] = useState('');
   const [sortField, setSortField] = useState<SortField>('order_date');
@@ -67,6 +70,19 @@ export function PurchaseOrderTable({
   const [companyData, setCompanyData] = useState<any>(null);
   
   const itemsPerPage = 5;
+
+  // Mobile view
+  if (isMobile) {
+    return (
+      <PurchaseOrderTableMobile
+        purchaseOrders={purchaseOrders}
+        onView={onView}
+        onEdit={onEdit}
+        onDelete={onDelete}
+        loading={loading}
+      />
+    );
+  }
 
   // Fetch company data
   useEffect(() => {
@@ -460,11 +476,11 @@ export function PurchaseOrderTable({
   return (
     <Card>
       <CardContent className="p-0">
-        {/* Search and Controls */}
-        <div className="p-6 border-b bg-gradient-to-r from-blue-50 to-blue-100">
-          <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
-            <div className="flex items-center gap-2 flex-1 max-w-md">
-              <Search className="h-4 w-4 text-muted-foreground" />
+        {/* Search and Controls - Mobile Optimized */}
+        <div className="p-4 sm:p-6 border-b bg-gradient-to-r from-blue-50 to-blue-100">
+          <div className="flex flex-col gap-4 items-start justify-between">
+            <div className="flex items-center gap-2 w-full">
+              <Search className="h-4 w-4 text-muted-foreground flex-shrink-0" />
               <Input
                 placeholder="Search by PO number, supplier, or status..."
                 value={searchTerm}
@@ -477,7 +493,7 @@ export function PurchaseOrderTable({
             </div>
           </div>
           
-          <div className="flex justify-between items-center mt-4 text-sm text-muted-foreground">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mt-4 gap-2 text-sm text-muted-foreground">
             <span>
               Showing {currentOrders.length} of {filteredOrders.length} purchase orders
             </span>
