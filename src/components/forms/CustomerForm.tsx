@@ -124,7 +124,7 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({
           <CardTitle>Basic Information</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4">
             <div>
               <Label htmlFor="customer_ref">Customer ID</Label>
               <Input
@@ -192,7 +192,7 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({
           <CardTitle>✅ Contact Information</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4">
             <div>
               <Label htmlFor="contact_person">Primary Contact Person Name</Label>
               <Input
@@ -240,7 +240,7 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({
           {/* Billing Address */}
           <div>
             <h4 className="font-medium mb-3">Billing Address</h4>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4">
               <div className="md:col-span-2">
                 <Label htmlFor="address_line1">Address Line 1</Label>
                 <Input
@@ -308,7 +308,7 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({
               <Label htmlFor="same_as_registered">Same as billing address</Label>
             </div>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4">
               <div className="md:col-span-2">
                 <Label htmlFor="shipping_address_line1">Address Line 1</Label>
                 <Input
@@ -380,7 +380,7 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({
           <CardTitle>✅ Financial & Tax Details</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4">
             <div>
               <Label htmlFor="gstin">GSTIN (depending on country)</Label>
               <Input
@@ -462,7 +462,7 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({
           {/* Bank Details */}
           <div className="mt-6">
             <h4 className="font-medium mb-3">Bank Details (if needed)</h4>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4">
               <div>
                 <Label htmlFor="bank_name">Bank Name</Label>
                 <Input

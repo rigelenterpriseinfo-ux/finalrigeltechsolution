@@ -1229,7 +1229,16 @@ export function InventoryModule() {
         </TabsContent>
 
         <TabsContent value="bins">
-          <WarehouseBinTable />
+          <WarehouseBinTable 
+            onEdit={(bin) => {
+              // Handle edit - you can implement this based on your needs
+              console.log('Edit bin:', bin);
+            }}
+            onDelete={(bin) => {
+              // Handle delete - you can implement this based on your needs
+              console.log('Delete bin:', bin);
+            }}
+          />
         </TabsContent>
 
         <TabsContent value="adjustments" className="space-y-6">

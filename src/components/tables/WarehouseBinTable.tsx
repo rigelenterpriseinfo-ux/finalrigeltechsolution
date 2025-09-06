@@ -1,14 +1,31 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { 
+  Search, 
+  Edit, 
+  Trash2, 
+  ChevronLeft, 
+  ChevronRight,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
+  Building2,
+  MapPin,
+  User,
+  Phone,
+  Download,
+  ChevronDown,
+  ChevronRight as ChevronRightIcon
+} from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
-import { Edit, Trash2, Search, Download, ArrowUpDown, ArrowUp, ArrowDown, ChevronLeft, ChevronRight, Building2, MapPin, User, Phone, ChevronDown, ChevronRight as ChevronRightIcon } from 'lucide-react';
+import { useIsMobile } from '@/hooks/use-mobile';
+import { WarehouseBinTableMobile } from './WarehouseBinTableMobile';
 import { WarehouseBinForm } from '@/components/forms/WarehouseBinForm';
 import * as XLSX from 'xlsx';
 
@@ -26,26 +43,48 @@ interface WarehouseBin {
   postal_code?: string;
   contact_person_name?: string;
   contact_person_phone?: string;
+  contact_person_email?: string;
   is_active: boolean;
+  is_default?: boolean;
   created_at: string;
   updated_at: string;
 }
 
-export function WarehouseBinTable() {
+interface WarehouseBinTableProps {
+  refreshTrigger?: number;
+  onEdit: (bin: WarehouseBin) => void;
+  onDelete: (bin: WarehouseBin) => void;
+}
+
+type SortConfig = {
+  key: string;
+  direction: 'asc' | 'desc';
+};
+
+export const WarehouseBinTable: React.FC<WarehouseBinTableProps> = ({ refreshTrigger, onEdit, onDelete }) => {
   const { profile } = useAuth();
   const { toast } = useToast();
+  const isMobile = useIsMobile();
   const [bins, setBins] = useState<WarehouseBin[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [sortConfig, setSortConfig] = useState<SortConfig>({ key: 'created_at', direction: 'desc' });
+  const [currentPage, setCurrentPage] = useState(1);
+  const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [editingBin, setEditingBin] = useState<WarehouseBin | null>(null);
-  const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
-  const [sortConfig, setSortConfig] = useState<{
-    key: string;
-    direction: 'asc' | 'desc';
-  } | null>(null);
-  const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 5;
+  const itemsPerPage = 10;
+
+  // Use mobile component on small screens
+  if (isMobile) {
+    return (
+      <WarehouseBinTableMobile
+        refreshTrigger={refreshTrigger}
+        onEdit={onEdit}
+        onDelete={onDelete}
+      />
+    );
+  }
 
   useEffect(() => {
     fetchBins();

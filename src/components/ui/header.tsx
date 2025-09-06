@@ -1,111 +1,90 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Bell, Search, Settings, User, LogOut, LogIn } from 'lucide-react';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import { Input } from '@/components/ui/input';
+import { Search, User, LogOut } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
-import { useNavigate } from 'react-router-dom';
+import { useBusinessAuth } from '@/hooks/useBusinessAuth';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 interface HeaderProps {
-  title: string;
+  title?: string;
   subtitle?: string;
   actions?: React.ReactNode;
   showSearch?: boolean;
   showWelcome?: boolean;
 }
 
-export const Header: React.FC<HeaderProps> = ({ 
-  title, 
-  subtitle, 
-  actions, 
+export const Header: React.FC<HeaderProps> = ({
+  title,
+  subtitle,
+  actions,
   showSearch = true,
   showWelcome = false
 }) => {
-  const { user, signOut, profile, company } = useAuth();
-  const navigate = useNavigate();
-
-  const handleSignOut = () => {
-    signOut();
-  };
-
-  const handleSignIn = () => {
-    navigate('/auth');
-  };
+  const { user, signOut } = useAuth();
+  const { businessUser } = useBusinessAuth();
+  const isMobile = useIsMobile();
 
   return (
-    <header className="bg-gradient-primary border-b border-border">
-      <div className="section-padding">
+    <header className="bg-gradient-primary border-b border-border/50 sticky top-0 z-40 backdrop-blur supports-[backdrop-filter]:bg-gradient-primary/95">
+      <div className="px-4 md:px-6 py-3 md:py-4">
         <div className="flex items-center justify-between">
-          {/* Left Section - Welcome Message or Title */}
-          <div className="flex-1">
-            <div className="flex flex-col">
-              {showWelcome ? (
-                <>
-                  <h1 className="text-2xl font-semibold text-white">Welcome back, {profile?.first_name || 'User'}!</h1>
-                  <p className="text-sm text-white/80 mt-1">Manage your products and stock levels</p>
-                </>
-              ) : (
-                <>
-                  <h1 className="text-2xl font-semibold text-white">{title}</h1>
-                  {subtitle && (
-                    <p className="text-sm text-white/80 mt-1">{subtitle}</p>
-                  )}
-                </>
-              )}
-            </div>
-          </div>
-
-          {/* Center Section - Company Name Highlight */}
-          <div className="flex-1 flex justify-center">
-            <div className="bg-white/15 backdrop-blur-sm rounded-full px-6 py-3 border border-white/20">
-              <div className="text-center">
-                <div className="text-lg font-bold text-white tracking-wide">
-                  {company?.name || 'Your Company'}
-                </div>
-                {company?.business_ref_no && (
-                  <div className="text-xs text-white/90 font-mono mt-1">
-                    ID: {company.business_ref_no}
-                  </div>
+          {/* Left Section - Title/Welcome */}
+          <div className="flex-1 min-w-0">
+            {showWelcome ? (
+              <div className="space-y-1">
+                <h1 className="text-lg md:text-2xl font-bold text-foreground truncate">
+                  Welcome back! 👋
+                </h1>
+                <p className="text-xs md:text-sm text-muted-foreground hidden sm:block">
+                  Here's what's happening with your business today
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-1">
+                <h1 className="text-lg md:text-xl font-semibold text-foreground truncate">
+                  {title}
+                </h1>
+                {subtitle && (
+                  <p className="text-xs md:text-sm text-muted-foreground hidden sm:block">
+                    {subtitle}
+                  </p>
                 )}
               </div>
-            </div>
+            )}
           </div>
 
+          {/* Center Section - Company Badge (Hidden on mobile) */}
+          {!isMobile && (
+            <div className="flex-shrink-0 mx-8">
+              <div className="bg-background/20 backdrop-blur border border-border/30 rounded-lg px-3 py-2">
+                <div className="text-xs text-foreground/80 font-medium">
+                  Company: ACME Corp
+                </div>
+                <div className="text-xs text-muted-foreground">
+                  ID: 12345
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Right Section - Actions */}
-          <div className="flex-1 flex justify-end items-center gap-4">
+          <div className="flex items-center gap-2 md:gap-3">
             {actions}
-
-            {/* Sign In Button - Only visible when signed out */}
-            {!user && (
-              <Button 
-                onClick={handleSignIn}
-                variant="secondary"
-                size="default"
-                className="bg-white/20 text-white border-white/30 hover:bg-white/30 hover:text-white font-medium shadow-lg backdrop-blur-sm"
+            
+            {user ? (
+              <Button
+                onClick={signOut}
+                variant="ghost"
+                size={isMobile ? "sm" : "sm"}
+                className="text-foreground hover:bg-background/20 min-h-[44px] md:min-h-auto"
               >
-                <LogIn className="h-4 w-4 mr-2" />
-                Sign In
+                <LogOut className="h-4 w-4 md:mr-2" />
+                <span className="hidden md:inline">Sign Out</span>
               </Button>
-            )}
-
-            {/* Sign Out Button - Only visible when signed in */}
-            {user && (
-              <Button 
-                onClick={handleSignOut}
-                variant="secondary"
-                size="default"
-                className="bg-white/20 text-white border-white/30 hover:bg-white/30 hover:text-white font-medium shadow-lg backdrop-blur-sm"
-              >
-                <LogOut className="h-4 w-4 mr-2" />
-                Sign Out
+            ) : (
+              <Button variant="ghost" size={isMobile ? "sm" : "sm"} className="min-h-[44px] md:min-h-auto">
+                <User className="h-4 w-4 md:mr-2" />
+                <span className="hidden md:inline">Sign In</span>
               </Button>
             )}
           </div>

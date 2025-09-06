@@ -482,7 +482,7 @@ export function WarehouseBinForm({ open, onOpenChange, onSuccess, editingBin }: 
               <h3 className="font-medium">Warehouse & BIN Information</h3>
             </div>
             
-            <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 gap-4">
               <div>
                 <Label htmlFor="warehouse_name" className="text-sm">
                   Warehouse Name <span className="text-red-500">*</span>
@@ -493,7 +493,7 @@ export function WarehouseBinForm({ open, onOpenChange, onSuccess, editingBin }: 
                   placeholder="Main Distribution Center"
                   defaultValue={editingBin?.warehouse_name || ''}
                   onChange={(e) => handleFieldChange('warehouse_name', e.target.value)}
-                  className={`h-9 ${errors.warehouse_name ? 'border-red-500' : ''}`}
+                  className={`min-h-[44px] ${errors.warehouse_name ? 'border-red-500' : ''}`}
                   required
                 />
                 {errors.warehouse_name && <p className="text-sm text-red-500 mt-1">{errors.warehouse_name}</p>}

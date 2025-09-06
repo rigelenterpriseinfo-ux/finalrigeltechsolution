@@ -6,6 +6,8 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Search, Edit, Trash2, ChevronLeft, ChevronRight, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
+import { useIsMobile } from '@/hooks/use-mobile';
+import { CustomerTableMobile } from './CustomerTableMobile';
 
 interface Customer {
   id: string;
@@ -35,11 +37,24 @@ export const CustomerTable: React.FC<CustomerTableProps> = ({
   onDelete,
   loading = false
 }) => {
+  const isMobile = useIsMobile();
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [sortField, setSortField] = useState<SortField>('created_at');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
   const itemsPerPage = 5;
+
+  // Use mobile component on small screens
+  if (isMobile) {
+    return (
+      <CustomerTableMobile
+        customers={customers}
+        onEdit={onEdit}
+        onDelete={onDelete}
+        loading={loading}
+      />
+    );
+  }
 
   // Filter customers based on search term
   const filteredCustomers = customers.filter(customer => {
@@ -209,6 +224,7 @@ export const CustomerTable: React.FC<CustomerTableProps> = ({
                           size="sm"
                           onClick={() => onEdit(customer)}
                           title="Edit"
+                          className="min-h-[44px] min-w-[44px]"
                         >
                           <Edit className="h-4 w-4" />
                         </Button>
@@ -217,7 +233,7 @@ export const CustomerTable: React.FC<CustomerTableProps> = ({
                           size="sm"
                           onClick={() => onDelete(customer)}
                           title="Delete"
-                          className="text-destructive hover:text-destructive"
+                          className="text-destructive hover:text-destructive min-h-[44px] min-w-[44px]"
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>

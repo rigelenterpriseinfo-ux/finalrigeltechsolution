@@ -293,7 +293,7 @@ export default function Dashboard() {
         return (
           <div className="space-y-6">
             {/* Key Metrics Grid */}
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 stagger-animation">
+            <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 stagger-animation">
               <StatsCard
                 title="Total Revenue"
                 value="$0"
@@ -329,7 +329,7 @@ export default function Dashboard() {
             </div>
 
             {/* Quick Actions Grid */}
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
               {/* Inventory Card */}
               <Card className="card-interactive card-elevated">
                 <CardHeader>
@@ -346,7 +346,7 @@ export default function Dashboard() {
                 <CardContent>
                   <Button 
                     onClick={() => setActiveModule('inventory')}
-                    className="w-full btn-gradient"
+                    className="w-full btn-gradient min-h-[44px]"
                   >
                     <Plus className="h-4 w-4 mr-2" />
                     Add Products
@@ -371,7 +371,7 @@ export default function Dashboard() {
                   <Button 
                     onClick={() => setActiveModule('purchase')}
                     variant="outline"
-                    className="w-full"
+                    className="w-full min-h-[44px]"
                   >
                     Create Order
                   </Button>
@@ -395,7 +395,7 @@ export default function Dashboard() {
                   <Button 
                     onClick={() => setActiveModule('sales')}
                     variant="outline"
-                    className="w-full"
+                    className="w-full min-h-[44px]"
                   >
                     New Sale
                   </Button>
@@ -404,7 +404,7 @@ export default function Dashboard() {
             </div>
 
             {/* Business Insights */}
-            <div className="grid gap-6 lg:grid-cols-2">
+            <div className="grid gap-4 grid-cols-1 lg:grid-cols-2">
               <Card className="card-elevated">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
@@ -436,7 +436,7 @@ export default function Dashboard() {
                     </p>
                     <Button 
                       onClick={() => setActiveModule('ai')}
-                      className="w-full"
+                      className="w-full min-h-[44px]"
                       variant="outline"
                     >
                       <Bot className="h-4 w-4 mr-2" />
