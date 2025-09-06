@@ -91,6 +91,21 @@ export function InventoryModule() {
   }>({ status: 'idle', message: '' });
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // BOM state
+  type BomComponent = { id: string; productId?: string; name?: string; sku?: string; unit?: string | null; quantity: number; cost: number };
+  const [bomComponents, setBomComponents] = useState<BomComponent[]>([]);
+  const bomCandidateProducts = useMemo(() => products.filter(p => p.product_category !== 'finished_goods'), [products]);
+  const addBomComponent = () => {
+    setBomComponents(prev => [
+      ...prev,
+      { id: `${Date.now()}-${Math.random().toString(36).slice(2,8)}`, quantity: 1, cost: 0 }
+    ]);
+  };
+  const updateBomComponent = (id: string, partial: Partial<BomComponent>) => {
+    setBomComponents(prev => prev.map(i => (i.id === id ? { ...i, ...partial } : i)));
+  };
+  const removeBomComponent = (id: string) => setBomComponents(prev => prev.filter(i => i.id !== id));
+
   // Calculate volume when dimensions change
   const calculateVolume = (length: string, width: string, height: string) => {
     const l = parseFloat(length) || 0;
@@ -1014,7 +1029,7 @@ export function InventoryModule() {
                     <div className="space-y-4">
                       <div className="flex items-center justify-between">
                         <h3 className="text-lg font-semibold">Components & Raw Materials</h3>
-                        <Button size="sm">
+                        <Button size="sm" onClick={addBomComponent}>
                           <Plus className="w-4 h-4 mr-1" />
                           Add Component
                         </Button>
@@ -1035,11 +1050,76 @@ export function InventoryModule() {
                               </TableRow>
                             </TableHeader>
                             <TableBody>
-                              <TableRow>
-                                <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
-                                  No components added yet. Click "Add Component" to start building your BOM.
-                                </TableCell>
-                              </TableRow>
+                              {bomComponents.length === 0 ? (
+                                <TableRow>
+                                  <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
+                                    No components added yet. Click "Add Component" to start building your BOM.
+                                  </TableCell>
+                                </TableRow>
+                              ) : (
+                                bomComponents.map((item) => (
+                                  <TableRow key={item.id}>
+                                    <TableCell className="min-w-[220px]">
+                                      <Select
+                                        value={item.productId}
+                                        onValueChange={(val) => {
+                                          const p = products.find((pr) => pr.id === val);
+                                          updateBomComponent(item.id, {
+                                            productId: val,
+                                            name: p?.name,
+                                            sku: p?.sku,
+                                            unit: p?.unit ?? '',
+                                            cost: (p?.cost_price ?? item.cost)
+                                          });
+                                        }}
+                                      >
+                                        <SelectTrigger>
+                                          <SelectValue placeholder="Select component" />
+                                        </SelectTrigger>
+                                        <SelectContent className="z-[60]">
+                                          {bomCandidateProducts.map((p) => (
+                                            <SelectItem key={p.id} value={p.id}>
+                                              {p.name} ({p.sku})
+                                            </SelectItem>
+                                          ))}
+                                        </SelectContent>
+                                      </Select>
+                                    </TableCell>
+                                    <TableCell className="font-mono">{item.sku || '-'}</TableCell>
+                                    <TableCell>
+                                      <Input
+                                        type="number"
+                                        min="0"
+                                        step="0.01"
+                                        value={item.quantity}
+                                        onChange={(e) =>
+                                          updateBomComponent(item.id, { quantity: parseFloat(e.target.value || '0') })
+                                        }
+                                      />
+                                    </TableCell>
+                                    <TableCell>{item.unit || '—'}</TableCell>
+                                    <TableCell>
+                                      <Input
+                                        type="number"
+                                        min="0"
+                                        step="0.01"
+                                        value={item.cost}
+                                        onChange={(e) =>
+                                          updateBomComponent(item.id, { cost: parseFloat(e.target.value || '0') })
+                                        }
+                                      />
+                                    </TableCell>
+                                    <TableCell>
+                                      ₹{((item.quantity || 0) * (item.cost || 0)).toFixed(2)}
+                                    </TableCell>
+                                    <TableCell>
+                                      <Button variant="outline" size="sm" onClick={() => removeBomComponent(item.id)}>
+                                        <Trash2 className="w-4 h-4" />
+                                      </Button>
+                                    </TableCell>
+                                  </TableRow>
+                                ))
+                              )}
                             </TableBody>
                           </Table>
                         </CardContent>
@@ -1229,7 +1309,7 @@ export function InventoryModule() {
             <div className="relative w-72">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
               <Input
-                placeholder="Search products..."
+                placeholder="Search products..." aria-label="Search products by name, SKU, or description"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-10"
