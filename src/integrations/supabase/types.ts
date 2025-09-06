@@ -1262,6 +1262,7 @@ export type Database = {
       }
       products: {
         Row: {
+          barcode: string | null
           bin_name: string | null
           category_id: string | null
           company_id: string
@@ -1273,9 +1274,11 @@ export type Database = {
           hsn_code: string | null
           id: string
           is_active: boolean
+          is_taxable: boolean | null
           length_cm: number | null
           max_stock_level: number | null
           min_stock_level: number
+          mrp: number | null
           name: string
           product_category: string | null
           product_type: string | null
@@ -1284,11 +1287,13 @@ export type Database = {
           unit: string | null
           unit_price: number
           updated_at: string
+          volume_cubic_cm: number | null
           weight_kg: number | null
           wh_bin_code: string | null
           width_cm: number | null
         }
         Insert: {
+          barcode?: string | null
           bin_name?: string | null
           category_id?: string | null
           company_id: string
@@ -1300,9 +1305,11 @@ export type Database = {
           hsn_code?: string | null
           id?: string
           is_active?: boolean
+          is_taxable?: boolean | null
           length_cm?: number | null
           max_stock_level?: number | null
           min_stock_level?: number
+          mrp?: number | null
           name: string
           product_category?: string | null
           product_type?: string | null
@@ -1311,11 +1318,13 @@ export type Database = {
           unit?: string | null
           unit_price?: number
           updated_at?: string
+          volume_cubic_cm?: number | null
           weight_kg?: number | null
           wh_bin_code?: string | null
           width_cm?: number | null
         }
         Update: {
+          barcode?: string | null
           bin_name?: string | null
           category_id?: string | null
           company_id?: string
@@ -1327,9 +1336,11 @@ export type Database = {
           hsn_code?: string | null
           id?: string
           is_active?: boolean
+          is_taxable?: boolean | null
           length_cm?: number | null
           max_stock_level?: number | null
           min_stock_level?: number
+          mrp?: number | null
           name?: string
           product_category?: string | null
           product_type?: string | null
@@ -1338,6 +1349,7 @@ export type Database = {
           unit?: string | null
           unit_price?: number
           updated_at?: string
+          volume_cubic_cm?: number | null
           weight_kg?: number | null
           wh_bin_code?: string | null
           width_cm?: number | null

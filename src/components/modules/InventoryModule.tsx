@@ -14,6 +14,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { useBusinessAuth } from '@/hooks/useBusinessAuth';
 import { Plus, Search, Package, AlertTriangle, Edit, Trash2, Download, ArrowUpDown, ArrowUp, ArrowDown, ChevronLeft, ChevronRight, MapPin, TrendingUp, ClipboardList, ArrowRightLeft } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
 import { WarehouseBinForm } from '@/components/forms/WarehouseBinForm';
 import { WarehouseBinTable } from '@/components/tables/WarehouseBinTable';
 import { InventoryAdjustmentForm } from '@/components/forms/InventoryAdjustmentForm';
@@ -31,19 +32,23 @@ interface Product {
   unit: string | null;
   cost_price: number;
   unit_price: number;
+  mrp: number | null;
   hsn_code: string | null;
   gst_percentage: number;
+  is_taxable: boolean;
   weight_kg: number | null;
   length_cm: number | null;
   width_cm: number | null;
   height_cm: number | null;
+  volume_cubic_cm: number | null;
+  barcode: string | null;
   min_stock_level: number;
   max_stock_level: number | null;
   is_active: boolean;
   company_id: string;
   category_id: string | null;
   product_type: 'goods' | 'service';
-  product_category: 'raw_material' | 'finished_goods' | 'consumables' | 'assets';
+  product_category: 'raw_material' | 'finished_goods' | 'consumables' | 'assets' | 'others';
   created_at: string;
   updated_at: string;
 }
@@ -71,6 +76,18 @@ export function InventoryModule() {
   } | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 5;
+  
+  // Form state for auto-calculations and conditional display
+  const [isTaxable, setIsTaxable] = useState(true);
+  const [dimensions, setDimensions] = useState({ length: '', width: '', height: '' });
+
+  // Calculate volume when dimensions change
+  const calculateVolume = (length: string, width: string, height: string) => {
+    const l = parseFloat(length) || 0;
+    const w = parseFloat(width) || 0;
+    const h = parseFloat(height) || 0;
+    return l > 0 && w > 0 && h > 0 ? (l * w * h).toFixed(2) : '';
+  };
 
   // Fetch warehouse bins
   const fetchWarehouseBins = async () => {
@@ -169,25 +186,82 @@ export function InventoryModule() {
 
     try {
       const formData = new FormData(e.currentTarget);
+      const form = e.currentTarget;
+      
+      // Enhanced validation
+      const costPrice = parseFloat(formData.get('cost_price') as string || '0');
+      const sellingPrice = parseFloat(formData.get('unit_price') as string || '0');
+      const mrp = formData.get('mrp') ? parseFloat(formData.get('mrp') as string) : null;
+      const gstPercentage = parseFloat(formData.get('gst_percentage') as string || '0');
+      const minStock = parseInt(formData.get('min_stock_level') as string || '0');
+      const maxStock = formData.get('max_stock_level') ? parseInt(formData.get('max_stock_level') as string) : null;
+      
+      // Validation checks
+      if (costPrice < 0 || sellingPrice < 0 || (mrp && mrp < 0)) {
+        toast({
+          title: "Validation Error", 
+          description: "Prices must be greater than or equal to 0",
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      if (mrp && mrp < sellingPrice) {
+        toast({
+          title: "Validation Error",
+          description: "MRP cannot be less than Selling Price",
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      if (gstPercentage < 0 || gstPercentage > 28) {
+        toast({
+          title: "Validation Error",
+          description: "GST percentage must be between 0-28%",
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      if (minStock < 0 || (maxStock && maxStock < 0)) {
+        toast({
+          title: "Validation Error",
+          description: "Stock levels must be non-negative integers",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Calculate volume if dimensions are provided
+      const length = formData.get('length_cm') ? parseFloat(formData.get('length_cm') as string) : null;
+      const width = formData.get('width_cm') ? parseFloat(formData.get('width_cm') as string) : null;
+      const height = formData.get('height_cm') ? parseFloat(formData.get('height_cm') as string) : null;
+      const volumeCubicCm = (length && width && height) ? length * width * height : null;
+
       const productData = {
         name: formData.get('name') as string,
         description: formData.get('description') as string,
         sku: formData.get('sku') as string,
         unit: formData.get('unit') as string,
-        cost_price: parseFloat(formData.get('cost_price') as string),
-        unit_price: parseFloat(formData.get('unit_price') as string),
-        min_stock_level: parseInt(formData.get('min_stock_level') as string),
-        max_stock_level: formData.get('max_stock_level') ? parseInt(formData.get('max_stock_level') as string) : null,
+        cost_price: costPrice,
+        unit_price: sellingPrice,
+        mrp: mrp,
+        min_stock_level: minStock,
+        max_stock_level: maxStock,
         hsn_code: formData.get('hsn_code') as string,
-        gst_percentage: parseFloat(formData.get('gst_percentage') as string),
+        gst_percentage: gstPercentage,
+        is_taxable: formData.get('is_taxable') === 'on',
         weight_kg: formData.get('weight_kg') ? parseFloat(formData.get('weight_kg') as string) : null,
-        length_cm: formData.get('length_cm') ? parseFloat(formData.get('length_cm') as string) : null,
-        width_cm: formData.get('width_cm') ? parseFloat(formData.get('width_cm') as string) : null,
-        height_cm: formData.get('height_cm') ? parseFloat(formData.get('height_cm') as string) : null,
+        length_cm: length,
+        width_cm: width,
+        height_cm: height,
+        volume_cubic_cm: volumeCubicCm,
+        barcode: formData.get('barcode') as string || null,
         product_type: formData.get('product_type') as 'goods' | 'service',
-        product_category: formData.get('product_category') as 'raw_material' | 'finished_goods' | 'consumables' | 'assets',
+        product_category: formData.get('product_category') as 'raw_material' | 'finished_goods' | 'consumables' | 'assets' | 'others',
         company_id: profile?.company_id,
-        is_active: true
+        is_active: formData.get('is_active') !== 'off' // Default to true unless explicitly turned off
       };
 
       const { error } = await supabase
@@ -203,7 +277,10 @@ export function InventoryModule() {
 
       setShowAddDialog(false);
       fetchProducts();
-      (e.target as HTMLFormElement).reset();
+      // Reset form and state
+      form.reset();
+      setIsTaxable(true);
+      setDimensions({ length: '', width: '', height: '' });
     } catch (error) {
       console.error('Error adding product:', error);
       toast({
@@ -392,7 +469,17 @@ export function InventoryModule() {
         <div className="grid grid-cols-4 gap-4 w-full">
           {canEdit && (
             <>
-              <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
+              <Dialog 
+                open={showAddDialog} 
+                onOpenChange={(open) => {
+                  setShowAddDialog(open);
+                  if (!open) {
+                    // Reset form state when dialog closes
+                    setIsTaxable(true);
+                    setDimensions({ length: '', width: '', height: '' });
+                  }
+                }}
+              >
                 <DialogTrigger asChild>
                   <Button>
                     <Plus className="w-4 h-4 mr-2" />
@@ -447,15 +534,20 @@ export function InventoryModule() {
                                 <SelectItem value="finished_goods">Finished Goods</SelectItem>
                                 <SelectItem value="consumables">Consumables</SelectItem>
                                 <SelectItem value="assets">Assets</SelectItem>
+                                <SelectItem value="others">Others / Miscellaneous</SelectItem>
                               </SelectContent>
                             </Select>
+                          </div>
+                          <div>
+                            <Label htmlFor="barcode" className="text-sm font-medium">Barcode (Optional)</Label>
+                            <Input id="barcode" name="barcode" placeholder="Enter barcode" className="mt-1" />
                           </div>
                         </div>
                       </div>
 
-                      {/* Pricing & Stock */}
+                      {/* Pricing */}
                       <div className="space-y-4">
-                        <h3 className="text-lg font-semibold text-primary">Pricing & Stock</h3>
+                        <h3 className="text-lg font-semibold text-primary">Pricing</h3>
                         <div className="space-y-4">
                           <div>
                             <Label htmlFor="unit" className="text-sm font-medium">Unit</Label>
@@ -464,22 +556,40 @@ export function InventoryModule() {
                           <div className="grid grid-cols-2 gap-4">
                             <div>
                               <Label htmlFor="cost_price" className="text-sm font-medium">Cost Price *</Label>
-                              <Input id="cost_price" name="cost_price" type="number" step="0.01" required className="mt-1" />
+                              <Input 
+                                id="cost_price" 
+                                name="cost_price" 
+                                type="number" 
+                                step="0.01" 
+                                min="0"
+                                required 
+                                className="mt-1" 
+                              />
                             </div>
                             <div>
-                              <Label htmlFor="unit_price" className="text-sm font-medium">Unit Price *</Label>
-                              <Input id="unit_price" name="unit_price" type="number" step="0.01" required className="mt-1" />
+                              <Label htmlFor="unit_price" className="text-sm font-medium">Selling Price *</Label>
+                              <Input 
+                                id="unit_price" 
+                                name="unit_price" 
+                                type="number" 
+                                step="0.01" 
+                                min="0"
+                                required 
+                                className="mt-1" 
+                              />
                             </div>
                           </div>
-                          <div className="grid grid-cols-2 gap-4">
-                            <div>
-                              <Label htmlFor="min_stock_level" className="text-sm font-medium">Min Stock Level *</Label>
-                              <Input id="min_stock_level" name="min_stock_level" type="number" required className="mt-1" />
-                            </div>
-                            <div>
-                              <Label htmlFor="max_stock_level" className="text-sm font-medium">Max Stock Level</Label>
-                              <Input id="max_stock_level" name="max_stock_level" type="number" className="mt-1" />
-                            </div>
+                          <div>
+                            <Label htmlFor="mrp" className="text-sm font-medium">MRP (Optional)</Label>
+                            <Input 
+                              id="mrp" 
+                              name="mrp" 
+                              type="number" 
+                              step="0.01" 
+                              min="0"
+                              placeholder="Maximum Retail Price" 
+                              className="mt-1" 
+                            />
                           </div>
                         </div>
                       </div>
@@ -488,13 +598,76 @@ export function InventoryModule() {
                       <div className="space-y-4">
                         <h3 className="text-lg font-semibold text-primary">Tax Information</h3>
                         <div className="space-y-4">
-                          <div>
-                            <Label htmlFor="hsn_code" className="text-sm font-medium">HSN Code</Label>
-                            <Input id="hsn_code" name="hsn_code" className="mt-1" />
+                          <div className="flex items-center justify-between">
+                            <Label htmlFor="is_taxable" className="text-sm font-medium">Taxable Item</Label>
+                            <Switch 
+                              id="is_taxable"
+                              name="is_taxable"
+                              checked={isTaxable}
+                              onCheckedChange={setIsTaxable}
+                            />
                           </div>
-                          <div>
-                            <Label htmlFor="gst_percentage" className="text-sm font-medium">GST Percentage</Label>
-                            <Input id="gst_percentage" name="gst_percentage" type="number" step="0.01" defaultValue="0" className="mt-1" />
+                          {isTaxable && (
+                            <>
+                              <div>
+                                <Label htmlFor="hsn_code" className="text-sm font-medium">HSN Code</Label>
+                                <Input id="hsn_code" name="hsn_code" className="mt-1" />
+                              </div>
+                              <div>
+                                <Label htmlFor="gst_percentage" className="text-sm font-medium">GST Percentage</Label>
+                                <Select name="gst_percentage" defaultValue="0">
+                                  <SelectTrigger className="mt-1">
+                                    <SelectValue placeholder="Select GST rate" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="0">0%</SelectItem>
+                                    <SelectItem value="5">5%</SelectItem>
+                                    <SelectItem value="12">12%</SelectItem>
+                                    <SelectItem value="18">18%</SelectItem>
+                                    <SelectItem value="28">28%</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Stock & Status */}
+                      <div className="space-y-4">
+                        <h3 className="text-lg font-semibold text-primary">Stock & Status</h3>
+                        <div className="space-y-4">
+                          <div className="grid grid-cols-2 gap-4">
+                            <div>
+                              <Label htmlFor="min_stock_level" className="text-sm font-medium">Min Stock Level *</Label>
+                              <Input 
+                                id="min_stock_level" 
+                                name="min_stock_level" 
+                                type="number" 
+                                min="0"
+                                defaultValue="0"
+                                required 
+                                className="mt-1" 
+                              />
+                            </div>
+                            <div>
+                              <Label htmlFor="max_stock_level" className="text-sm font-medium">Max Stock Level</Label>
+                              <Input 
+                                id="max_stock_level" 
+                                name="max_stock_level" 
+                                type="number" 
+                                min="0"
+                                className="mt-1" 
+                              />
+                            </div>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <Label htmlFor="is_active" className="text-sm font-medium">Active Product</Label>
+                            <Switch 
+                              id="is_active"
+                              name="is_active"
+                              defaultChecked={true}
+                            />
                           </div>
                         </div>
                       </div>
@@ -505,22 +678,66 @@ export function InventoryModule() {
                         <div className="space-y-4">
                           <div>
                             <Label htmlFor="weight_kg" className="text-sm font-medium">Weight (kg)</Label>
-                            <Input id="weight_kg" name="weight_kg" type="number" step="0.01" className="mt-1" />
+                            <Input 
+                              id="weight_kg" 
+                              name="weight_kg" 
+                              type="number" 
+                              step="0.01" 
+                              min="0"
+                              className="mt-1" 
+                            />
                           </div>
                           <div className="grid grid-cols-3 gap-4">
                             <div>
                               <Label htmlFor="length_cm" className="text-sm font-medium">Length (cm)</Label>
-                              <Input id="length_cm" name="length_cm" type="number" step="0.01" className="mt-1" />
+                              <Input 
+                                id="length_cm" 
+                                name="length_cm" 
+                                type="number" 
+                                step="0.01" 
+                                min="0"
+                                value={dimensions.length}
+                                onChange={(e) => setDimensions(prev => ({ ...prev, length: e.target.value }))}
+                                className="mt-1" 
+                              />
                             </div>
                             <div>
                               <Label htmlFor="width_cm" className="text-sm font-medium">Width (cm)</Label>
-                              <Input id="width_cm" name="width_cm" type="number" step="0.01" className="mt-1" />
+                              <Input 
+                                id="width_cm" 
+                                name="width_cm" 
+                                type="number" 
+                                step="0.01" 
+                                min="0"
+                                value={dimensions.width}
+                                onChange={(e) => setDimensions(prev => ({ ...prev, width: e.target.value }))}
+                                className="mt-1" 
+                              />
                             </div>
                             <div>
                               <Label htmlFor="height_cm" className="text-sm font-medium">Height (cm)</Label>
-                              <Input id="height_cm" name="height_cm" type="number" step="0.01" className="mt-1" />
+                              <Input 
+                                id="height_cm" 
+                                name="height_cm" 
+                                type="number" 
+                                step="0.01" 
+                                min="0"
+                                value={dimensions.height}
+                                onChange={(e) => setDimensions(prev => ({ ...prev, height: e.target.value }))}
+                                className="mt-1" 
+                              />
                             </div>
                           </div>
+                          {calculateVolume(dimensions.length, dimensions.width, dimensions.height) && (
+                            <div>
+                              <Label className="text-sm font-medium">Volume (cubic cm)</Label>
+                              <Input 
+                                value={calculateVolume(dimensions.length, dimensions.width, dimensions.height)}
+                                readOnly
+                                className="mt-1 bg-muted" 
+                              />
+                            </div>
+                          )}
                         </div>
                       </div>
                     </div>
