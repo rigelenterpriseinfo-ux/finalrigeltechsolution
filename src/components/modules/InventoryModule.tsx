@@ -820,8 +820,10 @@ export function InventoryModule() {
 
   // Statistics
   const totalProducts = products.length;
-  const totalValue = products.reduce((sum, product) => sum + (product.unit_price * product.min_stock_level), 0);
-  const lowStockCount = products.filter(product => product.min_stock_level <= 10).length;
+  const totalValue = products.reduce((sum, product) => sum + (product.unit_price * product.min_stock_level || 0), 0);
+  const lowStockCount = products.filter(product => (product.min_stock_level || 0) <= 10).length;
+
+  console.log('InventoryModule render stats:', { totalProducts, totalValue, lowStockCount, productsLength: products.length });
 
   if (loading) {
     return (
@@ -1421,58 +1423,66 @@ export function InventoryModule() {
                     {canEdit && <TableHead>Actions</TableHead>}
                   </TableRow>
                 </TableHeader>
-                <TableBody>
-                  {currentProducts.map((product) => (
-                    <TableRow key={product.id}>
-                      <TableCell className="font-medium">{product.sku}</TableCell>
-                      <TableCell>
-                        <div>
-                          <div className="font-medium">{product.name}</div>
-                          {product.description && (
-                            <div className="text-sm text-muted-foreground">{product.description}</div>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant={product.product_type === 'goods' ? 'default' : 'secondary'}>
-                          {product.product_type === 'goods' ? 'Goods' : 'Service'}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="outline">
-                          {product.product_category.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>₹{product.unit_price.toLocaleString()}</TableCell>
-                      <TableCell>{product.unit || 'N/A'}</TableCell>
-                      <TableCell>
-                        <Badge variant={product.is_active ? 'default' : 'secondary'}>
-                          {product.is_active ? 'Active' : 'Inactive'}
-                        </Badge>
-                      </TableCell>
-                      {canEdit && (
-                        <TableCell>
-                          <div className="flex space-x-2">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleEditProduct(product)}
-                            >
-                              <Edit className="w-4 h-4" />
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleDeleteProduct(product.id)}
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      )}
-                    </TableRow>
-                  ))}
-                </TableBody>
+                 <TableBody>
+                   {currentProducts.length === 0 ? (
+                     <TableRow>
+                       <TableCell colSpan={canEdit ? 8 : 7} className="text-center py-8 text-muted-foreground">
+                         {searchTerm ? 'No products found matching your search.' : 'No products available.'}
+                       </TableCell>
+                     </TableRow>
+                   ) : (
+                     currentProducts.map((product) => (
+                       <TableRow key={product.id}>
+                         <TableCell className="font-medium">{product.sku}</TableCell>
+                         <TableCell>
+                           <div>
+                             <div className="font-medium">{product.name}</div>
+                             {product.description && (
+                               <div className="text-sm text-muted-foreground">{product.description}</div>
+                             )}
+                           </div>
+                         </TableCell>
+                         <TableCell>
+                           <Badge variant={product.product_type === 'goods' ? 'default' : 'secondary'}>
+                             {product.product_type === 'goods' ? 'Goods' : 'Service'}
+                           </Badge>
+                         </TableCell>
+                         <TableCell>
+                           <Badge variant="outline">
+                             {product.product_category.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                           </Badge>
+                         </TableCell>
+                         <TableCell>₹{product.unit_price.toLocaleString()}</TableCell>
+                         <TableCell>{product.unit || 'N/A'}</TableCell>
+                         <TableCell>
+                           <Badge variant={product.is_active ? 'default' : 'secondary'}>
+                             {product.is_active ? 'Active' : 'Inactive'}
+                           </Badge>
+                         </TableCell>
+                         {canEdit && (
+                           <TableCell>
+                             <div className="flex space-x-2">
+                               <Button
+                                 variant="outline"
+                                 size="sm"
+                                 onClick={() => handleEditProduct(product)}
+                               >
+                                 <Edit className="w-4 h-4" />
+                               </Button>
+                               <Button
+                                 variant="outline"
+                                 size="sm"
+                                 onClick={() => handleDeleteProduct(product.id)}
+                               >
+                                 <Trash2 className="w-4 h-4" />
+                               </Button>
+                             </div>
+                           </TableCell>
+                         )}
+                       </TableRow>
+                     ))
+                   )}
+                 </TableBody>
               </Table>
             </CardContent>
           </Card>
