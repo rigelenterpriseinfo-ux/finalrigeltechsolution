@@ -27,7 +27,7 @@ interface NavigationItem {
 }
 
 const navigationItems: NavigationItem[] = [
-  { id: 'dashboard', label: 'Dashboard', icon: BarChart3 },
+  { id: 'dashboard', label: 'Welcome back, Girish!', icon: BarChart3 },
   { id: 'inventory', label: 'Inventory', icon: Package },
   { id: 'purchase', label: 'Purchase', icon: ShoppingCart },
   { id: 'sales', label: 'Sales', icon: FileText },
