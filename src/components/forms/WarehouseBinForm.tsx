@@ -81,49 +81,8 @@ export function WarehouseBinForm({ open, onOpenChange, onSuccess, editingBin }: 
     return undefined;
   };
 
-  const validateWarehouseCode = async (value: string): Promise<string | undefined> => {
-    console.log('Validating warehouse code:', value);
-    if (!value) {
-      console.log('Warehouse code is empty, returning undefined');
-      return undefined; // Optional
-    }
-    
-    const trimmed = value.trim();
-    console.log('Trimmed warehouse code:', trimmed);
-    
-    if (!/^[A-Z0-9]{1,10}$/.test(trimmed)) {
-      console.log('Warehouse code failed regex test');
-      return "Use only A–Z, 0–9 (max 10 characters).";
-    }
-
-    // Check for duplicates in database
-    if (profile?.company_id) {
-      console.log('Checking for duplicates in database...');
-      try {
-        const { data: existingBins, error } = await supabase
-          .from('warehouse_bins')
-          .select('id')
-          .eq('company_id', profile.company_id)
-          .eq('warehouse_code', trimmed)
-          .neq('id', editingBin?.id || '');
-        
-        if (error) {
-          console.error('Database error while checking warehouse code:', error);
-          return "Error checking warehouse code uniqueness.";
-        }
-        
-        console.log('Existing bins found:', existingBins);
-        if (existingBins && existingBins.length > 0) {
-          console.log('Duplicate warehouse code found');
-          return "Warehouse code already exists.";
-        }
-      } catch (error) {
-        console.error('Exception while checking warehouse code:', error);
-        return "Error checking warehouse code uniqueness.";
-      }
-    }
-    
-    console.log('Warehouse code validation passed');
+  // Warehouse Code: validation removed as requested
+  const validateWarehouseCode = async (_value: string): Promise<string | undefined> => {
     return undefined;
   };
 
