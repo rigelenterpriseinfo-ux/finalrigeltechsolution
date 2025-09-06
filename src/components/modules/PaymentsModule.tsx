@@ -528,59 +528,69 @@ export function PaymentsModule() {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="rounded-md border overflow-x-auto">
-              <ScrollArea className="h-[500px]">
-                <Table className="min-w-[1100px] whitespace-nowrap">
+            <ScrollArea className="h-[500px]">
+              <Table className="w-full table-fixed">
+                <colgroup>
+                  <col className="w-[15%]" />
+                  <col className="w-[12%]" />
+                  <col className="w-[10%]" />
+                  <col className="w-[12%]" />
+                  <col className="w-[12%]" />
+                  <col className="w-[12%]" />
+                  <col className="w-[12%]" />
+                  <col className="w-[10%]" />
+                  <col className="w-[5%]" />
+                </colgroup>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>
-                      <Button variant="ghost" className="h-8 p-0 font-semibold hover:bg-transparent" onClick={() => handleApSort('supplier_name')}>
-                        Vendor Name
-                        {apSortField === 'supplier_name' ? (
-                          apSortDirection === 'asc' ? <ArrowUp className="ml-1 h-3 w-3" /> : <ArrowDown className="ml-1 h-3 w-3" />
-                        ) : <ArrowUpDown className="ml-1 h-3 w-3" />}
-                      </Button>
-                    </TableHead>
-                    <TableHead>
-                      <Button variant="ghost" className="h-8 p-0 font-semibold hover:bg-transparent" onClick={() => handleApSort('grn_number')}>
-                        GRN Number
-                        {apSortField === 'grn_number' ? (
-                          apSortDirection === 'asc' ? <ArrowUp className="ml-1 h-3 w-3" /> : <ArrowDown className="ml-1 h-3 w-3" />
-                        ) : <ArrowUpDown className="ml-1 h-3 w-3" />}
-                      </Button>
-                    </TableHead>
-                    <TableHead>
-                      <Button variant="ghost" className="h-8 p-0 font-semibold hover:bg-transparent" onClick={() => handleApSort('grn_date')}>
-                        GRN Date
-                        {apSortField === 'grn_date' ? (
-                          apSortDirection === 'asc' ? <ArrowUp className="ml-1 h-3 w-3" /> : <ArrowDown className="ml-1 h-3 w-3" />
-                        ) : <ArrowUpDown className="ml-1 h-3 w-3" />}
-                      </Button>
-                    </TableHead>
-                    <TableHead>
-                      <Button variant="ghost" className="h-8 p-0 font-semibold hover:bg-transparent" onClick={() => handleApSort('total_amount')}>
-                        Total Amount
-                        {apSortField === 'total_amount' ? (
-                          apSortDirection === 'asc' ? <ArrowUp className="ml-1 h-3 w-3" /> : <ArrowDown className="ml-1 h-3 w-3" />
-                        ) : <ArrowUpDown className="ml-1 h-3 w-3" />}
-                      </Button>
-                    </TableHead>
-                    <TableHead>
-                      <Button variant="ghost" className="h-8 p-0 font-semibold hover:bg-transparent" onClick={() => handleApSort('advance_payment')}>
-                        Advance Payment
-                        {apSortField === 'advance_payment' ? (
-                          apSortDirection === 'asc' ? <ArrowUp className="ml-1 h-3 w-3" /> : <ArrowDown className="ml-1 h-3 w-3" />
-                        ) : <ArrowUpDown className="ml-1 h-3 w-3" />}
-                      </Button>
-                    </TableHead>
-                    <TableHead>
-                      <Button variant="ghost" className="h-8 p-0 font-semibold hover:bg-transparent" onClick={() => handleApSort('amount_received')}>
-                        Amount Received
-                        {apSortField === 'amount_received' ? (
-                          apSortDirection === 'asc' ? <ArrowUp className="ml-1 h-3 w-3" /> : <ArrowDown className="ml-1 h-3 w-3" />
-                        ) : <ArrowUpDown className="ml-1 h-3 w-3" />}
-                      </Button>
-                    </TableHead>
+                     <TableHead className="p-2">
+                       <Button variant="ghost" className="h-6 p-0 text-xs font-semibold hover:bg-transparent" onClick={() => handleApSort('supplier_name')}>
+                         Vendor
+                         {apSortField === 'supplier_name' ? (
+                           apSortDirection === 'asc' ? <ArrowUp className="ml-1 h-3 w-3" /> : <ArrowDown className="ml-1 h-3 w-3" />
+                         ) : <ArrowUpDown className="ml-1 h-3 w-3" />}
+                       </Button>
+                     </TableHead>
+                     <TableHead className="p-2">
+                       <Button variant="ghost" className="h-6 p-0 text-xs font-semibold hover:bg-transparent" onClick={() => handleApSort('grn_number')}>
+                         GRN #
+                         {apSortField === 'grn_number' ? (
+                           apSortDirection === 'asc' ? <ArrowUp className="ml-1 h-3 w-3" /> : <ArrowDown className="ml-1 h-3 w-3" />
+                         ) : <ArrowUpDown className="ml-1 h-3 w-3" />}
+                       </Button>
+                     </TableHead>
+                     <TableHead className="p-2">
+                       <Button variant="ghost" className="h-6 p-0 text-xs font-semibold hover:bg-transparent" onClick={() => handleApSort('grn_date')}>
+                         Date
+                         {apSortField === 'grn_date' ? (
+                           apSortDirection === 'asc' ? <ArrowUp className="ml-1 h-3 w-3" /> : <ArrowDown className="ml-1 h-3 w-3" />
+                         ) : <ArrowUpDown className="ml-1 h-3 w-3" />}
+                       </Button>
+                     </TableHead>
+                     <TableHead className="p-2">
+                       <Button variant="ghost" className="h-6 p-0 text-xs font-semibold hover:bg-transparent" onClick={() => handleApSort('total_amount')}>
+                         Total
+                         {apSortField === 'total_amount' ? (
+                           apSortDirection === 'asc' ? <ArrowUp className="ml-1 h-3 w-3" /> : <ArrowDown className="ml-1 h-3 w-3" />
+                         ) : <ArrowUpDown className="ml-1 h-3 w-3" />}
+                       </Button>
+                     </TableHead>
+                     <TableHead className="p-2">
+                       <Button variant="ghost" className="h-6 p-0 text-xs font-semibold hover:bg-transparent" onClick={() => handleApSort('advance_payment')}>
+                         Advance
+                         {apSortField === 'advance_payment' ? (
+                           apSortDirection === 'asc' ? <ArrowUp className="ml-1 h-3 w-3" /> : <ArrowDown className="ml-1 h-3 w-3" />
+                         ) : <ArrowUpDown className="ml-1 h-3 w-3" />}
+                       </Button>
+                     </TableHead>
+                     <TableHead className="p-2">
+                       <Button variant="ghost" className="h-6 p-0 text-xs font-semibold hover:bg-transparent" onClick={() => handleApSort('amount_received')}>
+                         Received
+                         {apSortField === 'amount_received' ? (
+                           apSortDirection === 'asc' ? <ArrowUp className="ml-1 h-3 w-3" /> : <ArrowDown className="ml-1 h-3 w-3" />
+                         ) : <ArrowUpDown className="ml-1 h-3 w-3" />}
+                       </Button>
+                     </TableHead>
                     <TableHead>
                       <Button variant="ghost" className="h-8 p-0 font-semibold hover:bg-transparent" onClick={() => handleApSort('pending_payment')}>
                         Pending Payment
@@ -589,15 +599,15 @@ export function PaymentsModule() {
                         ) : <ArrowUpDown className="ml-1 h-3 w-3" />}
                       </Button>
                     </TableHead>
-                     <TableHead>
-                       <Button variant="ghost" className="h-8 p-0 font-semibold hover:bg-transparent" onClick={() => handleApSort('invoice_status')}>
-                         Payment Status
-                         {apSortField === 'invoice_status' ? (
-                           apSortDirection === 'asc' ? <ArrowUp className="ml-1 h-3 w-3" /> : <ArrowDown className="ml-1 h-3 w-3" />
-                         ) : <ArrowUpDown className="ml-1 h-3 w-3" />}
-                       </Button>
-                     </TableHead>
-                     <TableHead>Actions</TableHead>
+                      <TableHead className="p-2">
+                        <Button variant="ghost" className="h-6 p-0 text-xs font-semibold hover:bg-transparent" onClick={() => handleApSort('invoice_status')}>
+                          Status
+                          {apSortField === 'invoice_status' ? (
+                            apSortDirection === 'asc' ? <ArrowUp className="ml-1 h-3 w-3" /> : <ArrowDown className="ml-1 h-3 w-3" />
+                          ) : <ArrowUpDown className="ml-1 h-3 w-3" />}
+                        </Button>
+                      </TableHead>
+                      <TableHead className="p-2 text-xs">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -609,48 +619,49 @@ export function PaymentsModule() {
                      </TableRow>
                    ) : (
                      paginatedAP.map((item) => (
-                       <TableRow key={item.id}>
-                         <TableCell className="font-medium">{item.supplier_name || 'N/A'}</TableCell>
-                         <TableCell>{item.grn_number}</TableCell>
-                         <TableCell>{new Date(item.grn_date).toLocaleDateString()}</TableCell>
-                         <TableCell>₹{item.total_amount.toLocaleString()}</TableCell>
-                         <TableCell>₹{item.advance_payment.toLocaleString()}</TableCell>
-                         <TableCell>₹{item.amount_received.toLocaleString()}</TableCell>
-                         <TableCell>₹{item.pending_payment.toLocaleString()}</TableCell>
-                         <TableCell>
-                           <Badge variant={
-                             item.invoice_status === 'Fully Paid' ? 'default' :
-                             item.invoice_status === 'Partially Paid' ? 'secondary' :
-                             item.invoice_status === 'Overdue' ? 'destructive' : 'outline'
-                           }>
-                             {item.invoice_status}
-                           </Badge>
-                         </TableCell>
-                         <TableCell>
-                           <Button
-                             variant="outline"
-                             size="sm"
-                             onClick={() => {
-                               setSelectedRecord({
-                                 id: item.id,
-                                 number: item.grn_number,
-                                 type: 'grn',
-                                 totalAmount: item.total_amount
-                               });
-                               setPaymentHistoryOpen(true);
-                             }}
-                           >
-                             <History className="h-4 w-4 mr-1" />
-                             Payments
-                           </Button>
-                         </TableCell>
+                        <TableRow key={item.id} className="h-12">
+                          <TableCell className="p-2 text-xs font-medium truncate">{item.supplier_name || 'N/A'}</TableCell>
+                          <TableCell className="p-2 text-xs truncate">{item.grn_number}</TableCell>
+                          <TableCell className="p-2 text-xs">{new Date(item.grn_date).toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: '2-digit' })}</TableCell>
+                          <TableCell className="p-2 text-xs">₹{(item.total_amount / 1000).toFixed(0)}k</TableCell>
+                          <TableCell className="p-2 text-xs">₹{(item.advance_payment / 1000).toFixed(0)}k</TableCell>
+                          <TableCell className="p-2 text-xs">₹{(item.amount_received / 1000).toFixed(0)}k</TableCell>
+                          <TableCell className="p-2 text-xs">₹{(item.pending_payment / 1000).toFixed(0)}k</TableCell>
+                          <TableCell className="p-2">
+                            <Badge variant={
+                              item.invoice_status === 'Fully Paid' ? 'default' :
+                              item.invoice_status === 'Partially Paid' ? 'secondary' :
+                              item.invoice_status === 'Overdue' ? 'destructive' : 'outline'
+                            } className="text-xs px-1 py-0">
+                              {item.invoice_status === 'Fully Paid' ? 'Paid' : 
+                               item.invoice_status === 'Partially Paid' ? 'Partial' :
+                               item.invoice_status === 'Overdue' ? 'Overdue' : 'Outstanding'}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="p-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="h-6 px-2 text-xs"
+                              onClick={() => {
+                                setSelectedRecord({
+                                  id: item.id,
+                                  number: item.grn_number,
+                                  type: 'grn',
+                                  totalAmount: item.total_amount
+                                });
+                                setPaymentHistoryOpen(true);
+                              }}
+                            >
+                              <History className="h-3 w-3" />
+                            </Button>
+                          </TableCell>
                        </TableRow>
                     ))
                   )}
                 </TableBody>
                 </Table>
-              </ScrollArea>
-            </div>
+            </ScrollArea>
             {totalAPPages > 1 && (
               <div className="flex items-center justify-between px-2 py-4">
                 <div className="text-sm text-muted-foreground">
@@ -707,84 +718,95 @@ export function PaymentsModule() {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="rounded-md border overflow-x-auto">
-              <ScrollArea className="h-[500px]">
-                <Table className="min-w-[1100px] whitespace-nowrap">
+            <ScrollArea className="h-[500px]">
+              <Table className="w-full table-fixed">
+                <colgroup>
+                  <col className="w-[14%]" />
+                  <col className="w-[12%]" />
+                  <col className="w-[9%]" />
+                  <col className="w-[11%]" />
+                  <col className="w-[11%]" />
+                  <col className="w-[11%]" />
+                  <col className="w-[11%]" />
+                  <col className="w-[9%]" />
+                  <col className="w-[7%]" />
+                  <col className="w-[5%]" />
+                </colgroup>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>
-                      <Button variant="ghost" className="h-8 p-0 font-semibold hover:bg-transparent" onClick={() => handleArSort('customer_name')}>
-                        Customer Name
-                        {arSortField === 'customer_name' ? (
-                          arSortDirection === 'asc' ? <ArrowUp className="ml-1 h-3 w-3" /> : <ArrowDown className="ml-1 h-3 w-3" />
-                        ) : <ArrowUpDown className="ml-1 h-3 w-3" />}
-                      </Button>
-                    </TableHead>
-                    <TableHead>
-                      <Button variant="ghost" className="h-8 p-0 font-semibold hover:bg-transparent" onClick={() => handleArSort('invoice_number')}>
-                        Invoice Number
-                        {arSortField === 'invoice_number' ? (
-                          arSortDirection === 'asc' ? <ArrowUp className="ml-1 h-3 w-3" /> : <ArrowDown className="ml-1 h-3 w-3" />
-                        ) : <ArrowUpDown className="ml-1 h-3 w-3" />}
-                      </Button>
-                    </TableHead>
-                    <TableHead>
-                      <Button variant="ghost" className="h-8 p-0 font-semibold hover:bg-transparent" onClick={() => handleArSort('invoice_date')}>
-                        Invoice Date
-                        {arSortField === 'invoice_date' ? (
-                          arSortDirection === 'asc' ? <ArrowUp className="ml-1 h-3 w-3" /> : <ArrowDown className="ml-1 h-3 w-3" />
-                        ) : <ArrowUpDown className="ml-1 h-3 w-3" />}
-                      </Button>
-                    </TableHead>
-                    <TableHead>
-                      <Button variant="ghost" className="h-8 p-0 font-semibold hover:bg-transparent" onClick={() => handleArSort('total_amount')}>
-                        Total Amount
-                        {arSortField === 'total_amount' ? (
-                          arSortDirection === 'asc' ? <ArrowUp className="ml-1 h-3 w-3" /> : <ArrowDown className="ml-1 h-3 w-3" />
-                        ) : <ArrowUpDown className="ml-1 h-3 w-3" />}
-                      </Button>
-                    </TableHead>
-                    <TableHead>
-                      <Button variant="ghost" className="h-8 p-0 font-semibold hover:bg-transparent" onClick={() => handleArSort('advance_payment')}>
-                        Advance Payment
-                        {arSortField === 'advance_payment' ? (
-                          arSortDirection === 'asc' ? <ArrowUp className="ml-1 h-3 w-3" /> : <ArrowDown className="ml-1 h-3 w-3" />
-                        ) : <ArrowUpDown className="ml-1 h-3 w-3" />}
-                      </Button>
-                    </TableHead>
-                    <TableHead>
-                      <Button variant="ghost" className="h-8 p-0 font-semibold hover:bg-transparent" onClick={() => handleArSort('amount_received')}>
-                        Amount Received
-                        {arSortField === 'amount_received' ? (
-                          arSortDirection === 'asc' ? <ArrowUp className="ml-1 h-3 w-3" /> : <ArrowDown className="ml-1 h-3 w-3" />
-                        ) : <ArrowUpDown className="ml-1 h-3 w-3" />}
-                      </Button>
-                    </TableHead>
-                    <TableHead>
-                      <Button variant="ghost" className="h-8 p-0 font-semibold hover:bg-transparent" onClick={() => handleArSort('pending_payment')}>
-                        Pending Payment
-                        {arSortField === 'pending_payment' ? (
-                          arSortDirection === 'asc' ? <ArrowUp className="ml-1 h-3 w-3" /> : <ArrowDown className="ml-1 h-3 w-3" />
-                        ) : <ArrowUpDown className="ml-1 h-3 w-3" />}
-                      </Button>
-                    </TableHead>
-                    <TableHead>
-                      <Button variant="ghost" className="h-8 p-0 font-semibold hover:bg-transparent" onClick={() => handleArSort('invoice_status')}>
-                        Payment Status
-                        {arSortField === 'invoice_status' ? (
-                          arSortDirection === 'asc' ? <ArrowUp className="ml-1 h-3 w-3" /> : <ArrowDown className="ml-1 h-3 w-3" />
-                        ) : <ArrowUpDown className="ml-1 h-3 w-3" />}
-                      </Button>
-                    </TableHead>
-                     <TableHead>
-                       <Button variant="ghost" className="h-8 p-0 font-semibold hover:bg-transparent" onClick={() => handleArSort('payment_terms')}>
-                         Payment Terms
-                         {arSortField === 'payment_terms' ? (
+                     <TableHead className="p-2">
+                       <Button variant="ghost" className="h-6 p-0 text-xs font-semibold hover:bg-transparent" onClick={() => handleArSort('customer_name')}>
+                         Customer
+                         {arSortField === 'customer_name' ? (
                            arSortDirection === 'asc' ? <ArrowUp className="ml-1 h-3 w-3" /> : <ArrowDown className="ml-1 h-3 w-3" />
                          ) : <ArrowUpDown className="ml-1 h-3 w-3" />}
                        </Button>
                      </TableHead>
-                     <TableHead>Actions</TableHead>
+                     <TableHead className="p-2">
+                       <Button variant="ghost" className="h-6 p-0 text-xs font-semibold hover:bg-transparent" onClick={() => handleArSort('invoice_number')}>
+                         Invoice #
+                         {arSortField === 'invoice_number' ? (
+                           arSortDirection === 'asc' ? <ArrowUp className="ml-1 h-3 w-3" /> : <ArrowDown className="ml-1 h-3 w-3" />
+                         ) : <ArrowUpDown className="ml-1 h-3 w-3" />}
+                       </Button>
+                     </TableHead>
+                     <TableHead className="p-2">
+                       <Button variant="ghost" className="h-6 p-0 text-xs font-semibold hover:bg-transparent" onClick={() => handleArSort('invoice_date')}>
+                         Date
+                         {arSortField === 'invoice_date' ? (
+                           arSortDirection === 'asc' ? <ArrowUp className="ml-1 h-3 w-3" /> : <ArrowDown className="ml-1 h-3 w-3" />
+                         ) : <ArrowUpDown className="ml-1 h-3 w-3" />}
+                       </Button>
+                     </TableHead>
+                     <TableHead className="p-2">
+                       <Button variant="ghost" className="h-6 p-0 text-xs font-semibold hover:bg-transparent" onClick={() => handleArSort('total_amount')}>
+                         Total
+                         {arSortField === 'total_amount' ? (
+                           arSortDirection === 'asc' ? <ArrowUp className="ml-1 h-3 w-3" /> : <ArrowDown className="ml-1 h-3 w-3" />
+                         ) : <ArrowUpDown className="ml-1 h-3 w-3" />}
+                       </Button>
+                     </TableHead>
+                     <TableHead className="p-2">
+                       <Button variant="ghost" className="h-6 p-0 text-xs font-semibold hover:bg-transparent" onClick={() => handleArSort('advance_payment')}>
+                         Advance
+                         {arSortField === 'advance_payment' ? (
+                           arSortDirection === 'asc' ? <ArrowUp className="ml-1 h-3 w-3" /> : <ArrowDown className="ml-1 h-3 w-3" />
+                         ) : <ArrowUpDown className="ml-1 h-3 w-3" />}
+                       </Button>
+                     </TableHead>
+                     <TableHead className="p-2">
+                       <Button variant="ghost" className="h-6 p-0 text-xs font-semibold hover:bg-transparent" onClick={() => handleArSort('amount_received')}>
+                         Received
+                         {arSortField === 'amount_received' ? (
+                           arSortDirection === 'asc' ? <ArrowUp className="ml-1 h-3 w-3" /> : <ArrowDown className="ml-1 h-3 w-3" />
+                         ) : <ArrowUpDown className="ml-1 h-3 w-3" />}
+                       </Button>
+                     </TableHead>
+                     <TableHead className="p-2">
+                       <Button variant="ghost" className="h-6 p-0 text-xs font-semibold hover:bg-transparent" onClick={() => handleArSort('pending_payment')}>
+                         Pending
+                         {arSortField === 'pending_payment' ? (
+                           arSortDirection === 'asc' ? <ArrowUp className="ml-1 h-3 w-3" /> : <ArrowDown className="ml-1 h-3 w-3" />
+                         ) : <ArrowUpDown className="ml-1 h-3 w-3" />}
+                       </Button>
+                     </TableHead>
+                     <TableHead className="p-2">
+                       <Button variant="ghost" className="h-6 p-0 text-xs font-semibold hover:bg-transparent" onClick={() => handleArSort('invoice_status')}>
+                         Status
+                         {arSortField === 'invoice_status' ? (
+                           arSortDirection === 'asc' ? <ArrowUp className="ml-1 h-3 w-3" /> : <ArrowDown className="ml-1 h-3 w-3" />
+                         ) : <ArrowUpDown className="ml-1 h-3 w-3" />}
+                       </Button>
+                     </TableHead>
+                      <TableHead className="p-2">
+                        <Button variant="ghost" className="h-6 p-0 text-xs font-semibold hover:bg-transparent" onClick={() => handleArSort('payment_terms')}>
+                          Terms
+                          {arSortField === 'payment_terms' ? (
+                            arSortDirection === 'asc' ? <ArrowUp className="ml-1 h-3 w-3" /> : <ArrowDown className="ml-1 h-3 w-3" />
+                          ) : <ArrowUpDown className="ml-1 h-3 w-3" />}
+                        </Button>
+                      </TableHead>
+                     <TableHead className="p-2 text-xs">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -796,40 +818,42 @@ export function PaymentsModule() {
                      </TableRow>
                    ) : (
                      paginatedAR.map((item) => (
-                       <TableRow key={item.id}>
-                         <TableCell className="font-medium">{item.customer?.name || 'N/A'}</TableCell>
-                         <TableCell>{item.invoice_number || 'N/A'}</TableCell>
-                         <TableCell>{new Date(item.invoice_date).toLocaleDateString()}</TableCell>
-                         <TableCell>₹{item.total_amount.toLocaleString()}</TableCell>
-                         <TableCell>₹{item.advance_payment.toLocaleString()}</TableCell>
-                         <TableCell>₹{item.amount_received.toLocaleString()}</TableCell>
-                         <TableCell>₹{item.pending_payment.toLocaleString()}</TableCell>
-                         <TableCell>
-                           <Badge variant={
-                             item.invoice_status === 'Fully Paid' ? 'default' :
-                             item.invoice_status === 'Partially Paid' ? 'secondary' :
-                             item.invoice_status === 'Overdue' ? 'destructive' : 'outline'
-                           }>
-                             {item.invoice_status}
-                           </Badge>
-                         </TableCell>
-                         <TableCell>{item.payment_terms || 'Net 30'}</TableCell>
-                         <TableCell>
-                           <Button
-                             variant="outline"
-                             size="sm"
-                             onClick={() => {
-                               setSelectedRecord({
-                                 id: item.id,
-                                 number: item.invoice_number || 'N/A',
-                                 type: 'sales_invoice',
-                                 totalAmount: item.total_amount
-                               });
-                               setPaymentHistoryOpen(true);
-                             }}
-                           >
-                             <History className="h-4 w-4 mr-1" />
-                             Payments
+                        <TableRow key={item.id} className="h-12">
+                          <TableCell className="p-2 text-xs font-medium truncate">{item.customer?.name || 'N/A'}</TableCell>
+                          <TableCell className="p-2 text-xs truncate">{item.invoice_number || 'N/A'}</TableCell>
+                          <TableCell className="p-2 text-xs">{new Date(item.invoice_date).toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: '2-digit' })}</TableCell>
+                          <TableCell className="p-2 text-xs">₹{(item.total_amount / 1000).toFixed(0)}k</TableCell>
+                          <TableCell className="p-2 text-xs">₹{(item.advance_payment / 1000).toFixed(0)}k</TableCell>
+                          <TableCell className="p-2 text-xs">₹{(item.amount_received / 1000).toFixed(0)}k</TableCell>
+                          <TableCell className="p-2 text-xs">₹{(item.pending_payment / 1000).toFixed(0)}k</TableCell>
+                          <TableCell className="p-2">
+                            <Badge variant={
+                              item.invoice_status === 'Fully Paid' ? 'default' :
+                              item.invoice_status === 'Partially Paid' ? 'secondary' :
+                              item.invoice_status === 'Overdue' ? 'destructive' : 'outline'
+                            } className="text-xs px-1 py-0">
+                              {item.invoice_status === 'Fully Paid' ? 'Paid' : 
+                               item.invoice_status === 'Partially Paid' ? 'Partial' :
+                               item.invoice_status === 'Overdue' ? 'Overdue' : 'Outstanding'}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="p-2 text-xs truncate">{item.payment_terms || 'Net 30'}</TableCell>
+                          <TableCell className="p-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="h-6 px-2 text-xs"
+                              onClick={() => {
+                                setSelectedRecord({
+                                  id: item.id,
+                                  number: item.invoice_number || 'N/A',
+                                  type: 'sales_invoice',
+                                  totalAmount: item.total_amount
+                                });
+                                setPaymentHistoryOpen(true);
+                              }}
+                            >
+                              <History className="h-3 w-3" />
                            </Button>
                          </TableCell>
                        </TableRow>
@@ -837,8 +861,7 @@ export function PaymentsModule() {
                   )}
                 </TableBody>
                 </Table>
-              </ScrollArea>
-            </div>
+            </ScrollArea>
             {totalARPages > 1 && (
               <div className="flex items-center justify-between px-2 py-4">
                 <div className="text-sm text-muted-foreground">
