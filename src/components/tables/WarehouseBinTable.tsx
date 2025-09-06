@@ -49,6 +49,27 @@ export function WarehouseBinTable() {
 
   useEffect(() => {
     fetchBins();
+
+    // Set up real-time subscription
+    const channel = supabase
+      .channel('warehouse_bins_changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'warehouse_bins'
+        },
+        (payload) => {
+          console.log('Warehouse bins change detected:', payload);
+          fetchBins(); // Refresh the data
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   const fetchBins = async () => {
