@@ -15,7 +15,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { format } from 'date-fns';
-import { Search, Filter, ArrowUpDown, ArrowUp, ArrowDown, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Search, Filter, ArrowUpDown, ArrowUp, ArrowDown, ChevronLeft, ChevronRight, FileSpreadsheet } from 'lucide-react';
+import { exportToExcel, formatCurrency, formatDateTime, ExportColumn } from '@/utils/excelExport';
 
 interface InventoryTransaction {
   id: string;
@@ -100,11 +101,13 @@ export const InventoryTransactionTable = ({ refreshTrigger }: InventoryTransacti
         product_sku: transaction.products?.sku || 'N/A',
         warehouse_name: transaction.warehouse_bins?.warehouse_name || transaction.bin_info?.warehouse_name || 'N/A',
         bin_name: transaction.warehouse_bins?.bin_name || transaction.bin_info?.bin_name || 'N/A',
-        quantity_change: transaction.quantity_change,
-        unit_cost: transaction.unit_cost,
-        total_value: transaction.total_value,
+        quantity_change: transaction.quantity_change || 0,
+        unit_cost: transaction.unit_cost || 0,
+        total_value: transaction.total_value || 0,
         notes: transaction.notes || '',
-        created_by_name: `${transaction.profiles?.first_name || ''} ${transaction.profiles?.last_name || ''}`.trim() || 'Unknown'
+        created_by_name: transaction.profiles 
+          ? `${transaction.profiles.first_name || ''} ${transaction.profiles.last_name || ''}`.trim() || 'System'
+          : 'System'
       })) || [];
 
       setTransactions(formattedTransactions);
@@ -122,18 +125,23 @@ export const InventoryTransactionTable = ({ refreshTrigger }: InventoryTransacti
 
   const getTransactionTypeBadge = (type: string) => {
     const typeConfig = {
-      purchase_receipt: { label: 'Purchase Receipt', variant: 'default' as const },
-      sales_issue: { label: 'Sales Issue', variant: 'secondary' as const },
-      sales_return: { label: 'Sales Return', variant: 'default' as const },
-      sales_invoice: { label: 'Sales Invoice', variant: 'secondary' as const },
-      adjustment_positive: { label: 'Adjustment +', variant: 'default' as const },
-      adjustment_negative: { label: 'Adjustment -', variant: 'destructive' as const },
-      transfer_out: { label: 'Transfer Out', variant: 'outline' as const },
-      transfer_in: { label: 'Transfer In', variant: 'outline' as const },
+      'purchase_receipt': { label: 'Purchase Receipt', color: 'bg-green-100 text-green-800' },
+      'sales_issue': { label: 'Sales Issue', color: 'bg-blue-100 text-blue-800' },
+      'sales_return': { label: 'Sales Return', color: 'bg-purple-100 text-purple-800' },
+      'sales_invoice': { label: 'Sales Invoice', color: 'bg-orange-100 text-orange-800' },
+      'adjustment_positive': { label: 'Adjustment +', color: 'bg-green-100 text-green-800' },
+      'adjustment_negative': { label: 'Adjustment -', color: 'bg-red-100 text-red-800' },
+      'transfer_out': { label: 'Transfer Out', color: 'bg-yellow-100 text-yellow-800' },
+      'transfer_in': { label: 'Transfer In', color: 'bg-indigo-100 text-indigo-800' },
     };
 
-    const config = typeConfig[type as keyof typeof typeConfig] || { label: type, variant: 'secondary' as const };
-    return <Badge variant={config.variant}>{config.label}</Badge>;
+    const config = typeConfig[type as keyof typeof typeConfig] || { label: type, color: 'bg-gray-100 text-gray-800' };
+    
+    return (
+      <Badge variant="outline" className={`${config.color} border-0 font-medium`}>
+        {config.label}
+      </Badge>
+    );
   };
 
   // Handle sorting
@@ -157,13 +165,16 @@ export const InventoryTransactionTable = ({ refreshTrigger }: InventoryTransacti
 
   const filteredAndSortedTransactions = useMemo(() => {
     let filtered = transactions.filter((transaction) => {
-    const matchesSearch = 
-      transaction.product_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      transaction.product_sku.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      transaction.reference_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      transaction.warehouse_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      transaction.bin_name.toLowerCase().includes(searchTerm.toLowerCase());
-    
+      const matchesSearch = 
+        transaction.product_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        transaction.product_sku.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        transaction.reference_number?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        transaction.warehouse_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        transaction.bin_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        transaction.created_by_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        transaction.transaction_type.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        transaction.notes?.toLowerCase().includes(searchTerm.toLowerCase());
+      
       const matchesType = typeFilter === 'all' || transaction.transaction_type === typeFilter;
       
       return matchesSearch && matchesType;
@@ -209,7 +220,45 @@ export const InventoryTransactionTable = ({ refreshTrigger }: InventoryTransacti
     return filtered;
   }, [transactions, searchTerm, typeFilter, sortConfig]);
 
-  // Pagination
+  // Enhanced export functionality
+  const handleExportToExcel = () => {
+    const columns: ExportColumn[] = [
+      { key: 'transaction_date', label: 'Date', format: formatDateTime },
+      { key: 'transaction_type', label: 'Transaction Type' },
+      { key: 'reference_number', label: 'Reference Number' },
+      { key: 'product_name', label: 'Product Name' },
+      { key: 'product_sku', label: 'SKU' },
+      { key: 'warehouse_name', label: 'Warehouse' },
+      { key: 'bin_name', label: 'Bin Location' },
+      { key: 'quantity_change', label: 'Quantity Change' },
+      { key: 'unit_cost', label: 'Unit Cost', format: formatCurrency },
+      { key: 'total_value', label: 'Total Value', format: formatCurrency },
+      { key: 'created_by_name', label: 'Created By' },
+      { key: 'notes', label: 'Notes' },
+    ];
+
+    const success = exportToExcel({
+      filename: 'inventory_transactions',
+      sheetName: 'Inventory Transactions',
+      columns,
+      data: filteredAndSortedTransactions,
+      companyName: company?.name || 'Company',
+    });
+
+    if (success) {
+      toast({
+        title: "Export Successful",
+        description: "Inventory transactions exported to Excel",
+      });
+    } else {
+      toast({
+        title: "Export Failed",
+        description: "Failed to export data to Excel",
+        variant: "destructive",
+      });
+    }
+  };
+
   const totalPages = Math.ceil(filteredAndSortedTransactions.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
@@ -221,34 +270,46 @@ export const InventoryTransactionTable = ({ refreshTrigger }: InventoryTransacti
 
   return (
     <div className="space-y-4">
-      {/* Filters */}
-      <div className="flex gap-4 items-center">
+      {/* Enhanced Filters and Actions */}
+      <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
           <Input
-            placeholder="Search by product, SKU, reference, warehouse..."
+            placeholder="Search by product, SKU, reference number, warehouse, type..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10"
+            className="pl-10 bg-background/50 border-border/50 focus:bg-background"
           />
         </div>
-        <Select value={typeFilter} onValueChange={setTypeFilter}>
-          <SelectTrigger className="w-48">
-            <Filter className="h-4 w-4 mr-2" />
-            <SelectValue placeholder="Filter by type" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Types</SelectItem>
-            <SelectItem value="purchase_receipt">Purchase Receipt</SelectItem>
-            <SelectItem value="sales_issue">Sales Issue</SelectItem>
-            <SelectItem value="sales_return">Sales Return</SelectItem>
-            <SelectItem value="sales_invoice">Sales Invoice</SelectItem>
-            <SelectItem value="adjustment_positive">Adjustment +</SelectItem>
-            <SelectItem value="adjustment_negative">Adjustment -</SelectItem>
-            <SelectItem value="transfer_out">Transfer Out</SelectItem>
-            <SelectItem value="transfer_in">Transfer In</SelectItem>
-          </SelectContent>
-        </Select>
+        
+        <div className="flex gap-2 items-center">
+          <Select value={typeFilter} onValueChange={setTypeFilter}>
+            <SelectTrigger className="w-48 bg-background/50 border-border/50">
+              <Filter className="h-4 w-4 mr-2" />
+              <SelectValue placeholder="Filter by type" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Types</SelectItem>
+              <SelectItem value="purchase_receipt">Purchase Receipt</SelectItem>
+              <SelectItem value="sales_issue">Sales Issue</SelectItem>
+              <SelectItem value="sales_return">Sales Return</SelectItem>
+              <SelectItem value="sales_invoice">Sales Invoice</SelectItem>
+              <SelectItem value="adjustment_positive">Adjustment +</SelectItem>
+              <SelectItem value="adjustment_negative">Adjustment -</SelectItem>
+              <SelectItem value="transfer_out">Transfer Out</SelectItem>
+              <SelectItem value="transfer_in">Transfer In</SelectItem>
+            </SelectContent>
+          </Select>
+          
+          <Button
+            onClick={handleExportToExcel}
+            variant="outline"
+            className="flex items-center gap-2 bg-green-50 hover:bg-green-100 text-green-700 border-green-200"
+          >
+            <FileSpreadsheet className="h-4 w-4" />
+            Export
+          </Button>
+        </div>
       </div>
 
       {/* Transaction Table */}
@@ -258,82 +319,88 @@ export const InventoryTransactionTable = ({ refreshTrigger }: InventoryTransacti
         </div>
       ) : (
         <>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="cursor-pointer" onClick={() => handleSort('transaction_date')}>
-                  <div className="flex items-center space-x-2">
-                    <span>Date</span>
-                    {getSortIcon('transaction_date')}
-                  </div>
-                </TableHead>
-                <TableHead>Type</TableHead>
-                <TableHead>Reference</TableHead>
-                <TableHead className="cursor-pointer" onClick={() => handleSort('product_name')}>
-                  <div className="flex items-center space-x-2">
-                    <span>Product</span>
-                    {getSortIcon('product_name')}
-                  </div>
-                </TableHead>
-                <TableHead>Location</TableHead>
-                <TableHead className="text-right cursor-pointer" onClick={() => handleSort('quantity_change')}>
-                  <div className="flex items-center justify-end space-x-2">
-                    <span>Qty Change</span>
-                    {getSortIcon('quantity_change')}
-                  </div>
-                </TableHead>
-                <TableHead className="text-right">Unit Cost</TableHead>
-                <TableHead className="text-right cursor-pointer" onClick={() => handleSort('total_value')}>
-                  <div className="flex items-center justify-end space-x-2">
-                    <span>Total Value</span>
-                    {getSortIcon('total_value')}
-                  </div>
-                </TableHead>
-                <TableHead>Created By</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {currentTransactions.map((transaction) => (
-              <TableRow key={transaction.id}>
-                <TableCell>
-                  {format(new Date(transaction.transaction_date), 'MMM dd, yyyy HH:mm')}
-                </TableCell>
-                <TableCell>
-                  {getTransactionTypeBadge(transaction.transaction_type)}
-                </TableCell>
-                <TableCell className="font-mono text-sm">
-                  {transaction.reference_number}
-                </TableCell>
-                <TableCell>
-                  <div>
-                    <div className="font-medium">{transaction.product_name}</div>
-                    <div className="text-sm text-muted-foreground">{transaction.product_sku}</div>
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <div>
-                    <div className="font-medium">{transaction.warehouse_name}</div>
-                    <div className="text-sm text-muted-foreground">{transaction.bin_name}</div>
-                  </div>
-                </TableCell>
-                <TableCell className={`text-right font-mono ${
-                  transaction.quantity_change > 0 ? 'text-green-600' : 'text-red-600'
-                }`}>
-                  {transaction.quantity_change > 0 ? '+' : ''}{transaction.quantity_change}
-                </TableCell>
-                <TableCell className="text-right font-mono">
-                  ₹{transaction.unit_cost.toFixed(2)}
-                </TableCell>
-                <TableCell className={`text-right font-mono ${
-                  transaction.total_value > 0 ? 'text-green-600' : 'text-red-600'
-                }`}>
-                  ₹{transaction.total_value.toFixed(2)}
-                </TableCell>
-                <TableCell>{transaction.created_by_name}</TableCell>
-              </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+          <div className="rounded-md border bg-background/50">
+            <Table>
+              <TableHeader>
+                <TableRow className="bg-muted/30">
+                  <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => handleSort('transaction_date')}>
+                    <div className="flex items-center space-x-2">
+                      <span className="font-semibold">Date</span>
+                      {getSortIcon('transaction_date')}
+                    </div>
+                  </TableHead>
+                  <TableHead className="font-semibold">Type</TableHead>
+                  <TableHead className="font-semibold">Reference</TableHead>
+                  <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => handleSort('product_name')}>
+                    <div className="flex items-center space-x-2">
+                      <span className="font-semibold">Product</span>
+                      {getSortIcon('product_name')}
+                    </div>
+                  </TableHead>
+                  <TableHead className="font-semibold">Location</TableHead>
+                  <TableHead className="text-right cursor-pointer hover:bg-muted/50" onClick={() => handleSort('quantity_change')}>
+                    <div className="flex items-center justify-end space-x-2">
+                      <span className="font-semibold">Qty Change</span>
+                      {getSortIcon('quantity_change')}
+                    </div>
+                  </TableHead>
+                  <TableHead className="text-right font-semibold">Unit Cost</TableHead>
+                  <TableHead className="text-right cursor-pointer hover:bg-muted/50" onClick={() => handleSort('total_value')}>
+                    <div className="flex items-center justify-end space-x-2">
+                      <span className="font-semibold">Total Value</span>
+                      {getSortIcon('total_value')}
+                    </div>
+                  </TableHead>
+                  <TableHead className="font-semibold">Created By</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {currentTransactions.map((transaction) => (
+                <TableRow key={transaction.id} className="hover:bg-muted/20">
+                  <TableCell className="font-medium">
+                    {format(new Date(transaction.transaction_date), 'MMM dd, yyyy HH:mm')}
+                  </TableCell>
+                  <TableCell>
+                    {getTransactionTypeBadge(transaction.transaction_type)}
+                  </TableCell>
+                  <TableCell className="font-mono text-sm bg-muted/20 rounded px-2 py-1">
+                    {transaction.reference_number}
+                  </TableCell>
+                  <TableCell>
+                    <div>
+                      <div className="font-medium">{transaction.product_name}</div>
+                      <div className="text-sm text-muted-foreground font-mono">{transaction.product_sku}</div>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div>
+                      <div className="font-medium">{transaction.warehouse_name}</div>
+                      <div className="text-sm text-muted-foreground">{transaction.bin_name}</div>
+                    </div>
+                  </TableCell>
+                  <TableCell className={`text-right font-mono font-semibold ${
+                    transaction.quantity_change > 0 ? 'text-green-600' : 'text-red-600'
+                  }`}>
+                    {transaction.quantity_change > 0 ? '+' : ''}{transaction.quantity_change}
+                  </TableCell>
+                  <TableCell className="text-right font-mono">
+                    ₹{transaction.unit_cost.toFixed(2)}
+                  </TableCell>
+                  <TableCell className={`text-right font-mono font-semibold ${
+                    transaction.total_value > 0 ? 'text-green-600' : 'text-red-600'
+                  }`}>
+                    ₹{transaction.total_value.toFixed(2)}
+                  </TableCell>
+                  <TableCell>
+                    <div className="text-sm">
+                      {transaction.created_by_name}
+                    </div>
+                  </TableCell>
+                </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
 
           {/* Pagination */}
           {totalPages > 1 && (

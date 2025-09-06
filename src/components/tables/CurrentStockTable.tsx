@@ -13,8 +13,10 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Search, AlertTriangle, Package, ArrowUpDown, ArrowUp, ArrowDown, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Search, AlertTriangle, Package, ArrowUpDown, ArrowUp, ArrowDown, ChevronLeft, ChevronRight, FileSpreadsheet, Filter } from 'lucide-react';
 import { format } from 'date-fns';
+import { exportToExcel, formatCurrency, formatDate, ExportColumn } from '@/utils/excelExport';
 
 interface CurrentStock {
   company_id: string;
@@ -42,6 +44,7 @@ export const CurrentStockTable = ({ refreshTrigger }: CurrentStockTableProps) =>
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [showLowStockOnly, setShowLowStockOnly] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<string>('all');
   const [inventoryStats, setInventoryStats] = useState({
     totalSKUs: 0,
     totalQuantity: 0,
@@ -258,15 +261,21 @@ export const CurrentStockTable = ({ refreshTrigger }: CurrentStockTableProps) =>
 
   const filteredAndSortedStock = useMemo(() => {
     let filtered = stockLevels.filter((stock) => {
-    const matchesSearch = 
-      stock.product_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      stock.product_sku.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      stock.warehouse_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      stock.bin_name.toLowerCase().includes(searchTerm.toLowerCase());
-    
+      const matchesSearch = 
+        stock.product_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        stock.product_sku.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        stock.warehouse_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        stock.bin_name.toLowerCase().includes(searchTerm.toLowerCase());
+      
       const matchesLowStock = !showLowStockOnly || stock.current_stock <= stock.min_stock_level;
       
-      return matchesSearch && matchesLowStock;
+      // Enhanced status filtering
+      const matchesStatus = statusFilter === 'all' || 
+        (statusFilter === 'in_stock' && stock.current_stock > stock.min_stock_level) ||
+        (statusFilter === 'low_stock' && stock.current_stock > 0 && stock.current_stock <= stock.min_stock_level) ||
+        (statusFilter === 'out_of_stock' && stock.current_stock <= 0);
+      
+      return matchesSearch && matchesLowStock && matchesStatus;
     });
 
     if (sortConfig) {
@@ -314,6 +323,41 @@ export const CurrentStockTable = ({ refreshTrigger }: CurrentStockTableProps) =>
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
   const currentStock = filteredAndSortedStock.slice(startIndex, endIndex);
+
+  // Enhanced export functionality
+  const handleExportToExcel = () => {
+    const columns: ExportColumn[] = [
+      { key: 'product_name', label: 'Product Name' },
+      { key: 'product_sku', label: 'SKU' },
+      { key: 'warehouse_name', label: 'Warehouse' },
+      { key: 'bin_name', label: 'Bin Location' },
+      { key: 'current_stock', label: 'Current Stock' },
+      { key: 'min_stock_level', label: 'Min Stock Level' },
+      { key: 'last_transaction_date', label: 'Last Transaction', format: formatDate },
+      { key: 'transaction_count', label: 'Total Transactions' },
+    ];
+
+    const success = exportToExcel({
+      filename: 'current_stock_levels',
+      sheetName: 'Current Stock',
+      columns,
+      data: filteredAndSortedStock,
+      companyName: company?.name || 'Company',
+    });
+
+    if (success) {
+      toast({
+        title: "Export Successful",
+        description: "Current stock data exported to Excel",
+      });
+    } else {
+      toast({
+        title: "Export Failed",
+        description: "Failed to export data to Excel",
+        variant: "destructive",
+      });
+    }
+  };
 
   const totalProducts = stockLevels.length;
   const lowStockItems = stockLevels.filter(stock => stock.current_stock <= stock.min_stock_level && stock.current_stock > 0).length;
@@ -367,25 +411,50 @@ export const CurrentStockTable = ({ refreshTrigger }: CurrentStockTableProps) =>
         </div>
       </div>
 
-      {/* Filters */}
-      <div className="flex gap-4 items-center">
+      {/* Enhanced Filters and Actions */}
+      <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
           <Input
-            placeholder="Search by product, SKU, warehouse..."
+            placeholder="Search by product name, SKU, warehouse, bin location..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10"
+            className="pl-10 bg-background/50 border-border/50 focus:bg-background"
           />
         </div>
-        <Button
-          variant={showLowStockOnly ? "default" : "outline"}
-          onClick={() => setShowLowStockOnly(!showLowStockOnly)}
-          className="flex items-center gap-2"
-        >
-          <AlertTriangle className="h-4 w-4" />
-          {showLowStockOnly ? 'Show All' : 'Low Stock Only'}
-        </Button>
+        
+        <div className="flex gap-2 items-center">
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="w-48 bg-background/50 border-border/50">
+              <Filter className="h-4 w-4 mr-2" />
+              <SelectValue placeholder="Filter by status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Status</SelectItem>
+              <SelectItem value="in_stock">In Stock</SelectItem>
+              <SelectItem value="low_stock">Low Stock</SelectItem>
+              <SelectItem value="out_of_stock">Out of Stock</SelectItem>
+            </SelectContent>
+          </Select>
+          
+          <Button
+            variant={showLowStockOnly ? "default" : "outline"}
+            onClick={() => setShowLowStockOnly(!showLowStockOnly)}
+            className="flex items-center gap-2"
+          >
+            <AlertTriangle className="h-4 w-4" />
+            {showLowStockOnly ? 'Show All' : 'Low Stock Only'}
+          </Button>
+          
+          <Button
+            onClick={handleExportToExcel}
+            variant="outline"
+            className="flex items-center gap-2 bg-green-50 hover:bg-green-100 text-green-700 border-green-200"
+          >
+            <FileSpreadsheet className="h-4 w-4" />
+            Export
+          </Button>
+        </div>
       </div>
 
       {/* Stock Table */}

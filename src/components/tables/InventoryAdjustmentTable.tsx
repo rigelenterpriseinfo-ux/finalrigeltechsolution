@@ -11,9 +11,12 @@ import {
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Eye, ArrowUpDown, ArrowUp, ArrowDown, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Eye, ArrowUpDown, ArrowUp, ArrowDown, ChevronLeft, ChevronRight, Search, Filter, FileSpreadsheet } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
+import { exportToExcel, formatCurrency, formatDateTime, ExportColumn } from '@/utils/excelExport';
 
 interface InventoryAdjustment {
   id: string;
@@ -51,6 +54,9 @@ export const InventoryAdjustmentTable: React.FC<InventoryAdjustmentTableProps> =
   const { company } = useAuth();
   const [adjustments, setAdjustments] = useState<InventoryAdjustment[]>([]);
   const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [typeFilter, setTypeFilter] = useState<string>('all');
+  const [reasonFilter, setReasonFilter] = useState<string>('all');
   const [sortConfig, setSortConfig] = useState<{
     key: string;
     direction: 'asc' | 'desc';
@@ -161,11 +167,27 @@ export const InventoryAdjustmentTable: React.FC<InventoryAdjustmentTableProps> =
   };
 
   // Filter and sort adjustments
-  const sortedAdjustments = useMemo(() => {
-    let sorted = [...adjustments];
+  // Enhanced filtering and sorting
+  const filteredAndSortedAdjustments = useMemo(() => {
+    let filtered = adjustments.filter((adjustment) => {
+      const matchesSearch = 
+        adjustment.products.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        adjustment.products.sku.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        adjustment.warehouse_bins.warehouse_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        adjustment.warehouse_bins.warehouse_code.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        adjustment.warehouse_bins.bin_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        adjustment.warehouse_bins.wh_bin_code.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        getReasonLabel(adjustment.reason).toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (adjustment.remarks && adjustment.remarks.toLowerCase().includes(searchTerm.toLowerCase()));
+      
+      const matchesType = typeFilter === 'all' || adjustment.adjustment_type === typeFilter;
+      const matchesReason = reasonFilter === 'all' || adjustment.reason === reasonFilter;
+      
+      return matchesSearch && matchesType && matchesReason;
+    });
 
     if (sortConfig) {
-      sorted.sort((a, b) => {
+      filtered.sort((a, b) => {
         let aValue: any;
         let bValue: any;
 
@@ -201,14 +223,54 @@ export const InventoryAdjustmentTable: React.FC<InventoryAdjustmentTableProps> =
       });
     }
 
-    return sorted;
-  }, [adjustments, sortConfig]);
+    return filtered;
+  }, [adjustments, searchTerm, typeFilter, reasonFilter, sortConfig]);
+
+  // Enhanced export functionality
+  const handleExportToExcel = () => {
+    const columns: ExportColumn[] = [
+      { key: 'created_at', label: 'Date', format: formatDateTime },
+      { key: 'products.name', label: 'Product Name' },
+      { key: 'products.sku', label: 'SKU' },
+      { key: 'warehouse_bins.warehouse_name', label: 'Warehouse' },
+      { key: 'warehouse_bins.bin_name', label: 'Bin Location' },
+      { key: 'warehouse_bins.wh_bin_code', label: 'Bin Code' },
+      { key: 'adjustment_type', label: 'Type' },
+      { key: 'reason', label: 'Reason', format: (value) => getReasonLabel(value) },
+      { key: 'adjustment_quantity', label: 'Quantity Adjusted' },
+      { key: 'current_stock_before', label: 'Stock Before' },
+      { key: 'current_stock_after', label: 'Stock After' },
+      { key: 'adjustment_amount', label: 'Amount', format: formatCurrency },
+      { key: 'remarks', label: 'Remarks' },
+    ];
+
+    const success = exportToExcel({
+      filename: 'inventory_adjustments',
+      sheetName: 'Inventory Adjustments',
+      columns,
+      data: filteredAndSortedAdjustments,
+      companyName: company?.name || 'Company',
+    });
+
+    if (success) {
+      toast({
+        title: "Export Successful",
+        description: "Inventory adjustments exported to Excel",
+      });
+    } else {
+      toast({
+        title: "Export Failed",
+        description: "Failed to export data to Excel",
+        variant: "destructive",
+      });
+    }
+  };
 
   // Pagination
-  const totalPages = Math.ceil(sortedAdjustments.length / itemsPerPage);
+  const totalPages = Math.ceil(filteredAndSortedAdjustments.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
-  const currentAdjustments = sortedAdjustments.slice(startIndex, endIndex);
+  const currentAdjustments = filteredAndSortedAdjustments.slice(startIndex, endIndex);
 
   if (loading) {
     return (
@@ -228,6 +290,57 @@ export const InventoryAdjustmentTable: React.FC<InventoryAdjustmentTableProps> =
 
   return (
     <div className="w-full space-y-4">
+      {/* Enhanced Filters and Actions */}
+      <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+          <Input
+            placeholder="Search by product, SKU, warehouse, bin, reason..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-10 bg-background/50 border-border/50 focus:bg-background"
+          />
+        </div>
+        
+        <div className="flex gap-2 items-center">
+          <Select value={typeFilter} onValueChange={setTypeFilter}>
+            <SelectTrigger className="w-32 bg-background/50 border-border/50">
+              <Filter className="h-4 w-4 mr-2" />
+              <SelectValue placeholder="Type" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Types</SelectItem>
+              <SelectItem value="positive">Positive</SelectItem>
+              <SelectItem value="negative">Negative</SelectItem>
+            </SelectContent>
+          </Select>
+          
+          <Select value={reasonFilter} onValueChange={setReasonFilter}>
+            <SelectTrigger className="w-40 bg-background/50 border-border/50">
+              <SelectValue placeholder="Reason" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Reasons</SelectItem>
+              <SelectItem value="damaged">Damaged</SelectItem>
+              <SelectItem value="expired">Expired</SelectItem>
+              <SelectItem value="lost">Lost</SelectItem>
+              <SelectItem value="found">Found</SelectItem>
+              <SelectItem value="recount">Recount</SelectItem>
+              <SelectItem value="other">Other</SelectItem>
+            </SelectContent>
+          </Select>
+          
+          <Button
+            onClick={handleExportToExcel}
+            variant="outline"
+            className="flex items-center gap-2 bg-green-50 hover:bg-green-100 text-green-700 border-green-200"
+          >
+            <FileSpreadsheet className="h-4 w-4" />
+            Export
+          </Button>
+        </div>
+      </div>
+
       <div className="rounded-md border">
         <Table>
           <TableHeader>
@@ -266,7 +379,16 @@ export const InventoryAdjustmentTable: React.FC<InventoryAdjustmentTableProps> =
             </TableRow>
           </TableHeader>
           <TableBody>
-            {currentAdjustments.map((adjustment) => (
+            {currentAdjustments.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={11} className="text-center py-8 text-muted-foreground">
+                  {searchTerm || typeFilter !== 'all' || reasonFilter !== 'all' 
+                    ? 'No adjustments match your filters.' 
+                    : 'No inventory adjustments found.'}
+                </TableCell>
+              </TableRow>
+            ) : (
+              currentAdjustments.map((adjustment) => (
               <TableRow key={adjustment.id}>
                 <TableCell>
                   {format(new Date(adjustment.created_at), 'MMM dd, yyyy HH:mm')}
@@ -324,7 +446,8 @@ export const InventoryAdjustmentTable: React.FC<InventoryAdjustmentTableProps> =
                   </Button>
                 </TableCell>
               </TableRow>
-            ))}
+              ))
+            )}
           </TableBody>
         </Table>
       </div>
@@ -333,7 +456,7 @@ export const InventoryAdjustmentTable: React.FC<InventoryAdjustmentTableProps> =
       {totalPages > 1 && (
         <div className="flex items-center justify-between">
           <p className="text-sm text-muted-foreground">
-            Showing {startIndex + 1} to {Math.min(endIndex, sortedAdjustments.length)} of {sortedAdjustments.length} adjustments
+            Showing {startIndex + 1} to {Math.min(endIndex, filteredAndSortedAdjustments.length)} of {filteredAndSortedAdjustments.length} adjustments
           </p>
           <div className="flex items-center space-x-2">
             <Button
