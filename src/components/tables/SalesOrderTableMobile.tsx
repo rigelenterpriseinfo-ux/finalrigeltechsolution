@@ -18,24 +18,27 @@ import {
 
 interface SalesOrder {
   id: string;
-  so_number: string;
-  status: string;
+  order_number: string;
   order_date: string;
-  delivery_date?: string;
+  customer_id: string;
+  customer_name?: string;
+  customer_ref?: string;
+  customer_po_number?: string;
+  status: string;
   total_amount: number;
   currency: string;
-  customer: {
-    name: string;
-  };
   created_at: string;
-  notes?: string;
+  total_ordered_qty: number;
+  total_invoiced_qty: number;
+  total_backorder_qty: number;
+  delivery_status: string;
 }
 
 interface SalesOrderTableMobileProps {
   salesOrders: SalesOrder[];
-  onView: (so: SalesOrder) => void;
-  onEdit: (so: SalesOrder) => void;
-  onDelete: (soId: string) => void;
+  onView: (salesOrder: SalesOrder) => void;
+  onEdit: (salesOrder: SalesOrder) => void;
+  onDelete: (salesOrder: SalesOrder) => void;
   loading?: boolean;
 }
 
@@ -54,8 +57,8 @@ export function SalesOrderTableMobile({
 
   // Filter sales orders based on search term
   const filteredOrders = salesOrders.filter(order =>
-    order.so_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    order.customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    order.order_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (order.customer_name && order.customer_name.toLowerCase().includes(searchTerm.toLowerCase())) ||
     order.status.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
@@ -181,11 +184,11 @@ export function SalesOrderTableMobile({
                         <div className="flex items-start gap-3 text-left">
                           <div className="flex-1">
                             <div className="font-semibold text-base">
-                              {order.so_number}
+                              {order.order_number}
                             </div>
                             <div className="text-sm text-muted-foreground flex items-center gap-1 mt-1">
                               <User className="h-3 w-3" />
-                              {order.customer.name}
+                              {order.customer_name || 'Unknown Customer'}
                             </div>
                           </div>
                         </div>
@@ -217,12 +220,6 @@ export function SalesOrderTableMobile({
                   <CollapsibleContent>
                     <CardContent className="pt-0">
                       <div className="space-y-3 mb-4">
-                        {order.delivery_date && (
-                          <div className="flex justify-between">
-                            <span className="text-muted-foreground text-sm">Delivery Date:</span>
-                            <span className="text-sm">{new Date(order.delivery_date).toLocaleDateString()}</span>
-                          </div>
-                        )}
                         <div className="flex justify-between">
                           <span className="text-muted-foreground text-sm">Currency:</span>
                           <span className="text-sm">{order.currency}</span>
@@ -231,10 +228,26 @@ export function SalesOrderTableMobile({
                           <span className="text-muted-foreground text-sm">Created:</span>
                           <span className="text-sm">{new Date(order.created_at).toLocaleDateString()}</span>
                         </div>
-                        {order.notes && (
-                          <div className="space-y-1">
-                            <span className="text-muted-foreground text-sm">Notes:</span>
-                            <p className="text-sm bg-muted p-2 rounded">{order.notes}</p>
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground text-sm">Status:</span>
+                          <span className="text-sm">{order.status}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground text-sm">Delivery Status:</span>
+                          <span className="text-sm">{order.delivery_status}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground text-sm">Ordered Qty:</span>
+                          <span className="text-sm">{order.total_ordered_qty}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground text-sm">Invoiced Qty:</span>
+                          <span className="text-sm">{order.total_invoiced_qty}</span>
+                        </div>
+                        {order.total_backorder_qty > 0 && (
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground text-sm">Backorder Qty:</span>
+                            <span className="text-sm text-warning">{order.total_backorder_qty}</span>
                           </div>
                         )}
                       </div>
@@ -270,7 +283,7 @@ export function SalesOrderTableMobile({
                           onClick={(e) => {
                             e.stopPropagation();
                             if (confirm('Are you sure you want to delete this sales order?')) {
-                              onDelete(order.id);
+                              onDelete(order);
                             }
                           }}
                         >

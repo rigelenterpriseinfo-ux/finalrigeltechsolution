@@ -9,6 +9,8 @@ import { Search, Eye, Edit, Trash2, ChevronLeft, ChevronRight, ArrowUpDown, Arro
 import { format } from 'date-fns';
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
+import { useIsMobile } from '@/hooks/use-mobile';
+import { SalesOrderTableMobile } from './SalesOrderTableMobile';
 
 interface SalesOrder {
   id: string;
@@ -50,11 +52,25 @@ export const SalesOrderTable: React.FC<SalesOrderTableProps> = ({
   onDownloadPDF,
   loading = false
 }) => {
+  const isMobile = useIsMobile();
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [sortField, setSortField] = useState<SortField>('order_date');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
   const itemsPerPage = 5;
+
+  // Mobile view
+  if (isMobile) {
+    return (
+      <SalesOrderTableMobile
+        salesOrders={salesOrders}
+        onView={onView}
+        onEdit={onEdit}
+        onDelete={onDelete}
+        loading={loading}
+      />
+    );
+  }
 
   // Filter sales orders based on search term
   const filteredOrders = salesOrders.filter(order => {

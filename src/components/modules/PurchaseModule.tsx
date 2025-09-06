@@ -12,6 +12,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useBusinessAuth } from '@/hooks/useBusinessAuth';
 import { useToast } from '@/hooks/use-toast';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { Plus, Truck, ShoppingCart, Building2, Package, TrendingUp, AlertCircle, BarChart3 } from 'lucide-react';
 import { SupplierForm } from '@/components/forms/SupplierForm';
 import { SupplierTable } from '@/components/tables/SupplierTable';
@@ -21,6 +22,9 @@ import { GRNForm } from '@/components/forms/GRNForm';
 import { GRNTable } from '@/components/tables/GRNTable';
 import { PurchaseOrderDetailsDialog } from '@/components/dialogs/PurchaseOrderDetailsDialog';
 import { StatsCard } from '@/components/ui/stats-card';
+import { MobileOptimizedModule } from '@/components/ui/mobile-optimized-module';
+import { PullToRefresh } from '@/components/ui/pull-to-refresh';
+import { LoadingWrapper, StatsSkeleton, TableSkeleton } from '@/components/ui/loading-skeleton';
 
 interface Supplier {
   id: string;
@@ -53,6 +57,7 @@ export function PurchaseModule() {
   const { user, profile } = useAuth();
   const { hasEditAccess } = useBusinessAuth();
   const { toast } = useToast();
+  const isMobile = useIsMobile();
   const canEdit = hasEditAccess('purchases');
   
   // State management
