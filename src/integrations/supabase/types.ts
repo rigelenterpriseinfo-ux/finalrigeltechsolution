@@ -1005,12 +1005,16 @@ export type Database = {
           company_id: string
           created_at: string
           created_by: string
+          grn_id: string | null
           id: string
           notes: string | null
           payment_date: string
           payment_method: string
+          payment_status: string | null
+          payment_type: string | null
           purchase_order_id: string | null
           reference_number: string | null
+          sales_invoice_id: string | null
           sales_order_id: string | null
           updated_at: string
         }
@@ -1019,12 +1023,16 @@ export type Database = {
           company_id: string
           created_at?: string
           created_by: string
+          grn_id?: string | null
           id?: string
           notes?: string | null
           payment_date?: string
           payment_method: string
+          payment_status?: string | null
+          payment_type?: string | null
           purchase_order_id?: string | null
           reference_number?: string | null
+          sales_invoice_id?: string | null
           sales_order_id?: string | null
           updated_at?: string
         }
@@ -1033,12 +1041,16 @@ export type Database = {
           company_id?: string
           created_at?: string
           created_by?: string
+          grn_id?: string | null
           id?: string
           notes?: string | null
           payment_date?: string
           payment_method?: string
+          payment_status?: string | null
+          payment_type?: string | null
           purchase_order_id?: string | null
           reference_number?: string | null
+          sales_invoice_id?: string | null
           sales_order_id?: string | null
           updated_at?: string
         }
@@ -1058,10 +1070,24 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "payments_grn_id_fkey"
+            columns: ["grn_id"]
+            isOneToOne: false
+            referencedRelation: "grn_header"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "payments_purchase_order_id_fkey"
             columns: ["purchase_order_id"]
             isOneToOne: false
             referencedRelation: "purchase_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payments_sales_invoice_id_fkey"
+            columns: ["sales_invoice_id"]
+            isOneToOne: false
+            referencedRelation: "sales_invoices"
             referencedColumns: ["id"]
           },
           {

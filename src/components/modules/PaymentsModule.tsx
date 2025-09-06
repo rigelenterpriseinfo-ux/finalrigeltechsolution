@@ -12,7 +12,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { useBusinessAuth } from '@/hooks/useBusinessAuth';
-import { Plus, Search, CreditCard, TrendingUp, TrendingDown, ChevronDown, ChevronUp, Download, ChevronLeft, ChevronRight, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
+import { Plus, Search, CreditCard, TrendingUp, TrendingDown, ChevronDown, ChevronUp, Download, ChevronLeft, ChevronRight, ArrowUpDown, ArrowUp, ArrowDown, History } from 'lucide-react';
+import { PaymentHistoryDialog } from '@/components/dialogs/PaymentHistoryDialog';
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from '@/components/ui/pagination';
 
 interface Payment {
@@ -86,6 +87,15 @@ export function PaymentsModule() {
   const [apSearchTerm, setApSearchTerm] = useState('');
   const [arSearchTerm, setArSearchTerm] = useState('');
   
+  // Payment history dialog state
+  const [paymentHistoryOpen, setPaymentHistoryOpen] = useState(false);
+  const [selectedRecord, setSelectedRecord] = useState<{
+    id: string;
+    number: string;
+    type: 'grn' | 'sales_invoice';
+    totalAmount: number;
+  } | null>(null);
+  
   // Pagination states
   const [apCurrentPage, setApCurrentPage] = useState(1);
   const [arCurrentPage, setArCurrentPage] = useState(1);
@@ -126,15 +136,16 @@ export function PaymentsModule() {
         return;
       }
 
-      // Get payment data for all purchase orders
+      // Get payment data for all purchase orders and directly for GRNs
       const purchaseOrderIds = grnData?.map(grn => grn.purchase_order_id).filter(Boolean) || [];
+      const grnIds = grnData?.map(grn => grn.id) || [];
       let paymentsData: any[] = [];
       
-      if (purchaseOrderIds.length > 0) {
+      if (purchaseOrderIds.length > 0 || grnIds.length > 0) {
         const { data: payments, error: paymentsError } = await supabase
           .from('payments')
           .select('*')
-          .in('purchase_order_id', purchaseOrderIds);
+          .or(`purchase_order_id.in.(${purchaseOrderIds.join(',')}),grn_id.in.(${grnIds.join(',')})`);
           
         if (!paymentsError) {
           paymentsData = payments || [];
@@ -143,9 +154,14 @@ export function PaymentsModule() {
 
       // Transform data to include payment information
       const transformedData = (grnData || []).map(grn => {
-        const relatedPayments = paymentsData.filter(payment => payment.purchase_order_id === grn.purchase_order_id);
-        const totalAdvancePayment = 0; // Advance payments not implemented yet
-        const totalAmountReceived = relatedPayments.reduce((sum, payment) => sum + payment.amount, 0);
+        const relatedPayments = paymentsData.filter(payment => 
+          payment.purchase_order_id === grn.purchase_order_id || payment.grn_id === grn.id
+        );
+        const advancePayments = relatedPayments.filter(p => p.payment_type === 'advance');
+        const regularPayments = relatedPayments.filter(p => p.payment_type !== 'advance');
+        
+        const totalAdvancePayment = advancePayments.reduce((sum, payment) => sum + payment.amount, 0);
+        const totalAmountReceived = regularPayments.reduce((sum, payment) => sum + payment.amount, 0);
         const pendingPayment = grn.total_amount - totalAdvancePayment - totalAmountReceived;
         const latestPayment = relatedPayments.sort((a, b) => 
           new Date(b.payment_date).getTime() - new Date(a.payment_date).getTime()
@@ -154,7 +170,7 @@ export function PaymentsModule() {
         let invoiceStatus = 'Outstanding';
         if (pendingPayment <= 0) {
           invoiceStatus = 'Fully Paid';
-        } else if (totalAmountReceived > 0) {
+        } else if (totalAmountReceived > 0 || totalAdvancePayment > 0) {
           invoiceStatus = 'Partially Paid';
         }
 
@@ -206,15 +222,16 @@ export function PaymentsModule() {
         return;
       }
 
-      // Get payment data for all sales orders
+      // Get payment data for all sales orders and directly for invoices
       const salesOrderIds = invoiceData?.map(invoice => invoice.sales_order_id).filter(Boolean) || [];
+      const invoiceIds = invoiceData?.map(invoice => invoice.id) || [];
       let paymentsData: any[] = [];
       
-      if (salesOrderIds.length > 0) {
+      if (salesOrderIds.length > 0 || invoiceIds.length > 0) {
         const { data: payments, error: paymentsError } = await supabase
           .from('payments')
           .select('*')
-          .in('sales_order_id', salesOrderIds);
+          .or(`sales_order_id.in.(${salesOrderIds.join(',')}),sales_invoice_id.in.(${invoiceIds.join(',')})`);
           
         if (!paymentsError) {
           paymentsData = payments || [];
@@ -223,9 +240,14 @@ export function PaymentsModule() {
 
       // Transform data to include payment information and status logic
       const transformedData = (invoiceData || []).map(invoice => {
-        const relatedPayments = paymentsData.filter(payment => payment.sales_order_id === invoice.sales_order_id);
-        const totalAdvancePayment = 0; // Advance payments not implemented yet
-        const totalAmountReceived = relatedPayments.reduce((sum, payment) => sum + payment.amount, 0);
+        const relatedPayments = paymentsData.filter(payment => 
+          payment.sales_order_id === invoice.sales_order_id || payment.sales_invoice_id === invoice.id
+        );
+        const advancePayments = relatedPayments.filter(p => p.payment_type === 'advance');
+        const regularPayments = relatedPayments.filter(p => p.payment_type !== 'advance');
+        
+        const totalAdvancePayment = advancePayments.reduce((sum, payment) => sum + payment.amount, 0);
+        const totalAmountReceived = regularPayments.reduce((sum, payment) => sum + payment.amount, 0);
         const pendingPayment = invoice.total_amount - totalAdvancePayment - totalAmountReceived;
         const latestPayment = relatedPayments.sort((a, b) => 
           new Date(b.payment_date).getTime() - new Date(a.payment_date).getTime()
@@ -235,7 +257,7 @@ export function PaymentsModule() {
         let invoiceStatus = 'Outstanding';
         if (pendingPayment <= 0) {
           invoiceStatus = 'Fully Paid';
-        } else if (totalAmountReceived > 0) {
+        } else if (totalAmountReceived > 0 || totalAdvancePayment > 0) {
           invoiceStatus = 'Partially Paid';
         }
 
@@ -597,46 +619,65 @@ export function PaymentsModule() {
                         ) : <ArrowUpDown className="ml-1 h-3 w-3" />}
                       </Button>
                     </TableHead>
-                    <TableHead>
-                      <Button variant="ghost" className="h-8 p-0 font-semibold hover:bg-transparent" onClick={() => handleApSort('invoice_status')}>
-                        Payment Status
-                        {apSortField === 'invoice_status' ? (
-                          apSortDirection === 'asc' ? <ArrowUp className="ml-1 h-3 w-3" /> : <ArrowDown className="ml-1 h-3 w-3" />
-                        ) : <ArrowUpDown className="ml-1 h-3 w-3" />}
-                      </Button>
-                    </TableHead>
+                     <TableHead>
+                       <Button variant="ghost" className="h-8 p-0 font-semibold hover:bg-transparent" onClick={() => handleApSort('invoice_status')}>
+                         Payment Status
+                         {apSortField === 'invoice_status' ? (
+                           apSortDirection === 'asc' ? <ArrowUp className="ml-1 h-3 w-3" /> : <ArrowDown className="ml-1 h-3 w-3" />
+                         ) : <ArrowUpDown className="ml-1 h-3 w-3" />}
+                       </Button>
+                     </TableHead>
+                     <TableHead>Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {paginatedAP.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={11} className="text-center text-muted-foreground">
-                        No GRN records found
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    paginatedAP.map((item) => (
-                      <TableRow key={item.id}>
-                        <TableCell className="font-medium">{item.supplier_name || 'N/A'}</TableCell>
-                        <TableCell>{item.grn_number}</TableCell>
-                        <TableCell>{new Date(item.grn_date).toLocaleDateString()}</TableCell>
-                        <TableCell>₹{item.total_amount.toLocaleString()}</TableCell>
-                        <TableCell>₹{item.advance_payment.toLocaleString()}</TableCell>
-                        <TableCell>₹{item.amount_received.toLocaleString()}</TableCell>
-                        <TableCell>{item.payment_date ? new Date(item.payment_date).toLocaleDateString() : '-'}</TableCell>
-                        <TableCell>{item.payment_method || '-'}</TableCell>
-                        <TableCell>{item.payment_reference_no || '-'}</TableCell>
-                        <TableCell>₹{item.pending_payment.toLocaleString()}</TableCell>
-                        <TableCell>
-                          <Badge variant={
-                            item.invoice_status === 'Fully Paid' ? 'default' :
-                            item.invoice_status === 'Partially Paid' ? 'secondary' :
-                            item.invoice_status === 'Overdue' ? 'destructive' : 'outline'
-                          }>
-                            {item.invoice_status}
-                          </Badge>
-                        </TableCell>
-                      </TableRow>
+                   {paginatedAP.length === 0 ? (
+                     <TableRow>
+                       <TableCell colSpan={12} className="text-center text-muted-foreground">
+                         No GRN records found
+                       </TableCell>
+                     </TableRow>
+                   ) : (
+                     paginatedAP.map((item) => (
+                       <TableRow key={item.id}>
+                         <TableCell className="font-medium">{item.supplier_name || 'N/A'}</TableCell>
+                         <TableCell>{item.grn_number}</TableCell>
+                         <TableCell>{new Date(item.grn_date).toLocaleDateString()}</TableCell>
+                         <TableCell>₹{item.total_amount.toLocaleString()}</TableCell>
+                         <TableCell>₹{item.advance_payment.toLocaleString()}</TableCell>
+                         <TableCell>₹{item.amount_received.toLocaleString()}</TableCell>
+                         <TableCell>{item.payment_date ? new Date(item.payment_date).toLocaleDateString() : '-'}</TableCell>
+                         <TableCell>{item.payment_method || '-'}</TableCell>
+                         <TableCell>{item.payment_reference_no || '-'}</TableCell>
+                         <TableCell>₹{item.pending_payment.toLocaleString()}</TableCell>
+                         <TableCell>
+                           <Badge variant={
+                             item.invoice_status === 'Fully Paid' ? 'default' :
+                             item.invoice_status === 'Partially Paid' ? 'secondary' :
+                             item.invoice_status === 'Overdue' ? 'destructive' : 'outline'
+                           }>
+                             {item.invoice_status}
+                           </Badge>
+                         </TableCell>
+                         <TableCell>
+                           <Button
+                             variant="outline"
+                             size="sm"
+                             onClick={() => {
+                               setSelectedRecord({
+                                 id: item.id,
+                                 number: item.grn_number,
+                                 type: 'grn',
+                                 totalAmount: item.total_amount
+                               });
+                               setPaymentHistoryOpen(true);
+                             }}
+                           >
+                             <History className="h-4 w-4 mr-1" />
+                             Payments
+                           </Button>
+                         </TableCell>
+                       </TableRow>
                     ))
                   )}
                 </TableBody>
@@ -790,47 +831,66 @@ export function PaymentsModule() {
                         ) : <ArrowUpDown className="ml-1 h-3 w-3" />}
                       </Button>
                     </TableHead>
-                    <TableHead>
-                      <Button variant="ghost" className="h-8 p-0 font-semibold hover:bg-transparent" onClick={() => handleArSort('payment_terms')}>
-                        Payment Terms
-                        {arSortField === 'payment_terms' ? (
-                          arSortDirection === 'asc' ? <ArrowUp className="ml-1 h-3 w-3" /> : <ArrowDown className="ml-1 h-3 w-3" />
-                        ) : <ArrowUpDown className="ml-1 h-3 w-3" />}
-                      </Button>
-                    </TableHead>
+                     <TableHead>
+                       <Button variant="ghost" className="h-8 p-0 font-semibold hover:bg-transparent" onClick={() => handleArSort('payment_terms')}>
+                         Payment Terms
+                         {arSortField === 'payment_terms' ? (
+                           arSortDirection === 'asc' ? <ArrowUp className="ml-1 h-3 w-3" /> : <ArrowDown className="ml-1 h-3 w-3" />
+                         ) : <ArrowUpDown className="ml-1 h-3 w-3" />}
+                       </Button>
+                     </TableHead>
+                     <TableHead>Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {paginatedAR.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={12} className="text-center text-muted-foreground">
-                        No invoices found
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    paginatedAR.map((item) => (
-                      <TableRow key={item.id}>
-                        <TableCell className="font-medium">{item.customer?.name || 'N/A'}</TableCell>
-                        <TableCell>{item.invoice_number || 'N/A'}</TableCell>
-                        <TableCell>{new Date(item.invoice_date).toLocaleDateString()}</TableCell>
-                        <TableCell>₹{item.total_amount.toLocaleString()}</TableCell>
-                        <TableCell>₹{item.advance_payment.toLocaleString()}</TableCell>
-                        <TableCell>₹{item.amount_received.toLocaleString()}</TableCell>
-                        <TableCell>{item.payment_date ? new Date(item.payment_date).toLocaleDateString() : '-'}</TableCell>
-                        <TableCell>{item.payment_method || '-'}</TableCell>
-                        <TableCell>{item.payment_reference_no || '-'}</TableCell>
-                        <TableCell>₹{item.pending_payment.toLocaleString()}</TableCell>
-                        <TableCell>
-                          <Badge variant={
-                            item.invoice_status === 'Fully Paid' ? 'default' :
-                            item.invoice_status === 'Partially Paid' ? 'secondary' :
-                            item.invoice_status === 'Overdue' ? 'destructive' : 'outline'
-                          }>
-                            {item.invoice_status}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>{item.payment_terms || 'Net 30'}</TableCell>
-                      </TableRow>
+                   {paginatedAR.length === 0 ? (
+                     <TableRow>
+                       <TableCell colSpan={13} className="text-center text-muted-foreground">
+                         No invoices found
+                       </TableCell>
+                     </TableRow>
+                   ) : (
+                     paginatedAR.map((item) => (
+                       <TableRow key={item.id}>
+                         <TableCell className="font-medium">{item.customer?.name || 'N/A'}</TableCell>
+                         <TableCell>{item.invoice_number || 'N/A'}</TableCell>
+                         <TableCell>{new Date(item.invoice_date).toLocaleDateString()}</TableCell>
+                         <TableCell>₹{item.total_amount.toLocaleString()}</TableCell>
+                         <TableCell>₹{item.advance_payment.toLocaleString()}</TableCell>
+                         <TableCell>₹{item.amount_received.toLocaleString()}</TableCell>
+                         <TableCell>{item.payment_date ? new Date(item.payment_date).toLocaleDateString() : '-'}</TableCell>
+                         <TableCell>{item.payment_method || '-'}</TableCell>
+                         <TableCell>{item.payment_reference_no || '-'}</TableCell>
+                         <TableCell>₹{item.pending_payment.toLocaleString()}</TableCell>
+                         <TableCell>
+                           <Badge variant={
+                             item.invoice_status === 'Fully Paid' ? 'default' :
+                             item.invoice_status === 'Partially Paid' ? 'secondary' :
+                             item.invoice_status === 'Overdue' ? 'destructive' : 'outline'
+                           }>
+                             {item.invoice_status}
+                           </Badge>
+                         </TableCell>
+                         <TableCell>{item.payment_terms || 'Net 30'}</TableCell>
+                         <TableCell>
+                           <Button
+                             variant="outline"
+                             size="sm"
+                             onClick={() => {
+                               setSelectedRecord({
+                                 id: item.id,
+                                 number: item.invoice_number || 'N/A',
+                                 type: 'sales_invoice',
+                                 totalAmount: item.total_amount
+                               });
+                               setPaymentHistoryOpen(true);
+                             }}
+                           >
+                             <History className="h-4 w-4 mr-1" />
+                             Payments
+                           </Button>
+                         </TableCell>
+                       </TableRow>
                     ))
                   )}
                 </TableBody>
@@ -870,6 +930,22 @@ export function PaymentsModule() {
         </Card>
       )}
 
+      {/* Payment History Dialog */}
+      {selectedRecord && (
+        <PaymentHistoryDialog
+          open={paymentHistoryOpen}
+          onOpenChange={setPaymentHistoryOpen}
+          recordId={selectedRecord.id}
+          recordType={selectedRecord.type}
+          recordNumber={selectedRecord.number}
+          totalAmount={selectedRecord.totalAmount}
+          companyId={profile?.company_id || ''}
+          onPaymentChange={() => {
+            fetchAccountPayable();
+            fetchAccountReceivable();
+          }}
+        />
+      )}
     </div>
   );
 }
