@@ -10,6 +10,7 @@ interface DashboardLayoutProps {
   subtitle?: string;
   headerActions?: React.ReactNode;
   showSearch?: boolean;
+  showWelcome?: boolean;
   className?: string;
 }
 
@@ -19,6 +20,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
   subtitle,
   headerActions,
   showSearch = true,
+  showWelcome = false,
   className,
 }) => {
   const { user, profile } = useAuth();
@@ -32,6 +34,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
         subtitle={subtitle} 
         actions={headerActions}
         showSearch={showSearch}
+        showWelcome={showWelcome}
       />
       <main className={cn('flex-1 bg-gradient-subtle', className)}>
         <div className="section-padding content-container">

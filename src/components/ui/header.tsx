@@ -19,13 +19,15 @@ interface HeaderProps {
   subtitle?: string;
   actions?: React.ReactNode;
   showSearch?: boolean;
+  showWelcome?: boolean;
 }
 
 export const Header: React.FC<HeaderProps> = ({ 
   title, 
   subtitle, 
   actions, 
-  showSearch = true 
+  showSearch = true,
+  showWelcome = false
 }) => {
   const { user, signOut, profile, company } = useAuth();
   const navigate = useNavigate();
@@ -42,14 +44,21 @@ export const Header: React.FC<HeaderProps> = ({
     <header className="bg-gradient-primary border-b border-border">
       <div className="section-padding">
         <div className="flex items-center justify-between">
-          {/* Left Section - Welcome Message */}
+          {/* Left Section - Welcome Message or Title */}
           <div className="flex-1">
             <div className="flex flex-col">
-              <h1 className="text-2xl font-semibold text-white">Welcome back, {profile?.first_name || 'User'}!</h1>
-              {subtitle ? (
-                <p className="text-sm text-white/80 mt-1">{subtitle}</p>
+              {showWelcome ? (
+                <>
+                  <h1 className="text-2xl font-semibold text-white">Welcome back, {profile?.first_name || 'User'}!</h1>
+                  <p className="text-sm text-white/80 mt-1">Manage your products and stock levels</p>
+                </>
               ) : (
-                <p className="text-sm text-white/80 mt-1">Track payments and financial transactions</p>
+                <>
+                  <h1 className="text-2xl font-semibold text-white">{title}</h1>
+                  {subtitle && (
+                    <p className="text-sm text-white/80 mt-1">{subtitle}</p>
+                  )}
+                </>
               )}
             </div>
           </div>

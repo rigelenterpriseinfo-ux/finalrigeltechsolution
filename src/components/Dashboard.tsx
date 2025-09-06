@@ -148,6 +148,7 @@ export default function Dashboard() {
           <DashboardLayout
             title="Inventory Management"
             subtitle="Manage your products and stock levels"
+            showWelcome={true}
             headerActions={
               <Button onClick={() => setActiveModule('dashboard')} variant="outline">
                 Back to Dashboard
