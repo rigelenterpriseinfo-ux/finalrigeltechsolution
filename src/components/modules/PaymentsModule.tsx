@@ -335,6 +335,51 @@ export function PaymentsModule() {
         <p className="text-muted-foreground">Track payments received and made</p>
       </div>
 
+      {/* AP and AR Sections */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Account Payable Section */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <TrendingDown className="h-5 w-5 text-destructive" />
+              Account Payable (AP)
+            </CardTitle>
+            <CardDescription>
+              Track amounts owed to suppliers
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                View and manage outstanding payments to suppliers
+              </p>
+              {/* AP content will go here */}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Account Receivable Section */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <TrendingUp className="h-5 w-5 text-success" />
+              Account Receivable (AR)
+            </CardTitle>
+            <CardDescription>
+              Track amounts owed by customers
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                View and manage outstanding payments from customers
+              </p>
+              {/* AR content will go here */}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
     </div>
   );
 }
