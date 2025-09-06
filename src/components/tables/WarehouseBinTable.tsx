@@ -162,12 +162,12 @@ export const WarehouseBinTable: React.FC<WarehouseBinTableProps> = ({ refreshTri
   // Enhanced search and sort functionality
   const filteredBins = useMemo(() => {
     let filtered = bins.filter(bin =>
-      bin.wh_bin_code.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      bin.bin_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      bin.warehouse_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      bin.warehouse_code?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      bin.city?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      bin.contact_person_name?.toLowerCase().includes(searchTerm.toLowerCase())
+      (bin.wh_bin_code?.toLowerCase() ?? '').includes(searchTerm.toLowerCase()) ||
+      (bin.bin_name?.toLowerCase() ?? '').includes(searchTerm.toLowerCase()) ||
+      (bin.warehouse_name?.toLowerCase() ?? '').includes(searchTerm.toLowerCase()) ||
+      (bin.warehouse_code?.toLowerCase() ?? '').includes(searchTerm.toLowerCase()) ||
+      (bin.city?.toLowerCase() ?? '').includes(searchTerm.toLowerCase()) ||
+      (bin.contact_person_name?.toLowerCase() ?? '').includes(searchTerm.toLowerCase())
     );
 
     // Apply sorting
@@ -186,12 +186,12 @@ export const WarehouseBinTable: React.FC<WarehouseBinTableProps> = ({ refreshTri
             bValue = b.warehouse_code || '';
             break;
           case 'wh_bin_code':
-            aValue = a.wh_bin_code;
-            bValue = b.wh_bin_code;
+            aValue = a.wh_bin_code ?? '';
+            bValue = b.wh_bin_code ?? '';
             break;
           case 'bin_name':
-            aValue = a.bin_name;
-            bValue = b.bin_name;
+            aValue = a.bin_name ?? '';
+            bValue = b.bin_name ?? '';
             break;
           case 'is_active':
             aValue = a.is_active;
