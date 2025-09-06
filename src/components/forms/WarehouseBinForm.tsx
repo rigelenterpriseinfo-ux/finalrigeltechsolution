@@ -643,7 +643,6 @@ export function WarehouseBinForm({ open, onOpenChange, onSuccess, editingBin }: 
                 </Label>
                 <Input 
                   id="country" 
-                  name="country" 
                   value="India"
                   readOnly
                   className="h-9 bg-muted"
