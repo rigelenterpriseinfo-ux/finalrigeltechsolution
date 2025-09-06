@@ -74,6 +74,23 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({
         return;
       }
 
+      // Fetch profile id for created_by FK
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (profileError) throw profileError;
+      if (!profile?.id) {
+        toast({
+          title: "Profile not found",
+          description: "Your user profile is missing. Please re-login or contact an admin.",
+          variant: "destructive"
+        });
+        return;
+      }
+
       const paymentData = {
         amount,
         payment_method: formData.payment_method,
@@ -82,7 +99,7 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({
         payment_type: formData.payment_type,
         notes: formData.notes,
         company_id: companyId,
-        created_by: user.id,
+        created_by: profile.id,
         payment_status: 'completed',
         ...(recordType === 'grn' ? { grn_id: recordId } : { sales_invoice_id: recordId })
       };
