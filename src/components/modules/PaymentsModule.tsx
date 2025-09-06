@@ -528,8 +528,9 @@ export function PaymentsModule() {
             </div>
           </CardHeader>
           <CardContent>
-            <ScrollArea className="h-[500px]">
-              <Table>
+            <div className="rounded-md border overflow-x-auto">
+              <ScrollArea className="h-[500px]">
+                <Table>
                 <TableHeader>
                   <TableRow>
                     <TableHead>
@@ -647,8 +648,9 @@ export function PaymentsModule() {
                     ))
                   )}
                 </TableBody>
-              </Table>
-            </ScrollArea>
+                </Table>
+              </ScrollArea>
+            </div>
             {totalAPPages > 1 && (
               <div className="flex items-center justify-between px-2 py-4">
                 <div className="text-sm text-muted-foreground">
@@ -705,8 +707,9 @@ export function PaymentsModule() {
             </div>
           </CardHeader>
           <CardContent>
-            <ScrollArea className="h-[500px]">
-              <Table>
+            <div className="rounded-md border overflow-x-auto">
+              <ScrollArea className="h-[500px]">
+                <Table>
                 <TableHeader>
                   <TableRow>
                     <TableHead>
@@ -833,8 +836,9 @@ export function PaymentsModule() {
                     ))
                   )}
                 </TableBody>
-              </Table>
-            </ScrollArea>
+                </Table>
+              </ScrollArea>
+            </div>
             {totalARPages > 1 && (
               <div className="flex items-center justify-between px-2 py-4">
                 <div className="text-sm text-muted-foreground">
