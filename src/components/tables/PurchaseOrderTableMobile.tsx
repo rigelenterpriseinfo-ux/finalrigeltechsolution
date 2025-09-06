@@ -177,20 +177,18 @@ export function PurchaseOrderTableMobile({
                     className="w-full"
                   >
                     <CardHeader className="pb-3">
-                      <div className="flex justify-between items-start">
-                        <div className="flex items-start gap-3 text-left">
-                          <div className="flex-1">
-                            <div className="font-semibold text-base">
-                              {order.po_number}
-                            </div>
-                            <div className="text-sm text-muted-foreground flex items-center gap-1 mt-1">
-                              <Building2 className="h-3 w-3" />
-                              {order.supplier.name}
-                            </div>
+                      <div className="mobile-card-header">
+                        <div className="mobile-card-content">
+                          <div className="mobile-card-title">
+                            {order.po_number}
+                          </div>
+                          <div className="mobile-card-subtitle flex items-center gap-1">
+                            <Building2 className="h-3 w-3 flex-shrink-0" />
+                            <span className="truncate">{order.supplier.name}</span>
                           </div>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <Badge className={getStatusColor(order.status)}>
+                        <div className="mobile-card-actions">
+                          <Badge className={`${getStatusColor(order.status)} text-xs`}>
                             {order.status.replace('_', ' ').toUpperCase()}
                           </Badge>
                           {isExpanded ? (

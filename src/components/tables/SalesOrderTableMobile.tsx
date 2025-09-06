@@ -180,20 +180,18 @@ export function SalesOrderTableMobile({
                     className="w-full"
                   >
                     <CardHeader className="pb-3">
-                      <div className="flex justify-between items-start">
-                        <div className="flex items-start gap-3 text-left">
-                          <div className="flex-1">
-                            <div className="font-semibold text-base">
-                              {order.order_number}
-                            </div>
-                            <div className="text-sm text-muted-foreground flex items-center gap-1 mt-1">
-                              <User className="h-3 w-3" />
-                              {order.customer_name || 'Unknown Customer'}
-                            </div>
+                      <div className="mobile-card-header">
+                        <div className="mobile-card-content">
+                          <div className="mobile-card-title">
+                            {order.order_number}
+                          </div>
+                          <div className="mobile-card-subtitle flex items-center gap-1">
+                            <User className="h-3 w-3 flex-shrink-0" />
+                            <span className="truncate">{order.customer_name || 'Unknown Customer'}</span>
                           </div>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <Badge className={getStatusColor(order.status)}>
+                        <div className="mobile-card-actions">
+                          <Badge className={`${getStatusColor(order.status)} text-xs`}>
                             {order.status.replace('_', ' ').toUpperCase()}
                           </Badge>
                           {isExpanded ? (

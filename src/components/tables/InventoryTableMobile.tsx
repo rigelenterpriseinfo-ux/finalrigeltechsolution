@@ -171,26 +171,26 @@ export function InventoryTableMobile({
                     className="w-full"
                   >
                     <CardHeader className="pb-3">
-                      <div className="flex justify-between items-start">
-                        <div className="flex items-start gap-3 text-left">
+                      <div className="mobile-card-header">
+                        <div className="flex items-start gap-3 text-left flex-1 min-w-0">
                           <div className="p-2 rounded-lg bg-primary/10 text-primary flex-shrink-0">
                             <Package className="h-4 w-4" />
                           </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="font-semibold text-base truncate">
+                          <div className="mobile-card-content">
+                            <div className="mobile-card-title">
                               {product.name}
                             </div>
-                            <div className="text-sm text-muted-foreground">
+                            <div className="mobile-card-subtitle">
                               SKU: {product.sku}
                             </div>
                             {product.category && (
-                              <div className="text-xs text-muted-foreground">
+                              <div className="text-xs text-muted-foreground truncate">
                                 {product.category}
                               </div>
                             )}
                           </div>
                         </div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 flex-shrink-0">
                           <Badge className={stockStatus.color}>
                             {stockStatus.label}
                           </Badge>

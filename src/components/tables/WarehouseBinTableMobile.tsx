@@ -188,11 +188,11 @@ export const WarehouseBinTableMobile: React.FC<WarehouseBinTableMobileProps> = (
                 <Card key={bin.id} className="transition-all duration-200">
                   <CardContent className="p-4">
                     {/* Main Info - Always Visible */}
-                    <div className="flex items-start justify-between mb-3">
-                      <div className="flex-1 min-w-0">
-                        <h3 className="font-semibold text-base truncate">{bin.warehouse_name || 'Unnamed Warehouse'}</h3>
+                    <div className="mobile-card-header">
+                      <div className="mobile-card-content">
+                        <h3 className="mobile-card-title">{bin.warehouse_name || 'Unnamed Warehouse'}</h3>
                         <div className="flex items-center gap-2 mt-1 flex-wrap">
-                          <Badge variant="outline" className="text-xs">{bin.wh_bin_code}</Badge>
+                          <Badge variant="outline" className="text-xs truncate">{bin.wh_bin_code}</Badge>
                           <Badge variant={bin.is_active ? "default" : "secondary"} className="text-xs">
                             {bin.is_active ? "Active" : "Inactive"}
                           </Badge>
@@ -201,12 +201,12 @@ export const WarehouseBinTableMobile: React.FC<WarehouseBinTableMobileProps> = (
                           )}
                         </div>
                       </div>
-                      <div className="flex items-center gap-1 ml-2">
+                      <div className="mobile-card-actions">
                         <Button
                           variant="ghost"
                           size="sm"
                           onClick={() => onEdit(bin)}
-                          className="min-h-[44px] min-w-[44px] p-2"
+                          className="mobile-touch-target p-2"
                         >
                           <Edit className="h-4 w-4" />
                         </Button>
@@ -214,7 +214,7 @@ export const WarehouseBinTableMobile: React.FC<WarehouseBinTableMobileProps> = (
                           variant="ghost"
                           size="sm"
                           onClick={() => onDelete(bin)}
-                          className="min-h-[44px] min-w-[44px] p-2 text-destructive hover:text-destructive"
+                          className="mobile-touch-target p-2 text-destructive hover:text-destructive"
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
@@ -223,15 +223,15 @@ export const WarehouseBinTableMobile: React.FC<WarehouseBinTableMobileProps> = (
 
                     {/* Key Info - Always Visible */}
                     <div className="space-y-1 text-sm">
-                      <div className="flex items-center gap-2">
-                        <Building2 className="h-3 w-3 text-muted-foreground" />
-                        <span className="text-muted-foreground">BIN:</span>
-                        <span className="font-medium">{bin.bin_name}</span>
+                      <div className="flex items-center gap-2 min-w-0">
+                        <Building2 className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+                        <span className="text-muted-foreground flex-shrink-0">BIN:</span>
+                        <span className="font-medium truncate">{bin.bin_name}</span>
                       </div>
                       {bin.city && (
-                        <div className="flex items-center gap-2">
-                          <MapPin className="h-3 w-3 text-muted-foreground" />
-                          <span className="text-muted-foreground">{bin.city}, {bin.state}</span>
+                        <div className="flex items-center gap-2 min-w-0">
+                          <MapPin className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+                          <span className="text-muted-foreground truncate">{bin.city}, {bin.state}</span>
                         </div>
                       )}
                     </div>
@@ -266,21 +266,21 @@ export const WarehouseBinTableMobile: React.FC<WarehouseBinTableMobileProps> = (
                             </div>
                           )}
                           {bin.address_line1 && (
-                            <div className="flex justify-between">
-                              <span className="text-muted-foreground">Address:</span>
-                              <span className="text-right">{bin.address_line1}</span>
+                            <div className="mobile-detail-row">
+                              <span className="mobile-detail-label">Address:</span>
+                              <span className="mobile-detail-value">{bin.address_line1}</span>
                             </div>
                           )}
                           {bin.postal_code && (
-                            <div className="flex justify-between">
-                              <span className="text-muted-foreground">PIN Code:</span>
-                              <span>{bin.postal_code}</span>
+                            <div className="mobile-detail-row">
+                              <span className="mobile-detail-label">PIN Code:</span>
+                              <span className="mobile-detail-value">{bin.postal_code}</span>
                             </div>
                           )}
                           {bin.contact_person_name && (
-                            <div className="flex justify-between">
-                              <span className="text-muted-foreground">Contact:</span>
-                              <span className="text-right">{bin.contact_person_name}</span>
+                            <div className="mobile-detail-row">
+                              <span className="mobile-detail-label">Contact:</span>
+                              <span className="mobile-detail-value">{bin.contact_person_name}</span>
                             </div>
                           )}
                           {bin.contact_person_phone && (

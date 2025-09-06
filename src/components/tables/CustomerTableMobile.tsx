@@ -107,22 +107,22 @@ export const CustomerTableMobile: React.FC<CustomerTableMobileProps> = ({
                 <Card key={customer.id} className="transition-all duration-200">
                   <CardContent className="p-4">
                     {/* Main Info - Always Visible */}
-                    <div className="flex items-start justify-between mb-3">
-                      <div className="flex-1 min-w-0">
-                        <h3 className="font-semibold text-base truncate">{customer.name}</h3>
-                        <div className="flex items-center gap-2 mt-1">
-                          <Badge variant="outline" className="text-xs">{customer.customer_ref}</Badge>
+                    <div className="mobile-card-header">
+                      <div className="mobile-card-content">
+                        <h3 className="mobile-card-title">{customer.name}</h3>
+                        <div className="flex items-center gap-2 mt-1 flex-wrap">
+                          <Badge variant="outline" className="text-xs truncate">{customer.customer_ref}</Badge>
                           <Badge variant={customer.is_active ? "default" : "secondary"} className="text-xs">
                             {customer.is_active ? "Active" : "Inactive"}
                           </Badge>
                         </div>
                       </div>
-                      <div className="flex items-center gap-1 ml-2">
+                      <div className="mobile-card-actions">
                         <Button
                           variant="ghost"
                           size="sm"
                           onClick={() => onEdit(customer)}
-                          className="min-h-[44px] min-w-[44px] p-2"
+                          className="mobile-touch-target p-2"
                         >
                           <Edit className="h-4 w-4" />
                         </Button>
@@ -130,7 +130,7 @@ export const CustomerTableMobile: React.FC<CustomerTableMobileProps> = ({
                           variant="ghost"
                           size="sm"
                           onClick={() => onDelete(customer)}
-                          className="min-h-[44px] min-w-[44px] p-2 text-destructive hover:text-destructive"
+                          className="mobile-touch-target p-2 text-destructive hover:text-destructive"
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
@@ -143,7 +143,7 @@ export const CustomerTableMobile: React.FC<CustomerTableMobileProps> = ({
                         <div className="text-muted-foreground truncate">{customer.email}</div>
                       )}
                       {customer.phone && (
-                        <div className="text-muted-foreground">{customer.phone}</div>
+                        <div className="text-muted-foreground truncate">{customer.phone}</div>
                       )}
                     </div>
 
@@ -170,13 +170,13 @@ export const CustomerTableMobile: React.FC<CustomerTableMobileProps> = ({
                       </CollapsibleTrigger>
                       <CollapsibleContent className="space-y-2 pt-2 border-t mt-2">
                         <div className="text-sm space-y-1">
-                          <div className="flex justify-between">
-                            <span className="text-muted-foreground">Location:</span>
-                            <span>{customer.city}, {customer.state}</span>
+                          <div className="mobile-detail-row">
+                            <span className="mobile-detail-label">Location:</span>
+                            <span className="mobile-detail-value">{customer.city}, {customer.state}</span>
                           </div>
-                          <div className="flex justify-between">
-                            <span className="text-muted-foreground">Created:</span>
-                            <span>{new Date(customer.created_at).toLocaleDateString()}</span>
+                          <div className="mobile-detail-row">
+                            <span className="mobile-detail-label">Created:</span>
+                            <span className="mobile-detail-value">{new Date(customer.created_at).toLocaleDateString()}</span>
                           </div>
                         </div>
                       </CollapsibleContent>
