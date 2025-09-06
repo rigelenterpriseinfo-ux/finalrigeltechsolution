@@ -6,6 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
@@ -323,7 +324,6 @@ export function PaymentsModule() {
     .filter(item =>
       item.supplier_name.toLowerCase().includes(apSearchTerm.toLowerCase()) ||
       item.grn_number.toLowerCase().includes(apSearchTerm.toLowerCase()) ||
-      (item.payment_reference_no && item.payment_reference_no.toLowerCase().includes(apSearchTerm.toLowerCase())) ||
       item.invoice_status.toLowerCase().includes(apSearchTerm.toLowerCase())
     )
     .sort((a, b) => {
@@ -347,7 +347,6 @@ export function PaymentsModule() {
     .filter(item =>
       item.customer?.name.toLowerCase().includes(arSearchTerm.toLowerCase()) ||
       item.invoice_number?.toLowerCase().includes(arSearchTerm.toLowerCase()) ||
-      (item.payment_reference_no && item.payment_reference_no.toLowerCase().includes(arSearchTerm.toLowerCase())) ||
       item.invoice_status.toLowerCase().includes(arSearchTerm.toLowerCase())
     )
     .sort((a, b) => {
@@ -418,9 +417,6 @@ export function PaymentsModule() {
       'Total Amount': item.total_amount,
       'Advance Payment': item.advance_payment,
       'Amount Received': item.amount_received,
-      'Payment Date': item.payment_date ? new Date(item.payment_date).toLocaleDateString() : '',
-      'Payment Method': item.payment_method || '',
-      'Payment Reference': item.payment_reference_no || '',
       'Pending Payment': item.pending_payment,
       'Invoice Status': item.invoice_status,
       'GRN Status': item.status
@@ -437,9 +433,6 @@ export function PaymentsModule() {
       'Total Amount': item.total_amount,
       'Advance Payment': item.advance_payment,
       'Amount Received': item.amount_received,
-      'Payment Date': item.payment_date ? new Date(item.payment_date).toLocaleDateString() : '',
-      'Payment Method': item.payment_method || '',
-      'Payment Reference': item.payment_reference_no || '',
       'Pending Payment': item.pending_payment,
       'Invoice Status': item.invoice_status,
       'Payment Terms': item.payment_terms || 'Net 30'
@@ -535,7 +528,7 @@ export function PaymentsModule() {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="rounded-md border overflow-x-auto">
+            <ScrollArea className="h-[500px]">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -588,30 +581,6 @@ export function PaymentsModule() {
                       </Button>
                     </TableHead>
                     <TableHead>
-                      <Button variant="ghost" className="h-8 p-0 font-semibold hover:bg-transparent" onClick={() => handleApSort('payment_date')}>
-                        Payment Date
-                        {apSortField === 'payment_date' ? (
-                          apSortDirection === 'asc' ? <ArrowUp className="ml-1 h-3 w-3" /> : <ArrowDown className="ml-1 h-3 w-3" />
-                        ) : <ArrowUpDown className="ml-1 h-3 w-3" />}
-                      </Button>
-                    </TableHead>
-                    <TableHead>
-                      <Button variant="ghost" className="h-8 p-0 font-semibold hover:bg-transparent" onClick={() => handleApSort('payment_method')}>
-                        Payment Method
-                        {apSortField === 'payment_method' ? (
-                          apSortDirection === 'asc' ? <ArrowUp className="ml-1 h-3 w-3" /> : <ArrowDown className="ml-1 h-3 w-3" />
-                        ) : <ArrowUpDown className="ml-1 h-3 w-3" />}
-                      </Button>
-                    </TableHead>
-                    <TableHead>
-                      <Button variant="ghost" className="h-8 p-0 font-semibold hover:bg-transparent" onClick={() => handleApSort('payment_reference_no')}>
-                        Payment Ref
-                        {apSortField === 'payment_reference_no' ? (
-                          apSortDirection === 'asc' ? <ArrowUp className="ml-1 h-3 w-3" /> : <ArrowDown className="ml-1 h-3 w-3" />
-                        ) : <ArrowUpDown className="ml-1 h-3 w-3" />}
-                      </Button>
-                    </TableHead>
-                    <TableHead>
                       <Button variant="ghost" className="h-8 p-0 font-semibold hover:bg-transparent" onClick={() => handleApSort('pending_payment')}>
                         Pending Payment
                         {apSortField === 'pending_payment' ? (
@@ -633,7 +602,7 @@ export function PaymentsModule() {
                 <TableBody>
                    {paginatedAP.length === 0 ? (
                      <TableRow>
-                       <TableCell colSpan={12} className="text-center text-muted-foreground">
+                       <TableCell colSpan={9} className="text-center text-muted-foreground">
                          No GRN records found
                        </TableCell>
                      </TableRow>
@@ -646,9 +615,6 @@ export function PaymentsModule() {
                          <TableCell>₹{item.total_amount.toLocaleString()}</TableCell>
                          <TableCell>₹{item.advance_payment.toLocaleString()}</TableCell>
                          <TableCell>₹{item.amount_received.toLocaleString()}</TableCell>
-                         <TableCell>{item.payment_date ? new Date(item.payment_date).toLocaleDateString() : '-'}</TableCell>
-                         <TableCell>{item.payment_method || '-'}</TableCell>
-                         <TableCell>{item.payment_reference_no || '-'}</TableCell>
                          <TableCell>₹{item.pending_payment.toLocaleString()}</TableCell>
                          <TableCell>
                            <Badge variant={
@@ -682,7 +648,7 @@ export function PaymentsModule() {
                   )}
                 </TableBody>
               </Table>
-            </div>
+            </ScrollArea>
             {totalAPPages > 1 && (
               <div className="flex items-center justify-between px-2 py-4">
                 <div className="text-sm text-muted-foreground">
@@ -739,7 +705,7 @@ export function PaymentsModule() {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="rounded-md border overflow-x-auto">
+            <ScrollArea className="h-[500px]">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -792,30 +758,6 @@ export function PaymentsModule() {
                       </Button>
                     </TableHead>
                     <TableHead>
-                      <Button variant="ghost" className="h-8 p-0 font-semibold hover:bg-transparent" onClick={() => handleArSort('payment_date')}>
-                        Payment Date
-                        {arSortField === 'payment_date' ? (
-                          arSortDirection === 'asc' ? <ArrowUp className="ml-1 h-3 w-3" /> : <ArrowDown className="ml-1 h-3 w-3" />
-                        ) : <ArrowUpDown className="ml-1 h-3 w-3" />}
-                      </Button>
-                    </TableHead>
-                    <TableHead>
-                      <Button variant="ghost" className="h-8 p-0 font-semibold hover:bg-transparent" onClick={() => handleArSort('payment_method')}>
-                        Payment Method
-                        {arSortField === 'payment_method' ? (
-                          arSortDirection === 'asc' ? <ArrowUp className="ml-1 h-3 w-3" /> : <ArrowDown className="ml-1 h-3 w-3" />
-                        ) : <ArrowUpDown className="ml-1 h-3 w-3" />}
-                      </Button>
-                    </TableHead>
-                    <TableHead>
-                      <Button variant="ghost" className="h-8 p-0 font-semibold hover:bg-transparent" onClick={() => handleArSort('payment_reference_no')}>
-                        Payment Ref
-                        {arSortField === 'payment_reference_no' ? (
-                          arSortDirection === 'asc' ? <ArrowUp className="ml-1 h-3 w-3" /> : <ArrowDown className="ml-1 h-3 w-3" />
-                        ) : <ArrowUpDown className="ml-1 h-3 w-3" />}
-                      </Button>
-                    </TableHead>
-                    <TableHead>
                       <Button variant="ghost" className="h-8 p-0 font-semibold hover:bg-transparent" onClick={() => handleArSort('pending_payment')}>
                         Pending Payment
                         {arSortField === 'pending_payment' ? (
@@ -845,7 +787,7 @@ export function PaymentsModule() {
                 <TableBody>
                    {paginatedAR.length === 0 ? (
                      <TableRow>
-                       <TableCell colSpan={13} className="text-center text-muted-foreground">
+                       <TableCell colSpan={10} className="text-center text-muted-foreground">
                          No invoices found
                        </TableCell>
                      </TableRow>
@@ -858,9 +800,6 @@ export function PaymentsModule() {
                          <TableCell>₹{item.total_amount.toLocaleString()}</TableCell>
                          <TableCell>₹{item.advance_payment.toLocaleString()}</TableCell>
                          <TableCell>₹{item.amount_received.toLocaleString()}</TableCell>
-                         <TableCell>{item.payment_date ? new Date(item.payment_date).toLocaleDateString() : '-'}</TableCell>
-                         <TableCell>{item.payment_method || '-'}</TableCell>
-                         <TableCell>{item.payment_reference_no || '-'}</TableCell>
                          <TableCell>₹{item.pending_payment.toLocaleString()}</TableCell>
                          <TableCell>
                            <Badge variant={
@@ -895,7 +834,7 @@ export function PaymentsModule() {
                   )}
                 </TableBody>
               </Table>
-            </div>
+            </ScrollArea>
             {totalARPages > 1 && (
               <div className="flex items-center justify-between px-2 py-4">
                 <div className="text-sm text-muted-foreground">
