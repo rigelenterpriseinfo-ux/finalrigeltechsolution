@@ -47,6 +47,7 @@ interface ValidationErrors {
   wh_bin_code?: string;
   bin_name?: string;
   address_line1?: string;
+  address_line2?: string;
   city?: string;
   state?: string;
   postal_code?: string;
@@ -74,41 +75,47 @@ export function WarehouseBinForm({ open, onOpenChange, onSuccess, editingBin }: 
   // Validation functions
   const validateWarehouseName = (value: string): string | undefined => {
     const trimmed = value.trim();
-    if (!trimmed) return "Enter warehouse name (3–100 characters).";
-    if (trimmed.length < 3 || trimmed.length > 100) return "Enter warehouse name (3–100 characters).";
+    if (!trimmed) return "Enter warehouse name (min 3 characters).";
+    if (trimmed.length < 3 || trimmed.length > 30) return "Enter warehouse name (min 3 characters).";
+    if (!/^[A-Za-z0-9 \-_&]+$/.test(trimmed)) return "Enter warehouse name (min 3 characters).";
     return undefined;
   };
 
   const validateWarehouseCode = (value: string): string | undefined => {
     if (!value) return undefined; // Optional
-    if (!/^[A-Z0-9-_]{1,20}$/.test(value)) return "Use 1–20 uppercase letters/numbers (- or _ allowed).";
+    if (!/^[A-Z0-9-_]{1,10}$/.test(value)) return "Use only A–Z, 0–9, hyphen (-) or underscore (_).";
     return undefined;
   };
 
   const validateBinCode = (value: string): string | undefined => {
-    if (!value) return "Enter BIN code (1–12 uppercase letters/numbers).";
-    if (!/^[A-Z0-9]{1,12}$/.test(value)) return "Enter BIN code (1–12 uppercase letters/numbers).";
+    if (!value) return "Enter valid BIN code (1–10 uppercase letters/numbers).";
+    if (!/^[A-Z0-9]{1,10}$/.test(value)) return "Enter valid BIN code (1–10 uppercase letters/numbers).";
     return undefined;
   };
 
   const validateBinName = (value: string): string | undefined => {
     const trimmed = value.trim();
     if (!trimmed) return "Enter BIN/section name.";
-    if (trimmed.length < 2 || trimmed.length > 100) return "Enter BIN/section name.";
+    if (trimmed.length < 2 || trimmed.length > 30) return "Enter BIN/section name.";
     return undefined;
   };
 
   const validateAddressLine1 = (value: string): string | undefined => {
     const trimmed = value.trim();
-    if (!trimmed) return "Enter address line 1.";
-    if (trimmed.length > 200) return "Enter address line 1.";
+    if (!trimmed) return "Enter address line 1 (min 5 characters).";
+    if (trimmed.length < 5 || trimmed.length > 80) return "Enter address line 1 (min 5 characters).";
+    return undefined;
+  };
+
+  const validateAddressLine2 = (value: string): string | undefined => {
+    if (value && value.trim().length > 80) return "Address line 2 max 80 characters.";
     return undefined;
   };
 
   const validateCity = (value: string): string | undefined => {
     const trimmed = value.trim();
-    if (!trimmed) return "Enter city.";
-    if (trimmed.length > 100) return "Enter city.";
+    if (!trimmed) return "Enter valid city name.";
+    if (!/^[A-Za-z ]{2,100}$/.test(trimmed)) return "Enter valid city name.";
     return undefined;
   };
 
@@ -119,8 +126,8 @@ export function WarehouseBinForm({ open, onOpenChange, onSuccess, editingBin }: 
   };
 
   const validatePinCode = (value: string): string | undefined => {
-    if (!value) return "Enter a valid 6-digit PIN code.";
-    if (!/^\d{6}$/.test(value)) return "Enter a valid 6-digit PIN code.";
+    if (!value) return "Enter valid 6-digit PIN code.";
+    if (!/^\d{6}$/.test(value)) return "Enter valid 6-digit PIN code.";
     return undefined;
   };
 
@@ -129,29 +136,39 @@ export function WarehouseBinForm({ open, onOpenChange, onSuccess, editingBin }: 
     return undefined;
   };
 
-  const validateContactPerson = (value: string): string | undefined => {
-    if (value && value.length > 100) return "Contact person name too long.";
+  const validateContactPerson = (value: string, phone: string = '', email: string = ''): string | undefined => {
+    const trimmed = value.trim();
+    
+    // Required if both phone and email are missing
+    if (!trimmed && !phone.trim() && !email.trim()) {
+      return "Enter valid contact name.";
+    }
+    
+    if (trimmed) {
+      if (trimmed.length < 2 || trimmed.length > 30) return "Enter valid contact name.";
+      if (!/^[A-Za-z ]+$/.test(trimmed)) return "Enter valid contact name.";
+    }
+    
     return undefined;
   };
 
   const validatePhone = (value: string): string | undefined => {
     if (!value) return undefined; // Optional but recommended
-    // Normalize and validate Indian phone numbers
+    // Only allow numbers, validate 10 digits only
     const cleaned = value.replace(/\D/g, '');
-    if (cleaned.length === 10 && /^[6-9]/.test(cleaned)) return undefined; // 10 digit starting with 6-9
-    if (cleaned.length === 12 && cleaned.startsWith('91') && /^91[6-9]/.test(cleaned)) return undefined; // +91 format
-    if (cleaned.length === 13 && cleaned.startsWith('091')) return undefined; // 0091 format
-    return "Enter a valid Indian phone number (include +91 or start with 9/8/7/6).";
+    if (cleaned.length !== 10) return "Enter valid 10-digit Indian mobile number.";
+    if (!/^[6-9]/.test(cleaned)) return "Enter valid 10-digit Indian mobile number.";
+    return undefined;
   };
 
   const validateEmail = (value: string): string | undefined => {
     if (!value) return undefined; // Optional
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(value)) return "Enter a valid email address.";
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+    if (!emailRegex.test(value)) return "Enter valid email address.";
     return undefined;
   };
 
-  const validateField = (name: keyof ValidationErrors, value: string) => {
+  const validateField = (name: keyof ValidationErrors, value: string, formData?: FormData) => {
     let error: string | undefined;
     
     switch (name) {
@@ -170,6 +187,9 @@ export function WarehouseBinForm({ open, onOpenChange, onSuccess, editingBin }: 
       case 'address_line1':
         error = validateAddressLine1(value);
         break;
+      case 'address_line2':
+        error = validateAddressLine2(value);
+        break;
       case 'city':
         error = validateCity(value);
         break;
@@ -183,7 +203,13 @@ export function WarehouseBinForm({ open, onOpenChange, onSuccess, editingBin }: 
         error = validateCountry(value);
         break;
       case 'contact_person_name':
-        error = validateContactPerson(value);
+        if (formData) {
+          const phone = formData.get('contact_person_phone') as string || '';
+          const email = formData.get('contact_person_email') as string || '';
+          error = validateContactPerson(value, phone, email);
+        } else {
+          error = validateContactPerson(value);
+        }
         break;
       case 'contact_person_phone':
         error = validatePhone(value);
@@ -210,19 +236,24 @@ export function WarehouseBinForm({ open, onOpenChange, onSuccess, editingBin }: 
   const validateForm = (formData: FormData): boolean => {
     const newErrors: ValidationErrors = {};
     
+    const phone = formData.get('contact_person_phone') as string || '';
+    const email = formData.get('contact_person_email') as string || '';
+    const contactName = formData.get('contact_person_name') as string || '';
+    
     // Required field validations
     newErrors.warehouse_name = validateWarehouseName(formData.get('warehouse_name') as string || '');
     newErrors.warehouse_code = validateWarehouseCode(formData.get('warehouse_code') as string || '');
     newErrors.wh_bin_code = validateBinCode(formData.get('wh_bin_code') as string || '');
     newErrors.bin_name = validateBinName(formData.get('bin_name') as string || '');
     newErrors.address_line1 = validateAddressLine1(formData.get('address_line1') as string || '');
+    newErrors.address_line2 = validateAddressLine2(formData.get('address_line2') as string || '');
     newErrors.city = validateCity(formData.get('city') as string || '');
     newErrors.state = validateState(formData.get('state') as string || '');
     newErrors.postal_code = validatePinCode(formData.get('postal_code') as string || '');
     newErrors.country = validateCountry(formData.get('country') as string || 'IN');
-    newErrors.contact_person_name = validateContactPerson(formData.get('contact_person_name') as string || '');
-    newErrors.contact_person_phone = validatePhone(formData.get('contact_person_phone') as string || '');
-    newErrors.contact_person_email = validateEmail(formData.get('contact_person_email') as string || '');
+    newErrors.contact_person_name = validateContactPerson(contactName, phone, email);
+    newErrors.contact_person_phone = validatePhone(phone);
+    newErrors.contact_person_email = validateEmail(email);
 
     // Remove undefined errors
     Object.keys(newErrors).forEach(key => {
@@ -266,10 +297,6 @@ export function WarehouseBinForm({ open, onOpenChange, onSuccess, editingBin }: 
       const cleaned = phone.replace(/\D/g, '');
       if (cleaned.length === 10 && /^[6-9]/.test(cleaned)) {
         phone = `+91${cleaned}`;
-      } else if (cleaned.length === 12 && cleaned.startsWith('91')) {
-        phone = `+${cleaned}`;
-      } else if (cleaned.length === 13 && cleaned.startsWith('091')) {
-        phone = `+${cleaned.substring(1)}`;
       }
     }
 
@@ -476,8 +503,10 @@ export function WarehouseBinForm({ open, onOpenChange, onSuccess, editingBin }: 
                   name="address_line2" 
                   placeholder="Building B, Floor 2"
                   defaultValue={editingBin?.address_line2 || ''}
-                  className="h-9"
+                  onChange={(e) => handleFieldChange('address_line2', e.target.value)}
+                  className={`h-9 ${errors.address_line2 ? 'border-red-500' : ''}`}
                 />
+                {errors.address_line2 && <p className="text-sm text-red-500 mt-1">{errors.address_line2}</p>}
               </div>
             </div>
             
@@ -571,16 +600,22 @@ export function WarehouseBinForm({ open, onOpenChange, onSuccess, editingBin }: 
               <div>
                 <Label htmlFor="contact_person_phone" className="text-sm">
                   <Phone className="h-4 w-4 inline mr-1" />
-                  Phone Number
+                  Phone Number (+91)
                 </Label>
                 <Input 
                   id="contact_person_phone" 
                   name="contact_person_phone" 
                   type="tel"
-                  placeholder="+91 98765 43210"
-                  defaultValue={editingBin?.contact_person_phone || ''}
-                  onChange={(e) => handleFieldChange('contact_person_phone', e.target.value)}
+                  placeholder="9876543210"
+                  defaultValue={editingBin?.contact_person_phone?.replace('+91', '') || ''}
+                  onChange={(e) => {
+                    // Only allow numbers
+                    const numericValue = e.target.value.replace(/\D/g, '');
+                    e.target.value = numericValue;
+                    handleFieldChange('contact_person_phone', numericValue);
+                  }}
                   className={`h-9 ${errors.contact_person_phone ? 'border-red-500' : ''}`}
+                  maxLength={10}
                 />
                 {errors.contact_person_phone && <p className="text-sm text-red-500 mt-1">{errors.contact_person_phone}</p>}
               </div>
