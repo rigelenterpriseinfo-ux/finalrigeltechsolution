@@ -976,8 +976,7 @@ export function ReturnsModule() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold">Returns Management</h2>
+      <div className="flex justify-end">
         <Button
           onClick={reconcileAllProductStock}
           disabled={loading}
