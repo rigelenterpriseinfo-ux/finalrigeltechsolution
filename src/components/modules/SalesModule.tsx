@@ -667,10 +667,6 @@ export default function SalesModule() {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-semibold">Sales Management</h2>
-      </div>
-
       {/* Sales Metrics Dashboard */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <StatsCard
