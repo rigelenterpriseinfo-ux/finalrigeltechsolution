@@ -30,6 +30,7 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({
 }) => {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
+  const [amountError, setAmountError] = useState('');
   const [formData, setFormData] = useState({
     amount: payment?.amount || '',
     payment_method: payment?.payment_method || '',
@@ -39,29 +40,104 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({
     notes: payment?.notes || ''
   });
 
+  const sanitizeAmountInput = (value: string): string => {
+    // Remove any non-digit, non-decimal characters
+    let sanitized = value.replace(/[^0-9.]/g, '');
+    
+    // Ensure only one decimal point
+    const parts = sanitized.split('.');
+    if (parts.length > 2) {
+      sanitized = parts[0] + '.' + parts.slice(1).join('');
+    }
+    
+    // Limit to 2 decimal places
+    if (parts[1] && parts[1].length > 2) {
+      sanitized = parts[0] + '.' + parts[1].substring(0, 2);
+    }
+    
+    return sanitized;
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    // Allow: backspace, delete, tab, escape, enter, decimal point
+    if ([8, 9, 27, 13, 46, 110, 190].indexOf(e.keyCode) !== -1 ||
+        // Allow: Ctrl+A, Ctrl+C, Ctrl+V, Ctrl+X
+        (e.keyCode === 65 && e.ctrlKey === true) ||
+        (e.keyCode === 67 && e.ctrlKey === true) ||
+        (e.keyCode === 86 && e.ctrlKey === true) ||
+        (e.keyCode === 88 && e.ctrlKey === true)) {
+      return;
+    }
+    
+    // Ensure that it is a number and stop the keypress
+    if ((e.shiftKey || (e.keyCode < 48 || e.keyCode > 57)) && (e.keyCode < 96 || e.keyCode > 105)) {
+      e.preventDefault();
+    }
+  };
+
+  const validateAmount = (value: string): string => {
+    const amount = parseFloat(value);
+    if (!value || isNaN(amount)) {
+      return 'Please enter a valid amount';
+    }
+    if (amount <= 0) {
+      return 'Amount must be greater than 0';
+    }
+    if (maxAmount && amount > maxAmount) {
+      return `Amount cannot exceed ₹${maxAmount.toLocaleString()}`;
+    }
+    return '';
+  };
+
+  const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const sanitized = sanitizeAmountInput(e.target.value);
+    setFormData({ ...formData, amount: sanitized });
+    
+    const error = validateAmount(sanitized);
+    setAmountError(error);
+  };
+
+  const handleAmountBlur = (e: React.FocusEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    let clampedValue = value;
+    
+    if (value) {
+      const amount = parseFloat(value);
+      if (!isNaN(amount)) {
+        if (amount < 0) {
+          clampedValue = '0';
+        } else if (maxAmount && amount > maxAmount) {
+          clampedValue = maxAmount.toString();
+        }
+      }
+    }
+    
+    if (clampedValue !== value) {
+      setFormData({ ...formData, amount: clampedValue });
+    }
+    
+    const error = validateAmount(clampedValue);
+    setAmountError(error);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
     try {
-      const amount = parseFloat(formData.amount);
-      if (isNaN(amount) || amount <= 0) {
+      // Validate amount before submission
+      const amountValidationError = validateAmount(formData.amount);
+      if (amountValidationError) {
         toast({
           title: "Error",
-          description: "Please enter a valid positive amount",
+          description: amountValidationError,
           variant: "destructive"
         });
+        setLoading(false);
         return;
       }
 
-      if (maxAmount && amount > maxAmount) {
-        toast({
-          title: "Error", 
-          description: `Amount cannot exceed ₹${maxAmount.toLocaleString()}`,
-          variant: "destructive"
-        });
-        return;
-      }
+      const amount = parseFloat(formData.amount);
 
       // Get current user
       const { data: { user } } = await supabase.auth.getUser();
@@ -155,14 +231,20 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({
           <Label htmlFor="amount">Amount *</Label>
           <Input
             id="amount"
-            type="number"
-            step="0.01"
-            min="0"
+            type="text"
+            inputMode="decimal"
+            pattern="[0-9]*\.?[0-9]*"
             placeholder="0.00"
             value={formData.amount}
-            onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
+            onChange={handleAmountChange}
+            onKeyDown={handleKeyDown}
+            onBlur={handleAmountBlur}
             required
+            className={amountError ? "border-destructive" : ""}
           />
+          {amountError && (
+            <p className="text-sm text-destructive mt-1">{amountError}</p>
+          )}
         </div>
         
         <div>
@@ -233,7 +315,7 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({
         <Button type="button" variant="outline" onClick={onCancel}>
           Cancel
         </Button>
-        <Button type="submit" disabled={loading}>
+        <Button type="submit" disabled={loading || !!amountError || !formData.amount}>
           {loading ? 'Saving...' : mode === 'create' ? 'Record Payment' : 'Update Payment'}
         </Button>
       </div>
