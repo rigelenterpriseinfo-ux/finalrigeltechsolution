@@ -1219,6 +1219,16 @@ export function InventoryModule() {
                 </DialogContent>
               </Dialog>
 
+              {canEdit && (
+                <Button 
+                  className="bg-green-600 hover:bg-green-700 text-white"
+                  onClick={() => setShowBOMDialog(true)}
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  Create BOM
+                </Button>
+              )}
+
               <Button variant="outline" onClick={() => setShowBinDialog(true)}>
                 <MapPin className="w-4 h-4 mr-2" />
                 Create Warehouse BIN
@@ -1376,15 +1386,6 @@ export function InventoryModule() {
                 />
               </div>
               <div className="flex items-center gap-2">
-                {canEdit && (
-                  <Button 
-                    className="bg-green-600 hover:bg-green-700 text-white"
-                    onClick={() => setShowBOMDialog(true)}
-                  >
-                    <Plus className="w-4 h-4 mr-2" />
-                    Create BOM
-                  </Button>
-                )}
                 <Button variant="outline" onClick={exportToExcel}>
                   <Download className="w-4 h-4 mr-2" />
                   Export to Excel
