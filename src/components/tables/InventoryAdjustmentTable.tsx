@@ -128,14 +128,6 @@ export const InventoryAdjustmentTable: React.FC<InventoryAdjustmentTableProps> =
       setLoading(false);
     }
   };
-        title: 'Error',
-        description: 'Failed to fetch inventory adjustments',
-        variant: 'destructive',
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const getAdjustmentTypeBadge = (type: 'positive' | 'negative') => {
     return (

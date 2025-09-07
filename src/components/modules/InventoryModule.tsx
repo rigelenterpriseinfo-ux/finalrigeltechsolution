@@ -539,8 +539,6 @@ export function InventoryModule() {
       });
     }
   };
-    }
-  };
 
   // Filter and sort products
   const filteredProducts = useMemo(() => {
