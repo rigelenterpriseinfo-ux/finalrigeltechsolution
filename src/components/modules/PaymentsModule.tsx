@@ -570,8 +570,13 @@ export function PaymentsModule() {
   // Calculate totals
   const totalOverdueVendors = overdueVendors.reduce((sum, vendor) => sum + vendor.amount, 0);
   const totalOverdueCustomers = overdueCustomers.reduce((sum, customer) => sum + customer.amount, 0);
-  const totalAP = accountPayable.reduce((sum, item) => sum + item.total_amount, 0);
-  const totalAR = accountReceivable.reduce((sum, item) => sum + item.total_amount, 0);
+
+  // Dynamic AP/AR totals that respect search filters in their respective tables
+  const apListForDisplay = apSearchTerm.trim() ? filteredAndSortedAP : accountPayable;
+  const arListForDisplay = arSearchTerm.trim() ? filteredAndSortedAR : accountReceivable;
+
+  const totalAP = apListForDisplay.reduce((sum, item) => sum + item.total_amount, 0);
+  const totalAR = arListForDisplay.reduce((sum, item) => sum + item.total_amount, 0);
 
   if (loading) {
     return (
@@ -676,7 +681,7 @@ export function PaymentsModule() {
           <CardContent className="pt-0">
             <div className="text-xl font-bold">₹{totalAP.toLocaleString()}</div>
             <p className="text-xs text-muted-foreground">
-              {accountPayable.length} received GRN records
+              {apListForDisplay.length} received GRN records
             </p>
           </CardContent>
         </Card>
@@ -700,7 +705,7 @@ export function PaymentsModule() {
           <CardContent className="pt-0">
             <div className="text-xl font-bold">₹{totalAR.toLocaleString()}</div>
             <p className="text-xs text-muted-foreground">
-              {accountReceivable.length} outstanding invoices
+              {arListForDisplay.length} outstanding invoices
             </p>
           </CardContent>
         </Card>
