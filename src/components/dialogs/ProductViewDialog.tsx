@@ -269,7 +269,7 @@ export const ProductViewDialog: React.FC<ProductViewDialogProps> = ({
               <h3 className="font-semibold text-purple-600">Metadata</h3>
             </div>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="flex items-center gap-3">
                 <Calendar className="h-4 w-4 text-muted-foreground" />
                 <div>
@@ -299,6 +299,14 @@ export const ProductViewDialog: React.FC<ProductViewDialogProps> = ({
                       minute: '2-digit'
                     })}
                   </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <Tag className="h-4 w-4 text-muted-foreground" />
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground">Created By</label>
+                  <p className="text-sm">System User</p>
                 </div>
               </div>
             </div>

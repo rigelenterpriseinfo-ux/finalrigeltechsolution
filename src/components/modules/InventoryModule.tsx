@@ -1419,6 +1419,17 @@ export function InventoryModule() {
         onOpenChange={setShowViewDialog}
         product={viewingProduct}
       />
+
+      {/* Edit Product Dialog */}
+      <EditProductDialog
+        open={showEditDialog}
+        onOpenChange={setShowEditDialog}
+        product={editingProduct}
+        onProductUpdated={() => {
+          fetchProducts();
+          setAdjustmentRefreshTrigger(prev => prev + 1);
+        }}
+      />
     </div>
   );
 }
