@@ -577,8 +577,8 @@ export function PaymentsModule() {
   const apListForDisplay = apSearchTerm.trim() ? filteredAndSortedAP : accountPayable;
   const arListForDisplay = arSearchTerm.trim() ? filteredAndSortedAR : accountReceivable;
 
-  const totalAP = apListForDisplay.reduce((sum, item) => sum + item.total_amount, 0);
-  const totalAR = arListForDisplay.reduce((sum, item) => sum + item.total_amount, 0);
+  const totalAP = apListForDisplay.reduce((sum, item) => sum + item.pending_payment, 0);
+  const totalAR = arListForDisplay.reduce((sum, item) => sum + item.pending_payment, 0);
 
   if (loading) {
     return (
