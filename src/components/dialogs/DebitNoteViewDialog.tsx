@@ -129,6 +129,59 @@ export function DebitNoteViewDialog({
 
           <Separator />
 
+          {/* Settlement Information */}
+          {(debitNote.credit_note_numbers || debitNote.settlement_status !== 'open') && (
+            <>
+              <div>
+                <h3 className="text-lg font-semibold mb-4">Settlement Information</h3>
+                <div className="bg-gray-50 p-4 rounded-lg space-y-3">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <h4 className="text-sm font-medium text-gray-500">Settlement Status</h4>
+                      <Badge className={`mt-1 ${
+                        debitNote.settlement_status === 'settled' ? 'bg-green-100 text-green-800' :
+                        debitNote.settlement_status === 'partially_settled' ? 'bg-yellow-100 text-yellow-800' :
+                        'bg-red-100 text-red-800'
+                      }`}>
+                        {debitNote.settlement_status === 'settled' ? 'Fully Settled' :
+                         debitNote.settlement_status === 'partially_settled' ? 'Partially Settled' : 'Open'}
+                      </Badge>
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-medium text-gray-500">Outstanding Balance</h4>
+                      <p className={`text-lg font-semibold ${
+                        debitNote.difference_amount > 0 ? 'text-red-600' : 
+                        debitNote.difference_amount < 0 ? 'text-green-600' : 'text-gray-900'
+                      }`}>
+                        ₹{Math.abs(debitNote.difference_amount || 0).toFixed(2)}
+                      </p>
+                    </div>
+                  </div>
+                  
+                  {debitNote.credit_note_numbers && (
+                    <div>
+                      <h4 className="text-sm font-medium text-gray-500">Linked Credit Notes</h4>
+                      <div className="mt-2 space-y-2">
+                        <div className="flex justify-between items-center p-2 bg-white rounded border">
+                          <div>
+                            <p className="font-medium">{debitNote.credit_note_numbers}</p>
+                            <p className="text-sm text-gray-500">
+                              Credit Amount: ₹{(debitNote.credit_note_total_amount || 0).toFixed(2)}
+                            </p>
+                          </div>
+                          <Badge variant="outline" className="text-blue-600 border-blue-200">
+                            Linked
+                          </Badge>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+              <Separator />
+            </>
+          )}
+
           {/* Totals Section */}
           <div className="flex justify-end">
             <div className="w-80 space-y-2">

@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
-import { Eye, Edit, Trash2, FileSpreadsheet, File, ArrowUpDown, ChevronLeft, ChevronRight, Search } from 'lucide-react';
+import { Eye, Edit, Trash2, FileSpreadsheet, File, FileText, ArrowUpDown, ChevronLeft, ChevronRight, Search } from 'lucide-react';
 import { format } from 'date-fns';
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
@@ -496,6 +496,37 @@ export function DebitNoteTable({ refreshTrigger, onView, onEdit, onDelete }: Deb
     }
   };
 
+  const handleViewCreditNotes = async (debitNote: DebitNote) => {
+    try {
+      const { data, error } = await supabase
+        .from('supplier_credit_notes')
+        .select('*')
+        .eq('debit_note_id', debitNote.id);
+      
+      if (error) throw error;
+      
+      if (data && data.length > 0) {
+        toast({
+          title: "Credit Notes",
+          description: `Found ${data.length} credit note(s): ${data.map(cn => cn.supplier_credit_note_number).join(', ')}`,
+        });
+        // Could open a dedicated credit notes view dialog here
+      } else {
+        toast({
+          title: "No Credit Notes",
+          description: "No credit notes found for this debit note",
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching credit notes:', error);
+      toast({
+        title: "Error",
+        description: "Failed to fetch credit notes",
+        variant: "destructive",
+      });
+    }
+  };
+
   // Pagination
   const totalPages = Math.ceil(filteredDebitNotes.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
@@ -651,6 +682,17 @@ export function DebitNoteTable({ refreshTrigger, onView, onEdit, onDelete }: Deb
                           >
                             <Eye className="h-4 w-4" />
                           </Button>
+                          {debitNote.credit_note_numbers && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleViewCreditNotes(debitNote)}
+                              className="text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50"
+                              title="View Credit Notes"
+                            >
+                              <FileText className="h-4 w-4" />
+                            </Button>
+                          )}
                           <Button
                             variant="ghost"
                             size="icon"

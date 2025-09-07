@@ -964,6 +964,23 @@ export function ReturnsModule() {
     }
   };
 
+  const handleViewCreditNotes = (rso: ReturnOrder) => {
+    const linkedCreditNotes = creditNotes.filter(cn => cn.rso_number === rso.rso_number);
+    if (linkedCreditNotes.length > 0) {
+      toast({
+        title: "Linked Credit Notes",
+        description: `Found ${linkedCreditNotes.length} credit note(s): ${linkedCreditNotes.map(cn => cn.cn_number).join(', ')}`,
+      });
+      // Switch to credit notes tab to show them
+      setActiveTab('credit-notes');
+    } else {
+      toast({
+        title: "No Credit Notes",
+        description: "No credit notes found for this RSO",
+      });
+    }
+  };
+
   const getStatusBadge = (status: 'Draft' | 'Confirmed') => {
     return (
       <Badge variant={status === 'Confirmed' ? 'default' : 'secondary'}>
@@ -1091,59 +1108,98 @@ export function ReturnsModule() {
                           <TableHead>Actions</TableHead>
                         </TableRow>
                       </TableHeader>
-                      <TableBody>
-                        {returnOrders.map((rso) => (
-                          <TableRow key={rso.id}>
-                            <TableCell className="font-medium">{rso.rso_number}</TableCell>
-                            <TableCell>{rso.rso_date}</TableCell>
-                            <TableCell>{rso.customer_name}</TableCell>
-                            <TableCell>{rso.invoice_number}</TableCell>
-                            <TableCell>
-                              <Badge variant={rso.status === 'Confirmed' ? 'default' : 'secondary'}>
-                                {rso.status}
-                              </Badge>
-                            </TableCell>
-                            <TableCell>₹{rso.total_amount.toLocaleString()}</TableCell>
-                            <TableCell>
-                              <div className="flex space-x-2">
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => handleViewRso(rso.id)}
-                                >
-                                  <Eye className="h-4 w-4" />
-                                </Button>
-                                {rso.status === 'Draft' && (
-                                  <>
-                                    <Button
-                                      variant="outline"
-                                      size="sm"
-                                      onClick={() => handleEditRso(rso.id)}
-                                    >
-                                      <Edit className="h-4 w-4" />
-                                    </Button>
-                                    <Button
-                                      variant="outline"
-                                      size="sm"
-                                      onClick={() => handleDeleteRso(rso.id)}
-                                      className="text-red-600 hover:text-red-700"
-                                    >
-                                      <Trash2 className="h-4 w-4" />
-                                    </Button>
-                                  </>
-                                )}
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          )}
-        </TabsContent>
+                       <TableBody>
+                         {returnOrders.map((rso) => {
+                           // Check if RSO has linked credit notes
+                           const linkedCreditNotes = creditNotes.filter(cn => cn.rso_number === rso.rso_number);
+                           const hasLinkedCreditNotes = linkedCreditNotes.length > 0;
+                           const creditNoteStatus = hasLinkedCreditNotes ? 
+                             (linkedCreditNotes.some(cn => cn.status === 'Confirmed') ? 'processed' : 'draft') : 
+                             'pending';
+
+                           return (
+                             <TableRow key={rso.id}>
+                               <TableCell className="font-medium">{rso.rso_number}</TableCell>
+                               <TableCell>{rso.rso_date}</TableCell>
+                               <TableCell>{rso.customer_name}</TableCell>
+                               <TableCell>{rso.invoice_number}</TableCell>
+                               <TableCell>
+                                 <div className="flex flex-col space-y-1">
+                                   <Badge variant={rso.status === 'Confirmed' ? 'default' : 'secondary'}>
+                                     {rso.status}
+                                   </Badge>
+                                   {/* Credit Note Status Badge */}
+                                   <Badge variant={
+                                     creditNoteStatus === 'processed' ? 'default' :
+                                     creditNoteStatus === 'draft' ? 'secondary' : 'destructive'
+                                   } className={`text-xs ${
+                                     creditNoteStatus === 'processed' ? 'bg-green-100 text-green-800' :
+                                     creditNoteStatus === 'draft' ? 'bg-yellow-100 text-yellow-800' :
+                                     'bg-red-100 text-red-800'
+                                   }`}>
+                                     {creditNoteStatus === 'processed' ? 'CN Processed' :
+                                      creditNoteStatus === 'draft' ? 'CN Draft' : 'CN Pending'}
+                                   </Badge>
+                                   {hasLinkedCreditNotes && (
+                                     <div className="text-xs text-blue-600 max-w-[120px] truncate" title={linkedCreditNotes.map(cn => cn.cn_number).join(', ')}>
+                                       CN: {linkedCreditNotes.map(cn => cn.cn_number).join(', ')}
+                                     </div>
+                                   )}
+                                 </div>
+                               </TableCell>
+                               <TableCell>₹{rso.total_amount.toLocaleString()}</TableCell>
+                               <TableCell>
+                                 <div className="flex space-x-2">
+                                   <Button
+                                     variant="outline"
+                                     size="sm"
+                                     onClick={() => handleViewRso(rso.id)}
+                                   >
+                                     <Eye className="h-4 w-4" />
+                                   </Button>
+                                   {hasLinkedCreditNotes && (
+                                     <Button 
+                                       variant="outline" 
+                                       size="sm"
+                                       onClick={() => handleViewCreditNotes(rso)}
+                                       className="text-blue-600 hover:text-blue-700"
+                                       title="View Credit Notes"
+                                     >
+                                       <FileText className="h-4 w-4" />
+                                     </Button>
+                                   )}
+                                   {rso.status === 'Draft' && (
+                                     <>
+                                       <Button
+                                         variant="outline"
+                                         size="sm"
+                                         onClick={() => handleEditRso(rso.id)}
+                                       >
+                                         <Edit className="h-4 w-4" />
+                                       </Button>
+                                       <Button
+                                         variant="outline"
+                                         size="sm"
+                                         onClick={() => handleDeleteRso(rso.id)}
+                                         className="text-red-600 hover:text-red-700"
+                                       >
+                                         <Trash2 className="h-4 w-4" />
+                                       </Button>
+                                     </>
+                                   )}
+                                 </div>
+                               </TableCell>
+                             </TableRow>
+                           );
+                          })}
+                       </TableBody>
+                     </Table>
+                   </div>
+                 )}
+               </CardContent>
+             </Card>
+           )}
+         </TabsContent>
 
         <TabsContent value="credit-notes" className="space-y-6">
           {/* Credit Notes Statistics */}
