@@ -607,16 +607,6 @@ export function BOMModule() {
                       </CardDescription>
                     </div>
                     <div className="flex items-center gap-2">
-                      {bom.production_ready && (
-                        <Button
-                          size="sm"
-                          onClick={() => runProduction(bom)}
-                          disabled={isProducing}
-                        >
-                          <Play className="h-4 w-4 mr-1" />
-                          Produce
-                        </Button>
-                      )}
                       {canEdit && (
                         <>
                           <Button
