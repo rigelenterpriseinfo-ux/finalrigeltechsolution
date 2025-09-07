@@ -7,14 +7,20 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useBusinessAuth } from '@/hooks/useBusinessAuth';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Truck, ShoppingCart, Building2, Package, AlertCircle } from 'lucide-react';
+import { Plus, Truck, ShoppingCart, Building2, Package, AlertCircle, FileText, CreditCard } from 'lucide-react';
 import { SupplierForm } from '@/components/forms/SupplierForm';
 import { SupplierTable } from '@/components/tables/SupplierTable';
 import { PurchaseOrderForm } from '@/components/forms/PurchaseOrderForm';
 import { PurchaseOrderTable } from '@/components/tables/PurchaseOrderTable';
 import { GRNForm } from '@/components/forms/GRNForm';
 import { GRNTable } from '@/components/tables/GRNTable';
+import { DebitNoteForm } from '@/components/forms/DebitNoteForm';
+import { DebitNoteTable } from '@/components/tables/DebitNoteTable';
+import { SupplierCreditNoteForm } from '@/components/forms/SupplierCreditNoteForm';
+import { SupplierCreditNoteTable } from '@/components/tables/SupplierCreditNoteTable';
 import { PurchaseOrderDetailsDialog } from '@/components/dialogs/PurchaseOrderDetailsDialog';
+import { DebitNoteViewDialog } from '@/components/dialogs/DebitNoteViewDialog';
+import { SupplierCreditNoteViewDialog } from '@/components/dialogs/SupplierCreditNoteViewDialog';
 import { StatsCard } from '@/components/ui/stats-card';
 
 interface Supplier {
@@ -54,6 +60,8 @@ export function PurchaseModule() {
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>([]);
   const [grns, setGRNs] = useState<any[]>([]);
+  const [debitNotes, setDebitNotes] = useState<any[]>([]);
+  const [supplierCreditNotes, setSupplierCreditNotes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   
   // Stats state
@@ -77,6 +85,18 @@ export function PurchaseModule() {
   const [showViewGRNDialog, setShowViewGRNDialog] = useState(false);
   const [selectedGRN, setSelectedGRN] = useState<any>(null);
   const [refreshGRNTrigger, setRefreshGRNTrigger] = useState(0);
+  
+  // Debit Note dialog states
+  const [showAddDebitNoteDialog, setShowAddDebitNoteDialog] = useState(false);
+  const [showEditDebitNoteDialog, setShowEditDebitNoteDialog] = useState(false);
+  const [showViewDebitNoteDialog, setShowViewDebitNoteDialog] = useState(false);
+  const [selectedDebitNote, setSelectedDebitNote] = useState<any>(null);
+  
+  // Supplier Credit Note dialog states
+  const [showAddSupplierCreditNoteDialog, setShowAddSupplierCreditNoteDialog] = useState(false);
+  const [showEditSupplierCreditNoteDialog, setShowEditSupplierCreditNoteDialog] = useState(false);
+  const [showViewSupplierCreditNoteDialog, setShowViewSupplierCreditNoteDialog] = useState(false);
+  const [selectedSupplierCreditNote, setSelectedSupplierCreditNote] = useState<any>(null);
 
   // Fetch data
   useEffect(() => {
@@ -84,6 +104,8 @@ export function PurchaseModule() {
       fetchSuppliers();
       fetchPurchaseOrders();
       fetchGRNs();
+      fetchDebitNotes();
+      fetchSupplierCreditNotes();
       fetchStats();
     }
   }, [profile?.company_id]);
@@ -215,6 +237,36 @@ export function PurchaseModule() {
 
     } catch (error) {
       console.error('Error fetching stats:', error);
+    }
+  };
+
+  const fetchDebitNotes = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('debit_notes')
+        .select('*')
+        .eq('company_id', profile?.company_id)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setDebitNotes(data || []);
+    } catch (error) {
+      console.error('Error fetching debit notes:', error);
+    }
+  };
+
+  const fetchSupplierCreditNotes = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('supplier_credit_notes')
+        .select('*')
+        .eq('company_id', profile?.company_id)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setSupplierCreditNotes(data || []);
+    } catch (error) {
+      console.error('Error fetching supplier credit notes:', error);
     }
   };
 
@@ -469,10 +521,12 @@ export function PurchaseModule() {
       </div>
 
       <Tabs defaultValue="suppliers" className="w-full">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="suppliers">Suppliers</TabsTrigger>
           <TabsTrigger value="purchase-orders">Purchase Orders</TabsTrigger>
           <TabsTrigger value="grn">Goods Receipt Notes</TabsTrigger>
+          <TabsTrigger value="debit-notes">Debit Notes</TabsTrigger>
+          <TabsTrigger value="supplier-credit-notes">Supplier Credit Notes</TabsTrigger>
         </TabsList>
 
         {/* Suppliers Tab */}
@@ -577,7 +631,192 @@ export function PurchaseModule() {
             </CardContent>
           </Card>
         </TabsContent>
+
+        {/* Debit Notes Tab */}
+        <TabsContent value="debit-notes" className="space-y-4">
+          <div className="flex justify-between items-center">
+            <h3 className="text-lg font-medium">Debit Notes</h3>
+            {canEdit && (
+              <Button onClick={() => setShowAddDebitNoteDialog(true)}>
+                <Plus className="h-4 w-4 mr-2" />
+                Create Debit Note
+              </Button>
+            )}
+          </div>
+          <Card>
+            <CardContent className="p-6">
+              <DebitNoteTable
+                debitNotes={debitNotes}
+                onView={(debitNote) => {
+                  setSelectedDebitNote(debitNote);
+                  setShowViewDebitNoteDialog(true);
+                }}
+                onEdit={(debitNote) => {
+                  setSelectedDebitNote(debitNote);
+                  setShowEditDebitNoteDialog(true);
+                }}
+                onDelete={async (debitNote) => {
+                  if (!confirm('Are you sure you want to delete this debit note?')) return;
+                  try {
+                    const { error } = await supabase.from('debit_notes').delete().eq('id', debitNote.id);
+                    if (error) throw error;
+                    toast({ title: "Success", description: "Debit note deleted successfully" });
+                    fetchDebitNotes();
+                  } catch (error) {
+                    console.error('Error deleting debit note:', error);
+                    toast({ title: "Error", description: "Failed to delete debit note", variant: "destructive" });
+                  }
+                }}
+              />
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Supplier Credit Notes Tab */}
+        <TabsContent value="supplier-credit-notes" className="space-y-4">
+          <div className="flex justify-between items-center">
+            <h3 className="text-lg font-medium">Supplier Credit Notes</h3>
+            {canEdit && (
+              <Button onClick={() => setShowAddSupplierCreditNoteDialog(true)}>
+                <Plus className="h-4 w-4 mr-2" />
+                Add Credit Note
+              </Button>
+            )}
+          </div>
+          <Card>
+            <CardContent className="p-6">
+              <SupplierCreditNoteTable
+                supplierCreditNotes={supplierCreditNotes}
+                onView={(creditNote) => {
+                  setSelectedSupplierCreditNote(creditNote);
+                  setShowViewSupplierCreditNoteDialog(true);
+                }}
+                onEdit={(creditNote) => {
+                  setSelectedSupplierCreditNote(creditNote);
+                  setShowEditSupplierCreditNoteDialog(true);
+                }}
+                onDelete={async (creditNote) => {
+                  if (!confirm('Are you sure you want to delete this credit note?')) return;
+                  try {
+                    const { error } = await supabase.from('supplier_credit_notes').delete().eq('id', creditNote.id);
+                    if (error) throw error;
+                    toast({ title: "Success", description: "Credit note deleted successfully" });
+                    fetchSupplierCreditNotes();
+                  } catch (error) {
+                    console.error('Error deleting credit note:', error);
+                    toast({ title: "Error", description: "Failed to delete credit note", variant: "destructive" });
+                  }
+                }}
+              />
+            </CardContent>
+          </Card>
+        </TabsContent>
       </Tabs>
+
+      {/* Add Debit Note Dialog */}
+      <Dialog open={showAddDebitNoteDialog} onOpenChange={setShowAddDebitNoteDialog}>
+        <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Create Debit Note</DialogTitle>
+          </DialogHeader>
+          <DebitNoteForm
+            onSubmit={async (data) => {
+              try {
+                const { items, ...debitNoteData } = data;
+                const { data: debitNote, error } = await supabase
+                  .from('debit_notes')
+                  .insert({
+                    ...debitNoteData,
+                    company_id: profile?.company_id,
+                    created_by: profile?.id
+                  })
+                  .select()
+                  .single();
+
+                if (error) throw error;
+
+                if (items?.length > 0) {
+                  const { error: itemsError } = await supabase
+                    .from('debit_note_items')
+                    .insert(items.map((item: any) => ({
+                      ...item,
+                      debit_note_id: debitNote.id
+                    })));
+                  if (itemsError) throw itemsError;
+                }
+
+                toast({ title: "Success", description: "Debit note created successfully" });
+                setShowAddDebitNoteDialog(false);
+                fetchDebitNotes();
+              } catch (error) {
+                console.error('Error creating debit note:', error);
+                toast({ title: "Error", description: "Failed to create debit note", variant: "destructive" });
+              }
+            }}
+            onCancel={() => setShowAddDebitNoteDialog(false)}
+            mode="add"
+          />
+        </DialogContent>
+      </Dialog>
+
+      {/* Add Supplier Credit Note Dialog */}
+      <Dialog open={showAddSupplierCreditNoteDialog} onOpenChange={setShowAddSupplierCreditNoteDialog}>
+        <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Add Supplier Credit Note</DialogTitle>
+          </DialogHeader>
+          <SupplierCreditNoteForm
+            onSubmit={async (data) => {
+              try {
+                const { items, ...creditNoteData } = data;
+                const { data: creditNote, error } = await supabase
+                  .from('supplier_credit_notes')
+                  .insert({
+                    ...creditNoteData,
+                    company_id: profile?.company_id,
+                    created_by: profile?.id
+                  })
+                  .select()
+                  .single();
+
+                if (error) throw error;
+
+                if (items?.length > 0) {
+                  const { error: itemsError } = await supabase
+                    .from('supplier_credit_note_items')
+                    .insert(items.map((item: any) => ({
+                      ...item,
+                      supplier_credit_note_id: creditNote.id
+                    })));
+                  if (itemsError) throw itemsError;
+                }
+
+                toast({ title: "Success", description: "Credit note added successfully" });
+                setShowAddSupplierCreditNoteDialog(false);
+                fetchSupplierCreditNotes();
+              } catch (error) {
+                console.error('Error adding credit note:', error);
+                toast({ title: "Error", description: "Failed to add credit note", variant: "destructive" });
+              }
+            }}
+            onCancel={() => setShowAddSupplierCreditNoteDialog(false)}
+            mode="add"
+          />
+        </DialogContent>
+      </Dialog>
+
+      {/* View Dialogs */}
+      <DebitNoteViewDialog
+        debitNote={selectedDebitNote}
+        open={showViewDebitNoteDialog}
+        onOpenChange={setShowViewDebitNoteDialog}
+      />
+      
+      <SupplierCreditNoteViewDialog
+        supplierCreditNote={selectedSupplierCreditNote}
+        open={showViewSupplierCreditNoteDialog}
+        onOpenChange={setShowViewSupplierCreditNoteDialog}
+      />
 
       {/* Add Supplier Dialog */}
       <Dialog open={showAddSupplierDialog} onOpenChange={setShowAddSupplierDialog}>

@@ -678,6 +678,141 @@ export type Database = {
           },
         ]
       }
+      debit_note_items: {
+        Row: {
+          cgst_amount: number | null
+          cgst_rate: number | null
+          created_at: string
+          debit_note_id: string
+          discount_amount: number
+          discount_percentage: number | null
+          hsn_sac_code: string | null
+          id: string
+          igst_amount: number | null
+          igst_rate: number | null
+          line_subtotal: number
+          line_total: number
+          product_id: string
+          product_name: string
+          product_sku: string
+          quantity: number
+          sgst_amount: number | null
+          sgst_rate: number | null
+          tax_amount: number
+          unit_of_measure: string
+          unit_price: number
+        }
+        Insert: {
+          cgst_amount?: number | null
+          cgst_rate?: number | null
+          created_at?: string
+          debit_note_id: string
+          discount_amount?: number
+          discount_percentage?: number | null
+          hsn_sac_code?: string | null
+          id?: string
+          igst_amount?: number | null
+          igst_rate?: number | null
+          line_subtotal?: number
+          line_total?: number
+          product_id: string
+          product_name: string
+          product_sku: string
+          quantity: number
+          sgst_amount?: number | null
+          sgst_rate?: number | null
+          tax_amount?: number
+          unit_of_measure?: string
+          unit_price?: number
+        }
+        Update: {
+          cgst_amount?: number | null
+          cgst_rate?: number | null
+          created_at?: string
+          debit_note_id?: string
+          discount_amount?: number
+          discount_percentage?: number | null
+          hsn_sac_code?: string | null
+          id?: string
+          igst_amount?: number | null
+          igst_rate?: number | null
+          line_subtotal?: number
+          line_total?: number
+          product_id?: string
+          product_name?: string
+          product_sku?: string
+          quantity?: number
+          sgst_amount?: number | null
+          sgst_rate?: number | null
+          tax_amount?: number
+          unit_of_measure?: string
+          unit_price?: number
+        }
+        Relationships: []
+      }
+      debit_notes: {
+        Row: {
+          company_id: string
+          created_at: string
+          created_by: string
+          debit_note_date: string
+          debit_note_number: string | null
+          discount_amount: number
+          grn_id: string | null
+          id: string
+          notes: string | null
+          purchase_order_id: string | null
+          reason: string
+          status: string
+          subtotal_amount: number
+          supplier_id: string
+          supplier_name: string
+          tax_amount: number
+          total_amount: number
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          created_by: string
+          debit_note_date?: string
+          debit_note_number?: string | null
+          discount_amount?: number
+          grn_id?: string | null
+          id?: string
+          notes?: string | null
+          purchase_order_id?: string | null
+          reason: string
+          status?: string
+          subtotal_amount?: number
+          supplier_id: string
+          supplier_name: string
+          tax_amount?: number
+          total_amount?: number
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          created_by?: string
+          debit_note_date?: string
+          debit_note_number?: string | null
+          discount_amount?: number
+          grn_id?: string | null
+          id?: string
+          notes?: string | null
+          purchase_order_id?: string | null
+          reason?: string
+          status?: string
+          subtotal_amount?: number
+          supplier_id?: string
+          supplier_name?: string
+          tax_amount?: number
+          total_amount?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       email_confirmations: {
         Row: {
           consumed_at: string | null
@@ -2716,6 +2851,138 @@ export type Database = {
         }
         Relationships: []
       }
+      supplier_credit_note_items: {
+        Row: {
+          cgst_amount: number | null
+          cgst_rate: number | null
+          created_at: string
+          discount_amount: number
+          discount_percentage: number | null
+          hsn_sac_code: string | null
+          id: string
+          igst_amount: number | null
+          igst_rate: number | null
+          line_subtotal: number
+          line_total: number
+          product_id: string
+          product_name: string
+          product_sku: string
+          quantity: number
+          sgst_amount: number | null
+          sgst_rate: number | null
+          supplier_credit_note_id: string
+          tax_amount: number
+          unit_of_measure: string
+          unit_price: number
+        }
+        Insert: {
+          cgst_amount?: number | null
+          cgst_rate?: number | null
+          created_at?: string
+          discount_amount?: number
+          discount_percentage?: number | null
+          hsn_sac_code?: string | null
+          id?: string
+          igst_amount?: number | null
+          igst_rate?: number | null
+          line_subtotal?: number
+          line_total?: number
+          product_id: string
+          product_name: string
+          product_sku: string
+          quantity: number
+          sgst_amount?: number | null
+          sgst_rate?: number | null
+          supplier_credit_note_id: string
+          tax_amount?: number
+          unit_of_measure?: string
+          unit_price?: number
+        }
+        Update: {
+          cgst_amount?: number | null
+          cgst_rate?: number | null
+          created_at?: string
+          discount_amount?: number
+          discount_percentage?: number | null
+          hsn_sac_code?: string | null
+          id?: string
+          igst_amount?: number | null
+          igst_rate?: number | null
+          line_subtotal?: number
+          line_total?: number
+          product_id?: string
+          product_name?: string
+          product_sku?: string
+          quantity?: number
+          sgst_amount?: number | null
+          sgst_rate?: number | null
+          supplier_credit_note_id?: string
+          tax_amount?: number
+          unit_of_measure?: string
+          unit_price?: number
+        }
+        Relationships: []
+      }
+      supplier_credit_notes: {
+        Row: {
+          company_id: string
+          created_at: string
+          created_by: string
+          discount_amount: number
+          id: string
+          notes: string | null
+          purchase_order_id: string | null
+          reason: string
+          status: string
+          subtotal_amount: number
+          supplier_credit_note_date: string
+          supplier_credit_note_number: string
+          supplier_id: string
+          supplier_name: string
+          tax_amount: number
+          total_amount: number
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          created_by: string
+          discount_amount?: number
+          id?: string
+          notes?: string | null
+          purchase_order_id?: string | null
+          reason: string
+          status?: string
+          subtotal_amount?: number
+          supplier_credit_note_date?: string
+          supplier_credit_note_number: string
+          supplier_id: string
+          supplier_name: string
+          tax_amount?: number
+          total_amount?: number
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          created_by?: string
+          discount_amount?: number
+          id?: string
+          notes?: string | null
+          purchase_order_id?: string | null
+          reason?: string
+          status?: string
+          subtotal_amount?: number
+          supplier_credit_note_date?: string
+          supplier_credit_note_number?: string
+          supplier_id?: string
+          supplier_name?: string
+          tax_amount?: number
+          total_amount?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       suppliers: {
         Row: {
           account_number: string | null
@@ -3176,6 +3443,10 @@ export type Database = {
       }
       generate_customer_ref: {
         Args: { customer_name: string }
+        Returns: string
+      }
+      generate_debit_note_number: {
+        Args: { comp_id: string }
         Returns: string
       }
       generate_gated_business_ref_no: {
