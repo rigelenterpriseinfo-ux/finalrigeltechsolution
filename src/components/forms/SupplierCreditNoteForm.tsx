@@ -225,6 +225,28 @@ export function SupplierCreditNoteForm({ supplierCreditNote, onSubmit, onCancel,
 
   const handleItemChange = (index: number, field: keyof SupplierCreditNoteItem, value: any) => {
     const newItems = [...items];
+    
+    // Validate credit_note_quantity doesn't exceed original quantity
+    if (field === 'credit_note_quantity') {
+      const maxAllowed = newItems[index].quantity;
+      if (value > maxAllowed) {
+        toast({
+          title: "Invalid Quantity",
+          description: `Credit note quantity cannot exceed original quantity (${maxAllowed})`,
+          variant: "destructive"
+        });
+        return; // Don't update if validation fails
+      }
+      if (value < 0) {
+        toast({
+          title: "Invalid Quantity", 
+          description: "Credit note quantity cannot be negative",
+          variant: "destructive"
+        });
+        return;
+      }
+    }
+    
     newItems[index] = { ...newItems[index], [field]: value };
     
     // Recalculate when relevant fields change
@@ -416,13 +438,22 @@ export function SupplierCreditNoteForm({ supplierCreditNote, onSubmit, onCancel,
                      <Label className="text-xs">Credit Note Qty *</Label>
                      <Input
                        type="number"
-                       min="1"
+                       min="0"
                        max={item.quantity}
                        value={item.credit_note_quantity}
-                       onChange={(e) => handleItemChange(index, 'credit_note_quantity', parseInt(e.target.value) || 0)}
-                       placeholder="Qty"
+                       onChange={(e) => {
+                         const value = parseInt(e.target.value) || 0;
+                         handleItemChange(index, 'credit_note_quantity', value);
+                       }}
+                       placeholder="0"
                        className="text-xs"
+                       title={`Maximum allowed: ${item.quantity}`}
                      />
+                     {item.credit_note_quantity > item.quantity && (
+                       <p className="text-xs text-destructive mt-1">
+                         Cannot exceed original quantity ({item.quantity})
+                       </p>
+                     )}
                    </div>
 
                    <div className="col-span-2">
