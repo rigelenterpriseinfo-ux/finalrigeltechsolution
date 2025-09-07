@@ -612,7 +612,6 @@ export function DebitNoteTable({ refreshTrigger, onView, onEdit, onDelete }: Deb
                         {getSortIcon('status')}
                       </div>
                     </TableHead>
-                    <TableHead>Created</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -640,9 +639,6 @@ export function DebitNoteTable({ refreshTrigger, onView, onEdit, onDelete }: Deb
                       </TableCell>
                       <TableCell>
                         {getStatusBadge(debitNote.status)}
-                      </TableCell>
-                      <TableCell>
-                        {format(new Date(debitNote.created_at), "MMM dd, yyyy")}
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end space-x-1">
