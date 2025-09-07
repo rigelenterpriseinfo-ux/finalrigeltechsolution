@@ -357,13 +357,42 @@ export function DebitNoteForm({ debitNote, onSubmit, onCancel, mode }: DebitNote
     setLoading(true);
     const totals = calculateTotals();
 
+    // Sanitize items data to only include database fields
+    const sanitizedItems = items.map(item => ({
+      product_id: item.product_id,
+      product_name: item.product_name,
+      product_sku: item.product_sku,
+      quantity: parseInt(String(item.quantity)) || 0,
+      unit_price: parseFloat(String(item.unit_price)) || 0,
+      unit_of_measure: item.unit_of_measure || 'pcs',
+      hsn_sac_code: item.hsn_sac_code || '',
+      discount_percentage: parseFloat(String(item.discount_percentage)) || 0,
+      discount_amount: parseFloat(String(item.discount_amount)) || 0,
+      cgst_rate: parseFloat(String(item.cgst_rate)) || 0,
+      cgst_amount: parseFloat(String(item.cgst_amount)) || 0,
+      sgst_rate: parseFloat(String(item.sgst_rate)) || 0,
+      sgst_amount: parseFloat(String(item.sgst_amount)) || 0,
+      igst_rate: parseFloat(String(item.igst_rate)) || 0,
+      igst_amount: parseFloat(String(item.igst_amount)) || 0,
+      tax_amount: parseFloat(String(item.tax_amount)) || 0,
+      line_subtotal: parseFloat(String(item.line_subtotal)) || 0,
+      line_total: parseFloat(String(item.line_total)) || 0
+    }));
+
     const debitNoteData = {
-      ...formData,
-      subtotal_amount: totals.subtotal,
-      discount_amount: totals.totalDiscount,
-      tax_amount: totals.totalTax,
-      total_amount: totals.total,
-      items: items
+      supplier_id: formData.supplier_id,
+      supplier_name: formData.supplier_name,
+      grn_id: formData.grn_id,
+      supplier_invoice_number: formData.supplier_invoice_number,
+      supplier_invoice_date: formData.supplier_invoice_date,
+      debit_note_date: formData.debit_note_date,
+      reason: formData.reason,
+      notes: formData.notes || '',
+      subtotal_amount: parseFloat(totals.subtotal.toFixed(2)),
+      discount_amount: parseFloat(totals.totalDiscount.toFixed(2)),
+      tax_amount: parseFloat(totals.totalTax.toFixed(2)),
+      total_amount: parseFloat(totals.total.toFixed(2)),
+      items: sanitizedItems
     };
 
     await onSubmit(debitNoteData);

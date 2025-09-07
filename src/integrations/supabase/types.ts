@@ -3455,6 +3455,10 @@ export type Database = {
         Args: { comp_id: string }
         Returns: string
       }
+      generate_debit_note_number_by_supplier: {
+        Args: { p_company_id: string; p_supplier_id: string }
+        Returns: string
+      }
       generate_gated_business_ref_no: {
         Args: Record<PropertyKey, never>
         Returns: string

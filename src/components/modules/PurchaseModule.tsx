@@ -723,13 +723,18 @@ export function PurchaseModule() {
             onSubmit={async (data) => {
               try {
                 const { items, ...debitNoteData } = data;
+                
+                // Add required fields
+                const completeDebitNoteData = {
+                  ...debitNoteData,
+                  company_id: profile?.company_id,
+                  created_by: profile?.id,
+                  status: 'draft'
+                };
+
                 const { data: debitNote, error } = await supabase
                   .from('debit_notes')
-                  .insert({
-                    ...debitNoteData,
-                    company_id: profile?.company_id,
-                    created_by: profile?.id
-                  })
+                  .insert(completeDebitNoteData)
                   .select()
                   .single();
 
@@ -745,7 +750,10 @@ export function PurchaseModule() {
                   if (itemsError) throw itemsError;
                 }
 
-                toast({ title: "Success", description: "Debit note created successfully" });
+                toast({ 
+                  title: "Success", 
+                  description: `Debit note created successfully. DN Number: ${debitNote.debit_note_number}` 
+                });
                 setShowAddDebitNoteDialog(false);
                 fetchDebitNotes();
               } catch (error) {
