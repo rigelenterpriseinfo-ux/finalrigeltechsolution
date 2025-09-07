@@ -1009,15 +1009,18 @@ export function InventoryModule() {
                 </Button>
               )}
 
-              <Button variant="outline" onClick={() => setShowBinDialog(true)}>
-                <MapPin className="w-4 h-4 mr-2" />
+              <Button 
+                className="bg-purple-600 hover:bg-purple-700 text-white"
+                onClick={() => setShowBinDialog(true)}
+              >
+                <Plus className="w-4 h-4 mr-2" />
                 Create Warehouse BIN
               </Button>
 
               <Dialog open={showAdjustmentDialog} onOpenChange={setShowAdjustmentDialog}>
                 <DialogTrigger asChild>
-                  <Button variant="outline">
-                    <ClipboardList className="w-4 h-4 mr-2" />
+                  <Button className="bg-orange-600 hover:bg-orange-700 text-white">
+                    <Plus className="w-4 h-4 mr-2" />
                     Inventory Adjustment
                   </Button>
                 </DialogTrigger>
@@ -1041,8 +1044,8 @@ export function InventoryModule() {
 
               <Dialog open={showTransferDialog} onOpenChange={setShowTransferDialog}>
                 <DialogTrigger asChild>
-                  <Button variant="outline">
-                    <ArrowRightLeft className="w-4 h-4 mr-2" />
+                  <Button className="bg-teal-600 hover:bg-teal-700 text-white">
+                    <Plus className="w-4 h-4 mr-2" />
                     Inventory Transfer
                   </Button>
                 </DialogTrigger>
