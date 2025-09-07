@@ -27,25 +27,25 @@ export const Header: React.FC<HeaderProps> = ({
   return (
     <header className="bg-gradient-primary border-b border-border/20 sticky top-0 z-40 backdrop-blur supports-[backdrop-filter]:bg-gradient-primary/95 shadow-lg">
       <div className="px-4 md:px-6 py-4 md:py-5">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center">
           {/* Left Section - Title/Welcome */}
-          <div className="flex-1 min-w-0">
+          <div className="flex-1 min-w-0 pr-4">
             {showWelcome ? (
               <div className="space-y-1">
-                <h1 className="text-lg md:text-2xl font-bold text-foreground truncate">
+                <h1 className="text-lg md:text-2xl font-bold text-white drop-shadow-sm truncate">
                   Welcome back! 👋
                 </h1>
-                <p className="text-xs md:text-sm text-muted-foreground hidden sm:block">
+                <p className="text-xs md:text-sm text-white/80 hidden sm:block">
                   Here's what's happening with your business today
                 </p>
               </div>
             ) : (
               <div className="space-y-1">
-                <h1 className="text-lg md:text-xl font-semibold text-foreground truncate">
+                <h1 className="text-lg md:text-xl font-semibold text-white drop-shadow-sm truncate">
                   {title}
                 </h1>
                 {subtitle && (
-                  <p className="text-xs md:text-sm text-muted-foreground hidden sm:block">
+                  <p className="text-xs md:text-sm text-white/80 hidden sm:block">
                     {subtitle}
                   </p>
                 )}
@@ -55,20 +55,22 @@ export const Header: React.FC<HeaderProps> = ({
 
           {/* Center Section - Company Badge (Hidden on mobile) */}
           {!isMobile && company && (
-            <div className="flex-shrink-0 mx-6">
-              <div className="bg-white/90 backdrop-blur-sm border border-white/20 rounded-xl px-4 py-2.5 shadow-lg ring-1 ring-black/5">
-                <div className="text-sm font-semibold text-gray-900 truncate max-w-[200px]">
-                  {company.name || 'Unknown Company'}
-                </div>
-                <div className="text-xs text-gray-600 mt-0.5">
-                  ID: {company.business_ref_no || company.id || 'No ID'}
+            <div className="absolute left-1/2 transform -translate-x-1/2">
+              <div className="bg-white/95 backdrop-blur-sm border border-white/30 rounded-xl px-5 py-3 shadow-lg ring-1 ring-black/10">
+                <div className="text-center">
+                  <div className="text-sm font-semibold text-gray-900 whitespace-nowrap">
+                    {company.name || 'Unknown Company'}
+                  </div>
+                  <div className="text-xs text-gray-600 mt-0.5">
+                    ID: {company.business_ref_no || company.id || 'No ID'}
+                  </div>
                 </div>
               </div>
             </div>
           )}
 
           {/* Right Section - Actions */}
-          <div className="flex items-center gap-2 md:gap-3">
+          <div className="flex items-center gap-2 md:gap-3 flex-1 justify-end pl-4">
             {actions}
             
             {user ? (
@@ -76,13 +78,17 @@ export const Header: React.FC<HeaderProps> = ({
                 onClick={signOut}
                 variant="ghost"
                 size={isMobile ? "sm" : "sm"}
-                className="text-foreground hover:bg-background/20 min-h-[44px] md:min-h-auto"
+                className="text-white hover:bg-white/20 hover:text-white min-h-[44px] md:min-h-auto border border-white/20"
               >
                 <LogOut className="h-4 w-4 md:mr-2" />
                 <span className="hidden md:inline">Sign Out</span>
               </Button>
             ) : (
-              <Button variant="ghost" size={isMobile ? "sm" : "sm"} className="min-h-[44px] md:min-h-auto">
+              <Button 
+                variant="ghost" 
+                size={isMobile ? "sm" : "sm"} 
+                className="text-white hover:bg-white/20 hover:text-white min-h-[44px] md:min-h-auto border border-white/20"
+              >
                 <User className="h-4 w-4 md:mr-2" />
                 <span className="hidden md:inline">Sign In</span>
               </Button>
