@@ -5,7 +5,8 @@ import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
-import { FileText, TrendingUp, AlertCircle, CheckCircle } from 'lucide-react';
+import { FileText, TrendingUp, AlertCircle, CheckCircle, X } from 'lucide-react';
+import { APARFilters } from '@/contexts/APARFilterContext';
 
 interface APSummary {
   total_debit_notes: number;
@@ -17,7 +18,13 @@ interface APSummary {
   credit_amount: number;
 }
 
-export function APDashboardWidget() {
+interface APDashboardWidgetProps {
+  filters?: APARFilters;
+  showFilterLabel?: boolean;
+  onFilterClear?: () => void;
+}
+
+export function APDashboardWidget({ filters, showFilterLabel = false, onFilterClear }: APDashboardWidgetProps = {}) {
   const { profile } = useAuth();
   const { toast } = useToast();
   const [apSummary, setApSummary] = useState<APSummary | null>(null);
@@ -27,13 +34,13 @@ export function APDashboardWidget() {
     if (profile?.company_id) {
       fetchAPSummary();
     }
-  }, [profile?.company_id]);
+  }, [profile?.company_id, filters]);
 
   const fetchAPSummary = async () => {
     try {
       setLoading(true);
       
-      const { data, error } = await supabase
+      let query = supabase
         .from('debit_notes')
         .select(`
           *,
@@ -42,6 +49,17 @@ export function APDashboardWidget() {
           )
         `)
         .eq('company_id', profile?.company_id);
+
+      // Apply filters if provided
+      if (filters?.searchTerm) {
+        query = query.or(`debit_note_number.ilike.%${filters.searchTerm}%,supplier_name.ilike.%${filters.searchTerm}%,reason.ilike.%${filters.searchTerm}%`);
+      }
+      
+      if (filters?.statusFilter && filters.statusFilter !== 'all') {
+        query = query.eq('status', filters.statusFilter);
+      }
+
+      const { data, error } = await query;
 
       if (error) throw error;
 
@@ -136,9 +154,23 @@ export function APDashboardWidget() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <FileText className="h-5 w-5 text-blue-600" />
-          Accounts Payable (AP)
+        <CardTitle className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <FileText className="h-5 w-5 text-blue-600" />
+            Accounts Payable (AP)
+          </div>
+          {showFilterLabel && filters?.searchTerm && (
+            <div className="flex items-center gap-2">
+              <Badge variant="secondary" className="text-xs">
+                Filtered by: {filters.searchTerm}
+              </Badge>
+              {onFilterClear && (
+                <Button variant="ghost" size="sm" onClick={onFilterClear}>
+                  <X className="h-3 w-3" />
+                </Button>
+              )}
+            </div>
+          )}
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">

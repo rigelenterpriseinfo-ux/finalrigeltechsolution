@@ -22,6 +22,8 @@ import { PurchaseOrderDetailsDialog } from '@/components/dialogs/PurchaseOrderDe
 import { DebitNoteViewDialog } from '@/components/dialogs/DebitNoteViewDialog';
 import { SupplierCreditNoteViewDialog } from '@/components/dialogs/SupplierCreditNoteViewDialog';
 import { StatsCard } from '@/components/ui/stats-card';
+import { APDashboardWidget } from '@/components/dashboard/APDashboardWidget';
+import { APARFilterProvider, useAPARFilters } from '@/contexts/APARFilterContext';
 
 interface Supplier {
   id: string;
@@ -51,9 +53,18 @@ interface PurchaseOrder {
 }
 
 export function PurchaseModule() {
+  return (
+    <APARFilterProvider>
+      <PurchaseModuleContent />
+    </APARFilterProvider>
+  );
+}
+
+function PurchaseModuleContent() {
   const { user, profile } = useAuth();
   const { hasEditAccess } = useBusinessAuth();
   const { toast } = useToast();
+  const { apFilters, setAPFilters, clearAPFilters } = useAPARFilters();
   const canEdit = hasEditAccess('purchases');
   
   // State management
@@ -657,10 +668,24 @@ export function PurchaseModule() {
               </Button>
             )}
           </div>
+          
+          {/* AP Summary Widget */}
+          <APDashboardWidget
+            filters={apFilters}
+            showFilterLabel={true}
+            onFilterClear={clearAPFilters}
+          />
+          
           <Card>
             <CardContent className="p-6">
               <DebitNoteTable
                 refreshTrigger={refreshDebitNoteTrigger}
+                onFiltersChange={(filters) => {
+                  setAPFilters({
+                    searchTerm: filters.searchTerm,
+                    statusFilter: filters.statusFilter
+                  });
+                }}
                 onView={(debitNote) => {
                   setSelectedDebitNote(debitNote);
                   setShowViewDebitNoteDialog(true);

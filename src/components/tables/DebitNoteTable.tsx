@@ -39,9 +39,10 @@ interface DebitNoteTableProps {
   onView: (debitNote: any) => void;
   onEdit: (debitNote: any) => void;
   onDelete: (debitNoteId: string) => void;
+  onFiltersChange?: (filters: { searchTerm: string; statusFilter: string }) => void;
 }
 
-export function DebitNoteTable({ refreshTrigger, onView, onEdit, onDelete }: DebitNoteTableProps) {
+export function DebitNoteTable({ refreshTrigger, onView, onEdit, onDelete, onFiltersChange }: DebitNoteTableProps) {
   const { profile } = useAuth();
   const { toast } = useToast();
   const [debitNotes, setDebitNotes] = useState<DebitNote[]>([]);
@@ -65,6 +66,13 @@ export function DebitNoteTable({ refreshTrigger, onView, onEdit, onDelete }: Deb
   useEffect(() => {
     filterAndSortDebitNotes();
   }, [debitNotes, searchTerm, statusFilter, sortField, sortDirection]);
+
+  useEffect(() => {
+    // Notify parent component about filter changes
+    if (onFiltersChange) {
+      onFiltersChange({ searchTerm, statusFilter });
+    }
+  }, [searchTerm, statusFilter, onFiltersChange]);
 
   const fetchCompanyData = async () => {
     try {

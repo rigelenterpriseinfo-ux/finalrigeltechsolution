@@ -5,7 +5,8 @@ import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
-import { RotateCcw, FileText, AlertCircle, CheckCircle, Clock } from 'lucide-react';
+import { RotateCcw, FileText, AlertCircle, CheckCircle, Clock, X } from 'lucide-react';
+import { APARFilters } from '@/contexts/APARFilterContext';
 
 interface ARSummary {
   total_rsos: number;
@@ -18,7 +19,13 @@ interface ARSummary {
   pending_credit_amount: number;
 }
 
-export function ARDashboardWidget() {
+interface ARDashboardWidgetProps {
+  filters?: APARFilters;
+  showFilterLabel?: boolean;
+  onFilterClear?: () => void;
+}
+
+export function ARDashboardWidget({ filters, showFilterLabel = false, onFilterClear }: ARDashboardWidgetProps = {}) {
   const { profile } = useAuth();
   const { toast } = useToast();
   const [arSummary, setArSummary] = useState<ARSummary | null>(null);
@@ -28,17 +35,27 @@ export function ARDashboardWidget() {
     if (profile?.company_id) {
       fetchARSummary();
     }
-  }, [profile?.company_id]);
+  }, [profile?.company_id, filters]);
 
   const fetchARSummary = async () => {
     try {
       setLoading(true);
       
-      // Fetch RSOs
-      const { data: rsos, error: rsoError } = await supabase
+      // Fetch RSOs with filters
+      let rsoQuery = supabase
         .from('return_order_header')
         .select('*')
         .eq('company_id', profile?.company_id);
+
+      if (filters?.searchTerm) {
+        rsoQuery = rsoQuery.or(`rso_number.ilike.%${filters.searchTerm}%,customer_name.ilike.%${filters.searchTerm}%,invoice_number.ilike.%${filters.searchTerm}%`);
+      }
+
+      if (filters?.statusFilter && filters.statusFilter !== 'all') {
+        rsoQuery = rsoQuery.eq('status', filters.statusFilter);
+      }
+
+      const { data: rsos, error: rsoError } = await rsoQuery;
 
       if (rsoError) throw rsoError;
 
@@ -130,9 +147,23 @@ export function ARDashboardWidget() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <RotateCcw className="h-5 w-5 text-green-600" />
-          Accounts Receivable (AR)
+        <CardTitle className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <RotateCcw className="h-5 w-5 text-green-600" />
+            Accounts Receivable (AR)
+          </div>
+          {showFilterLabel && filters?.searchTerm && (
+            <div className="flex items-center gap-2">
+              <Badge variant="secondary" className="text-xs">
+                Filtered by: {filters.searchTerm}
+              </Badge>
+              {onFilterClear && (
+                <Button variant="ghost" size="sm" onClick={onFilterClear}>
+                  <X className="h-3 w-3" />
+                </Button>
+              )}
+            </div>
+          )}
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">

@@ -19,6 +19,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { EnhancedCreateRSOForm } from '@/components/forms/EnhancedCreateRSOForm';
 import { RSOViewDialog } from '@/components/dialogs/RSOViewDialog';
+import { ARDashboardWidget } from '@/components/dashboard/ARDashboardWidget';
+import { APARFilterProvider, useAPARFilters } from '@/contexts/APARFilterContext';
 import { 
   RotateCcw, 
   FileText, 
@@ -265,8 +267,17 @@ function SearchableCombobox({
 }
 
 export function ReturnsModule() {
+  return (
+    <APARFilterProvider>
+      <ReturnsModuleContent />
+    </APARFilterProvider>
+  );
+}
+
+function ReturnsModuleContent() {
   const { toast } = useToast();
   const { user, company } = useAuth(); // Get both user and company from auth
+  const { arFilters, setARFilters, clearARFilters } = useAPARFilters();
   const [activeTab, setActiveTab] = useState('returns');
   
   // Form states
@@ -1088,11 +1099,38 @@ export function ReturnsModule() {
             />
           )}
 
+          {/* AR Summary Widget */}
+          <ARDashboardWidget
+            filters={arFilters}
+            showFilterLabel={true}
+            onFilterClear={clearARFilters}
+          />
+
           {/* RSO Table */}
           {!isCreateRSOFormOpen && (
             <Card>
               <CardHeader>
-                <CardTitle>RSO List</CardTitle>
+                <CardTitle className="flex items-center justify-between">
+                  RSO List
+                  <div className="flex items-center gap-2">
+                    <Input
+                      placeholder="Search RSOs..."
+                      className="w-64"
+                      value={arFilters.searchTerm}
+                      onChange={(e) => setARFilters({ searchTerm: e.target.value })}
+                    />
+                    <Select value={arFilters.statusFilter} onValueChange={(value) => setARFilters({ statusFilter: value })}>
+                      <SelectTrigger className="w-32">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Status</SelectItem>
+                        <SelectItem value="Draft">Draft</SelectItem>
+                        <SelectItem value="Confirmed">Confirmed</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </CardTitle>
               </CardHeader>
               <CardContent>
                 {loading ? (
@@ -1118,7 +1156,18 @@ export function ReturnsModule() {
                         </TableRow>
                       </TableHeader>
                        <TableBody>
-                         {returnOrders.map((rso) => {
+                  {returnOrders
+                    .filter(rso => {
+                      const matchesSearch = arFilters.searchTerm === '' || 
+                        rso.rso_number?.toLowerCase().includes(arFilters.searchTerm.toLowerCase()) ||
+                        rso.customer_name?.toLowerCase().includes(arFilters.searchTerm.toLowerCase()) ||
+                        rso.invoice_number?.toLowerCase().includes(arFilters.searchTerm.toLowerCase());
+                      
+                      const matchesStatus = arFilters.statusFilter === 'all' || rso.status === arFilters.statusFilter;
+                      
+                      return matchesSearch && matchesStatus;
+                    })
+                    .map((rso) => {
                            // Check if RSO has linked credit notes
                            const linkedCreditNotes = creditNotes.filter(cn => cn.rso_number === rso.rso_number);
                            const hasLinkedCreditNotes = linkedCreditNotes.length > 0;
