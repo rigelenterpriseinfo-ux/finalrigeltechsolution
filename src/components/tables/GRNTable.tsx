@@ -496,6 +496,51 @@ export function GRNTable({ refreshTrigger, onView, onEdit, onDelete }: GRNTableP
         </div>
       </CardHeader>
       <CardContent>
+        {/* Search and Export Controls */}
+        <div className="p-4 sm:p-6 border-b bg-gradient-to-r from-blue-50 to-blue-100">
+          <div className="flex flex-col gap-4 items-start justify-between">
+            <div className="flex items-center gap-2 w-full">
+              <Search className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+              <Input
+                placeholder="Search by GRN Number or Supplier..."
+                value={searchTerm}
+                onChange={(e) => {
+                  setSearchTerm(e.target.value);
+                  setCurrentPage(1);
+                }}
+                className="bg-white"
+              />
+              <Button
+                variant="outline"
+                size="sm"
+                className="flex items-center gap-2 ml-2"
+                disabled
+              >
+                <FileSpreadsheet className="h-4 w-4" />
+                Export Excel
+              </Button>
+            </div>
+          </div>
+          
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mt-4 gap-2">
+            <Select value={statusFilter} onValueChange={(value: any) => setStatusFilter(value)}>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Status</SelectItem>
+                <SelectItem value="draft">Draft</SelectItem>
+                <SelectItem value="received">Received</SelectItem>
+                <SelectItem value="accepted">Accepted</SelectItem>
+                <SelectItem value="partially_received">Partially Received</SelectItem>
+              </SelectContent>
+            </Select>
+            
+            <div className="text-sm text-muted-foreground">
+              Showing {currentGRNs.length} of {filteredGRNs.length} GRNs
+            </div>
+          </div>
+        </div>
         {filteredGRNs.length === 0 ? (
           <div className="text-center py-8">
             <p className="text-muted-foreground">
