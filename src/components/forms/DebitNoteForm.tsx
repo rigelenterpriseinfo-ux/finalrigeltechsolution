@@ -21,25 +21,46 @@ interface DebitNoteItem {
   product_id: string;
   product_name: string;
   product_sku: string;
+  hsn_sac_code: string;
   quantity: number;
+  received_quantity: number; // Original quantity from GRN
   unit_price: number;
   discount_percentage: number;
   discount_amount: number;
+  cgst_rate: number;
+  sgst_rate: number;
+  igst_rate: number;
+  cgst_amount: number;
+  sgst_amount: number;
+  igst_amount: number;
   tax_amount: number;
+  line_subtotal: number;
   line_total: number;
+  unit_of_measure: string;
+}
+
+interface SupplierInvoice {
+  grn_id: string;
+  supplier_invoice_number: string;
+  supplier_invoice_date: string;
+  grn_number: string;
+  supplier_name: string;
+  total_amount: number;
 }
 
 export function DebitNoteForm({ debitNote, onSubmit, onCancel, mode }: DebitNoteFormProps) {
   const { toast } = useToast();
   const [suppliers, setSuppliers] = useState([]);
-  const [products, setProducts] = useState([]);
-  const [purchaseOrders, setPurchaseOrders] = useState([]);
+  const [supplierInvoices, setSupplierInvoices] = useState<SupplierInvoice[]>([]);
+  const [selectedInvoice, setSelectedInvoice] = useState<SupplierInvoice | null>(null);
   const [loading, setLoading] = useState(false);
 
   const [formData, setFormData] = useState({
     supplier_id: debitNote?.supplier_id || "",
     supplier_name: debitNote?.supplier_name || "",
-    purchase_order_id: debitNote?.purchase_order_id || "",
+    grn_id: debitNote?.grn_id || "",
+    supplier_invoice_number: debitNote?.supplier_invoice_number || "",
+    supplier_invoice_date: debitNote?.supplier_invoice_date || "",
     reason: debitNote?.reason || "",
     notes: debitNote?.notes || "",
     debit_note_date: debitNote?.debit_note_date || new Date().toISOString().split('T')[0],
@@ -50,20 +71,34 @@ export function DebitNoteForm({ debitNote, onSubmit, onCancel, mode }: DebitNote
       product_id: "",
       product_name: "",
       product_sku: "",
+      hsn_sac_code: "",
       quantity: 1,
+      received_quantity: 0,
       unit_price: 0,
       discount_percentage: 0,
       discount_amount: 0,
+      cgst_rate: 0,
+      sgst_rate: 0,
+      igst_rate: 0,
+      cgst_amount: 0,
+      sgst_amount: 0,
+      igst_amount: 0,
       tax_amount: 0,
-      line_total: 0
+      line_subtotal: 0,
+      line_total: 0,
+      unit_of_measure: "pcs"
     }]
   );
 
   useEffect(() => {
     fetchSuppliers();
-    fetchProducts();
-    fetchPurchaseOrders();
   }, []);
+
+  useEffect(() => {
+    if (formData.supplier_id) {
+      fetchSupplierInvoices(formData.supplier_id);
+    }
+  }, [formData.supplier_id]);
 
   const fetchSuppliers = async () => {
     try {
@@ -79,31 +114,41 @@ export function DebitNoteForm({ debitNote, onSubmit, onCancel, mode }: DebitNote
     }
   };
 
-  const fetchProducts = async () => {
+  const fetchSupplierInvoices = async (supplierId: string) => {
     try {
       const { data, error } = await supabase
-        .from('products')
-        .select('*')
-        .order('name');
-      
-      if (error) throw error;
-      setProducts(data || []);
-    } catch (error) {
-      console.error('Error fetching products:', error);
-    }
-  };
-
-  const fetchPurchaseOrders = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('purchase_orders')
-        .select('*')
+        .from('grn_header')
+        .select(`
+          id,
+          grn_number,
+          supplier_invoice_number,
+          supplier_invoice_date,
+          total_amount,
+          supplier_name
+        `)
+        .eq('supplier_id', supplierId)
+        .not('supplier_invoice_number', 'is', null)
         .order('created_at', { ascending: false });
       
       if (error) throw error;
-      setPurchaseOrders(data || []);
+      
+      const invoices = data?.map(grn => ({
+        grn_id: grn.id,
+        supplier_invoice_number: grn.supplier_invoice_number,
+        supplier_invoice_date: grn.supplier_invoice_date,
+        grn_number: grn.grn_number,
+        supplier_name: grn.supplier_name,
+        total_amount: grn.total_amount
+      })) || [];
+      
+      setSupplierInvoices(invoices);
     } catch (error) {
-      console.error('Error fetching purchase orders:', error);
+      console.error('Error fetching supplier invoices:', error);
+      toast({
+        title: "Error",
+        description: "Failed to fetch supplier invoices",
+        variant: "destructive"
+      });
     }
   };
 
@@ -112,23 +157,102 @@ export function DebitNoteForm({ debitNote, onSubmit, onCancel, mode }: DebitNote
     setFormData(prev => ({
       ...prev,
       supplier_id: supplierId,
-      supplier_name: supplier?.name || ""
+      supplier_name: supplier?.name || "",
+      grn_id: "",
+      supplier_invoice_number: "",
+      supplier_invoice_date: ""
     }));
+    setSelectedInvoice(null);
+    setItems([{
+      product_id: "",
+      product_name: "",
+      product_sku: "",
+      hsn_sac_code: "",
+      quantity: 1,
+      received_quantity: 0,
+      unit_price: 0,
+      discount_percentage: 0,
+      discount_amount: 0,
+      cgst_rate: 0,
+      sgst_rate: 0,
+      igst_rate: 0,
+      cgst_amount: 0,
+      sgst_amount: 0,
+      igst_amount: 0,
+      tax_amount: 0,
+      line_subtotal: 0,
+      line_total: 0,
+      unit_of_measure: "pcs"
+    }]);
   };
 
-  const handleProductChange = (index: number, productId: string) => {
-    const product = products.find((p: any) => p.id === productId);
-    if (product) {
-      const newItems = [...items];
-      newItems[index] = {
-        ...newItems[index],
-        product_id: productId,
-        product_name: product.name,
-        product_sku: product.sku,
-        unit_price: product.cost_price || 0
-      };
-      calculateLineTotal(index, newItems);
+  const handleSupplierInvoiceChange = async (invoiceNumber: string) => {
+    const invoice = supplierInvoices.find(inv => inv.supplier_invoice_number === invoiceNumber);
+    if (!invoice) return;
+
+    setSelectedInvoice(invoice);
+    setFormData(prev => ({
+      ...prev,
+      grn_id: invoice.grn_id,
+      supplier_invoice_number: invoice.supplier_invoice_number,
+      supplier_invoice_date: invoice.supplier_invoice_date
+    }));
+
+    // Fetch GRN line items and populate
+    try {
+      const { data, error } = await supabase
+        .from('grn_line_items')
+        .select(`
+          product_id,
+          product_name,
+          product_sku,
+          hsn_sac_code,
+          accepted_quantity,
+          unit_price,
+          cgst_rate,
+          sgst_rate,
+          igst_rate,
+          unit_of_measure
+        `)
+        .eq('grn_header_id', invoice.grn_id);
+
+      if (error) throw error;
+
+      const newItems = data?.map(lineItem => ({
+        product_id: lineItem.product_id,
+        product_name: lineItem.product_name,
+        product_sku: lineItem.product_sku,
+        hsn_sac_code: lineItem.hsn_sac_code || "",
+        quantity: lineItem.accepted_quantity, // Start with received quantity
+        received_quantity: lineItem.accepted_quantity,
+        unit_price: lineItem.unit_price,
+        discount_percentage: 0,
+        discount_amount: 0,
+        cgst_rate: lineItem.cgst_rate || 0,
+        sgst_rate: lineItem.sgst_rate || 0,
+        igst_rate: lineItem.igst_rate || 0,
+        cgst_amount: 0,
+        sgst_amount: 0,
+        igst_amount: 0,
+        tax_amount: 0,
+        line_subtotal: 0,
+        line_total: 0,
+        unit_of_measure: lineItem.unit_of_measure || "pcs"
+      })) || [];
+
+      // Calculate totals for each item
+      newItems.forEach((_, index) => {
+        calculateLineTotal(index, newItems);
+      });
+
       setItems(newItems);
+    } catch (error) {
+      console.error('Error fetching GRN items:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load invoice items",
+        variant: "destructive"
+      });
     }
   };
 
@@ -137,13 +261,23 @@ export function DebitNoteForm({ debitNote, onSubmit, onCancel, mode }: DebitNote
     const subtotal = item.quantity * item.unit_price;
     const discountAmount = (subtotal * item.discount_percentage) / 100;
     const taxableAmount = subtotal - discountAmount;
-    const taxAmount = taxableAmount * 0.18; // Assuming 18% tax
-    const lineTotal = taxableAmount + taxAmount;
+    
+    // Calculate GST amounts
+    const cgstAmount = (taxableAmount * item.cgst_rate) / 100;
+    const sgstAmount = (taxableAmount * item.sgst_rate) / 100;
+    const igstAmount = (taxableAmount * item.igst_rate) / 100;
+    const totalTax = cgstAmount + sgstAmount + igstAmount;
+    
+    const lineTotal = taxableAmount + totalTax;
 
     itemsList[index] = {
       ...item,
       discount_amount: discountAmount,
-      tax_amount: taxAmount,
+      cgst_amount: cgstAmount,
+      sgst_amount: sgstAmount,
+      igst_amount: igstAmount,
+      tax_amount: totalTax,
+      line_subtotal: taxableAmount,
       line_total: lineTotal
     };
   };
@@ -164,12 +298,22 @@ export function DebitNoteForm({ debitNote, onSubmit, onCancel, mode }: DebitNote
       product_id: "",
       product_name: "",
       product_sku: "",
+      hsn_sac_code: "",
       quantity: 1,
+      received_quantity: 0,
       unit_price: 0,
       discount_percentage: 0,
       discount_amount: 0,
+      cgst_rate: 0,
+      sgst_rate: 0,
+      igst_rate: 0,
+      cgst_amount: 0,
+      sgst_amount: 0,
+      igst_amount: 0,
       tax_amount: 0,
-      line_total: 0
+      line_subtotal: 0,
+      line_total: 0,
+      unit_of_measure: "pcs"
     }]);
   };
 
@@ -191,7 +335,7 @@ export function DebitNoteForm({ debitNote, onSubmit, onCancel, mode }: DebitNote
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.supplier_id || !formData.reason) {
+    if (!formData.supplier_id || !formData.supplier_invoice_number || !formData.reason) {
       toast({
         title: "Error",
         description: "Please fill in all required fields",
@@ -247,18 +391,19 @@ export function DebitNoteForm({ debitNote, onSubmit, onCancel, mode }: DebitNote
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="purchase_order">Purchase Order</Label>
+          <Label htmlFor="supplier_invoice">Supplier Invoice *</Label>
           <Select 
-            value={formData.purchase_order_id} 
-            onValueChange={(value) => setFormData(prev => ({ ...prev, purchase_order_id: value }))}
+            value={formData.supplier_invoice_number} 
+            onValueChange={handleSupplierInvoiceChange}
+            disabled={!formData.supplier_id}
           >
             <SelectTrigger>
-              <SelectValue placeholder="Select purchase order" />
+              <SelectValue placeholder={!formData.supplier_id ? "Select supplier first" : "Select supplier invoice"} />
             </SelectTrigger>
             <SelectContent>
-              {purchaseOrders.map((po: any) => (
-                <SelectItem key={po.id} value={po.id}>
-                  {po.po_number}
+              {supplierInvoices.map((invoice) => (
+                <SelectItem key={invoice.grn_id} value={invoice.supplier_invoice_number}>
+                  {invoice.supplier_invoice_number} ({invoice.grn_number})
                 </SelectItem>
               ))}
             </SelectContent>
@@ -287,89 +432,119 @@ export function DebitNoteForm({ debitNote, onSubmit, onCancel, mode }: DebitNote
         </div>
       </div>
 
+      {selectedInvoice && (
+        <Card className="mb-4">
+          <CardContent className="p-4">
+            <h3 className="text-lg font-medium mb-2">Invoice Details</h3>
+            <div className="grid grid-cols-3 gap-4 text-sm">
+              <div>
+                <span className="font-medium">Invoice Number:</span>
+                <p>{selectedInvoice.supplier_invoice_number}</p>
+              </div>
+              <div>
+                <span className="font-medium">Invoice Date:</span>
+                <p>{selectedInvoice.supplier_invoice_date}</p>
+              </div>
+              <div>
+                <span className="font-medium">Total Amount:</span>
+                <p>₹{selectedInvoice.total_amount.toFixed(2)}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       <Card>
         <CardContent className="p-4">
           <div className="flex justify-between items-center mb-4">
             <h3 className="text-lg font-medium">Items</h3>
-            <Button type="button" onClick={addItem} variant="outline" size="sm">
-              <Plus className="h-4 w-4 mr-2" />
-              Add Item
-            </Button>
+            {!selectedInvoice && (
+              <Button type="button" onClick={addItem} variant="outline" size="sm">
+                <Plus className="h-4 w-4 mr-2" />
+                Add Item
+              </Button>
+            )}
           </div>
 
           <div className="space-y-4">
             {items.map((item, index) => (
-              <div key={index} className="grid grid-cols-12 gap-2 items-center p-3 border rounded-lg">
-                <div className="col-span-3">
-                  <Select
-                    value={item.product_id}
-                    onValueChange={(value) => handleProductChange(index, value)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select product" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {products.map((product: any) => (
-                        <SelectItem key={product.id} value={product.id}>
-                          {product.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+              <div key={index} className="p-3 border rounded-lg">
+                <div className="grid grid-cols-12 gap-2 items-center mb-2">
+                  <div className="col-span-4">
+                    <div className="text-sm font-medium">{item.product_name || "Product"}</div>
+                    <div className="text-xs text-muted-foreground">{item.product_sku}</div>
+                  </div>
 
-                <div className="col-span-2">
-                  <Input
-                    type="number"
-                    min="1"
-                    value={item.quantity}
-                    onChange={(e) => handleItemChange(index, 'quantity', parseInt(e.target.value) || 0)}
-                    placeholder="Qty"
-                  />
-                </div>
+                  <div className="col-span-2">
+                    <Label className="text-xs">Received Qty</Label>
+                    <Input
+                      type="number"
+                      value={item.received_quantity}
+                      readOnly
+                      className="bg-muted text-xs"
+                    />
+                  </div>
 
-                <div className="col-span-2">
-                  <Input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    value={item.unit_price}
-                    onChange={(e) => handleItemChange(index, 'unit_price', parseFloat(e.target.value) || 0)}
-                    placeholder="Unit Price"
-                  />
-                </div>
+                  <div className="col-span-2">
+                    <Label className="text-xs">Debit Qty *</Label>
+                    <Input
+                      type="number"
+                      min="1"
+                      max={item.received_quantity}
+                      value={item.quantity}
+                      onChange={(e) => handleItemChange(index, 'quantity', parseInt(e.target.value) || 0)}
+                      placeholder="Qty"
+                      className="text-xs"
+                    />
+                  </div>
 
-                <div className="col-span-2">
-                  <Input
-                    type="number"
-                    min="0"
-                    max="100"
-                    step="0.01"
-                    value={item.discount_percentage}
-                    onChange={(e) => handleItemChange(index, 'discount_percentage', parseFloat(e.target.value) || 0)}
-                    placeholder="Discount %"
-                  />
-                </div>
+                  <div className="col-span-2">
+                    <Label className="text-xs">Unit Price</Label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={item.unit_price}
+                      onChange={(e) => handleItemChange(index, 'unit_price', parseFloat(e.target.value) || 0)}
+                      placeholder="Unit Price"
+                      className="text-xs"
+                    />
+                  </div>
 
-                <div className="col-span-2">
-                  <Input
-                    type="text"
-                    value={`₹${item.line_total.toFixed(2)}`}
-                    readOnly
-                    className="bg-gray-50"
-                  />
-                </div>
+                  <div className="col-span-1">
+                    <Label className="text-xs">Discount %</Label>
+                    <Input
+                      type="number"
+                      min="0"
+                      max="100"
+                      step="0.01"
+                      value={item.discount_percentage}
+                      onChange={(e) => handleItemChange(index, 'discount_percentage', parseFloat(e.target.value) || 0)}
+                      placeholder="0"
+                      className="text-xs"
+                    />
+                  </div>
 
-                <div className="col-span-1 text-center">
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => removeItem(index)}
-                    disabled={items.length === 1}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
+                  <div className="col-span-1 text-center">
+                    {!selectedInvoice && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => removeItem(index)}
+                        disabled={items.length === 1}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
+                </div>
+                
+                <div className="grid grid-cols-4 gap-2 text-xs text-muted-foreground">
+                  <div>Subtotal: ₹{item.line_subtotal.toFixed(2)}</div>
+                  <div>Tax: ₹{item.tax_amount.toFixed(2)}</div>
+                  <div>Total: ₹{item.line_total.toFixed(2)}</div>
+                  <div>UOM: {item.unit_of_measure}</div>
                 </div>
               </div>
             ))}

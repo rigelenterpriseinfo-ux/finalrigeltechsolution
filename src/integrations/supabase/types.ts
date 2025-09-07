@@ -766,6 +766,8 @@ export type Database = {
           status: string
           subtotal_amount: number
           supplier_id: string
+          supplier_invoice_date: string | null
+          supplier_invoice_number: string | null
           supplier_name: string
           tax_amount: number
           total_amount: number
@@ -786,6 +788,8 @@ export type Database = {
           status?: string
           subtotal_amount?: number
           supplier_id: string
+          supplier_invoice_date?: string | null
+          supplier_invoice_number?: string | null
           supplier_name: string
           tax_amount?: number
           total_amount?: number
@@ -806,6 +810,8 @@ export type Database = {
           status?: string
           subtotal_amount?: number
           supplier_id?: string
+          supplier_invoice_date?: string | null
+          supplier_invoice_number?: string | null
           supplier_name?: string
           tax_amount?: number
           total_amount?: number
