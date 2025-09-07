@@ -2940,6 +2940,7 @@ export type Database = {
           company_id: string
           created_at: string
           created_by: string
+          debit_note_id: string | null
           discount_amount: number
           id: string
           notes: string | null
@@ -2959,6 +2960,7 @@ export type Database = {
           company_id: string
           created_at?: string
           created_by: string
+          debit_note_id?: string | null
           discount_amount?: number
           id?: string
           notes?: string | null
@@ -2978,6 +2980,7 @@ export type Database = {
           company_id?: string
           created_at?: string
           created_by?: string
+          debit_note_id?: string | null
           discount_amount?: number
           id?: string
           notes?: string | null
@@ -2993,7 +2996,15 @@ export type Database = {
           total_amount?: number
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "supplier_credit_notes_debit_note_id_fkey"
+            columns: ["debit_note_id"]
+            isOneToOne: false
+            referencedRelation: "debit_notes"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       suppliers: {
         Row: {

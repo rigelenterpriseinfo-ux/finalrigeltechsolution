@@ -41,12 +41,12 @@ interface SupplierCreditNoteItem {
 
 export function SupplierCreditNoteForm({ supplierCreditNote, onSubmit, onCancel, mode }: SupplierCreditNoteFormProps) {
   const { toast } = useToast();
-  const [suppliers, setSuppliers] = useState([]);
+  const [debitNotes, setDebitNotes] = useState([]);
   const [products, setProducts] = useState([]);
-  const [purchaseOrders, setPurchaseOrders] = useState([]);
   const [loading, setLoading] = useState(false);
 
   const [formData, setFormData] = useState({
+    debit_note_id: supplierCreditNote?.debit_note_id || "",
     supplier_id: supplierCreditNote?.supplier_id || "",
     supplier_name: supplierCreditNote?.supplier_name || "",
     purchase_order_id: supplierCreditNote?.purchase_order_id || "",
@@ -80,22 +80,26 @@ export function SupplierCreditNoteForm({ supplierCreditNote, onSubmit, onCancel,
   );
 
   useEffect(() => {
-    fetchSuppliers();
+    fetchDebitNotes();
     fetchProducts();
-    fetchPurchaseOrders();
   }, []);
 
-  const fetchSuppliers = async () => {
+  const fetchDebitNotes = async () => {
     try {
       const { data, error } = await supabase
-        .from('suppliers')
-        .select('*')
-        .order('name');
+        .from('debit_notes')
+        .select(`
+          *,
+          suppliers:supplier_id(name, supplier_ref),
+          purchase_orders:purchase_order_id(po_number)
+        `)
+        .eq('status', 'confirmed')
+        .order('created_at', { ascending: false });
       
       if (error) throw error;
-      setSuppliers(data || []);
+      setDebitNotes(data || []);
     } catch (error) {
-      console.error('Error fetching suppliers:', error);
+      console.error('Error fetching debit notes:', error);
     }
   };
 
@@ -113,27 +117,63 @@ export function SupplierCreditNoteForm({ supplierCreditNote, onSubmit, onCancel,
     }
   };
 
-  const fetchPurchaseOrders = async () => {
+  const fetchDebitNoteItems = async (debitNoteId: string) => {
     try {
       const { data, error } = await supabase
-        .from('purchase_orders')
+        .from('debit_note_items')
         .select('*')
-        .order('created_at', { ascending: false });
+        .eq('debit_note_id', debitNoteId);
       
       if (error) throw error;
-      setPurchaseOrders(data || []);
+      return data || [];
     } catch (error) {
-      console.error('Error fetching purchase orders:', error);
+      console.error('Error fetching debit note items:', error);
+      return [];
     }
   };
 
-  const handleSupplierChange = (supplierId: string) => {
-    const supplier = suppliers.find((s: any) => s.id === supplierId);
+  const handleDebitNoteChange = async (debitNoteId: string) => {
+    const debitNote = debitNotes.find((dn: any) => dn.id === debitNoteId);
+    
+    if (!debitNote) return;
+
+    // Fetch debit note line items
+    const debitNoteItems = await fetchDebitNoteItems(debitNoteId);
+    
+    // Update form data
     setFormData(prev => ({
       ...prev,
-      supplier_id: supplierId,
-      supplier_name: supplier?.name || ""
+      debit_note_id: debitNoteId,
+      supplier_id: debitNote.supplier_id,
+      supplier_name: debitNote.supplier_name,
+      purchase_order_id: debitNote.purchase_order_id,
+      reason: `Credit note for debit note ${debitNote.debit_note_number}`
     }));
+
+    // Auto-populate items from debit note
+    if (debitNoteItems.length > 0) {
+      const mappedItems = debitNoteItems.map((item: any) => ({
+        product_id: item.product_id,
+        product_name: item.product_name,
+        product_sku: item.product_sku,
+        quantity: item.quantity,
+        unit_price: item.unit_price,
+        discount_percentage: item.discount_percentage || 0,
+        discount_amount: item.discount_amount || 0,
+        cgst_rate: item.cgst_rate || 0,
+        sgst_rate: item.sgst_rate || 0,
+        igst_rate: item.igst_rate || 0,
+        cgst_amount: item.cgst_amount || 0,
+        sgst_amount: item.sgst_amount || 0,
+        igst_amount: item.igst_amount || 0,
+        tax_amount: item.tax_amount || 0,
+        line_subtotal: item.line_subtotal || 0,
+        line_total: item.line_total || 0,
+        unit_of_measure: item.unit_of_measure || 'pcs',
+        hsn_sac_code: item.hsn_sac_code || ''
+      }));
+      setItems(mappedItems);
+    }
   };
 
   const handleProductChange = (index: number, productId: string) => {
@@ -230,7 +270,7 @@ export function SupplierCreditNoteForm({ supplierCreditNote, onSubmit, onCancel,
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.supplier_id || !formData.supplier_credit_note_number || !formData.reason) {
+    if (!formData.debit_note_id || !formData.supplier_credit_note_number || !formData.reason) {
       toast({
         title: "Error",
         description: "Please fill in all required fields",
@@ -270,15 +310,15 @@ export function SupplierCreditNoteForm({ supplierCreditNote, onSubmit, onCancel,
     <form onSubmit={handleSubmit} className="space-y-6">
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
-          <Label htmlFor="supplier">Supplier *</Label>
-          <Select value={formData.supplier_id} onValueChange={handleSupplierChange}>
+          <Label htmlFor="debit_note">Debit Note *</Label>
+          <Select value={formData.debit_note_id} onValueChange={handleDebitNoteChange}>
             <SelectTrigger>
-              <SelectValue placeholder="Select supplier" />
+              <SelectValue placeholder="Select debit note" />
             </SelectTrigger>
             <SelectContent>
-              {suppliers.map((supplier: any) => (
-                <SelectItem key={supplier.id} value={supplier.id}>
-                  {supplier.name}
+              {debitNotes.map((debitNote: any) => (
+                <SelectItem key={debitNote.id} value={debitNote.id}>
+                  {debitNote.debit_note_number} - {debitNote.supplier_name} (₹{debitNote.total_amount})
                 </SelectItem>
               ))}
             </SelectContent>
@@ -297,22 +337,14 @@ export function SupplierCreditNoteForm({ supplierCreditNote, onSubmit, onCancel,
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="purchase_order">Purchase Order</Label>
-          <Select 
-            value={formData.purchase_order_id} 
-            onValueChange={(value) => setFormData(prev => ({ ...prev, purchase_order_id: value }))}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Select purchase order" />
-            </SelectTrigger>
-            <SelectContent>
-              {purchaseOrders.map((po: any) => (
-                <SelectItem key={po.id} value={po.id}>
-                  {po.po_number}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <Label htmlFor="supplier_name">Supplier</Label>
+          <Input
+            id="supplier_name"
+            value={formData.supplier_name}
+            readOnly
+            placeholder="Auto-filled from debit note"
+            className="bg-muted"
+          />
         </div>
 
         <div className="space-y-2">
