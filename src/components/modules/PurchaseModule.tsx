@@ -60,7 +60,8 @@ export function PurchaseModule() {
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>([]);
   const [grns, setGRNs] = useState<any[]>([]);
-  const [debitNotes, setDebitNotes] = useState<any[]>([]);
+      // Remove unused state variables since data fetching moved to DebitNoteTable
+      const [debitNotes, setDebitNotes] = useState<any[]>([]);
   const [supplierCreditNotes, setSupplierCreditNotes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   
@@ -91,6 +92,7 @@ export function PurchaseModule() {
   const [showEditDebitNoteDialog, setShowEditDebitNoteDialog] = useState(false);
   const [showViewDebitNoteDialog, setShowViewDebitNoteDialog] = useState(false);
   const [selectedDebitNote, setSelectedDebitNote] = useState<any>(null);
+  const [refreshDebitNoteTrigger, setRefreshDebitNoteTrigger] = useState(0);
   
   // Supplier Credit Note dialog states
   const [showAddSupplierCreditNoteDialog, setShowAddSupplierCreditNoteDialog] = useState(false);
@@ -103,8 +105,6 @@ export function PurchaseModule() {
     if (profile?.company_id) {
       fetchSuppliers();
       fetchPurchaseOrders();
-      fetchGRNs();
-      fetchDebitNotes();
       fetchSupplierCreditNotes();
       fetchStats();
     }
@@ -240,21 +240,6 @@ export function PurchaseModule() {
     }
   };
 
-  const fetchDebitNotes = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('debit_notes')
-        .select('*')
-        .eq('company_id', profile?.company_id)
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-      setDebitNotes(data || []);
-    } catch (error) {
-      console.error('Error fetching debit notes:', error);
-    }
-  };
-
   const fetchSupplierCreditNotes = async () => {
     try {
       const { data, error } = await supabase
@@ -350,6 +335,35 @@ export function PurchaseModule() {
       toast({
         title: "Error",
         description: "Failed to delete supplier",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Debit Note handlers
+  const handleDeleteDebitNote = async (debitNoteId: string) => {
+    if (!confirm('Are you sure you want to delete this debit note?')) return;
+
+    try {
+      const { error } = await supabase
+        .from('debit_notes')
+        .delete()
+        .eq('id', debitNoteId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: "Debit note deleted successfully",
+      });
+
+      // Trigger refresh of the DebitNoteTable
+      setRefreshDebitNoteTrigger(prev => prev + 1);
+    } catch (error) {
+      console.error('Error deleting debit note:', error);
+      toast({
+        title: "Error",
+        description: "Failed to delete debit note",
         variant: "destructive",
       });
     }
@@ -646,7 +660,7 @@ export function PurchaseModule() {
           <Card>
             <CardContent className="p-6">
               <DebitNoteTable
-                debitNotes={debitNotes}
+                refreshTrigger={refreshDebitNoteTrigger}
                 onView={(debitNote) => {
                   setSelectedDebitNote(debitNote);
                   setShowViewDebitNoteDialog(true);
@@ -655,18 +669,7 @@ export function PurchaseModule() {
                   setSelectedDebitNote(debitNote);
                   setShowEditDebitNoteDialog(true);
                 }}
-                onDelete={async (debitNote) => {
-                  if (!confirm('Are you sure you want to delete this debit note?')) return;
-                  try {
-                    const { error } = await supabase.from('debit_notes').delete().eq('id', debitNote.id);
-                    if (error) throw error;
-                    toast({ title: "Success", description: "Debit note deleted successfully" });
-                    fetchDebitNotes();
-                  } catch (error) {
-                    console.error('Error deleting debit note:', error);
-                    toast({ title: "Error", description: "Failed to delete debit note", variant: "destructive" });
-                  }
-                }}
+                onDelete={handleDeleteDebitNote}
               />
             </CardContent>
           </Card>
@@ -755,7 +758,8 @@ export function PurchaseModule() {
                   description: `Debit note created successfully. DN Number: ${debitNote.debit_note_number}` 
                 });
                 setShowAddDebitNoteDialog(false);
-                fetchDebitNotes();
+                // Trigger refresh of the DebitNoteTable
+                setRefreshDebitNoteTrigger(prev => prev + 1);
               } catch (error) {
                 console.error('Error creating debit note:', error);
                 toast({ title: "Error", description: "Failed to create debit note", variant: "destructive" });
