@@ -4,6 +4,7 @@ import { Search, User, LogOut } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useBusinessAuth } from '@/hooks/useBusinessAuth';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { useNavigate } from 'react-router-dom';
 
 interface HeaderProps {
   title?: string;
@@ -23,6 +24,7 @@ export const Header: React.FC<HeaderProps> = ({
   const { user, signOut, company, profile } = useAuth();
   const { businessUser } = useBusinessAuth();
   const isMobile = useIsMobile();
+  const navigate = useNavigate();
 
   const getDisplayName = () => {
     // First priority: profile first_name and last_name
@@ -111,6 +113,7 @@ export const Header: React.FC<HeaderProps> = ({
               </Button>
             ) : (
               <Button 
+                onClick={() => navigate('/signin')}
                 variant="ghost" 
                 size={isMobile ? "sm" : "sm"} 
                 className="text-white hover:bg-white/20 hover:text-white min-h-[44px] md:min-h-auto border border-white/20"
