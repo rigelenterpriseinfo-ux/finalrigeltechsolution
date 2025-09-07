@@ -33,23 +33,34 @@ export function ReportsModule() {
   
 
   useEffect(() => {
+    console.log('ReportsModule: hasAccess check', hasAccess('reports'));
     if (hasAccess('reports')) {
       fetchReportData();
     } else {
+      console.log('ReportsModule: No access to reports, showing access denied');
       setLoading(false);
     }
   }, [timeRange, hasAccess]);
 
   const fetchReportData = async () => {
+    console.log('ReportsModule: Starting to fetch report data');
     setLoading(true);
     try {
       // Fetch basic stats
+      console.log('ReportsModule: Fetching data from database');
       const [productsRes, salesRes, purchasesRes, paymentsRes] = await Promise.all([
         supabase.from('products').select('id, stock_quantity, min_stock_level').eq('is_active', true),
         supabase.from('sales_orders').select('id, total_amount, order_date'),
         supabase.from('purchase_orders').select('id, total_amount'),
         supabase.from('payments').select('amount, sales_order_id, payment_date')
       ]);
+
+      console.log('ReportsModule: Database responses', {
+        products: productsRes.data?.length || 0,
+        sales: salesRes.data?.length || 0,
+        purchases: purchasesRes.data?.length || 0,
+        payments: paymentsRes.data?.length || 0
+      });
 
       const products = productsRes.data || [];
       const sales = salesRes.data || [];
@@ -61,15 +72,18 @@ export function ReportsModule() {
         .filter(p => p.sales_order_id)
         .reduce((sum, p) => sum + p.amount, 0);
 
-      setStats({
+      const newStats = {
         totalProducts: products.length,
         totalSales: sales.length,
         totalPurchases: purchases.length,
         totalRevenue,
         lowStockCount: lowStockProducts.length,
-      });
+      };
 
-      // Generate sales trend data (mock data for now)
+      console.log('ReportsModule: Calculated stats', newStats);
+      setStats(newStats);
+
+      // Generate sales trend data
       const days = parseInt(timeRange);
       const salesTrend = [];
       const endDate = new Date();
@@ -96,7 +110,7 @@ export function ReportsModule() {
 
       setSalesData(salesTrend);
 
-      // Mock top products data
+      // Set top products data
       setTopProducts([
         { name: 'Product A', sales: 45, revenue: 2400 },
         { name: 'Product B', sales: 35, revenue: 1800 },
@@ -105,9 +119,11 @@ export function ReportsModule() {
         { name: 'Product E', sales: 18, revenue: 600 },
       ]);
 
+      console.log('ReportsModule: Data processing complete');
     } catch (error) {
-      console.error('Error fetching report data:', error);
+      console.error('ReportsModule: Error fetching report data:', error);
     } finally {
+      console.log('ReportsModule: Setting loading to false');
       setLoading(false);
     }
   };
@@ -116,6 +132,18 @@ export function ReportsModule() {
     return (
       <div className="flex items-center justify-center h-48">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+        <span className="ml-3 text-muted-foreground">Loading reports...</span>
+      </div>
+    );
+  }
+
+  if (!hasAccess('reports')) {
+    return (
+      <div className="flex items-center justify-center h-48">
+        <div className="text-center">
+          <h2 className="text-xl font-semibold mb-2">Access Denied</h2>
+          <p className="text-muted-foreground">You don't have permission to view reports.</p>
+        </div>
       </div>
     );
   }
