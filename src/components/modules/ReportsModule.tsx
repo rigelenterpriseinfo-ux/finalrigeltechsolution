@@ -18,7 +18,7 @@ interface DashboardStats {
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8'];
 
 export function ReportsModule() {
-  const { hasAccess } = useBusinessAuth();
+  const { hasAccess, loading: authLoading } = useBusinessAuth();
   const [stats, setStats] = useState<DashboardStats>({
     totalProducts: 0,
     totalSales: 0,
@@ -33,14 +33,19 @@ export function ReportsModule() {
   
 
   useEffect(() => {
-    console.log('ReportsModule: hasAccess check', hasAccess('reports'));
-    if (hasAccess('reports')) {
+    console.log('ReportsModule: authLoading', authLoading);
+    if (authLoading) return;
+
+    const allowed = hasAccess('reports');
+    console.log('ReportsModule: canViewReports', allowed);
+
+    if (allowed) {
       fetchReportData();
     } else {
       console.log('ReportsModule: No access to reports, showing access denied');
       setLoading(false);
     }
-  }, [timeRange, hasAccess]);
+  }, [timeRange, authLoading]);
 
   const fetchReportData = async () => {
     console.log('ReportsModule: Starting to fetch report data');
