@@ -16,6 +16,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { useBusinessAuth } from '@/hooks/useBusinessAuth';
 import { Plus, Search, Edit, Trash2, Eye, Play, CheckCircle, XCircle, AlertTriangle, Package, Factory } from 'lucide-react';
+import { BOMViewDialog } from '@/components/dialogs/BOMViewDialog';
 
 interface Product {
   id: string;
@@ -94,7 +95,9 @@ export function BOMModule() {
 
   // Dialog states
   const [showBOMDialog, setShowBOMDialog] = useState(false);
+  const [showViewDialog, setShowViewDialog] = useState(false);
   const [editingBOM, setEditingBOM] = useState<BOMHeader | null>(null);
+  const [viewingBOMId, setViewingBOMId] = useState<string | null>(null);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -607,18 +610,37 @@ export function BOMModule() {
                       </CardDescription>
                     </div>
                     <div className="flex items-center gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          setViewingBOMId(bom.id);
+                          setShowViewDialog(true);
+                        }}
+                        title="View BOM Details"
+                        className="hover:bg-green-50 hover:text-green-600"
+                      >
+                        <Eye className="h-4 w-4" />
+                      </Button>
                       {canEdit && (
                         <>
                           <Button
                             size="sm"
                             variant="outline"
                             onClick={() => loadBOMForEdit(bom)}
+                            title="Edit BOM"
+                            className="hover:bg-blue-50 hover:text-blue-600"
                           >
                             <Edit className="h-4 w-4" />
                           </Button>
                           <AlertDialog>
                             <AlertDialogTrigger asChild>
-                              <Button size="sm" variant="outline">
+                              <Button 
+                                size="sm" 
+                                variant="outline"
+                                title="Delete BOM"
+                                className="hover:bg-red-50 hover:text-red-600"
+                              >
                                 <Trash2 className="h-4 w-4" />
                               </Button>
                             </AlertDialogTrigger>
@@ -626,13 +648,16 @@ export function BOMModule() {
                               <AlertDialogHeader>
                                 <AlertDialogTitle>Delete BOM</AlertDialogTitle>
                                 <AlertDialogDescription>
-                                  Are you sure you want to delete "{bom.bom_name}"? This action cannot be undone.
+                                  Are you sure you want to delete "{bom.bom_name}"? This action cannot be undone and will remove all associated components.
                                 </AlertDialogDescription>
                               </AlertDialogHeader>
                               <AlertDialogFooter>
                                 <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                <AlertDialogAction onClick={() => deleteBOM(bom.id)}>
-                                  Delete
+                                <AlertDialogAction 
+                                  onClick={() => deleteBOM(bom.id)}
+                                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                >
+                                  Delete BOM
                                 </AlertDialogAction>
                               </AlertDialogFooter>
                             </AlertDialogContent>
@@ -1051,7 +1076,14 @@ export function BOMModule() {
             </div>
           </div>
         </DialogContent>
-      </Dialog>
-    </div>
-  );
-}
+        </Dialog>
+
+        {/* BOM View Dialog */}
+        <BOMViewDialog
+          open={showViewDialog}
+          onOpenChange={setShowViewDialog}
+          bomId={viewingBOMId}
+        />
+      </div>
+    );
+  }

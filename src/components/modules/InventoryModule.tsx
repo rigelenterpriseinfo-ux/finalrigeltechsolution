@@ -24,6 +24,8 @@ import { InventoryTransactionTable } from '@/components/tables/InventoryTransact
 import { CurrentStockTable } from '@/components/tables/CurrentStockTable';
 import { BOMModule } from '@/components/modules/BOMModule';
 import { ProductViewDialog } from '@/components/dialogs/ProductViewDialog';
+import { EditProductDialog } from '@/components/dialogs/EditProductDialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import * as XLSX from 'xlsx';
 
 interface Product {
@@ -72,6 +74,7 @@ export function InventoryModule() {
   const [showTransferDialog, setShowTransferDialog] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [viewingProduct, setViewingProduct] = useState<Product | null>(null);
+  const [deletingProduct, setDeletingProduct] = useState<Product | null>(null);
   const [adjustmentRefreshTrigger, setAdjustmentRefreshTrigger] = useState(0);
   const [warehouseBins, setWarehouseBins] = useState<any[]>([]);
   const [warehouseBinStats, setWarehouseBinStats] = useState<any[]>([]);
@@ -534,6 +537,8 @@ export function InventoryModule() {
         description: "Failed to delete product",
         variant: "destructive",
       });
+    }
+  };
     }
   };
 
@@ -1252,20 +1257,48 @@ export function InventoryModule() {
                                 >
                                   <Eye className="w-4 h-4" />
                                 </Button>
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => handleEditProduct(product)}
-                                >
-                                  <Edit className="w-4 h-4" />
-                                </Button>
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => handleDeleteProduct(product.id)}
-                                >
-                                  <Trash2 className="w-4 h-4" />
-                                </Button>
+                                 <Button
+                                   variant="outline"
+                                   size="sm"
+                                   onClick={() => {
+                                     setEditingProduct(product);
+                                     setShowEditDialog(true);
+                                   }}
+                                   title="Edit Product"
+                                   className="hover:bg-blue-50 hover:text-blue-600"
+                                 >
+                                   <Edit className="w-4 h-4" />
+                                 </Button>
+                                 <AlertDialog>
+                                   <AlertDialogTrigger asChild>
+                                     <Button
+                                       variant="outline"
+                                       size="sm"
+                                       title="Delete Product"
+                                       className="hover:bg-red-50 hover:text-red-600"
+                                     >
+                                       <Trash2 className="w-4 h-4" />
+                                     </Button>
+                                   </AlertDialogTrigger>
+                                   <AlertDialogContent>
+                                     <AlertDialogHeader>
+                                       <AlertDialogTitle>Delete Product</AlertDialogTitle>
+                                       <AlertDialogDescription>
+                                         Are you sure you want to delete "{product.name}" (SKU: {product.sku})? 
+                                         This will mark the product as inactive and it will no longer appear in active lists.
+                                       </AlertDialogDescription>
+                                     </AlertDialogHeader>
+                                     <AlertDialogFooter>
+                                       <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                       <AlertDialogAction 
+                                         onClick={() => handleDeleteProduct(product.id)}
+                                         className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                       >
+                                         Delete Product
+                                       </AlertDialogAction>
+                                     </AlertDialogFooter>
+                                   </AlertDialogContent>
+                                 </AlertDialog>
                               </div>
                             </TableCell>
                          )}

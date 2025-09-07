@@ -98,24 +98,36 @@ export const InventoryAdjustmentTable: React.FC<InventoryAdjustmentTableProps> =
       
       // Fetch user profiles separately for created_by
       const adjustmentsWithProfiles = await Promise.all(
-        (data || []).map(async (adj) => {
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('first_name, last_name')
-            .eq('user_id', adj.created_by)
-            .single();
+        data?.map(async (adjustment) => {
+          let createdByProfile = null;
+          if (adjustment.created_by) {
+            const { data: profile } = await supabase
+              .from('profiles')
+              .select('first_name, last_name')
+              .eq('user_id', adjustment.created_by)
+              .single();
+            createdByProfile = profile;
+          }
           
           return {
-            ...adj,
-            created_by: profile
+            ...adjustment,
+            created_by: createdByProfile
           };
-        })
+        }) || []
       );
-      
+
       setAdjustments(adjustmentsWithProfiles as InventoryAdjustment[]);
     } catch (error) {
       console.error('Error fetching inventory adjustments:', error);
       toast({
+        title: "Error",
+        description: "Failed to fetch inventory adjustments",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
         title: 'Error',
         description: 'Failed to fetch inventory adjustments',
         variant: 'destructive',
