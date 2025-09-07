@@ -27,6 +27,10 @@ interface DebitNote {
   tax_amount: number;
   notes?: string;
   supplier_invoice_number?: string;
+  credit_note_numbers?: string;
+  credit_note_total_amount?: number;
+  settlement_status: 'open' | 'settled' | 'partially_settled';
+  difference_amount: number;
 }
 
 interface DebitNoteTableProps {
@@ -79,17 +83,50 @@ export function DebitNoteTable({ refreshTrigger, onView, onEdit, onDelete }: Deb
   const fetchDebitNotes = async () => {
     try {
       setLoading(true);
-      // Fix database query - remove the relation join since debit_note_items might not exist
+      
+      // Fetch debit notes with aggregated credit note data
       const { data, error } = await supabase
         .from('debit_notes')
-        .select('*')
+        .select(`
+          *,
+          supplier_credit_notes:supplier_credit_notes(
+            id,
+            credit_note_number,
+            total_amount
+          )
+        `)
         .eq('company_id', profile?.company_id)
         .order('debit_note_date', { ascending: false })
         .order('created_at', { ascending: false });
 
       if (error) throw error;
 
-      setDebitNotes(data || []);
+      // Process the data to add settlement information
+      const processedDebitNotes = (data || []).map((debitNote: any) => {
+        const creditNotes = debitNote.supplier_credit_notes || [];
+        const creditNoteNumbers = creditNotes.map((cn: any) => cn.credit_note_number).join(', ');
+        const creditNoteTotalAmount = creditNotes.reduce((sum: number, cn: any) => sum + (cn.total_amount || 0), 0);
+        const differenceAmount = debitNote.total_amount - creditNoteTotalAmount;
+        
+        let settlementStatus: 'open' | 'settled' | 'partially_settled';
+        if (creditNoteTotalAmount === 0) {
+          settlementStatus = 'open';
+        } else if (creditNoteTotalAmount >= debitNote.total_amount) {
+          settlementStatus = 'settled';
+        } else {
+          settlementStatus = 'partially_settled';
+        }
+
+        return {
+          ...debitNote,
+          credit_note_numbers: creditNoteNumbers || '',
+          credit_note_total_amount: creditNoteTotalAmount,
+          settlement_status: settlementStatus,
+          difference_amount: differenceAmount
+        };
+      });
+
+      setDebitNotes(processedDebitNotes);
     } catch (error) {
       console.error('Error fetching debit notes:', error);
       toast({
@@ -107,9 +144,12 @@ export function DebitNoteTable({ refreshTrigger, onView, onEdit, onDelete }: Deb
       const matchesSearch = 
         debitNote.debit_note_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
         debitNote.supplier_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        debitNote.reason.toLowerCase().includes(searchTerm.toLowerCase());
+        debitNote.reason.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (debitNote.credit_note_numbers && debitNote.credit_note_numbers.toLowerCase().includes(searchTerm.toLowerCase()));
       
-      const matchesStatus = statusFilter === 'all' || debitNote.status === statusFilter;
+      const matchesStatus = statusFilter === 'all' || 
+                           debitNote.status === statusFilter ||
+                           debitNote.settlement_status === statusFilter;
       
       return matchesSearch && matchesStatus;
     });
@@ -153,6 +193,17 @@ export function DebitNoteTable({ refreshTrigger, onView, onEdit, onDelete }: Deb
     };
     
     const config = statusConfig[status as keyof typeof statusConfig] || statusConfig.draft;
+    return <Badge variant={config.variant}>{config.label}</Badge>;
+  };
+
+  const getSettlementStatusBadge = (settlementStatus: 'open' | 'settled' | 'partially_settled') => {
+    const statusConfig = {
+      open: { variant: 'destructive' as const, label: 'Open' },
+      settled: { variant: 'default' as const, label: 'Settled' },
+      partially_settled: { variant: 'secondary' as const, label: 'Partially Settled' },
+    };
+    
+    const config = statusConfig[settlementStatus];
     return <Badge variant={config.variant}>{config.label}</Badge>;
   };
 
@@ -445,7 +496,7 @@ export function DebitNoteTable({ refreshTrigger, onView, onEdit, onDelete }: Deb
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
               <Input
-                placeholder="Search by debit note number, supplier, reason..."
+                placeholder="Search by debit note number, supplier, reason, credit note..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-10"
@@ -461,6 +512,9 @@ export function DebitNoteTable({ refreshTrigger, onView, onEdit, onDelete }: Deb
               <SelectItem value="draft">Draft</SelectItem>
               <SelectItem value="confirmed">Confirmed</SelectItem>
               <SelectItem value="cancelled">Cancelled</SelectItem>
+              <SelectItem value="open">Open (Settlement)</SelectItem>
+              <SelectItem value="settled">Settled</SelectItem>
+              <SelectItem value="partially_settled">Partially Settled</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -500,11 +554,23 @@ export function DebitNoteTable({ refreshTrigger, onView, onEdit, onDelete }: Deb
                         {getSortIcon('supplier_name')}
                       </div>
                     </TableHead>
-                    <TableHead>Reason</TableHead>
+                    <TableHead>Credit Note #</TableHead>
                     <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => handleSort('total_amount')}>
                       <div className="flex items-center space-x-1">
-                        <span>Amount</span>
+                        <span>Debit Amount</span>
                         {getSortIcon('total_amount')}
+                      </div>
+                    </TableHead>
+                    <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => handleSort('settlement_status')}>
+                      <div className="flex items-center space-x-1">
+                        <span>Settlement Status</span>
+                        {getSortIcon('settlement_status')}
+                      </div>
+                    </TableHead>
+                    <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => handleSort('difference_amount')}>
+                      <div className="flex items-center space-x-1">
+                        <span>Difference Amount</span>
+                        {getSortIcon('difference_amount')}
                       </div>
                     </TableHead>
                     <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => handleSort('status')}>
@@ -528,10 +594,16 @@ export function DebitNoteTable({ refreshTrigger, onView, onEdit, onDelete }: Deb
                       </TableCell>
                       <TableCell>{debitNote.supplier_name}</TableCell>
                       <TableCell className="max-w-xs truncate">
-                        {debitNote.reason}
+                        {debitNote.credit_note_numbers || '-'}
                       </TableCell>
                       <TableCell className="font-medium">
                         ₹{debitNote.total_amount.toFixed(2)}
+                      </TableCell>
+                      <TableCell>
+                        {getSettlementStatusBadge(debitNote.settlement_status)}
+                      </TableCell>
+                      <TableCell className="font-medium">
+                        ₹{debitNote.difference_amount.toFixed(2)}
                       </TableCell>
                       <TableCell>
                         {getStatusBadge(debitNote.status)}
