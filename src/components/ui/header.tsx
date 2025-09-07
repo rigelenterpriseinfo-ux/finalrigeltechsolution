@@ -4,7 +4,6 @@ import { Search, User, LogOut } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useBusinessAuth } from '@/hooks/useBusinessAuth';
 import { useIsMobile } from '@/hooks/use-mobile';
-import { useCompany } from '@/contexts/CompanyContext';
 
 interface HeaderProps {
   title?: string;
@@ -21,9 +20,8 @@ export const Header: React.FC<HeaderProps> = ({
   showSearch = true,
   showWelcome = false
 }) => {
-  const { user, signOut } = useAuth();
+  const { user, signOut, company } = useAuth();
   const { businessUser } = useBusinessAuth();
-  const { company } = useCompany();
   const isMobile = useIsMobile();
 
   return (
@@ -63,7 +61,7 @@ export const Header: React.FC<HeaderProps> = ({
                   Company: {company.name || 'Unknown Company'}
                 </div>
                 <div className="text-xs text-muted-foreground">
-                  ID: {company.businessRefNo || company.id || 'No ID'}
+                  ID: {company.business_ref_no || company.id || 'No ID'}
                 </div>
               </div>
             </div>
