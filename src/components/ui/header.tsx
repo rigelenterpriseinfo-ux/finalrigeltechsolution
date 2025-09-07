@@ -4,6 +4,7 @@ import { Search, User, LogOut } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useBusinessAuth } from '@/hooks/useBusinessAuth';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { useCompany } from '@/contexts/CompanyContext';
 
 interface HeaderProps {
   title?: string;
@@ -22,6 +23,7 @@ export const Header: React.FC<HeaderProps> = ({
 }) => {
   const { user, signOut } = useAuth();
   const { businessUser } = useBusinessAuth();
+  const { company } = useCompany();
   const isMobile = useIsMobile();
 
   return (
@@ -54,14 +56,14 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
 
           {/* Center Section - Company Badge (Hidden on mobile) */}
-          {!isMobile && (
+          {!isMobile && company && (
             <div className="flex-shrink-0 mx-8">
               <div className="bg-background/20 backdrop-blur border border-border/30 rounded-lg px-3 py-2">
                 <div className="text-xs text-foreground/80 font-medium">
-                  Company: ACME Corp
+                  Company: {company.name || 'Unknown Company'}
                 </div>
                 <div className="text-xs text-muted-foreground">
-                  ID: 12345
+                  ID: {company.businessRefNo || company.id || 'No ID'}
                 </div>
               </div>
             </div>
