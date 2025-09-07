@@ -23,6 +23,7 @@ import { InventoryAdjustmentTable } from '@/components/tables/InventoryAdjustmen
 import { InventoryTransactionTable } from '@/components/tables/InventoryTransactionTable';
 import { CurrentStockTable } from '@/components/tables/CurrentStockTable';
 import { BOMModule } from '@/components/modules/BOMModule';
+import { ProductViewDialog } from '@/components/dialogs/ProductViewDialog';
 import * as XLSX from 'xlsx';
 
 interface Product {
@@ -1379,156 +1380,11 @@ export function InventoryModule() {
       </Tabs>
 
       {/* Product View Dialog */}
-      <Dialog open={showViewDialog} onOpenChange={setShowViewDialog}>
-        <DialogContent className="max-w-4xl">
-          <DialogHeader>
-            <DialogTitle>Product Details</DialogTitle>
-          </DialogHeader>
-          {viewingProduct && (
-            <div className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                <div className="space-y-2">
-                  <Label className="text-sm font-medium text-muted-foreground">SKU</Label>
-                  <div className="p-2 bg-muted rounded font-mono">{viewingProduct.sku}</div>
-                </div>
-                <div className="space-y-2">
-                  <Label className="text-sm font-medium text-muted-foreground">Product Name</Label>
-                  <div className="p-2 bg-muted rounded font-medium">{viewingProduct.name}</div>
-                </div>
-                <div className="space-y-2">
-                  <Label className="text-sm font-medium text-muted-foreground">Description</Label>
-                  <div className="p-2 bg-muted rounded">{viewingProduct.description || 'N/A'}</div>
-                </div>
-                <div className="space-y-2">
-                  <Label className="text-sm font-medium text-muted-foreground">Product Type</Label>
-                  <div className="p-2 bg-muted rounded">
-                    <Badge variant={viewingProduct.product_type === 'goods' ? 'default' : 'secondary'}>
-                      {viewingProduct.product_type === 'goods' ? 'Goods' : 'Service'}
-                    </Badge>
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <Label className="text-sm font-medium text-muted-foreground">Category</Label>
-                  <div className="p-2 bg-muted rounded">
-                    <Badge variant="outline">
-                      {viewingProduct.product_category.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                    </Badge>
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <Label className="text-sm font-medium text-muted-foreground">Unit</Label>
-                  <div className="p-2 bg-muted rounded">{viewingProduct.unit || 'N/A'}</div>
-                </div>
-              </div>
-
-              <div className="space-y-4">
-                <h4 className="font-medium">Pricing Information</h4>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="space-y-2">
-                    <Label className="text-sm font-medium text-muted-foreground">Cost Price</Label>
-                    <div className="p-2 bg-muted rounded">₹{viewingProduct.cost_price.toLocaleString()}</div>
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="text-sm font-medium text-muted-foreground">Unit Price</Label>
-                    <div className="p-2 bg-muted rounded">₹{viewingProduct.unit_price.toLocaleString()}</div>
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="text-sm font-medium text-muted-foreground">MRP</Label>
-                    <div className="p-2 bg-muted rounded">
-                      {viewingProduct.mrp ? `₹${viewingProduct.mrp.toLocaleString()}` : 'N/A'}
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="space-y-4">
-                <h4 className="font-medium">Tax Information</h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label className="text-sm font-medium text-muted-foreground">Taxable</Label>
-                    <div className="p-2 bg-muted rounded">
-                      <Badge variant={viewingProduct.is_taxable ? 'default' : 'secondary'}>
-                        {viewingProduct.is_taxable ? 'Yes' : 'No'}
-                      </Badge>
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="text-sm font-medium text-muted-foreground">GST Rate</Label>
-                    <div className="p-2 bg-muted rounded">{viewingProduct.gst_percentage}%</div>
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="text-sm font-medium text-muted-foreground">HSN Code</Label>
-                    <div className="p-2 bg-muted rounded">{viewingProduct.hsn_code || 'N/A'}</div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="space-y-4">
-                <h4 className="font-medium">Physical Attributes</h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label className="text-sm font-medium text-muted-foreground">Weight (kg)</Label>
-                    <div className="p-2 bg-muted rounded">{viewingProduct.weight_kg || 'N/A'}</div>
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="text-sm font-medium text-muted-foreground">Dimensions (L×W×H cm)</Label>
-                    <div className="p-2 bg-muted rounded">
-                      {viewingProduct.length_cm && viewingProduct.width_cm && viewingProduct.height_cm
-                        ? `${viewingProduct.length_cm} × ${viewingProduct.width_cm} × ${viewingProduct.height_cm}`
-                        : 'N/A'
-                      }
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="text-sm font-medium text-muted-foreground">Volume (cm³)</Label>
-                    <div className="p-2 bg-muted rounded">{viewingProduct.volume_cubic_cm || 'N/A'}</div>
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="text-sm font-medium text-muted-foreground">Barcode</Label>
-                    <div className="p-2 bg-muted rounded font-mono">{viewingProduct.barcode || 'N/A'}</div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="space-y-4">
-                <h4 className="font-medium">Stock Information</h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label className="text-sm font-medium text-muted-foreground">Min Stock Level</Label>
-                    <div className="p-2 bg-muted rounded">{viewingProduct.min_stock_level}</div>
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="text-sm font-medium text-muted-foreground">Max Stock Level</Label>
-                    <div className="p-2 bg-muted rounded">{viewingProduct.max_stock_level || 'N/A'}</div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="space-y-4">
-                <h4 className="font-medium">Metadata</h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label className="text-sm font-medium text-muted-foreground">Status</Label>
-                    <div className="p-2 bg-muted rounded">
-                      <Badge variant={viewingProduct.is_active ? 'default' : 'secondary'}>
-                        {viewingProduct.is_active ? 'Active' : 'Inactive'}
-                      </Badge>
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="text-sm font-medium text-muted-foreground">Created</Label>
-                    <div className="p-2 bg-muted rounded">{new Date(viewingProduct.created_at).toLocaleDateString()}</div>
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="text-sm font-medium text-muted-foreground">Last Updated</Label>
-                    <div className="p-2 bg-muted rounded">{new Date(viewingProduct.updated_at).toLocaleDateString()}</div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
+      <ProductViewDialog
+        open={showViewDialog}
+        onOpenChange={setShowViewDialog}
+        product={viewingProduct}
+      />
     </div>
   );
 }

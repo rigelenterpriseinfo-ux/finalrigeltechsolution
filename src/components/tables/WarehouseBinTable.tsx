@@ -30,6 +30,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { WarehouseBinTableMobile } from './WarehouseBinTableMobile';
 import { WarehouseBinForm } from '@/components/forms/WarehouseBinForm';
+import { WarehouseBinViewDialog } from '@/components/dialogs/WarehouseBinViewDialog';
 import * as XLSX from 'xlsx';
 
 interface WarehouseBin {
@@ -693,6 +694,13 @@ export const WarehouseBinTable: React.FC<WarehouseBinTableProps> = ({ refreshTri
           setEditingBin(null);
         }}
         editingBin={editingBin}
+      />
+
+      {/* View Dialog */}
+      <WarehouseBinViewDialog
+        open={showViewDialog}
+        onOpenChange={setShowViewDialog}
+        bin={viewingBin}
       />
     </div>
   );

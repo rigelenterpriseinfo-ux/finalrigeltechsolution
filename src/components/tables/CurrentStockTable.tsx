@@ -17,6 +17,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Search, AlertTriangle, Package, ArrowUpDown, ArrowUp, ArrowDown, ChevronLeft, ChevronRight, FileSpreadsheet, Filter, Eye } from 'lucide-react';
 import { format } from 'date-fns';
 import { exportToExcel, formatCurrency, formatDate, ExportColumn } from '@/utils/excelExport';
+import { CurrentStockViewDialog } from '@/components/dialogs/CurrentStockViewDialog';
 
 interface CurrentStock {
   company_id: string;
@@ -56,6 +57,8 @@ export const CurrentStockTable = ({ refreshTrigger }: CurrentStockTableProps) =>
     direction: 'asc' | 'desc';
   } | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
+  const [showViewDialog, setShowViewDialog] = useState(false);
+  const [viewingStock, setViewingStock] = useState<CurrentStock | null>(null);
   const itemsPerPage = 5;
 
   useEffect(() => {
@@ -531,7 +534,8 @@ export const CurrentStockTable = ({ refreshTrigger }: CurrentStockTableProps) =>
                     variant="ghost"
                     size="sm"
                     onClick={() => {
-                      console.log('View stock details:', stock);
+                      setViewingStock(stock);
+                      setShowViewDialog(true);
                     }}
                     title="View Details"
                     className="hover:bg-green-50 hover:text-green-600"
@@ -580,6 +584,13 @@ export const CurrentStockTable = ({ refreshTrigger }: CurrentStockTableProps) =>
           )}
         </>
       )}
+
+      {/* View Dialog */}
+      <CurrentStockViewDialog
+        open={showViewDialog}
+        onOpenChange={setShowViewDialog}
+        stock={viewingStock}
+      />
     </div>
   );
 };

@@ -17,6 +17,7 @@ import { Eye, ArrowUpDown, ArrowUp, ArrowDown, ChevronLeft, ChevronRight, Search
 import { toast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { exportToExcel, formatCurrency, formatDateTime, ExportColumn } from '@/utils/excelExport';
+import { InventoryAdjustmentViewDialog } from '@/components/dialogs/InventoryAdjustmentViewDialog';
 
 interface InventoryAdjustment {
   id: string;
@@ -62,6 +63,8 @@ export const InventoryAdjustmentTable: React.FC<InventoryAdjustmentTableProps> =
     direction: 'asc' | 'desc';
   } | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
+  const [showViewDialog, setShowViewDialog] = useState(false);
+  const [viewingAdjustment, setViewingAdjustment] = useState<InventoryAdjustment | null>(null);
   const itemsPerPage = 5;
 
   useEffect(() => {
@@ -441,8 +444,8 @@ export const InventoryAdjustmentTable: React.FC<InventoryAdjustmentTableProps> =
                     variant="ghost"
                     size="sm"
                     onClick={() => {
-                      // View adjustment details
-                      console.log('View adjustment:', adjustment);
+                      setViewingAdjustment(adjustment);
+                      setShowViewDialog(true);
                     }}
                     title="View Details"
                     className="hover:bg-green-50 hover:text-green-600"
