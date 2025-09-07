@@ -685,7 +685,18 @@ export function BOMModule() {
                     type="number"
                     min="1"
                     value={productionQuantity}
-                    onChange={(e) => setProductionQuantity(parseInt(e.target.value) || 1)}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      console.log('Input value:', value, 'Parsed:', parseInt(value));
+                      if (value === '' || value === '0') {
+                        setProductionQuantity(1);
+                      } else {
+                        const parsed = parseInt(value);
+                        if (!isNaN(parsed) && parsed > 0) {
+                          setProductionQuantity(parsed);
+                        }
+                      }
+                    }}
                     className="w-32 h-10 text-center font-medium border-2 border-dashed border-primary/50 bg-background hover:border-primary focus:border-primary focus:ring-2 focus:ring-primary/20"
                     placeholder="Enter quantity"
                   />
