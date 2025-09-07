@@ -91,7 +91,7 @@ export function DebitNoteTable({ refreshTrigger, onView, onEdit, onDelete }: Deb
           *,
           supplier_credit_notes:supplier_credit_notes(
             id,
-            credit_note_number,
+            supplier_credit_note_number,
             total_amount
           )
         `)
@@ -104,7 +104,7 @@ export function DebitNoteTable({ refreshTrigger, onView, onEdit, onDelete }: Deb
       // Process the data to add settlement information
       const processedDebitNotes = (data || []).map((debitNote: any) => {
         const creditNotes = debitNote.supplier_credit_notes || [];
-        const creditNoteNumbers = creditNotes.map((cn: any) => cn.credit_note_number).join(', ');
+        const creditNoteNumbers = creditNotes.map((cn: any) => cn.supplier_credit_note_number).join(', ');
         const creditNoteTotalAmount = creditNotes.reduce((sum: number, cn: any) => sum + (cn.total_amount || 0), 0);
         const differenceAmount = debitNote.total_amount - creditNoteTotalAmount;
         
