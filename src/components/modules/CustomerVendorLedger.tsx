@@ -16,14 +16,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import jsPDF from 'jspdf';
-import 'jspdf-autotable';
-
-// Type declaration for jsPDF autoTable
-declare module 'jspdf' {
-  interface jsPDF {
-    autoTable: (options: any) => jsPDF;
-  }
-}
+import autoTable from 'jspdf-autotable';
 
 interface Customer {
   id: string;
@@ -445,7 +438,7 @@ export function CustomerVendorLedger({ onClose }: CustomerVendorLedgerProps) {
     ]);
 
     // Add table
-    (doc as any).autoTable({
+    autoTable(doc, {
       head: [['Date', 'Type', 'Reference', 'Description', 'Debit', 'Credit', 'Balance']],
       body: tableData,
       startY: 40,
