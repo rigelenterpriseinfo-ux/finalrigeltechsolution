@@ -354,6 +354,17 @@ export function DebitNoteForm({ debitNote, onSubmit, onCancel, mode }: DebitNote
       return;
     }
 
+    // Validate that debit quantities don't exceed pending quantities
+    const invalidItems = items.filter(item => item.quantity > item.received_quantity);
+    if (invalidItems.length > 0) {
+      toast({
+        title: "Error",
+        description: "Debit quantity cannot exceed received quantity for any item",
+        variant: "destructive"
+      });
+      return;
+    }
+
     setLoading(true);
     const totals = calculateTotals();
 
@@ -363,6 +374,8 @@ export function DebitNoteForm({ debitNote, onSubmit, onCancel, mode }: DebitNote
       product_name: item.product_name,
       product_sku: item.product_sku,
       quantity: parseInt(String(item.quantity)) || 0,
+      received_quantity: parseInt(String(item.received_quantity)) || 0,
+      pending_quantity: Math.max(0, (parseInt(String(item.received_quantity)) || 0) - (parseInt(String(item.quantity)) || 0)),
       unit_price: parseFloat(String(item.unit_price)) || 0,
       unit_of_measure: item.unit_of_measure || 'pcs',
       hsn_sac_code: item.hsn_sac_code || '',
@@ -500,7 +513,7 @@ export function DebitNoteForm({ debitNote, onSubmit, onCancel, mode }: DebitNote
             {items.map((item, index) => (
               <div key={index} className="p-3 border rounded-lg">
                 <div className="grid grid-cols-12 gap-2 items-center mb-2">
-                  <div className="col-span-3">
+                  <div className="col-span-2">
                     {!selectedInvoice ? (
                       <div>
                         <Label className="text-xs">Product *</Label>
@@ -524,7 +537,7 @@ export function DebitNoteForm({ debitNote, onSubmit, onCancel, mode }: DebitNote
                   </div>
 
                   {selectedInvoice && (
-                    <div className="col-span-2">
+                    <div className="col-span-1">
                       <Label className="text-xs">Received Qty</Label>
                       <Input
                         type="number"
@@ -535,7 +548,7 @@ export function DebitNoteForm({ debitNote, onSubmit, onCancel, mode }: DebitNote
                     </div>
                   )}
 
-                  <div className={selectedInvoice ? "col-span-2" : "col-span-3"}>
+                  <div className={selectedInvoice ? "col-span-1" : "col-span-3"}>
                     <Label className="text-xs">{selectedInvoice ? "Debit Qty *" : "Quantity *"}</Label>
                     <Input
                       type="number"
@@ -544,9 +557,24 @@ export function DebitNoteForm({ debitNote, onSubmit, onCancel, mode }: DebitNote
                       value={item.quantity}
                       onChange={(e) => handleItemChange(index, 'quantity', parseInt(e.target.value) || 0)}
                       placeholder="Qty"
-                      className="text-xs"
+                      className={`text-xs ${selectedInvoice && item.quantity > item.received_quantity ? 'border-red-500' : ''}`}
                     />
+                    {selectedInvoice && item.quantity > item.received_quantity && (
+                      <div className="text-xs text-red-500 mt-1">Exceeds received qty</div>
+                    )}
                   </div>
+
+                  {selectedInvoice && (
+                    <div className="col-span-1">
+                      <Label className="text-xs">Pending Qty</Label>
+                      <Input
+                        type="number"
+                        value={Math.max(0, item.received_quantity - item.quantity)}
+                        readOnly
+                        className="bg-muted text-xs"
+                      />
+                    </div>
+                  )}
 
                   <div className={selectedInvoice ? "col-span-2" : "col-span-2"}>
                     <Label className="text-xs">Unit Price</Label>
@@ -605,9 +633,12 @@ export function DebitNoteForm({ debitNote, onSubmit, onCancel, mode }: DebitNote
                 </div>
 
                 <div className="grid grid-cols-12 gap-2 items-center mb-2">
-                  <div className="col-span-3"></div>
+                  <div className="col-span-2"></div>
+                  {selectedInvoice && <div className="col-span-1"></div>}
+                  <div className={selectedInvoice ? "col-span-1" : "col-span-3"}></div>
+                  {selectedInvoice && <div className="col-span-1"></div>}
                   
-                  <div className={selectedInvoice ? "col-span-2" : "col-span-3"}>
+                  <div className={selectedInvoice ? "col-span-2" : "col-span-2"}>
                     <Label className="text-xs">SGST %</Label>
                     <Input
                       type="number"
@@ -621,7 +652,7 @@ export function DebitNoteForm({ debitNote, onSubmit, onCancel, mode }: DebitNote
                     />
                   </div>
 
-                  <div className={selectedInvoice ? "col-span-2" : "col-span-2"}>
+                  <div className={selectedInvoice ? "col-span-1" : "col-span-1"}>
                     <Label className="text-xs">IGST %</Label>
                     <Input
                       type="number"
@@ -635,24 +666,13 @@ export function DebitNoteForm({ debitNote, onSubmit, onCancel, mode }: DebitNote
                     />
                   </div>
 
-                  <div className={selectedInvoice ? "col-span-1" : "col-span-1"}>
+                  <div className={selectedInvoice ? "col-span-2" : "col-span-2"}>
                     <Label className="text-xs">HSN</Label>
                     <Input
                       type="text"
                       value={item.hsn_sac_code}
                       onChange={(e) => handleItemChange(index, 'hsn_sac_code', e.target.value)}
                       placeholder="HSN"
-                      className="text-xs"
-                    />
-                  </div>
-
-                  <div className={selectedInvoice ? "col-span-2" : "col-span-2"}>
-                    <Label className="text-xs">UOM</Label>
-                    <Input
-                      type="text"
-                      value={item.unit_of_measure}
-                      onChange={(e) => handleItemChange(index, 'unit_of_measure', e.target.value)}
-                      placeholder="pcs"
                       className="text-xs"
                     />
                   </div>

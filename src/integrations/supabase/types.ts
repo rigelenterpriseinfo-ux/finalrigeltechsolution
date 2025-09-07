@@ -692,10 +692,12 @@ export type Database = {
           igst_rate: number | null
           line_subtotal: number
           line_total: number
+          pending_quantity: number
           product_id: string
           product_name: string
           product_sku: string
           quantity: number
+          received_quantity: number
           sgst_amount: number | null
           sgst_rate: number | null
           tax_amount: number
@@ -715,10 +717,12 @@ export type Database = {
           igst_rate?: number | null
           line_subtotal?: number
           line_total?: number
+          pending_quantity?: number
           product_id: string
           product_name: string
           product_sku: string
           quantity: number
+          received_quantity?: number
           sgst_amount?: number | null
           sgst_rate?: number | null
           tax_amount?: number
@@ -738,10 +742,12 @@ export type Database = {
           igst_rate?: number | null
           line_subtotal?: number
           line_total?: number
+          pending_quantity?: number
           product_id?: string
           product_name?: string
           product_sku?: string
           quantity?: number
+          received_quantity?: number
           sgst_amount?: number | null
           sgst_rate?: number | null
           tax_amount?: number
