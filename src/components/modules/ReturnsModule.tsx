@@ -1073,62 +1073,6 @@ function ReturnsModuleContent() {
           )}
 
 
-          {/* Return Sales Orders Statistics - Moved above tables */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Draft RSOs</CardTitle>
-                <FileText className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{returnStats?.draft_count || 0}</div>
-                <p className="text-xs text-muted-foreground">
-                  ₹{(returnStats?.draft_amount || 0).toLocaleString()}
-                </p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Confirmed RSOs</CardTitle>
-                <Check className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{returnStats?.confirmed_count || 0}</div>
-                <p className="text-xs text-muted-foreground">
-                  ₹{(returnStats?.confirmed_amount || 0).toLocaleString()}
-                </p>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Credit Notes Statistics - Moved above tables */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Draft Credit Notes</CardTitle>
-                <FileText className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{creditNoteStats?.draft_count || 0}</div>
-                <p className="text-xs text-muted-foreground">
-                  ₹{(creditNoteStats?.draft_amount || 0).toLocaleString()}
-                </p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Confirmed Credit Notes</CardTitle>
-                <Check className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{creditNoteStats?.confirmed_count || 0}</div>
-                <p className="text-xs text-muted-foreground">
-                  ₹{(creditNoteStats?.confirmed_amount || 0).toLocaleString()}
-                </p>
-              </CardContent>
-            </Card>
-          </div>
-
           {/* RSO Table */}
           {!isCreateRSOFormOpen && (
             <Card>
