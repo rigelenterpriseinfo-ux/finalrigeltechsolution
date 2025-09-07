@@ -31,6 +31,7 @@ interface DebitNote {
   credit_note_total_amount?: number;
   settlement_status: 'open' | 'settled' | 'partially_settled';
   difference_amount: number;
+  items?: any[];
 }
 
 interface DebitNoteTableProps {
@@ -463,6 +464,38 @@ export function DebitNoteTable({ refreshTrigger, onView, onEdit, onDelete }: Deb
     }
   };
 
+  // Ensure dialogs receive items
+  const fetchDebitNoteItems = async (debitNoteId: string) => {
+    const { data, error } = await supabase
+      .from('debit_note_items')
+      .select('*')
+      .eq('debit_note_id', debitNoteId);
+    if (error) throw error;
+    return data || [];
+  };
+
+  const handleViewClick = async (debitNote: DebitNote) => {
+    try {
+      const items = await fetchDebitNoteItems(debitNote.id);
+      onView({ ...debitNote, items });
+    } catch (err) {
+      console.error('Error loading debit note items for view:', err);
+      toast({ title: 'Error', description: 'Failed to load debit note items', variant: 'destructive' });
+      onView(debitNote); // fallback
+    }
+  };
+
+  const handleEditClick = async (debitNote: DebitNote) => {
+    try {
+      const items = await fetchDebitNoteItems(debitNote.id);
+      onEdit({ ...debitNote, items });
+    } catch (err) {
+      console.error('Error loading debit note items for edit:', err);
+      toast({ title: 'Error', description: 'Failed to load debit note items', variant: 'destructive' });
+      onEdit(debitNote); // fallback
+    }
+  };
+
   // Pagination
   const totalPages = Math.ceil(filteredDebitNotes.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
@@ -616,7 +649,7 @@ export function DebitNoteTable({ refreshTrigger, onView, onEdit, onDelete }: Deb
                           <Button
                             variant="ghost"
                             size="icon"
-                            onClick={() => onView(debitNote)}
+                            onClick={() => handleViewClick(debitNote)}
                             className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
                             title="View Debit Note"
                           >
@@ -625,7 +658,7 @@ export function DebitNoteTable({ refreshTrigger, onView, onEdit, onDelete }: Deb
                           <Button
                             variant="ghost"
                             size="icon"
-                            onClick={() => onEdit(debitNote)}
+                            onClick={() => handleEditClick(debitNote)}
                             className="text-amber-600 hover:text-amber-700 hover:bg-amber-50"
                             title="Edit Debit Note"
                           >
