@@ -771,6 +771,58 @@ export function PurchaseModule() {
         </DialogContent>
       </Dialog>
 
+      {/* Edit Debit Note Dialog */}
+      <Dialog open={showEditDebitNoteDialog} onOpenChange={setShowEditDebitNoteDialog}>
+        <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Edit Debit Note</DialogTitle>
+          </DialogHeader>
+          <DebitNoteForm
+            debitNote={selectedDebitNote}
+            onSubmit={async (data) => {
+              try {
+                const { items, ...header } = data;
+                const { error: updateError } = await supabase
+                  .from('debit_notes')
+                  .update(header)
+                  .eq('id', selectedDebitNote.id);
+                if (updateError) throw updateError;
+
+                // Replace items
+                const { error: deleteError } = await supabase
+                  .from('debit_note_items')
+                  .delete()
+                  .eq('debit_note_id', selectedDebitNote.id);
+                if (deleteError) throw deleteError;
+
+                if (items && items.length > 0) {
+                  const { error: insertError } = await supabase
+                    .from('debit_note_items')
+                    .insert(items.map((it: any) => ({
+                      ...it,
+                      debit_note_id: selectedDebitNote.id,
+                    })));
+                  if (insertError) throw insertError;
+                }
+
+                toast({ title: "Success", description: "Debit note updated successfully" });
+                setShowEditDebitNoteDialog(false);
+                setSelectedDebitNote(null);
+                setRefreshDebitNoteTrigger(prev => prev + 1);
+              } catch (error) {
+                console.error('Error updating debit note:', error);
+                toast({ title: "Error", description: "Failed to update debit note", variant: "destructive" });
+              }
+            }}
+            onCancel={() => {
+              setShowEditDebitNoteDialog(false);
+              setSelectedDebitNote(null);
+            }}
+            mode="edit"
+          />
+        </DialogContent>
+      </Dialog>
+
       {/* Add Supplier Credit Note Dialog */}
       <Dialog open={showAddSupplierCreditNoteDialog} onOpenChange={setShowAddSupplierCreditNoteDialog}>
         <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
