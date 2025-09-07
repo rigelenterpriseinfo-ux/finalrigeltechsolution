@@ -20,9 +20,35 @@ export const Header: React.FC<HeaderProps> = ({
   showSearch = true,
   showWelcome = false
 }) => {
-  const { user, signOut, company } = useAuth();
+  const { user, signOut, company, profile } = useAuth();
   const { businessUser } = useBusinessAuth();
   const isMobile = useIsMobile();
+
+  const getDisplayName = () => {
+    // First priority: profile first_name and last_name
+    if (profile?.first_name && profile?.last_name) {
+      return `${profile.first_name} ${profile.last_name}`;
+    }
+    
+    // Second priority: just first_name
+    if (profile?.first_name) {
+      return profile.first_name;
+    }
+    
+    // Third priority: businessUser username
+    if (businessUser?.username) {
+      return businessUser.username;
+    }
+    
+    // Fallback: user email
+    if (user?.email) {
+      return user.email;
+    }
+    
+    return null;
+  };
+
+  const displayName = getDisplayName();
 
   return (
     <header className="bg-gradient-primary border-b border-border/20 sticky top-0 z-40 backdrop-blur supports-[backdrop-filter]:bg-gradient-primary/95 shadow-lg">
@@ -33,7 +59,7 @@ export const Header: React.FC<HeaderProps> = ({
             {showWelcome ? (
               <div className="space-y-1">
                 <h1 className="text-lg md:text-2xl font-bold text-white drop-shadow-sm truncate">
-                  Welcome back! 👋
+                  {displayName ? `Welcome back, ${displayName}! 👋` : 'Welcome back! 👋'}
                 </h1>
                 <p className="text-xs md:text-sm text-white/80 hidden sm:block">
                   Here's what's happening with your business today
