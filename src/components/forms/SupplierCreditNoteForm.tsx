@@ -88,12 +88,8 @@ export function SupplierCreditNoteForm({ supplierCreditNote, onSubmit, onCancel,
     try {
       const { data, error } = await supabase
         .from('debit_notes')
-        .select(`
-          *,
-          suppliers:supplier_id(name, supplier_ref),
-          purchase_orders:purchase_order_id(po_number)
-        `)
-        .eq('status', 'confirmed')
+        .select('*')
+        .in('status', ['confirmed', 'draft'])
         .order('created_at', { ascending: false });
       
       if (error) throw error;
