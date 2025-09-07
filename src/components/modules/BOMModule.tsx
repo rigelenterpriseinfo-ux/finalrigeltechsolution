@@ -566,9 +566,9 @@ export function BOMModule() {
       </div>
 
       <Tabs defaultValue="list" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="list">BOM List</TabsTrigger>
-          <TabsTrigger value="production">Production</TabsTrigger>
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="list" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">BOM List</TabsTrigger>
+          <TabsTrigger value="production" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">Production</TabsTrigger>
         </TabsList>
 
         <TabsContent value="list" className="space-y-4">
@@ -678,16 +678,18 @@ export function BOMModule() {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                <div className="flex items-center gap-4 mb-4">
-                  <Label htmlFor="prodQty">Production Quantity:</Label>
+                <div className="flex items-center gap-4 mb-4 p-4 border rounded-lg bg-muted/50">
+                  <Label htmlFor="prodQty" className="text-sm font-medium">Production Quantity:</Label>
                   <Input
                     id="prodQty"
                     type="number"
                     min="1"
                     value={productionQuantity}
                     onChange={(e) => setProductionQuantity(parseInt(e.target.value) || 1)}
-                    className="w-24"
+                    className="w-32 h-10 text-center font-medium border-2 border-dashed border-primary/50 bg-background hover:border-primary focus:border-primary focus:ring-2 focus:ring-primary/20"
+                    placeholder="Enter quantity"
                   />
+                  <span className="text-sm text-muted-foreground">units to produce</span>
                 </div>
                 <div className="grid gap-4">
                   {boms.filter(bom => bom.production_ready).map((bom) => (
