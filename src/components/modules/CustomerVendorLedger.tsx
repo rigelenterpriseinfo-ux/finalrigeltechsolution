@@ -33,7 +33,7 @@ interface Supplier {
 interface LedgerTransaction {
   id: string;
   date: string;
-  type: 'sales_invoice' | 'credit_note' | 'payment_received' | 'grn' | 'debit_note' | 'payment_made';
+  type: 'sales_invoice' | 'credit_note' | 'payment_received' | 'grn' | 'debit_note' | 'payment_made' | 'opening_balance';
   reference_no: string;
   description: string;
   debit: number;
@@ -130,11 +130,30 @@ export function CustomerVendorLedger({ onClose }: CustomerVendorLedgerProps) {
     setLoading(true);
     try {
       let ledgerTransactions: LedgerTransaction[] = [];
+      let openingBalance = 0;
 
       if (entityType === 'customer') {
-        ledgerTransactions = await fetchCustomerLedger(selectedEntityId);
+        const { transactions, opening } = await fetchCustomerLedger(selectedEntityId);
+        ledgerTransactions = transactions;
+        openingBalance = opening;
       } else {
-        ledgerTransactions = await fetchVendorLedger(selectedEntityId);
+        const { transactions, opening } = await fetchVendorLedger(selectedEntityId);
+        ledgerTransactions = transactions;
+        openingBalance = opening;
+      }
+
+      // Add opening balance as first transaction if it's not zero
+      if (openingBalance !== 0) {
+        ledgerTransactions.unshift({
+          id: 'opening-balance',
+          date: format(dateRange.from!, 'yyyy-MM-dd'),
+          type: 'opening_balance' as any,
+          reference_no: 'OPENING',
+          description: 'Opening Balance',
+          debit: openingBalance > 0 ? openingBalance : 0,
+          credit: openingBalance < 0 ? Math.abs(openingBalance) : 0,
+          balance: 0
+        });
       }
 
       // Sort by date and calculate running balance
@@ -160,8 +179,41 @@ export function CustomerVendorLedger({ onClose }: CustomerVendorLedgerProps) {
     }
   };
 
-  const fetchCustomerLedger = async (customerId: string): Promise<LedgerTransaction[]> => {
+  const fetchCustomerLedger = async (customerId: string): Promise<{ transactions: LedgerTransaction[], opening: number }> => {
     const transactions: LedgerTransaction[] = [];
+    let openingBalance = 0;
+
+    // Calculate opening balance (transactions before the date range)
+    const { data: openingData } = await supabase
+      .from('sales_invoices')
+      .select('total_amount')
+      .eq('customer_id', customerId)
+      .eq('company_id', profile!.company_id)
+      .lt('invoice_date', format(dateRange.from!, 'yyyy-MM-dd'));
+
+    openingBalance += openingData?.reduce((sum, inv) => sum + inv.total_amount, 0) || 0;
+
+    const { data: openingCreditData } = await supabase
+      .from('credit_notes')
+      .select('total_amount')
+      .eq('customer_id', customerId)
+      .eq('company_id', profile!.company_id)
+      .lt('cn_date', format(dateRange.from!, 'yyyy-MM-dd'));
+
+    openingBalance -= openingCreditData?.reduce((sum, cn) => sum + cn.total_amount, 0) || 0;
+
+    const { data: openingPaymentData } = await supabase
+      .from('payments')
+      .select('amount, sales_invoice_id, sales_invoices(customer_id)')
+      .eq('company_id', profile!.company_id)
+      .not('sales_invoice_id', 'is', null)
+      .lt('payment_date', format(dateRange.from!, 'yyyy-MM-dd'));
+
+    const customerOpeningPayments = openingPaymentData?.filter(payment => 
+      payment.sales_invoices?.customer_id === customerId
+    ) || [];
+
+    openingBalance -= customerOpeningPayments.reduce((sum, payment) => sum + payment.amount, 0);
 
     // Fetch sales invoices
     const { data: invoices } = await supabase
@@ -237,11 +289,44 @@ export function CustomerVendorLedger({ onClose }: CustomerVendorLedgerProps) {
       });
     });
 
-    return transactions;
+    return { transactions, opening: openingBalance };
   };
 
-  const fetchVendorLedger = async (supplierId: string): Promise<LedgerTransaction[]> => {
+  const fetchVendorLedger = async (supplierId: string): Promise<{ transactions: LedgerTransaction[], opening: number }> => {
     const transactions: LedgerTransaction[] = [];
+    let openingBalance = 0;
+
+    // Calculate opening balance (transactions before the date range)
+    const { data: openingGrnData } = await supabase
+      .from('grn_header')
+      .select('total_amount')
+      .eq('supplier_id', supplierId)
+      .eq('company_id', profile!.company_id)
+      .lt('grn_date', format(dateRange.from!, 'yyyy-MM-dd'));
+
+    openingBalance -= openingGrnData?.reduce((sum, grn) => sum + grn.total_amount, 0) || 0;
+
+    const { data: openingDebitData } = await supabase
+      .from('debit_notes')
+      .select('total_amount')
+      .eq('supplier_id', supplierId)
+      .eq('company_id', profile!.company_id)
+      .lt('debit_note_date', format(dateRange.from!, 'yyyy-MM-dd'));
+
+    openingBalance += openingDebitData?.reduce((sum, dn) => sum + dn.total_amount, 0) || 0;
+
+    const { data: openingPaymentData } = await supabase
+      .from('payments')
+      .select('amount, grn_id, grn_header(supplier_id)')
+      .eq('company_id', profile!.company_id)
+      .not('grn_id', 'is', null)
+      .lt('payment_date', format(dateRange.from!, 'yyyy-MM-dd'));
+
+    const supplierOpeningPayments = openingPaymentData?.filter(payment => 
+      payment.grn_header?.supplier_id === supplierId
+    ) || [];
+
+    openingBalance += supplierOpeningPayments.reduce((sum, payment) => sum + payment.amount, 0);
 
     // Fetch GRNs (Purchase Invoices)
     const { data: grns } = await supabase
@@ -317,7 +402,7 @@ export function CustomerVendorLedger({ onClose }: CustomerVendorLedgerProps) {
       });
     });
 
-    return transactions;
+    return { transactions, opening: openingBalance };
   };
 
   const getTransactionIcon = (type: LedgerTransaction['type']) => {
@@ -328,6 +413,7 @@ export function CustomerVendorLedger({ onClose }: CustomerVendorLedgerProps) {
       case 'grn': return <FileText className="h-4 w-4 text-orange-500" />;
       case 'debit_note': return <Receipt className="h-4 w-4 text-red-500" />;
       case 'payment_made': return <CreditCard className="h-4 w-4 text-red-600" />;
+      case 'opening_balance': return <BookOpen className="h-4 w-4 text-purple-600" />;
       default: return <BookOpen className="h-4 w-4" />;
     }
   };
@@ -340,6 +426,7 @@ export function CustomerVendorLedger({ onClose }: CustomerVendorLedgerProps) {
       case 'grn': return 'Purchase Invoice';
       case 'debit_note': return 'Debit Note';
       case 'payment_made': return 'Payment Made';
+      case 'opening_balance': return 'Opening Balance';
       default: return type;
     }
   };
