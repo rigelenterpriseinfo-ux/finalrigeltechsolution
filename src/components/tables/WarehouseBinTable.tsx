@@ -4,10 +4,13 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { Label } from '@/components/ui/label';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { 
   Search, 
   Edit, 
   Trash2, 
+  Eye,
   ChevronLeft, 
   ChevronRight,
   ArrowUpDown,
@@ -72,7 +75,9 @@ export const WarehouseBinTable: React.FC<WarehouseBinTableProps> = ({ refreshTri
   const [currentPage, setCurrentPage] = useState(1);
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
   const [showEditDialog, setShowEditDialog] = useState(false);
+  const [showViewDialog, setShowViewDialog] = useState(false);
   const [editingBin, setEditingBin] = useState<WarehouseBin | null>(null);
+  const [viewingBin, setViewingBin] = useState<WarehouseBin | null>(null);
   const itemsPerPage = 10;
 
   // Use mobile component on small screens
@@ -281,6 +286,11 @@ export const WarehouseBinTable: React.FC<WarehouseBinTableProps> = ({ refreshTri
   const handleEditBin = (bin: WarehouseBin) => {
     setEditingBin(bin);
     setShowEditDialog(true);
+  };
+
+  const handleViewBin = (bin: WarehouseBin) => {
+    setViewingBin(bin);
+    setShowViewDialog(true);
   };
 
   const handleDeleteBin = async (binId: string) => {
@@ -508,6 +518,15 @@ export const WarehouseBinTable: React.FC<WarehouseBinTableProps> = ({ refreshTri
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleViewBin(bin)}
+                          className="hover:bg-green-50 hover:text-green-600"
+                          title="View Details"
+                        >
+                          <Eye className="h-4 w-4" />
+                        </Button>
                         <Button
                           variant="ghost"
                           size="sm"

@@ -15,7 +15,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { useBusinessAuth } from '@/hooks/useBusinessAuth';
-import { Plus, Search, Edit, Trash2, Play, CheckCircle, XCircle, AlertTriangle, Package, Factory } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, Eye, Play, CheckCircle, XCircle, AlertTriangle, Package, Factory } from 'lucide-react';
 
 interface Product {
   id: string;

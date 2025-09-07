@@ -14,7 +14,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Search, AlertTriangle, Package, ArrowUpDown, ArrowUp, ArrowDown, ChevronLeft, ChevronRight, FileSpreadsheet, Filter } from 'lucide-react';
+import { Search, AlertTriangle, Package, ArrowUpDown, ArrowUp, ArrowDown, ChevronLeft, ChevronRight, FileSpreadsheet, Filter, Eye } from 'lucide-react';
 import { format } from 'date-fns';
 import { exportToExcel, formatCurrency, formatDate, ExportColumn } from '@/utils/excelExport';
 
@@ -525,6 +525,19 @@ export const CurrentStockTable = ({ refreshTrigger }: CurrentStockTableProps) =>
                     ? format(new Date(stock.last_transaction_date), 'MMM dd, yyyy')
                     : 'No transactions'
                   }
+                </TableCell>
+                <TableCell>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      console.log('View stock details:', stock);
+                    }}
+                    title="View Details"
+                    className="hover:bg-green-50 hover:text-green-600"
+                  >
+                    <Eye className="h-4 w-4" />
+                  </Button>
                 </TableCell>
                 <TableCell className="text-right">
                   {stock.transaction_count}

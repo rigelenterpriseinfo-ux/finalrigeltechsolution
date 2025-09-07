@@ -15,7 +15,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { format } from 'date-fns';
-import { Search, Filter, ArrowUpDown, ArrowUp, ArrowDown, ChevronLeft, ChevronRight, FileSpreadsheet } from 'lucide-react';
+import { Search, AlertTriangle, Package, ArrowUpDown, ArrowUp, ArrowDown, ChevronLeft, ChevronRight, FileSpreadsheet, Filter, Eye } from 'lucide-react';
 import { exportToExcel, formatCurrency, formatDateTime, ExportColumn } from '@/utils/excelExport';
 
 interface InventoryTransaction {
@@ -352,6 +352,7 @@ export const InventoryTransactionTable = ({ refreshTrigger }: InventoryTransacti
                     </div>
                   </TableHead>
                   <TableHead className="font-semibold">Created By</TableHead>
+                  <TableHead>Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -395,6 +396,19 @@ export const InventoryTransactionTable = ({ refreshTrigger }: InventoryTransacti
                     <div className="text-sm">
                       {transaction.created_by_name}
                     </div>
+                  </TableCell>
+                  <TableCell>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        console.log('View transaction:', transaction);
+                      }}
+                      title="View Details"
+                      className="hover:bg-green-50 hover:text-green-600"
+                    >
+                      <Eye className="h-4 w-4" />
+                    </Button>
                   </TableCell>
                 </TableRow>
                 ))}

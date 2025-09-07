@@ -440,7 +440,12 @@ export const InventoryAdjustmentTable: React.FC<InventoryAdjustmentTableProps> =
                   <Button
                     variant="ghost"
                     size="sm"
+                    onClick={() => {
+                      // View adjustment details
+                      console.log('View adjustment:', adjustment);
+                    }}
                     title="View Details"
+                    className="hover:bg-green-50 hover:text-green-600"
                   >
                     <Eye className="h-4 w-4" />
                   </Button>

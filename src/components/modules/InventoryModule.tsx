@@ -13,7 +13,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { useBusinessAuth } from '@/hooks/useBusinessAuth';
-import { Plus, Search, Package, AlertTriangle, Edit, Trash2, Download, ArrowUpDown, ArrowUp, ArrowDown, ChevronLeft, ChevronRight, MapPin, TrendingUp, ClipboardList, ArrowRightLeft, CheckCircle, XCircle, RotateCcw } from 'lucide-react';
+import { Plus, Search, Package, AlertTriangle, Edit, Trash2, Eye, Download, ArrowUpDown, ArrowUp, ArrowDown, ChevronLeft, ChevronRight, MapPin, TrendingUp, ClipboardList, ArrowRightLeft, CheckCircle, XCircle, RotateCcw } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { WarehouseBinForm } from '@/components/forms/WarehouseBinForm';
 import { WarehouseBinTable } from '@/components/tables/WarehouseBinTable';
@@ -64,11 +64,13 @@ export function InventoryModule() {
   const [searchTerm, setSearchTerm] = useState('');
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
+  const [showViewDialog, setShowViewDialog] = useState(false);
   const [showBOMDialog, setShowBOMDialog] = useState(false);
   const [showBinDialog, setShowBinDialog] = useState(false);
   const [showAdjustmentDialog, setShowAdjustmentDialog] = useState(false);
   const [showTransferDialog, setShowTransferDialog] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [viewingProduct, setViewingProduct] = useState<Product | null>(null);
   const [adjustmentRefreshTrigger, setAdjustmentRefreshTrigger] = useState(0);
   const [warehouseBins, setWarehouseBins] = useState<any[]>([]);
   const [warehouseBinStats, setWarehouseBinStats] = useState<any[]>([]);
@@ -108,237 +110,13 @@ export function InventoryModule() {
   
   const bomCandidateProducts = useMemo(() => {
     const filtered = products.filter(p => p.product_category !== 'finished_goods' && p.id && p.id.trim() !== '');
-    console.log('BOM candidate products:', filtered.map(p => ({ id: p.id, name: p.name })));
     return filtered;
   }, [products]);
+
   const finishedGoodsProducts = useMemo(() => {
     const filtered = products.filter(p => p.product_category === 'finished_goods');
-    console.log('Finished goods products:', filtered.map(p => ({ id: p.id, name: p.name })));
     return filtered;
   }, [products]);
-  
-  const addBomComponent = () => {
-    setBomComponents(prev => [
-      ...prev,
-      { id: `${Date.now()}-${Math.random().toString(36).slice(2,8)}`, quantity: 1, cost: 0 }
-    ]);
-  };
-  
-  const updateBomComponent = (id: string, partial: Partial<BomComponent>) => {
-    setBomComponents(prev => prev.map(i => (i.id === id ? { ...i, ...partial } : i)));
-  };
-  
-  const removeBomComponent = (id: string) => setBomComponents(prev => prev.filter(i => i.id !== id));
-
-  // Calculate BOM cost summary
-  const bomCostSummary = useMemo(() => {
-    const materialCost = bomComponents.reduce((sum, comp) => sum + (comp.quantity * comp.cost), 0);
-    const totalCost = materialCost + bomLaborCost + bomOverheadCost;
-    return {
-      materialCost,
-      laborCost: bomLaborCost,
-      overheadCost: bomOverheadCost,
-      totalCost
-    };
-  }, [bomComponents, bomLaborCost, bomOverheadCost]);
-
-  const resetBomForm = () => {
-    setBomName('');
-    setBomFinishedProduct('');
-    setBomYield(1);
-    setBomLaborCost(0);
-    setBomOverheadCost(0);
-    setBomWarehouse('');
-    setBomBin('');
-    setBomNotes('');
-    setBomComponents([]);
-    setProductionQuantity(1);
-  };
-
-  const saveBOM = async () => {
-    if (!profile?.company_id) return;
-    
-    if (!bomName.trim()) {
-      toast({
-        title: "Error",
-        description: "BOM name is required",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (!bomFinishedProduct) {
-      toast({
-        title: "Error", 
-        description: "Please select a finished product",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (bomComponents.length === 0) {
-      toast({
-        title: "Error",
-        description: "Please add at least one component",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    try {
-      setIsSubmitting(true);
-
-      // Insert BOM header
-      const { data: bomHeader, error: headerError } = await supabase
-        .from('bom_headers')
-        .insert({
-          company_id: profile.company_id,
-          finished_product_id: bomFinishedProduct,
-          bom_name: bomName,
-          yield_quantity: bomYield,
-          labor_cost_per_unit: bomLaborCost,
-          overhead_cost_per_unit: bomOverheadCost,
-          material_cost_per_unit: bomCostSummary.materialCost,
-          total_cost_per_unit: bomCostSummary.totalCost,
-          warehouse_id: bomWarehouse || null,
-          bin_id: bomBin === 'none' ? null : bomBin || null,
-          notes: bomNotes || null
-        })
-        .select()
-        .single();
-
-      if (headerError) throw headerError;
-
-      // Insert BOM components
-      const componentInserts = bomComponents
-        .filter(comp => comp.productId && comp.quantity > 0)
-        .map(comp => ({
-          bom_id: bomHeader.id,
-          component_product_id: comp.productId!,
-          quantity_per_unit: comp.quantity,
-          unit_cost: comp.cost
-        }));
-
-      if (componentInserts.length > 0) {
-        const { error: componentsError } = await supabase
-          .from('bom_components')
-          .insert(componentInserts);
-
-        if (componentsError) throw componentsError;
-      }
-
-      toast({
-        title: "Success",
-        description: "BOM saved successfully",
-      });
-
-      setShowBOMDialog(false);
-      resetBomForm();
-
-    } catch (error) {
-      console.error('Error saving BOM:', error);
-      toast({
-        title: "Error",
-        description: "Failed to save BOM",
-        variant: "destructive",
-      });
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const handleProduction = async () => {
-    if (!profile?.company_id || !bomFinishedProduct || !bomWarehouse) return;
-
-    if (productionQuantity <= 0) {
-      toast({
-        title: "Error",
-        description: "Production quantity must be greater than 0",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    try {
-      setIsProducing(true);
-
-      // First save the BOM if it's not saved yet
-      if (!bomName.trim()) {
-        toast({
-          title: "Error",
-          description: "Please save the BOM before producing",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      // Get the BOM ID (we'll need to save first if new)
-      const { data: existingBom } = await supabase
-        .from('bom_headers')
-        .select('id')
-        .eq('company_id', profile.company_id)
-        .eq('bom_name', bomName)
-        .single();
-
-      let bomId = existingBom?.id;
-
-      if (!bomId) {
-        // Save BOM first
-        await saveBOM();
-        // Get the newly created BOM
-        const { data: newBom } = await supabase
-          .from('bom_headers')
-          .select('id')
-          .eq('company_id', profile.company_id)
-          .eq('bom_name', bomName)
-          .single();
-        
-        bomId = newBom?.id;
-      }
-
-      if (!bomId) {
-        throw new Error('Failed to create or find BOM');
-      }
-
-      const { data: result, error } = await supabase.rpc('process_bom_production', {
-        p_bom_id: bomId,
-        p_quantity: productionQuantity,
-        p_company_id: profile.company_id,
-        p_warehouse_id: bomWarehouse,
-        p_bin_id: bomBin === 'none' ? null : bomBin || null
-      });
-
-      if (error) throw error;
-
-      const productionResult = result as {
-        success: boolean;
-        finished_goods_qty: number;
-        material_cost_total: number;
-        labor_cost_total: number;
-        overhead_cost_total: number;
-        total_cost: number;
-      };
-
-      toast({
-        title: "Success",
-        description: `Production completed! Produced ${productionResult.finished_goods_qty} units`,
-      });
-
-      // Refresh products to show updated stock
-      fetchProducts();
-      setAdjustmentRefreshTrigger(prev => prev + 1);
-
-    } catch (error) {
-      console.error('Error processing production:', error);
-      toast({
-        title: "Error",
-        description: "Failed to process production",
-        variant: "destructive", 
-      });
-    } finally {
-      setIsProducing(false);
-    }
-  };
 
   // Calculate volume when dimensions change
   const calculateVolume = (length: string, width: string, height: string) => {
@@ -822,8 +600,6 @@ export function InventoryModule() {
   const totalProducts = products.length;
   const totalValue = products.reduce((sum, product) => sum + (product.unit_price * product.min_stock_level || 0), 0);
   const lowStockCount = products.filter(product => (product.min_stock_level || 0) <= 10).length;
-
-  console.log('InventoryModule render stats:', { totalProducts, totalValue, lowStockCount, productsLength: products.length });
 
   if (loading) {
     return (
@@ -1461,24 +1237,36 @@ export function InventoryModule() {
                            </Badge>
                          </TableCell>
                          {canEdit && (
-                           <TableCell>
-                             <div className="flex space-x-2">
-                               <Button
-                                 variant="outline"
-                                 size="sm"
-                                 onClick={() => handleEditProduct(product)}
-                               >
-                                 <Edit className="w-4 h-4" />
-                               </Button>
-                               <Button
-                                 variant="outline"
-                                 size="sm"
-                                 onClick={() => handleDeleteProduct(product.id)}
-                               >
-                                 <Trash2 className="w-4 h-4" />
-                               </Button>
-                             </div>
-                           </TableCell>
+                            <TableCell>
+                              <div className="flex space-x-2">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => {
+                                    setViewingProduct(product);
+                                    setShowViewDialog(true);
+                                  }}
+                                  className="hover:bg-green-50 hover:text-green-600"
+                                  title="View Details"
+                                >
+                                  <Eye className="w-4 h-4" />
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleEditProduct(product)}
+                                >
+                                  <Edit className="w-4 h-4" />
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleDeleteProduct(product.id)}
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
+                              </div>
+                            </TableCell>
                          )}
                        </TableRow>
                      ))
@@ -1590,140 +1378,154 @@ export function InventoryModule() {
         </TabsContent>
       </Tabs>
 
-      {/* Edit Product Dialog */}
-      <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+      {/* Product View Dialog */}
+      <Dialog open={showViewDialog} onOpenChange={setShowViewDialog}>
+        <DialogContent className="max-w-4xl">
           <DialogHeader>
-            <DialogTitle>Edit Product</DialogTitle>
-            <DialogDescription>
-              Update the product details below
-            </DialogDescription>
+            <DialogTitle>Product Details</DialogTitle>
           </DialogHeader>
-          {editingProduct && (
-            <form onSubmit={handleUpdateProduct} className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Basic Information */}
-                <div className="space-y-4">
-                  <h3 className="text-lg font-semibold text-primary">Basic Information</h3>
-                  <div className="space-y-4">
-                    <div>
-                      <Label htmlFor="edit_name" className="text-sm font-medium">Product Name *</Label>
-                      <Input id="edit_name" name="name" required defaultValue={editingProduct.name} className="mt-1" />
-                    </div>
-                    <div>
-                      <Label htmlFor="edit_sku" className="text-sm font-medium">SKU *</Label>
-                      <Input id="edit_sku" name="sku" required defaultValue={editingProduct.sku} className="mt-1" />
-                    </div>
-                    <div>
-                      <Label htmlFor="edit_description" className="text-sm font-medium">Description</Label>
-                      <Textarea id="edit_description" name="description" defaultValue={editingProduct.description || ''} className="mt-1" />
-                    </div>
-                    <div>
-                      <Label htmlFor="edit_product_type" className="text-sm font-medium">Product Type *</Label>
-                      <Select name="product_type" defaultValue={editingProduct.product_type} required>
-                        <SelectTrigger className="mt-1">
-                          <SelectValue placeholder="Select product type" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="goods">Goods</SelectItem>
-                          <SelectItem value="service">Service</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div>
-                      <Label htmlFor="edit_product_category" className="text-sm font-medium">Product Category *</Label>
-                      <Select name="product_category" defaultValue={editingProduct.product_category} required>
-                        <SelectTrigger className="mt-1">
-                          <SelectValue placeholder="Select category" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="raw_material">Raw Material</SelectItem>
-                          <SelectItem value="finished_goods">Finished Goods</SelectItem>
-                          <SelectItem value="consumables">Consumables</SelectItem>
-                          <SelectItem value="assets">Assets</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
+          {viewingProduct && (
+            <div className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium text-muted-foreground">SKU</Label>
+                  <div className="p-2 bg-muted rounded font-mono">{viewingProduct.sku}</div>
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium text-muted-foreground">Product Name</Label>
+                  <div className="p-2 bg-muted rounded font-medium">{viewingProduct.name}</div>
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium text-muted-foreground">Description</Label>
+                  <div className="p-2 bg-muted rounded">{viewingProduct.description || 'N/A'}</div>
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium text-muted-foreground">Product Type</Label>
+                  <div className="p-2 bg-muted rounded">
+                    <Badge variant={viewingProduct.product_type === 'goods' ? 'default' : 'secondary'}>
+                      {viewingProduct.product_type === 'goods' ? 'Goods' : 'Service'}
+                    </Badge>
                   </div>
                 </div>
-
-                {/* Continue with same form structure as add dialog */}
-                <div className="space-y-4">
-                  <h3 className="text-lg font-semibold text-primary">Pricing & Stock</h3>
-                  <div className="space-y-4">
-                    <div>
-                      <Label htmlFor="edit_unit" className="text-sm font-medium">Unit</Label>
-                      <Input id="edit_unit" name="unit" defaultValue={editingProduct.unit || ''} className="mt-1" />
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <Label htmlFor="edit_cost_price" className="text-sm font-medium">Cost Price *</Label>
-                        <Input id="edit_cost_price" name="cost_price" type="number" step="0.01" required defaultValue={editingProduct.cost_price} className="mt-1" />
-                      </div>
-                      <div>
-                        <Label htmlFor="edit_unit_price" className="text-sm font-medium">Unit Price *</Label>
-                        <Input id="edit_unit_price" name="unit_price" type="number" step="0.01" required defaultValue={editingProduct.unit_price} className="mt-1" />
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <Label htmlFor="edit_min_stock_level" className="text-sm font-medium">Min Stock Level *</Label>
-                        <Input id="edit_min_stock_level" name="min_stock_level" type="number" required defaultValue={editingProduct.min_stock_level} className="mt-1" />
-                      </div>
-                      <div>
-                        <Label htmlFor="edit_max_stock_level" className="text-sm font-medium">Max Stock Level</Label>
-                        <Input id="edit_max_stock_level" name="max_stock_level" type="number" defaultValue={editingProduct.max_stock_level || ''} className="mt-1" />
-                      </div>
-                    </div>
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium text-muted-foreground">Category</Label>
+                  <div className="p-2 bg-muted rounded">
+                    <Badge variant="outline">
+                      {viewingProduct.product_category.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                    </Badge>
                   </div>
                 </div>
-
-                <div className="space-y-4">
-                  <h3 className="text-lg font-semibold text-primary">Tax Information</h3>
-                  <div className="space-y-4">
-                    <div>
-                      <Label htmlFor="edit_hsn_code" className="text-sm font-medium">HSN Code</Label>
-                      <Input id="edit_hsn_code" name="hsn_code" defaultValue={editingProduct.hsn_code || ''} className="mt-1" />
-                    </div>
-                    <div>
-                      <Label htmlFor="edit_gst_percentage" className="text-sm font-medium">GST Percentage</Label>
-                      <Input id="edit_gst_percentage" name="gst_percentage" type="number" step="0.01" defaultValue={editingProduct.gst_percentage} className="mt-1" />
-                    </div>
-                  </div>
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium text-muted-foreground">Unit</Label>
+                  <div className="p-2 bg-muted rounded">{viewingProduct.unit || 'N/A'}</div>
                 </div>
+              </div>
 
-                <div className="space-y-4">
-                  <h3 className="text-lg font-semibold text-primary">Physical Dimensions</h3>
-                  <div className="space-y-4">
-                    <div>
-                      <Label htmlFor="edit_weight_kg" className="text-sm font-medium">Weight (kg)</Label>
-                      <Input id="edit_weight_kg" name="weight_kg" type="number" step="0.01" defaultValue={editingProduct.weight_kg || ''} className="mt-1" />
-                    </div>
-                    <div className="grid grid-cols-3 gap-4">
-                      <div>
-                        <Label htmlFor="edit_length_cm" className="text-sm font-medium">Length (cm)</Label>
-                        <Input id="edit_length_cm" name="length_cm" type="number" step="0.01" defaultValue={editingProduct.length_cm || ''} className="mt-1" />
-                      </div>
-                      <div>
-                        <Label htmlFor="edit_width_cm" className="text-sm font-medium">Width (cm)</Label>
-                        <Input id="edit_width_cm" name="width_cm" type="number" step="0.01" defaultValue={editingProduct.width_cm || ''} className="mt-1" />
-                      </div>
-                      <div>
-                        <Label htmlFor="edit_height_cm" className="text-sm font-medium">Height (cm)</Label>
-                        <Input id="edit_height_cm" name="height_cm" type="number" step="0.01" defaultValue={editingProduct.height_cm || ''} className="mt-1" />
-                      </div>
+              <div className="space-y-4">
+                <h4 className="font-medium">Pricing Information</h4>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium text-muted-foreground">Cost Price</Label>
+                    <div className="p-2 bg-muted rounded">₹{viewingProduct.cost_price.toLocaleString()}</div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium text-muted-foreground">Unit Price</Label>
+                    <div className="p-2 bg-muted rounded">₹{viewingProduct.unit_price.toLocaleString()}</div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium text-muted-foreground">MRP</Label>
+                    <div className="p-2 bg-muted rounded">
+                      {viewingProduct.mrp ? `₹${viewingProduct.mrp.toLocaleString()}` : 'N/A'}
                     </div>
                   </div>
                 </div>
               </div>
 
-              <div className="flex justify-end space-x-2 pt-4 border-t">
-                <Button type="button" variant="outline" onClick={() => setShowEditDialog(false)}>
-                  Cancel
-                </Button>
-                <Button type="submit">Update Product</Button>
+              <div className="space-y-4">
+                <h4 className="font-medium">Tax Information</h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium text-muted-foreground">Taxable</Label>
+                    <div className="p-2 bg-muted rounded">
+                      <Badge variant={viewingProduct.is_taxable ? 'default' : 'secondary'}>
+                        {viewingProduct.is_taxable ? 'Yes' : 'No'}
+                      </Badge>
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium text-muted-foreground">GST Rate</Label>
+                    <div className="p-2 bg-muted rounded">{viewingProduct.gst_percentage}%</div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium text-muted-foreground">HSN Code</Label>
+                    <div className="p-2 bg-muted rounded">{viewingProduct.hsn_code || 'N/A'}</div>
+                  </div>
+                </div>
               </div>
-            </form>
+
+              <div className="space-y-4">
+                <h4 className="font-medium">Physical Attributes</h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium text-muted-foreground">Weight (kg)</Label>
+                    <div className="p-2 bg-muted rounded">{viewingProduct.weight_kg || 'N/A'}</div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium text-muted-foreground">Dimensions (L×W×H cm)</Label>
+                    <div className="p-2 bg-muted rounded">
+                      {viewingProduct.length_cm && viewingProduct.width_cm && viewingProduct.height_cm
+                        ? `${viewingProduct.length_cm} × ${viewingProduct.width_cm} × ${viewingProduct.height_cm}`
+                        : 'N/A'
+                      }
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium text-muted-foreground">Volume (cm³)</Label>
+                    <div className="p-2 bg-muted rounded">{viewingProduct.volume_cubic_cm || 'N/A'}</div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium text-muted-foreground">Barcode</Label>
+                    <div className="p-2 bg-muted rounded font-mono">{viewingProduct.barcode || 'N/A'}</div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <h4 className="font-medium">Stock Information</h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium text-muted-foreground">Min Stock Level</Label>
+                    <div className="p-2 bg-muted rounded">{viewingProduct.min_stock_level}</div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium text-muted-foreground">Max Stock Level</Label>
+                    <div className="p-2 bg-muted rounded">{viewingProduct.max_stock_level || 'N/A'}</div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <h4 className="font-medium">Metadata</h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium text-muted-foreground">Status</Label>
+                    <div className="p-2 bg-muted rounded">
+                      <Badge variant={viewingProduct.is_active ? 'default' : 'secondary'}>
+                        {viewingProduct.is_active ? 'Active' : 'Inactive'}
+                      </Badge>
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium text-muted-foreground">Created</Label>
+                    <div className="p-2 bg-muted rounded">{new Date(viewingProduct.created_at).toLocaleDateString()}</div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium text-muted-foreground">Last Updated</Label>
+                    <div className="p-2 bg-muted rounded">{new Date(viewingProduct.updated_at).toLocaleDateString()}</div>
+                  </div>
+                </div>
+              </div>
+            </div>
           )}
         </DialogContent>
       </Dialog>
