@@ -610,9 +610,23 @@ export function PaymentsModule() {
           </CardHeader>
           <CardContent className="pt-0">
             <div className="text-xl font-bold">₹{totalOverdueVendors.toLocaleString()}</div>
-            <p className="text-xs text-muted-foreground">
-              {overdueVendors.length} vendors with overdue payments
-            </p>
+            <div className="space-y-1 mt-2">
+              {overdueVendors.slice(0, 5).map((vendor, index) => (
+                <div key={index} className="flex justify-between items-center text-xs">
+                  <span className="text-muted-foreground truncate max-w-[120px]">
+                    {vendor.name}
+                  </span>
+                  <span className="font-medium text-orange-600">
+                    ₹{vendor.amount.toLocaleString()}
+                  </span>
+                </div>
+              ))}
+              {overdueVendors.length === 0 && (
+                <p className="text-xs text-muted-foreground">
+                  No overdue vendors
+                </p>
+              )}
+            </div>
           </CardContent>
         </Card>
 
