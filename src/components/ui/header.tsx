@@ -27,26 +27,37 @@ export const Header: React.FC<HeaderProps> = ({
   const navigate = useNavigate();
 
   const getDisplayName = () => {
+    // Debug logging to see what data we have
+    console.log('Header Debug - Profile:', profile);
+    console.log('Header Debug - BusinessUser:', businessUser);
+    console.log('Header Debug - User:', user);
+    
     // First priority: profile first_name and last_name
     if (profile?.first_name && profile?.last_name) {
-      return `${profile.first_name} ${profile.last_name}`;
+      const fullName = `${profile.first_name} ${profile.last_name}`;
+      console.log('Header Debug - Using full name:', fullName);
+      return fullName;
     }
     
     // Second priority: just first_name
     if (profile?.first_name) {
+      console.log('Header Debug - Using first name:', profile.first_name);
       return profile.first_name;
     }
     
     // Third priority: businessUser username
     if (businessUser?.username) {
+      console.log('Header Debug - Using business username:', businessUser.username);
       return businessUser.username;
     }
     
     // Fallback: user email
     if (user?.email) {
+      console.log('Header Debug - Using user email:', user.email);
       return user.email;
     }
     
+    console.log('Header Debug - No name found, returning null');
     return null;
   };
 
