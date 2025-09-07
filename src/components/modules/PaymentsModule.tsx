@@ -13,10 +13,11 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { useBusinessAuth } from '@/hooks/useBusinessAuth';
-import { Plus, Search, CreditCard, TrendingUp, TrendingDown, ChevronDown, ChevronUp, Download, ChevronLeft, ChevronRight, ArrowUpDown, ArrowUp, ArrowDown, History } from 'lucide-react';
+import { Plus, Search, CreditCard, TrendingUp, TrendingDown, ChevronDown, ChevronUp, Download, ChevronLeft, ChevronRight, ArrowUpDown, ArrowUp, ArrowDown, History, BookOpen } from 'lucide-react';
 import { PaymentHistoryDialog } from '@/components/dialogs/PaymentHistoryDialog';
 import { GRNDetailsDialog } from '@/components/dialogs/GRNDetailsDialog';
 import { SalesInvoiceDetailsDialog } from '@/components/dialogs/SalesInvoiceDetailsDialog';
+import { CustomerVendorLedger } from '@/components/modules/CustomerVendorLedger';
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from '@/components/ui/pagination';
 
 interface Payment {
@@ -91,6 +92,7 @@ export function PaymentsModule() {
   const [showARDetails, setShowARDetails] = useState(false);
   const [showOverdueVendors, setShowOverdueVendors] = useState(false);
   const [showOverdueCustomers, setShowOverdueCustomers] = useState(false);
+  const [showLedger, setShowLedger] = useState(false);
   const [apSearchTerm, setApSearchTerm] = useState('');
   const [arSearchTerm, setArSearchTerm] = useState('');
   
@@ -660,14 +662,15 @@ export function PaymentsModule() {
         </Card>
       </div>
 
-      {/* AP/AR Cards Row */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      {/* AP/AR/Ledger Cards Row */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* Account Payable Section */}
         <Card className="cursor-pointer hover:bg-accent/50 transition-colors" onClick={() => { 
           setShowAPDetails(!showAPDetails); 
           setShowARDetails(false); 
           setShowOverdueVendors(false); 
           setShowOverdueCustomers(false); 
+          setShowLedger(false);
         }}>
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center justify-between text-sm">
@@ -692,6 +695,7 @@ export function PaymentsModule() {
           setShowAPDetails(false); 
           setShowOverdueVendors(false); 
           setShowOverdueCustomers(false); 
+          setShowLedger(false);
         }}>
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center justify-between text-sm">
@@ -706,6 +710,31 @@ export function PaymentsModule() {
             <div className="text-xl font-bold">₹{totalAR.toLocaleString()}</div>
             <p className="text-xs text-muted-foreground">
               {arListForDisplay.length} outstanding invoices
+            </p>
+          </CardContent>
+        </Card>
+
+        {/* Customer/Vendor Ledger Section */}
+        <Card className="cursor-pointer hover:bg-accent/50 transition-colors" onClick={() => { 
+          setShowLedger(!showLedger);
+          setShowAPDetails(false);
+          setShowARDetails(false); 
+          setShowOverdueVendors(false); 
+          setShowOverdueCustomers(false); 
+        }}>
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center justify-between text-sm">
+              <div className="flex items-center gap-2">
+                <BookOpen className="h-4 w-4 text-primary" />
+                Customer/Vendor Ledger
+              </div>
+              {showLedger ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="pt-0">
+            <div className="text-xl font-bold">Ledger</div>
+            <p className="text-xs text-muted-foreground">
+              View detailed customer/vendor transactions
             </p>
           </CardContent>
         </Card>
@@ -1193,6 +1222,11 @@ export function PaymentsModule() {
             )}
           </CardContent>
         </Card>
+      )}
+
+      {/* Customer/Vendor Ledger Details */}
+      {showLedger && (
+        <CustomerVendorLedger />
       )}
 
       {/* Payment History Dialog */}
