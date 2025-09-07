@@ -2868,6 +2868,7 @@ export type Database = {
           cgst_amount: number | null
           cgst_rate: number | null
           created_at: string
+          credit_note_quantity: number
           discount_amount: number
           discount_percentage: number | null
           hsn_sac_code: string | null
@@ -2876,6 +2877,7 @@ export type Database = {
           igst_rate: number | null
           line_subtotal: number
           line_total: number
+          pending_quantity: number
           product_id: string
           product_name: string
           product_sku: string
@@ -2891,6 +2893,7 @@ export type Database = {
           cgst_amount?: number | null
           cgst_rate?: number | null
           created_at?: string
+          credit_note_quantity?: number
           discount_amount?: number
           discount_percentage?: number | null
           hsn_sac_code?: string | null
@@ -2899,6 +2902,7 @@ export type Database = {
           igst_rate?: number | null
           line_subtotal?: number
           line_total?: number
+          pending_quantity?: number
           product_id: string
           product_name: string
           product_sku: string
@@ -2914,6 +2918,7 @@ export type Database = {
           cgst_amount?: number | null
           cgst_rate?: number | null
           created_at?: string
+          credit_note_quantity?: number
           discount_amount?: number
           discount_percentage?: number | null
           hsn_sac_code?: string | null
@@ -2922,6 +2927,7 @@ export type Database = {
           igst_rate?: number | null
           line_subtotal?: number
           line_total?: number
+          pending_quantity?: number
           product_id?: string
           product_name?: string
           product_sku?: string

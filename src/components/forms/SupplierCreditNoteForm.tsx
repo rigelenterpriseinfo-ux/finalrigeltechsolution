@@ -22,7 +22,9 @@ interface SupplierCreditNoteItem {
   product_id: string;
   product_name: string;
   product_sku: string;
-  quantity: number;
+  quantity: number; // Original quantity from debit note
+  credit_note_quantity: number; // New editable field
+  pending_quantity: number; // Calculated: quantity - credit_note_quantity
   unit_price: number;
   discount_percentage: number;
   discount_amount: number;
@@ -37,6 +39,8 @@ interface SupplierCreditNoteItem {
   line_total: number;
   unit_of_measure: string;
   hsn_sac_code: string;
+  warehouse_id?: string;
+  bin_id?: string;
 }
 
 export function SupplierCreditNoteForm({ supplierCreditNote, onSubmit, onCancel, mode }: SupplierCreditNoteFormProps) {
@@ -62,6 +66,8 @@ export function SupplierCreditNoteForm({ supplierCreditNote, onSubmit, onCancel,
       product_name: "",
       product_sku: "",
       quantity: 1,
+      credit_note_quantity: 0,
+      pending_quantity: 1,
       unit_price: 0,
       discount_percentage: 0,
       discount_amount: 0,
@@ -153,6 +159,8 @@ export function SupplierCreditNoteForm({ supplierCreditNote, onSubmit, onCancel,
         product_name: item.product_name,
         product_sku: item.product_sku,
         quantity: item.quantity,
+        credit_note_quantity: 0, // Start with 0, user will input
+        pending_quantity: item.quantity, // Initially all quantity is pending
         unit_price: item.unit_price,
         discount_percentage: item.discount_percentage || 0,
         discount_amount: item.discount_amount || 0,
@@ -190,7 +198,7 @@ export function SupplierCreditNoteForm({ supplierCreditNote, onSubmit, onCancel,
 
   const calculateLineTotal = (index: number, itemsList = items) => {
     const item = itemsList[index];
-    const subtotal = item.quantity * item.unit_price;
+    const subtotal = item.credit_note_quantity * item.unit_price;
     const discountAmount = (subtotal * item.discount_percentage) / 100;
     const taxableAmount = subtotal - discountAmount;
     
@@ -204,6 +212,7 @@ export function SupplierCreditNoteForm({ supplierCreditNote, onSubmit, onCancel,
 
     itemsList[index] = {
       ...item,
+      pending_quantity: item.quantity - item.credit_note_quantity,
       discount_amount: discountAmount,
       cgst_amount: cgstAmount,
       sgst_amount: sgstAmount,
@@ -218,7 +227,8 @@ export function SupplierCreditNoteForm({ supplierCreditNote, onSubmit, onCancel,
     const newItems = [...items];
     newItems[index] = { ...newItems[index], [field]: value };
     
-    if (['quantity', 'unit_price', 'discount_percentage', 'cgst_rate', 'sgst_rate', 'igst_rate'].includes(field)) {
+    // Recalculate when relevant fields change
+    if (['credit_note_quantity', 'unit_price', 'discount_percentage', 'cgst_rate', 'sgst_rate', 'igst_rate'].includes(field)) {
       calculateLineTotal(index, newItems);
     }
     
@@ -231,6 +241,8 @@ export function SupplierCreditNoteForm({ supplierCreditNote, onSubmit, onCancel,
       product_name: "",
       product_sku: "",
       quantity: 1,
+      credit_note_quantity: 0,
+      pending_quantity: 1,
       unit_price: 0,
       discount_percentage: 0,
       discount_amount: 0,
@@ -255,7 +267,7 @@ export function SupplierCreditNoteForm({ supplierCreditNote, onSubmit, onCancel,
   };
 
   const calculateTotals = () => {
-    const subtotal = items.reduce((sum, item) => sum + (item.quantity * item.unit_price), 0);
+    const subtotal = items.reduce((sum, item) => sum + (item.credit_note_quantity * item.unit_price), 0);
     const totalDiscount = items.reduce((sum, item) => sum + item.discount_amount, 0);
     const totalTax = items.reduce((sum, item) => sum + item.tax_amount, 0);
     const total = items.reduce((sum, item) => sum + item.line_total, 0);
@@ -275,10 +287,10 @@ export function SupplierCreditNoteForm({ supplierCreditNote, onSubmit, onCancel,
       return;
     }
 
-    if (items.some(item => !item.product_id || item.quantity <= 0)) {
+    if (items.some(item => !item.product_id || item.credit_note_quantity <= 0 || item.credit_note_quantity > item.quantity)) {
       toast({
         title: "Error",
-        description: "Please ensure all items have valid products and quantities",
+        description: "Please ensure all items have valid products and credit note quantities not exceeding original quantities",
         variant: "destructive"
       });
       return;
@@ -378,155 +390,174 @@ export function SupplierCreditNoteForm({ supplierCreditNote, onSubmit, onCancel,
           <div className="space-y-4">
             {items.map((item, index) => (
               <div key={index} className="p-3 border rounded-lg space-y-3">
-                <div className="grid grid-cols-12 gap-2 items-center">
-                  <div className="col-span-4">
-                    <Label className="text-xs">Product *</Label>
-                    <ProductSearch
-                      value={item.product_id}
-                      onSelect={(product) => {
-                        handleItemChange(index, 'product_id', product.id);
-                        handleItemChange(index, 'product_name', product.name);
-                        handleItemChange(index, 'product_sku', product.sku);
-                        handleItemChange(index, 'unit_price', product.cost_price || 0);
-                      }}
-                      placeholder="Select product"
-                    />
-                  </div>
+                 <div className="grid grid-cols-12 gap-2 items-center">
+                   <div className="col-span-3">
+                     <Label className="text-xs">Product *</Label>
+                     <Input
+                       type="text"
+                       value={item.product_name || ""}
+                       readOnly
+                       className="bg-muted text-xs"
+                       placeholder="Auto-filled from debit note"
+                     />
+                   </div>
 
-                  <div className="col-span-2">
-                    <Label className="text-xs">Quantity *</Label>
-                    <Input
-                      type="number"
-                      min="1"
-                      value={item.quantity}
-                      onChange={(e) => handleItemChange(index, 'quantity', parseInt(e.target.value) || 0)}
-                      placeholder="Qty"
-                      className="text-xs"
-                    />
-                  </div>
+                   <div className="col-span-2">
+                     <Label className="text-xs">Original Qty</Label>
+                     <Input
+                       type="number"
+                       value={item.quantity}
+                       readOnly
+                       className="bg-muted text-xs"
+                     />
+                   </div>
 
-                  <div className="col-span-2">
-                    <Label className="text-xs">Unit Price</Label>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      value={item.unit_price}
-                      onChange={(e) => handleItemChange(index, 'unit_price', parseFloat(e.target.value) || 0)}
-                      placeholder="Unit Price"
-                      className="text-xs"
-                    />
-                  </div>
+                   <div className="col-span-2">
+                     <Label className="text-xs">Credit Note Qty *</Label>
+                     <Input
+                       type="number"
+                       min="1"
+                       max={item.quantity}
+                       value={item.credit_note_quantity}
+                       onChange={(e) => handleItemChange(index, 'credit_note_quantity', parseInt(e.target.value) || 0)}
+                       placeholder="Qty"
+                       className="text-xs"
+                     />
+                   </div>
 
-                  <div className="col-span-2">
-                    <Label className="text-xs">Discount %</Label>
-                    <Input
-                      type="number"
-                      min="0"
-                      max="100"
-                      step="0.01"
-                      value={item.discount_percentage}
-                      onChange={(e) => handleItemChange(index, 'discount_percentage', parseFloat(e.target.value) || 0)}
-                      placeholder="0"
-                      className="text-xs"
-                    />
-                  </div>
+                   <div className="col-span-2">
+                     <Label className="text-xs">Pending Qty</Label>
+                     <Input
+                       type="number"
+                       value={item.pending_quantity}
+                       readOnly
+                       className="bg-muted text-xs"
+                     />
+                   </div>
 
-                  <div className="col-span-2">
-                    <Label className="text-xs">CGST %</Label>
-                    <Input
-                      type="number"
-                      min="0"
-                      max="50"
-                      step="0.01"
-                      value={item.cgst_rate}
-                      onChange={(e) => handleItemChange(index, 'cgst_rate', parseFloat(e.target.value) || 0)}
-                      placeholder="0"
-                      className="text-xs"
-                    />
-                  </div>
-                </div>
+                   <div className="col-span-2">
+                     <Label className="text-xs">Unit Price</Label>
+                     <Input
+                       type="number"
+                       step="0.01"
+                       min="0"
+                       value={item.unit_price}
+                       onChange={(e) => handleItemChange(index, 'unit_price', parseFloat(e.target.value) || 0)}
+                       placeholder="Unit Price"
+                       className="text-xs"
+                     />
+                   </div>
 
-                <div className="grid grid-cols-12 gap-2 items-center">
-                  <div className="col-span-2">
-                    <Label className="text-xs">SGST %</Label>
-                    <Input
-                      type="number"
-                      min="0"
-                      max="50"
-                      step="0.01"
-                      value={item.sgst_rate}
-                      onChange={(e) => handleItemChange(index, 'sgst_rate', parseFloat(e.target.value) || 0)}
-                      placeholder="0"
-                      className="text-xs"
-                    />
-                  </div>
+                   <div className="col-span-1">
+                     <Label className="text-xs">Disc %</Label>
+                     <Input
+                       type="number"
+                       min="0"
+                       max="100"
+                       step="0.01"
+                       value={item.discount_percentage}
+                       onChange={(e) => handleItemChange(index, 'discount_percentage', parseFloat(e.target.value) || 0)}
+                       placeholder="0"
+                       className="text-xs"
+                     />
+                   </div>
+                 </div>
 
-                  <div className="col-span-2">
-                    <Label className="text-xs">IGST %</Label>
-                    <Input
-                      type="number"
-                      min="0"
-                      max="50"
-                      step="0.01"
-                      value={item.igst_rate}
-                      onChange={(e) => handleItemChange(index, 'igst_rate', parseFloat(e.target.value) || 0)}
-                      placeholder="0"
-                      className="text-xs"
-                    />
-                  </div>
+                 <div className="grid grid-cols-12 gap-2 items-center">
+                   <div className="col-span-2">
+                     <Label className="text-xs">CGST %</Label>
+                     <Input
+                       type="number"
+                       min="0"
+                       max="50"
+                       step="0.01"
+                       value={item.cgst_rate}
+                       onChange={(e) => handleItemChange(index, 'cgst_rate', parseFloat(e.target.value) || 0)}
+                       placeholder="0"
+                       className="text-xs"
+                     />
+                   </div>
 
-                  <div className="col-span-2">
-                    <Label className="text-xs">HSN Code</Label>
-                    <Input
-                      type="text"
-                      value={item.hsn_sac_code}
-                      onChange={(e) => handleItemChange(index, 'hsn_sac_code', e.target.value)}
-                      placeholder="HSN"
-                      className="text-xs"
-                    />
-                  </div>
+                   <div className="col-span-2">
+                     <Label className="text-xs">SGST %</Label>
+                     <Input
+                       type="number"
+                       min="0"
+                       max="50"
+                       step="0.01"
+                       value={item.sgst_rate}
+                       onChange={(e) => handleItemChange(index, 'sgst_rate', parseFloat(e.target.value) || 0)}
+                       placeholder="0"
+                       className="text-xs"
+                     />
+                   </div>
 
-                  <div className="col-span-2">
-                    <Label className="text-xs">UOM</Label>
-                    <Input
-                      type="text"
-                      value={item.unit_of_measure}
-                      onChange={(e) => handleItemChange(index, 'unit_of_measure', e.target.value)}
-                      placeholder="pcs"
-                      className="text-xs"
-                    />
-                  </div>
+                   <div className="col-span-2">
+                     <Label className="text-xs">IGST %</Label>
+                     <Input
+                       type="number"
+                       min="0"
+                       max="50"
+                       step="0.01"
+                       value={item.igst_rate}
+                       onChange={(e) => handleItemChange(index, 'igst_rate', parseFloat(e.target.value) || 0)}
+                       placeholder="0"
+                       className="text-xs"
+                     />
+                   </div>
 
-                  <div className="col-span-3">
-                    <Label className="text-xs">Line Total</Label>
-                    <Input
-                      type="text"
-                      value={`₹${(item.line_total || 0).toFixed(2)}`}
-                      readOnly
-                      className="bg-muted text-xs"
-                    />
-                  </div>
+                   <div className="col-span-2">
+                     <Label className="text-xs">HSN Code</Label>
+                     <Input
+                       type="text"
+                       value={item.hsn_sac_code}
+                       onChange={(e) => handleItemChange(index, 'hsn_sac_code', e.target.value)}
+                       placeholder="HSN"
+                       className="text-xs"
+                     />
+                   </div>
 
-                  <div className="col-span-1 text-center">
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => removeItem(index)}
-                      disabled={items.length === 1}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
+                   <div className="col-span-2">
+                     <Label className="text-xs">UOM</Label>
+                     <Input
+                       type="text"
+                       value={item.unit_of_measure}
+                       onChange={(e) => handleItemChange(index, 'unit_of_measure', e.target.value)}
+                       placeholder="pcs"
+                       className="text-xs"
+                     />
+                   </div>
 
-                <div className="grid grid-cols-4 gap-2 text-xs text-muted-foreground">
-                  <div>Subtotal: ₹{(item.line_subtotal || 0).toFixed(2)}</div>
-                  <div>Tax: ₹{(item.tax_amount || 0).toFixed(2)}</div>
-                  <div>Total: ₹{(item.line_total || 0).toFixed(2)}</div>
-                  <div>UOM: {item.unit_of_measure}</div>
-                </div>
+                   <div className="col-span-2">
+                     <Label className="text-xs">Line Total</Label>
+                     <Input
+                       type="text"
+                       value={`₹${(item.line_total || 0).toFixed(2)}`}
+                       readOnly
+                       className="bg-muted text-xs"
+                     />
+                   </div>
+                 </div>
+
+                 <div className="text-right">
+                   <Button
+                     type="button"
+                     variant="ghost"
+                     size="sm"
+                     onClick={() => removeItem(index)}
+                     disabled={items.length === 1}
+                     className="mt-4"
+                   >
+                     <Trash2 className="h-4 w-4" />
+                   </Button>
+                 </div>
+
+                 <div className="grid grid-cols-4 gap-2 text-xs text-muted-foreground">
+                   <div>Subtotal: ₹{(item.line_subtotal || 0).toFixed(2)}</div>
+                   <div>Tax: ₹{(item.tax_amount || 0).toFixed(2)}</div>
+                   <div>Total: ₹{(item.line_total || 0).toFixed(2)}</div>
+                   <div>UOM: {item.unit_of_measure}</div>
+                 </div>
               </div>
             ))}
           </div>
