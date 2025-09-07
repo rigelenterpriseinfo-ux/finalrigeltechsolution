@@ -467,33 +467,6 @@ export function GRNTable({ refreshTrigger, onView, onEdit, onDelete }: GRNTableP
         <CardDescription>
           Manage Goods Receipt Notes (GRN) for received purchase orders
         </CardDescription>
-        
-        {/* Filters */}
-        <div className="flex flex-col sm:flex-row gap-4">
-          <div className="flex-1">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-              <Input
-                placeholder="Search by GRN number, supplier, PO number..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
-              />
-            </div>
-          </div>
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-full sm:w-48">
-              <SelectValue placeholder="Filter by status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Status</SelectItem>
-              <SelectItem value="draft">Draft</SelectItem>
-              <SelectItem value="received">Received</SelectItem>
-              <SelectItem value="accepted">Accepted</SelectItem>
-              <SelectItem value="rejected">Rejected</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
       </CardHeader>
       <CardContent>
         {/* Search and Export Controls */}
@@ -513,8 +486,14 @@ export function GRNTable({ refreshTrigger, onView, onEdit, onDelete }: GRNTableP
               <Button
                 variant="outline"
                 size="sm"
+                onClick={() => {
+                  // Export functionality can be added later
+                  toast({
+                    title: "Coming Soon",
+                    description: "Bulk Excel export will be available soon",
+                  });
+                }}
                 className="flex items-center gap-2 ml-2"
-                disabled
               >
                 <FileSpreadsheet className="h-4 w-4" />
                 Export Excel
