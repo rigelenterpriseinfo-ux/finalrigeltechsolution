@@ -18,6 +18,7 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { EnhancedCreateRSOForm } from '@/components/forms/EnhancedCreateRSOForm';
+import { RSOViewDialog } from '@/components/dialogs/RSOViewDialog';
 import { 
   RotateCcw, 
   FileText, 
@@ -272,6 +273,8 @@ export function ReturnsModule() {
   const [isCreateReturnFormOpen, setIsCreateReturnFormOpen] = useState(false);
   const [isCreateCreditNoteFormOpen, setIsCreateCreditNoteFormOpen] = useState(false);
   const [isCreateRSOFormOpen, setIsCreateRSOFormOpen] = useState(false);
+  const [isRSOViewDialogOpen, setIsRSOViewDialogOpen] = useState(false);
+  const [selectedRSOForView, setSelectedRSOForView] = useState<ReturnOrder | null>(null);
   const [editingRsoId, setEditingRsoId] = useState<string | null>(null);
 
   // Data states
@@ -906,12 +909,18 @@ export function ReturnsModule() {
 
   // RSO Action Handlers
   const handleViewRso = (rsoId: string) => {
-    // TODO: Implement RSO view dialog
-    toast({ 
-      title: "View RSO", 
-      description: "RSO view functionality will be implemented", 
-      variant: "default" 
-    });
+    // Find the RSO and show the enhanced RSO dialog
+    const rso = returnOrders.find(r => r.id === rsoId);
+    if (rso) {
+      setSelectedRSOForView(rso);
+      setIsRSOViewDialogOpen(true);
+    } else {
+      toast({ 
+        title: "RSO Not Found", 
+        description: "The selected RSO could not be found", 
+        variant: "destructive" 
+      });
+    }
   };
 
   const handleEditRso = (rsoId: string) => {
@@ -1514,6 +1523,18 @@ export function ReturnsModule() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* RSO View Dialog */}
+      <RSOViewDialog
+        rso={selectedRSOForView}
+        open={isRSOViewDialogOpen}
+        onOpenChange={setIsRSOViewDialogOpen}
+        onCreateCreditNote={(rsoId) => {
+          setIsRSOViewDialogOpen(false);
+          setSelectedRso(selectedRSOForView);
+          setIsCreateCreditNoteFormOpen(true);
+        }}
+      />
     </div>
   );
 }

@@ -7,8 +7,10 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { format } from "date-fns";
+import { FileText, ExternalLink, BarChart3 } from "lucide-react";
 
 interface DebitNoteViewDialogProps {
   debitNote: any;
@@ -129,15 +131,18 @@ export function DebitNoteViewDialog({
 
           <Separator />
 
-          {/* Settlement Information */}
-          {(debitNote.credit_note_numbers || debitNote.settlement_status !== 'open') && (
-            <>
+          {/* Cross-Module Navigation */}
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold">Related Information</h3>
+            
+            {/* Settlement Information */}
+            {(debitNote.credit_note_numbers || debitNote.settlement_status !== 'open') && (
               <div>
-                <h3 className="text-lg font-semibold mb-4">Settlement Information</h3>
+                <h4 className="text-md font-semibold mb-3">Settlement Status</h4>
                 <div className="bg-gray-50 p-4 rounded-lg space-y-3">
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <h4 className="text-sm font-medium text-gray-500">Settlement Status</h4>
+                      <h5 className="text-sm font-medium text-gray-500">Current Status</h5>
                       <Badge className={`mt-1 ${
                         debitNote.settlement_status === 'settled' ? 'bg-green-100 text-green-800' :
                         debitNote.settlement_status === 'partially_settled' ? 'bg-yellow-100 text-yellow-800' :
@@ -148,7 +153,7 @@ export function DebitNoteViewDialog({
                       </Badge>
                     </div>
                     <div>
-                      <h4 className="text-sm font-medium text-gray-500">Outstanding Balance</h4>
+                      <h5 className="text-sm font-medium text-gray-500">Outstanding Balance</h5>
                       <p className={`text-lg font-semibold ${
                         debitNote.difference_amount > 0 ? 'text-red-600' : 
                         debitNote.difference_amount < 0 ? 'text-green-600' : 'text-gray-900'
@@ -160,27 +165,72 @@ export function DebitNoteViewDialog({
                   
                   {debitNote.credit_note_numbers && (
                     <div>
-                      <h4 className="text-sm font-medium text-gray-500">Linked Credit Notes</h4>
-                      <div className="mt-2 space-y-2">
-                        <div className="flex justify-between items-center p-2 bg-white rounded border">
+                      <h5 className="text-sm font-medium text-gray-500 mb-2">Linked Credit Notes</h5>
+                      <div className="space-y-2">
+                        <div className="flex justify-between items-center p-3 bg-white rounded border">
                           <div>
                             <p className="font-medium">{debitNote.credit_note_numbers}</p>
                             <p className="text-sm text-gray-500">
                               Credit Amount: ₹{(debitNote.credit_note_total_amount || 0).toFixed(2)}
                             </p>
                           </div>
-                          <Badge variant="outline" className="text-blue-600 border-blue-200">
-                            Linked
-                          </Badge>
+                          <div className="flex items-center space-x-2">
+                            <Badge variant="outline" className="text-blue-600 border-blue-200">
+                              Linked
+                            </Badge>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                // Navigate to Purchase module to view credit notes
+                                window.location.hash = '#purchase';
+                                onOpenChange(false);
+                              }}
+                              className="text-blue-600 hover:text-blue-700"
+                            >
+                              <ExternalLink className="h-4 w-4" />
+                            </Button>
+                          </div>
                         </div>
                       </div>
                     </div>
                   )}
+
+                  {/* Quick Actions */}
+                  <div className="pt-2 border-t">
+                    <div className="flex space-x-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          window.location.hash = '#purchase';
+                          onOpenChange(false);
+                        }}
+                        className="flex items-center gap-2"
+                      >
+                        <FileText className="h-4 w-4" />
+                        View All Credit Notes
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          window.location.hash = '#reports/ap-ar';
+                          onOpenChange(false);
+                        }}
+                        className="flex items-center gap-2"
+                      >
+                        <BarChart3 className="h-4 w-4" />
+                        AP/AR Reports
+                      </Button>
+                    </div>
+                  </div>
                 </div>
               </div>
-              <Separator />
-            </>
-          )}
+            )}
+          </div>
+
+          <Separator />
 
           {/* Totals Section */}
           <div className="flex justify-end">
