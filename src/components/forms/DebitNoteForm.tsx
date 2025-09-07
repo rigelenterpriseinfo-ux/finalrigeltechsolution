@@ -8,6 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Trash2, Plus } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
+import { ProductSearch } from "@/components/ui/product-search";
 
 interface DebitNoteFormProps {
   debitNote?: any;
@@ -286,7 +287,7 @@ export function DebitNoteForm({ debitNote, onSubmit, onCancel, mode }: DebitNote
     const newItems = [...items];
     newItems[index] = { ...newItems[index], [field]: value };
     
-    if (['quantity', 'unit_price', 'discount_percentage'].includes(field)) {
+    if (['quantity', 'unit_price', 'discount_percentage', 'cgst_rate', 'sgst_rate', 'igst_rate'].includes(field)) {
       calculateLineTotal(index, newItems);
     }
     
@@ -447,7 +448,7 @@ export function DebitNoteForm({ debitNote, onSubmit, onCancel, mode }: DebitNote
               </div>
               <div>
                 <span className="font-medium">Total Amount:</span>
-                <p>₹{selectedInvoice.total_amount.toFixed(2)}</p>
+                <p>₹{(selectedInvoice.total_amount || 0).toFixed(2)}</p>
               </div>
             </div>
           </CardContent>
@@ -470,27 +471,47 @@ export function DebitNoteForm({ debitNote, onSubmit, onCancel, mode }: DebitNote
             {items.map((item, index) => (
               <div key={index} className="p-3 border rounded-lg">
                 <div className="grid grid-cols-12 gap-2 items-center mb-2">
-                  <div className="col-span-4">
-                    <div className="text-sm font-medium">{item.product_name || "Product"}</div>
-                    <div className="text-xs text-muted-foreground">{item.product_sku}</div>
+                  <div className="col-span-3">
+                    {!selectedInvoice ? (
+                      <div>
+                        <Label className="text-xs">Product *</Label>
+                        <ProductSearch
+                          value={item.product_id}
+                          onSelect={(product) => {
+                            handleItemChange(index, 'product_id', product.id);
+                            handleItemChange(index, 'product_name', product.name);
+                            handleItemChange(index, 'product_sku', product.sku);
+                            handleItemChange(index, 'unit_price', product.cost_price || 0);
+                          }}
+                          placeholder="Select product"
+                        />
+                      </div>
+                    ) : (
+                      <div>
+                        <div className="text-sm font-medium">{item.product_name || "Product"}</div>
+                        <div className="text-xs text-muted-foreground">{item.product_sku}</div>
+                      </div>
+                    )}
                   </div>
 
-                  <div className="col-span-2">
-                    <Label className="text-xs">Received Qty</Label>
-                    <Input
-                      type="number"
-                      value={item.received_quantity}
-                      readOnly
-                      className="bg-muted text-xs"
-                    />
-                  </div>
+                  {selectedInvoice && (
+                    <div className="col-span-2">
+                      <Label className="text-xs">Received Qty</Label>
+                      <Input
+                        type="number"
+                        value={item.received_quantity}
+                        readOnly
+                        className="bg-muted text-xs"
+                      />
+                    </div>
+                  )}
 
-                  <div className="col-span-2">
-                    <Label className="text-xs">Debit Qty *</Label>
+                  <div className={selectedInvoice ? "col-span-2" : "col-span-3"}>
+                    <Label className="text-xs">{selectedInvoice ? "Debit Qty *" : "Quantity *"}</Label>
                     <Input
                       type="number"
                       min="1"
-                      max={item.received_quantity}
+                      max={selectedInvoice ? item.received_quantity : undefined}
                       value={item.quantity}
                       onChange={(e) => handleItemChange(index, 'quantity', parseInt(e.target.value) || 0)}
                       placeholder="Qty"
@@ -498,7 +519,7 @@ export function DebitNoteForm({ debitNote, onSubmit, onCancel, mode }: DebitNote
                     />
                   </div>
 
-                  <div className="col-span-2">
+                  <div className={selectedInvoice ? "col-span-2" : "col-span-2"}>
                     <Label className="text-xs">Unit Price</Label>
                     <Input
                       type="number"
@@ -511,7 +532,7 @@ export function DebitNoteForm({ debitNote, onSubmit, onCancel, mode }: DebitNote
                     />
                   </div>
 
-                  <div className="col-span-1">
+                  <div className={selectedInvoice ? "col-span-1" : "col-span-1"}>
                     <Label className="text-xs">Discount %</Label>
                     <Input
                       type="number"
@@ -520,6 +541,20 @@ export function DebitNoteForm({ debitNote, onSubmit, onCancel, mode }: DebitNote
                       step="0.01"
                       value={item.discount_percentage}
                       onChange={(e) => handleItemChange(index, 'discount_percentage', parseFloat(e.target.value) || 0)}
+                      placeholder="0"
+                      className="text-xs"
+                    />
+                  </div>
+
+                  <div className={selectedInvoice ? "col-span-2" : "col-span-2"}>
+                    <Label className="text-xs">CGST %</Label>
+                    <Input
+                      type="number"
+                      min="0"
+                      max="50"
+                      step="0.01"
+                      value={item.cgst_rate}
+                      onChange={(e) => handleItemChange(index, 'cgst_rate', parseFloat(e.target.value) || 0)}
                       placeholder="0"
                       className="text-xs"
                     />
@@ -538,6 +573,62 @@ export function DebitNoteForm({ debitNote, onSubmit, onCancel, mode }: DebitNote
                       </Button>
                     )}
                   </div>
+                </div>
+
+                <div className="grid grid-cols-12 gap-2 items-center mb-2">
+                  <div className="col-span-3"></div>
+                  
+                  <div className={selectedInvoice ? "col-span-2" : "col-span-3"}>
+                    <Label className="text-xs">SGST %</Label>
+                    <Input
+                      type="number"
+                      min="0"
+                      max="50"
+                      step="0.01"
+                      value={item.sgst_rate}
+                      onChange={(e) => handleItemChange(index, 'sgst_rate', parseFloat(e.target.value) || 0)}
+                      placeholder="0"
+                      className="text-xs"
+                    />
+                  </div>
+
+                  <div className={selectedInvoice ? "col-span-2" : "col-span-2"}>
+                    <Label className="text-xs">IGST %</Label>
+                    <Input
+                      type="number"
+                      min="0"
+                      max="50"
+                      step="0.01"
+                      value={item.igst_rate}
+                      onChange={(e) => handleItemChange(index, 'igst_rate', parseFloat(e.target.value) || 0)}
+                      placeholder="0"
+                      className="text-xs"
+                    />
+                  </div>
+
+                  <div className={selectedInvoice ? "col-span-1" : "col-span-1"}>
+                    <Label className="text-xs">HSN</Label>
+                    <Input
+                      type="text"
+                      value={item.hsn_sac_code}
+                      onChange={(e) => handleItemChange(index, 'hsn_sac_code', e.target.value)}
+                      placeholder="HSN"
+                      className="text-xs"
+                    />
+                  </div>
+
+                  <div className={selectedInvoice ? "col-span-2" : "col-span-2"}>
+                    <Label className="text-xs">UOM</Label>
+                    <Input
+                      type="text"
+                      value={item.unit_of_measure}
+                      onChange={(e) => handleItemChange(index, 'unit_of_measure', e.target.value)}
+                      placeholder="pcs"
+                      className="text-xs"
+                    />
+                  </div>
+
+                  <div className="col-span-1"></div>
                 </div>
                 
                 <div className="grid grid-cols-4 gap-2 text-xs text-muted-foreground">

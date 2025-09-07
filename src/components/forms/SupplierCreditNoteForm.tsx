@@ -8,6 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Trash2, Plus } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
+import { ProductSearch } from "@/components/ui/product-search";
 
 interface SupplierCreditNoteFormProps {
   supplierCreditNote?: any;
@@ -25,8 +26,17 @@ interface SupplierCreditNoteItem {
   unit_price: number;
   discount_percentage: number;
   discount_amount: number;
+  cgst_rate: number;
+  sgst_rate: number;
+  igst_rate: number;
+  cgst_amount: number;
+  sgst_amount: number;
+  igst_amount: number;
   tax_amount: number;
+  line_subtotal: number;
   line_total: number;
+  unit_of_measure: string;
+  hsn_sac_code: string;
 }
 
 export function SupplierCreditNoteForm({ supplierCreditNote, onSubmit, onCancel, mode }: SupplierCreditNoteFormProps) {
@@ -55,8 +65,17 @@ export function SupplierCreditNoteForm({ supplierCreditNote, onSubmit, onCancel,
       unit_price: 0,
       discount_percentage: 0,
       discount_amount: 0,
+      cgst_rate: 0,
+      sgst_rate: 0,
+      igst_rate: 0,
+      cgst_amount: 0,
+      sgst_amount: 0,
+      igst_amount: 0,
       tax_amount: 0,
-      line_total: 0
+      line_subtotal: 0,
+      line_total: 0,
+      unit_of_measure: "pcs",
+      hsn_sac_code: ""
     }]
   );
 
@@ -138,13 +157,23 @@ export function SupplierCreditNoteForm({ supplierCreditNote, onSubmit, onCancel,
     const subtotal = item.quantity * item.unit_price;
     const discountAmount = (subtotal * item.discount_percentage) / 100;
     const taxableAmount = subtotal - discountAmount;
-    const taxAmount = taxableAmount * 0.18; // Assuming 18% tax
-    const lineTotal = taxableAmount + taxAmount;
+    
+    // Calculate GST amounts
+    const cgstAmount = (taxableAmount * item.cgst_rate) / 100;
+    const sgstAmount = (taxableAmount * item.sgst_rate) / 100;
+    const igstAmount = (taxableAmount * item.igst_rate) / 100;
+    const totalTax = cgstAmount + sgstAmount + igstAmount;
+    
+    const lineTotal = taxableAmount + totalTax;
 
     itemsList[index] = {
       ...item,
       discount_amount: discountAmount,
-      tax_amount: taxAmount,
+      cgst_amount: cgstAmount,
+      sgst_amount: sgstAmount,
+      igst_amount: igstAmount,
+      tax_amount: totalTax,
+      line_subtotal: taxableAmount,
       line_total: lineTotal
     };
   };
@@ -153,7 +182,7 @@ export function SupplierCreditNoteForm({ supplierCreditNote, onSubmit, onCancel,
     const newItems = [...items];
     newItems[index] = { ...newItems[index], [field]: value };
     
-    if (['quantity', 'unit_price', 'discount_percentage'].includes(field)) {
+    if (['quantity', 'unit_price', 'discount_percentage', 'cgst_rate', 'sgst_rate', 'igst_rate'].includes(field)) {
       calculateLineTotal(index, newItems);
     }
     
@@ -169,8 +198,17 @@ export function SupplierCreditNoteForm({ supplierCreditNote, onSubmit, onCancel,
       unit_price: 0,
       discount_percentage: 0,
       discount_amount: 0,
+      cgst_rate: 0,
+      sgst_rate: 0,
+      igst_rate: 0,
+      cgst_amount: 0,
+      sgst_amount: 0,
+      igst_amount: 0,
       tax_amount: 0,
-      line_total: 0
+      line_subtotal: 0,
+      line_total: 0,
+      unit_of_measure: "pcs",
+      hsn_sac_code: ""
     }]);
   };
 
@@ -311,77 +349,155 @@ export function SupplierCreditNoteForm({ supplierCreditNote, onSubmit, onCancel,
 
           <div className="space-y-4">
             {items.map((item, index) => (
-              <div key={index} className="grid grid-cols-12 gap-2 items-center p-3 border rounded-lg">
-                <div className="col-span-3">
-                  <Select
-                    value={item.product_id}
-                    onValueChange={(value) => handleProductChange(index, value)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select product" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {products.map((product: any) => (
-                        <SelectItem key={product.id} value={product.id}>
-                          {product.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+              <div key={index} className="p-3 border rounded-lg space-y-3">
+                <div className="grid grid-cols-12 gap-2 items-center">
+                  <div className="col-span-4">
+                    <Label className="text-xs">Product *</Label>
+                    <ProductSearch
+                      value={item.product_id}
+                      onSelect={(product) => {
+                        handleItemChange(index, 'product_id', product.id);
+                        handleItemChange(index, 'product_name', product.name);
+                        handleItemChange(index, 'product_sku', product.sku);
+                        handleItemChange(index, 'unit_price', product.cost_price || 0);
+                      }}
+                      placeholder="Select product"
+                    />
+                  </div>
+
+                  <div className="col-span-2">
+                    <Label className="text-xs">Quantity *</Label>
+                    <Input
+                      type="number"
+                      min="1"
+                      value={item.quantity}
+                      onChange={(e) => handleItemChange(index, 'quantity', parseInt(e.target.value) || 0)}
+                      placeholder="Qty"
+                      className="text-xs"
+                    />
+                  </div>
+
+                  <div className="col-span-2">
+                    <Label className="text-xs">Unit Price</Label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={item.unit_price}
+                      onChange={(e) => handleItemChange(index, 'unit_price', parseFloat(e.target.value) || 0)}
+                      placeholder="Unit Price"
+                      className="text-xs"
+                    />
+                  </div>
+
+                  <div className="col-span-2">
+                    <Label className="text-xs">Discount %</Label>
+                    <Input
+                      type="number"
+                      min="0"
+                      max="100"
+                      step="0.01"
+                      value={item.discount_percentage}
+                      onChange={(e) => handleItemChange(index, 'discount_percentage', parseFloat(e.target.value) || 0)}
+                      placeholder="0"
+                      className="text-xs"
+                    />
+                  </div>
+
+                  <div className="col-span-2">
+                    <Label className="text-xs">CGST %</Label>
+                    <Input
+                      type="number"
+                      min="0"
+                      max="50"
+                      step="0.01"
+                      value={item.cgst_rate}
+                      onChange={(e) => handleItemChange(index, 'cgst_rate', parseFloat(e.target.value) || 0)}
+                      placeholder="0"
+                      className="text-xs"
+                    />
+                  </div>
                 </div>
 
-                <div className="col-span-2">
-                  <Input
-                    type="number"
-                    min="1"
-                    value={item.quantity}
-                    onChange={(e) => handleItemChange(index, 'quantity', parseInt(e.target.value) || 0)}
-                    placeholder="Qty"
-                  />
+                <div className="grid grid-cols-12 gap-2 items-center">
+                  <div className="col-span-2">
+                    <Label className="text-xs">SGST %</Label>
+                    <Input
+                      type="number"
+                      min="0"
+                      max="50"
+                      step="0.01"
+                      value={item.sgst_rate}
+                      onChange={(e) => handleItemChange(index, 'sgst_rate', parseFloat(e.target.value) || 0)}
+                      placeholder="0"
+                      className="text-xs"
+                    />
+                  </div>
+
+                  <div className="col-span-2">
+                    <Label className="text-xs">IGST %</Label>
+                    <Input
+                      type="number"
+                      min="0"
+                      max="50"
+                      step="0.01"
+                      value={item.igst_rate}
+                      onChange={(e) => handleItemChange(index, 'igst_rate', parseFloat(e.target.value) || 0)}
+                      placeholder="0"
+                      className="text-xs"
+                    />
+                  </div>
+
+                  <div className="col-span-2">
+                    <Label className="text-xs">HSN Code</Label>
+                    <Input
+                      type="text"
+                      value={item.hsn_sac_code}
+                      onChange={(e) => handleItemChange(index, 'hsn_sac_code', e.target.value)}
+                      placeholder="HSN"
+                      className="text-xs"
+                    />
+                  </div>
+
+                  <div className="col-span-2">
+                    <Label className="text-xs">UOM</Label>
+                    <Input
+                      type="text"
+                      value={item.unit_of_measure}
+                      onChange={(e) => handleItemChange(index, 'unit_of_measure', e.target.value)}
+                      placeholder="pcs"
+                      className="text-xs"
+                    />
+                  </div>
+
+                  <div className="col-span-3">
+                    <Label className="text-xs">Line Total</Label>
+                    <Input
+                      type="text"
+                      value={`₹${(item.line_total || 0).toFixed(2)}`}
+                      readOnly
+                      className="bg-muted text-xs"
+                    />
+                  </div>
+
+                  <div className="col-span-1 text-center">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => removeItem(index)}
+                      disabled={items.length === 1}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
 
-                <div className="col-span-2">
-                  <Input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    value={item.unit_price}
-                    onChange={(e) => handleItemChange(index, 'unit_price', parseFloat(e.target.value) || 0)}
-                    placeholder="Unit Price"
-                  />
-                </div>
-
-                <div className="col-span-2">
-                  <Input
-                    type="number"
-                    min="0"
-                    max="100"
-                    step="0.01"
-                    value={item.discount_percentage}
-                    onChange={(e) => handleItemChange(index, 'discount_percentage', parseFloat(e.target.value) || 0)}
-                    placeholder="Discount %"
-                  />
-                </div>
-
-                <div className="col-span-2">
-                  <Input
-                    type="text"
-                    value={`₹${item.line_total.toFixed(2)}`}
-                    readOnly
-                    className="bg-gray-50"
-                  />
-                </div>
-
-                <div className="col-span-1 text-center">
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => removeItem(index)}
-                    disabled={items.length === 1}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
+                <div className="grid grid-cols-4 gap-2 text-xs text-muted-foreground">
+                  <div>Subtotal: ₹{(item.line_subtotal || 0).toFixed(2)}</div>
+                  <div>Tax: ₹{(item.tax_amount || 0).toFixed(2)}</div>
+                  <div>Total: ₹{(item.line_total || 0).toFixed(2)}</div>
+                  <div>UOM: {item.unit_of_measure}</div>
                 </div>
               </div>
             ))}
@@ -397,7 +513,7 @@ export function SupplierCreditNoteForm({ supplierCreditNote, onSubmit, onCancel,
               <span>-₹{totals.totalDiscount.toFixed(2)}</span>
             </div>
             <div className="flex justify-between">
-              <span>Tax (18%):</span>
+              <span>Tax:</span>
               <span>₹{totals.totalTax.toFixed(2)}</span>
             </div>
             <div className="flex justify-between font-semibold text-lg border-t pt-2">

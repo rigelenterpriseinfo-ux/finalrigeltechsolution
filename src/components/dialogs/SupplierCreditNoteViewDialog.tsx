@@ -2,6 +2,7 @@ import React from "react";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -40,6 +41,9 @@ export function SupplierCreditNoteViewDialog({
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Supplier Credit Note Details</DialogTitle>
+          <DialogDescription>
+            View supplier credit note information and items
+          </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-6">
