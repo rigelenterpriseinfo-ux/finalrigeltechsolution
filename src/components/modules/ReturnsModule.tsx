@@ -1099,12 +1099,6 @@ function ReturnsModuleContent() {
             />
           )}
 
-          {/* AR Summary Widget */}
-          <ARDashboardWidget
-            filters={arFilters}
-            showFilterLabel={false}
-            onFilterClear={clearARFilters}
-          />
 
           {/* RSO Table */}
           {!isCreateRSOFormOpen && (
