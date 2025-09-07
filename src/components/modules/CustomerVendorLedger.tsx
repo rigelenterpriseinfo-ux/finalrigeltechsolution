@@ -11,10 +11,19 @@ import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
-import { CalendarIcon, FileText, Receipt, CreditCard, DollarSign, Download, BookOpen } from 'lucide-react';
+import { CalendarIcon, FileText, Receipt, CreditCard, DollarSign, Download, BookOpen, FileDown } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
+
+// Type declaration for jsPDF autoTable
+declare module 'jspdf' {
+  interface jsPDF {
+    autoTable: (options: any) => jsPDF;
+  }
+}
 
 interface Customer {
   id: string;
@@ -356,6 +365,108 @@ export function CustomerVendorLedger({ onClose }: CustomerVendorLedgerProps) {
     setTransactions([]);
   };
 
+  const exportToCSV = () => {
+    if (transactions.length === 0) {
+      toast({
+        title: "No Data",
+        description: "No transactions to export",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const csvData = transactions.map(transaction => ({
+      Date: format(new Date(transaction.date), 'dd-MM-yyyy'),
+      Type: getTypeLabel(transaction.type),
+      Reference: transaction.reference_no,
+      Description: transaction.description,
+      Debit: transaction.debit > 0 ? transaction.debit : '',
+      Credit: transaction.credit > 0 ? transaction.credit : '',
+      Balance: transaction.balance
+    }));
+
+    const headers = Object.keys(csvData[0]).join(',');
+    const rows = csvData.map(row => 
+      Object.values(row).map(value => 
+        typeof value === 'string' && value.includes(',') ? `"${value}"` : value
+      ).join(',')
+    ).join('\n');
+
+    const csvContent = `${headers}\n${rows}`;
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', `${selectedEntityName}_Ledger_${format(new Date(), 'yyyy-MM-dd')}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    toast({
+      title: "Export Successful",
+      description: "Ledger exported to CSV successfully",
+    });
+  };
+
+  const exportToPDF = () => {
+    if (transactions.length === 0) {
+      toast({
+        title: "No Data",
+        description: "No transactions to export",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const doc = new jsPDF();
+    
+    // Add title
+    doc.setFontSize(16);
+    doc.text(`${entityType === 'customer' ? 'Customer' : 'Vendor'} Ledger - ${selectedEntityName}`, 14, 20);
+    
+    // Add date range
+    doc.setFontSize(10);
+    doc.text(`Period: ${format(dateRange.from!, 'dd-MM-yyyy')} to ${format(dateRange.to!, 'dd-MM-yyyy')}`, 14, 28);
+    
+    // Add outstanding amount
+    const outstanding = calculateOutstanding();
+    doc.text(`Outstanding: ₹${Math.abs(outstanding).toLocaleString()} ${outstanding > 0 ? '(Due)' : '(Credit)'}`, 14, 34);
+
+    // Prepare table data
+    const tableData = transactions.map(transaction => [
+      format(new Date(transaction.date), 'dd-MM-yyyy'),
+      getTypeLabel(transaction.type),
+      transaction.reference_no,
+      transaction.description.length > 30 ? transaction.description.substring(0, 30) + '...' : transaction.description,
+      transaction.debit > 0 ? `₹${transaction.debit.toLocaleString()}` : '',
+      transaction.credit > 0 ? `₹${transaction.credit.toLocaleString()}` : '',
+      `₹${Math.abs(transaction.balance).toLocaleString()}`
+    ]);
+
+    // Add table
+    (doc as any).autoTable({
+      head: [['Date', 'Type', 'Reference', 'Description', 'Debit', 'Credit', 'Balance']],
+      body: tableData,
+      startY: 40,
+      styles: { fontSize: 8 },
+      headStyles: { fillColor: [66, 139, 202] },
+      columnStyles: {
+        4: { halign: 'right' }, // Debit
+        5: { halign: 'right' }, // Credit
+        6: { halign: 'right' }  // Balance
+      }
+    });
+
+    // Save the PDF
+    doc.save(`${selectedEntityName}_Ledger_${format(new Date(), 'yyyy-MM-dd')}.pdf`);
+
+    toast({
+      title: "Export Successful",
+      description: "Ledger exported to PDF successfully",
+    });
+  };
+
   return (
     <Card>
       <CardHeader>
@@ -478,10 +589,16 @@ export function CustomerVendorLedger({ onClose }: CustomerVendorLedgerProps) {
                     {calculateOutstanding() > 0 ? " (Due)" : " (Credit)"}
                   </span>
                 </div>
-                <Button variant="outline" size="sm">
-                  <Download className="h-4 w-4 mr-2" />
-                  Export
-                </Button>
+                <div className="flex items-center gap-2">
+                  <Button variant="outline" size="sm" onClick={exportToCSV}>
+                    <Download className="h-4 w-4 mr-2" />
+                    Export CSV
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={exportToPDF}>
+                    <FileDown className="h-4 w-4 mr-2" />
+                    Export PDF
+                  </Button>
+                </div>
               </div>
             </div>
 
