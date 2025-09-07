@@ -495,6 +495,13 @@ export const InventoryAdjustmentTable: React.FC<InventoryAdjustmentTableProps> =
           </div>
         </div>
       )}
+
+      {/* Adjustment View Dialog */}
+      <InventoryAdjustmentViewDialog
+        open={showViewDialog}
+        onOpenChange={setShowViewDialog}
+        adjustment={viewingAdjustment}
+      />
     </div>
   );
 };

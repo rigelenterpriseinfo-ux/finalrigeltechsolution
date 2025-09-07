@@ -453,6 +453,13 @@ export const InventoryTransactionTable = ({ refreshTrigger }: InventoryTransacti
           )}
         </>
       )}
+
+      {/* Transaction View Dialog */}
+      <InventoryTransactionViewDialog
+        open={showViewDialog}
+        onOpenChange={setShowViewDialog}
+        transaction={viewingTransaction}
+      />
     </div>
   );
 };
