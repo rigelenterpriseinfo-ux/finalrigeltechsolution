@@ -25,8 +25,8 @@ export const Header: React.FC<HeaderProps> = ({
   const isMobile = useIsMobile();
 
   return (
-    <header className="bg-gradient-primary border-b border-border/50 sticky top-0 z-40 backdrop-blur supports-[backdrop-filter]:bg-gradient-primary/95">
-      <div className="px-4 md:px-6 py-3 md:py-4">
+    <header className="bg-gradient-primary border-b border-border/20 sticky top-0 z-40 backdrop-blur supports-[backdrop-filter]:bg-gradient-primary/95 shadow-lg">
+      <div className="px-4 md:px-6 py-4 md:py-5">
         <div className="flex items-center justify-between">
           {/* Left Section - Title/Welcome */}
           <div className="flex-1 min-w-0">
@@ -55,12 +55,12 @@ export const Header: React.FC<HeaderProps> = ({
 
           {/* Center Section - Company Badge (Hidden on mobile) */}
           {!isMobile && company && (
-            <div className="flex-shrink-0 mx-8">
-              <div className="bg-background/20 backdrop-blur border border-border/30 rounded-lg px-3 py-2">
-                <div className="text-xs text-foreground/80 font-medium">
-                  Company: {company.name || 'Unknown Company'}
+            <div className="flex-shrink-0 mx-6">
+              <div className="bg-white/90 backdrop-blur-sm border border-white/20 rounded-xl px-4 py-2.5 shadow-lg ring-1 ring-black/5">
+                <div className="text-sm font-semibold text-gray-900 truncate max-w-[200px]">
+                  {company.name || 'Unknown Company'}
                 </div>
-                <div className="text-xs text-muted-foreground">
+                <div className="text-xs text-gray-600 mt-0.5">
                   ID: {company.business_ref_no || company.id || 'No ID'}
                 </div>
               </div>
