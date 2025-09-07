@@ -1102,7 +1102,7 @@ function ReturnsModuleContent() {
           {/* AR Summary Widget */}
           <ARDashboardWidget
             filters={arFilters}
-            showFilterLabel={true}
+            showFilterLabel={false}
             onFilterClear={clearARFilters}
           />
 
