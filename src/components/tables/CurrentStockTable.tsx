@@ -436,35 +436,23 @@ export const CurrentStockTable = ({ refreshTrigger }: CurrentStockTableProps) =>
             </div>
           </div>
 
-          {/* Warehouse Breakdown */}
-          <div className="space-y-3 max-h-48 overflow-y-auto">
-            {Array.from(warehouseBinData.entries()).map(([warehouseName, warehouse]) => (
-              <div key={warehouseName} className="border-l-2 border-primary/30 pl-3">
-                {/* Warehouse Header */}
-                <div className="flex items-center gap-2 mb-2">
-                  <div className="w-2 h-2 bg-primary rounded-full" />
-                  <span className="font-medium text-sm">{warehouseName}</span>
+          {/* Location Breakdown - Flattened View */}
+          <div className="space-y-1">
+            {Array.from(warehouseBinData.entries()).map(([warehouseName, warehouse]) => 
+              Array.from(warehouse.bins.entries()).map(([binName, bin]) => (
+                <div key={`${warehouseName}-${binName}`} className="flex items-center justify-between py-1 px-2 hover:bg-secondary/20 rounded text-xs">
+                  <div className="flex items-center gap-2 flex-1 min-w-0">
+                    <span className="text-muted-foreground">🏢</span>
+                    <span className="font-medium truncate">{warehouseName} - {binName}</span>
+                  </div>
+                  <div className="flex items-center gap-3 text-right">
+                    <span className="w-8">{bin.skus}</span>
+                    <span className="w-12">{bin.qty}</span>
+                    <span className="w-16">₹{bin.value.toLocaleString()}</span>
+                  </div>
                 </div>
-                <div className="text-xs text-muted-foreground mb-2">
-                  {warehouse.totalSKUs} SKUs • {warehouse.totalQty.toLocaleString()} qty • ₹{warehouse.totalValue.toLocaleString()}
-                </div>
-                
-                {/* Bins */}
-                <div className="ml-4 space-y-1">
-                  {Array.from(warehouse.bins.entries()).slice(0, 3).map(([binName, bin]) => (
-                    <div key={binName} className="flex justify-between items-center text-xs bg-secondary/20 px-2 py-1 rounded">
-                      <span className="text-muted-foreground truncate max-w-20">📁 {binName}</span>
-                      <span>{bin.skus} • {bin.qty} • ₹{bin.value.toLocaleString()}</span>
-                    </div>
-                  ))}
-                  {warehouse.bins.size > 3 && (
-                    <div className="text-xs text-muted-foreground ml-2">
-                      +{warehouse.bins.size - 3} more bins
-                    </div>
-                  )}
-                </div>
-              </div>
-            ))}
+              ))
+            ).flat()}
           </div>
         </div>
         <div className="p-4 border rounded-lg">
