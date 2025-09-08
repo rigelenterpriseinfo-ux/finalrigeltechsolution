@@ -721,17 +721,16 @@ export function PurchaseOrderForm({
                       <Table>
                         <TableHeader className="bg-muted/50">
                           <TableRow>
-                            <TableHead className="w-[200px] font-semibold">Product</TableHead>
+                            <TableHead className="w-[220px] font-semibold">Product</TableHead>
                             <TableHead className="w-[80px] text-center font-semibold">Qty</TableHead>
-                            <TableHead className="w-[100px] text-center font-semibold">Unit Price</TableHead>
-                            <TableHead className="w-[80px] text-center font-semibold">HSN/SAC</TableHead>
-                            <TableHead className="w-[60px] text-center font-semibold">CGST%</TableHead>
-                            <TableHead className="w-[60px] text-center font-semibold">SGST%</TableHead>
-                            <TableHead className="w-[60px] text-center font-semibold">IGST%</TableHead>
+                            <TableHead className="w-[110px] text-center font-semibold">Unit Price</TableHead>
+                            <TableHead className="w-[70px] text-center font-semibold">CGST%</TableHead>
+                            <TableHead className="w-[70px] text-center font-semibold">SGST%</TableHead>
+                            <TableHead className="w-[70px] text-center font-semibold">IGST%</TableHead>
                             <TableHead className="w-[80px] text-center font-semibold">Disc%</TableHead>
-                            <TableHead className="w-[90px] text-center font-semibold">Disc Value</TableHead>
-                            <TableHead className="w-[90px] text-center font-semibold">GST Value</TableHead>
-                            <TableHead className="text-right font-semibold">Line Total</TableHead>
+                            <TableHead className="w-[100px] text-center font-semibold">Disc Value</TableHead>
+                            <TableHead className="w-[100px] text-center font-semibold">GST Value</TableHead>
+                            <TableHead className="w-[120px] text-right font-semibold">Line Total</TableHead>
                             {!readOnly && <TableHead className="w-[50px]"></TableHead>}
                           </TableRow>
                         </TableHeader>
@@ -827,31 +826,6 @@ export function PurchaseOrderForm({
                                               disabled={readOnly}
                                             />
                                             {form.watch(`items.${index}.unit_price`) === products.find(p => p.id === form.watch(`items.${index}.product_id`))?.unit_price && (
-                                              <CheckCircle2 className="h-3 w-3 text-green-500 absolute right-1 top-2.5" />
-                                            )}
-                                          </div>
-                                        </FormControl>
-                                        <FormMessage />
-                                      </FormItem>
-                                    )}
-                                  />
-                                </TableCell>
-
-                                <TableCell className="p-2">
-                                  <FormField
-                                    control={form.control}
-                                    name={`items.${index}.hsn_sac_code`}
-                                    render={({ field }) => (
-                                      <FormItem>
-                                        <FormControl>
-                                          <div className="relative">
-                                            <Input 
-                                              className="h-8 w-full text-center text-sm pr-6" 
-                                              placeholder="HSN"
-                                              {...field} 
-                                              disabled={readOnly}
-                                            />
-                                            {form.watch(`items.${index}.hsn_sac_code`) === products.find(p => p.id === form.watch(`items.${index}.product_id`))?.hsn_code && (
                                               <CheckCircle2 className="h-3 w-3 text-green-500 absolute right-1 top-2.5" />
                                             )}
                                           </div>
