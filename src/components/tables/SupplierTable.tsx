@@ -410,7 +410,7 @@ export const SupplierTable: React.FC<SupplierTableProps> = ({
                     {getSortIcon('email')}
                   </div>
                 </TableHead>
-                <TableHead>Location</TableHead>
+                <TableHead>City</TableHead>
                 <TableHead>Currency</TableHead>
                 <TableHead>Payment Terms</TableHead>
                 <TableHead>Status</TableHead>
