@@ -114,9 +114,10 @@ export function BOMModule() {
 
   const [components, setComponents] = useState<BOMComponent[]>([]);
   const [selectedWarehouse, setSelectedWarehouse] = useState<string>('');
-  const [productionQuantity, setProductionQuantity] = useState(1);
+  const [bomQuantities, setBomQuantities] = useState<Record<string, number>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isProducing, setIsProducing] = useState(false);
+  const [inventoryErrors, setInventoryErrors] = useState<Record<string, string>>({});
 
   // Computed values
   const rawMaterialProducts = useMemo(() => 
@@ -487,6 +488,66 @@ export function BOMModule() {
     }
   };
 
+  // Inventory validation
+  const checkInventoryAvailability = async (bomId: string, quantity: number): Promise<string | null> => {
+    if (!profile?.company_id) return "Company not found";
+
+    try {
+      // Fetch BOM components
+      const { data: components, error } = await supabase
+        .from('bom_components')
+        .select(`
+          *,
+          products!bom_components_component_product_id_fkey(name, stock_quantity)
+        `)
+        .eq('bom_id', bomId);
+
+      if (error) throw error;
+
+      const insufficientItems: string[] = [];
+
+      for (const component of components || []) {
+        const requiredQty = Math.ceil(component.quantity_per_unit * quantity);
+        const currentStock = component.products?.stock_quantity || 0;
+        
+        if (currentStock < requiredQty) {
+          insufficientItems.push(
+            `${component.products?.name || 'Unknown'} (Required: ${requiredQty}, Available: ${currentStock})`
+          );
+        }
+      }
+
+      if (insufficientItems.length > 0) {
+        return `Insufficient inventory: ${insufficientItems.join(', ')}`;
+      }
+
+      return null;
+    } catch (error) {
+      console.error('Error checking inventory:', error);
+      return "Failed to check inventory availability";
+    }
+  };
+
+  // Update BOM quantity
+  const updateBOMQuantity = (bomId: string, quantity: number) => {
+    setBomQuantities(prev => ({
+      ...prev,
+      [bomId]: Math.max(1, quantity)
+    }));
+    
+    // Clear any existing error for this BOM
+    setInventoryErrors(prev => {
+      const updated = { ...prev };
+      delete updated[bomId];
+      return updated;
+    });
+  };
+
+  // Get BOM quantity
+  const getBOMQuantity = (bomId: string): number => {
+    return bomQuantities[bomId] || 1;
+  };
+
   // Production
   const runProduction = async (bom: BOMHeader) => {
     if (!profile?.company_id) return;
@@ -500,10 +561,27 @@ export function BOMModule() {
       return;
     }
 
-    if (productionQuantity <= 0) {
+    const quantity = getBOMQuantity(bom.id);
+    
+    if (quantity <= 0) {
       toast({
         title: "Error",
         description: "Production quantity must be greater than 0",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Check inventory availability
+    const inventoryError = await checkInventoryAvailability(bom.id, quantity);
+    if (inventoryError) {
+      setInventoryErrors(prev => ({
+        ...prev,
+        [bom.id]: inventoryError
+      }));
+      toast({
+        title: "Insufficient Inventory",
+        description: inventoryError,
         variant: "destructive",
       });
       return;
@@ -514,7 +592,7 @@ export function BOMModule() {
 
       const { data: result, error } = await supabase.rpc('process_bom_production', {
         p_bom_id: bom.id,
-        p_quantity: productionQuantity,
+        p_quantity: quantity,
         p_company_id: profile.company_id,
         p_warehouse_id: bom.warehouse_id,
         p_bin_id: bom.bin_id,
@@ -534,6 +612,19 @@ export function BOMModule() {
       toast({
         title: "Success",
         description: `Production completed! Produced ${productionResult.finished_goods_qty} units`,
+      });
+
+      // Clear the quantity and error for this BOM after successful production
+      setBomQuantities(prev => {
+        const updated = { ...prev };
+        delete updated[bom.id];
+        return updated;
+      });
+      
+      setInventoryErrors(prev => {
+        const updated = { ...prev };
+        delete updated[bom.id];
+        return updated;
       });
 
       fetchData();
@@ -592,21 +683,29 @@ export function BOMModule() {
               <Card key={bom.id}>
                 <CardHeader className="pb-4">
                   <div className="flex items-center justify-between">
-                    <div className="space-y-1">
-                      <CardTitle className="flex items-center gap-2">
-                        {bom.bom_name}
-                        {bom.production_ready ? (
-                          <Badge variant="default" className="bg-green-100 text-green-800">
-                            <CheckCircle className="h-3 w-3 mr-1" />
-                            Production Ready
-                          </Badge>
-                        ) : (
-                          <Badge variant="secondary">
-                            <XCircle className="h-3 w-3 mr-1" />
-                            Draft
-                          </Badge>
-                        )}
-                      </CardTitle>
+                     <div className="space-y-1">
+                       <CardTitle className="flex items-center gap-2">
+                         <button
+                           onClick={() => {
+                             setViewingBOMId(bom.id);
+                             setShowViewDialog(true);
+                           }}
+                           className="text-left hover:text-primary transition-colors cursor-pointer underline-offset-4 hover:underline"
+                         >
+                           {bom.bom_name}
+                         </button>
+                         {bom.production_ready ? (
+                           <Badge variant="default" className="bg-green-100 text-green-800">
+                             <CheckCircle className="h-3 w-3 mr-1" />
+                             Production Ready
+                           </Badge>
+                         ) : (
+                           <Badge variant="secondary">
+                             <XCircle className="h-3 w-3 mr-1" />
+                             Draft
+                           </Badge>
+                         )}
+                       </CardTitle>
                       <CardDescription>
                         Finished Product: {bom.finished_product_name} ({bom.finished_product_sku}) | Yield: {bom.yield_quantity} units
                       </CardDescription>
@@ -705,51 +804,70 @@ export function BOMModule() {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                <div className="flex items-center gap-4 mb-4 p-4 border rounded-lg bg-muted/50">
-                  <Label htmlFor="prodQty" className="text-sm font-medium">Production Quantity:</Label>
-                  <Input
-                    id="prodQty"
-                    type="number"
-                    min="1"
-                    value={productionQuantity}
-                    onChange={(e) => {
-                      const value = e.target.value;
-                      console.log('Input value:', value, 'Parsed:', parseInt(value));
-                      if (value === '' || value === '0') {
-                        setProductionQuantity(1);
-                      } else {
-                        const parsed = parseInt(value);
-                        if (!isNaN(parsed) && parsed > 0) {
-                          setProductionQuantity(parsed);
-                        }
-                      }
-                    }}
-                    className="w-32 h-10 text-center font-medium border-2 border-dashed border-primary/50 bg-background hover:border-primary focus:border-primary focus:ring-2 focus:ring-primary/20"
-                    placeholder="Enter quantity"
-                  />
-                  <span className="text-sm text-muted-foreground">units to produce</span>
-                </div>
                 <div className="grid gap-4">
-                  {boms.filter(bom => bom.production_ready).map((bom) => (
-                    <div key={bom.id} className="flex items-center justify-between p-4 border rounded-lg">
-                      <div>
-                        <h4 className="font-medium">{bom.bom_name}</h4>
-                        <p className="text-sm text-muted-foreground">
-                          {bom.finished_product_name} | Cost: ₹{bom.total_cost_per_unit.toFixed(2)}/unit | Yield: {bom.yield_quantity} units
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          Total Cost: ₹{(bom.total_cost_per_unit * productionQuantity).toFixed(2)} | Will Produce: {bom.yield_quantity * productionQuantity} units
-                        </p>
+                  {boms.filter(bom => bom.production_ready).map((bom) => {
+                    const quantity = getBOMQuantity(bom.id);
+                    const error = inventoryErrors[bom.id];
+                    
+                    return (
+                      <div key={bom.id} className="p-4 border rounded-lg space-y-3">
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-1">
+                              <button
+                                onClick={() => {
+                                  setViewingBOMId(bom.id);
+                                  setShowViewDialog(true);
+                                }}
+                                className="font-medium hover:text-primary transition-colors cursor-pointer underline-offset-4 hover:underline"
+                              >
+                                {bom.bom_name}
+                              </button>
+                            </div>
+                            <p className="text-sm text-muted-foreground">
+                              {bom.finished_product_name} | Cost: ₹{bom.total_cost_per_unit.toFixed(2)}/unit | Yield: {bom.yield_quantity} units
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              Total Cost: ₹{(bom.total_cost_per_unit * quantity).toFixed(2)} | Will Produce: {bom.yield_quantity * quantity} units
+                            </p>
+                          </div>
+                        </div>
+                        
+                        <div className="flex items-center gap-3">
+                          <div className="flex items-center gap-2">
+                            <Label className="text-sm font-medium whitespace-nowrap">Qty:</Label>
+                            <Input
+                              type="number"
+                              min="1"
+                              value={quantity}
+                              onChange={(e) => {
+                                const value = parseInt(e.target.value);
+                                if (!isNaN(value) && value > 0) {
+                                  updateBOMQuantity(bom.id, value);
+                                }
+                              }}
+                              className="w-20 h-8 text-center"
+                            />
+                          </div>
+                          <Button
+                            onClick={() => runProduction(bom)}
+                            disabled={isProducing}
+                            className="ml-auto"
+                          >
+                            <Play className="h-4 w-4 mr-2" />
+                            {isProducing ? 'Processing...' : 'Produce'}
+                          </Button>
+                        </div>
+                        
+                        {error && (
+                          <div className="text-sm text-red-600 bg-red-50 p-2 rounded border border-red-200">
+                            <AlertTriangle className="h-4 w-4 inline mr-1" />
+                            {error}
+                          </div>
+                        )}
                       </div>
-                      <Button
-                        onClick={() => runProduction(bom)}
-                        disabled={isProducing}
-                      >
-                        <Play className="h-4 w-4 mr-2" />
-                        {isProducing ? 'Processing...' : 'Produce'}
-                      </Button>
-                    </div>
-                  ))}
+                    );
+                  })}
                   {boms.filter(bom => bom.production_ready).length === 0 && (
                     <div className="text-center py-8">
                       <Package className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
