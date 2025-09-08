@@ -165,20 +165,11 @@ export const CurrentStockViewDialog: React.FC<CurrentStockViewDialogProps> = ({
             </div>
             
             <div className="space-y-3">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="text-center p-3 bg-muted/50 rounded-lg">
-                  <label className="text-sm font-medium text-muted-foreground">Min Stock Level</label>
-                  <p className="text-xl font-bold text-orange-600 mt-1">
-                    {stock.min_stock_level}
-                  </p>
-                </div>
-                
-                <div className="text-center p-3 bg-muted/50 rounded-lg">
-                  <label className="text-sm font-medium text-muted-foreground">Available</label>
-                  <p className="text-xl font-bold text-green-600 mt-1">
-                    {Math.max(0, stock.current_stock - stock.min_stock_level)}
-                  </p>
-                </div>
+              <div className="text-center p-3 bg-muted/50 rounded-lg">
+                <label className="text-sm font-medium text-muted-foreground">Min Stock Level</label>
+                <p className="text-xl font-bold text-orange-600 mt-1">
+                  {stock.min_stock_level}
+                </p>
               </div>
               
               {/* Stock Health Bar */}
