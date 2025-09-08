@@ -44,17 +44,25 @@ interface LedgerTransaction {
 
 interface CustomerVendorLedgerProps {
   onClose?: () => void;
+  initialEntityType?: 'customer' | 'vendor';
+  initialEntityId?: string;
+  initialEntityName?: string;
 }
 
-export function CustomerVendorLedger({ onClose }: CustomerVendorLedgerProps) {
+export function CustomerVendorLedger({ 
+  onClose, 
+  initialEntityType, 
+  initialEntityId, 
+  initialEntityName 
+}: CustomerVendorLedgerProps) {
   const { profile } = useAuth();
   const { toast } = useToast();
   
-  const [entityType, setEntityType] = useState<'customer' | 'vendor'>('customer');
+  const [entityType, setEntityType] = useState<'customer' | 'vendor'>(initialEntityType || 'customer');
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
-  const [selectedEntityId, setSelectedEntityId] = useState<string>('');
-  const [selectedEntityName, setSelectedEntityName] = useState<string>('');
+  const [selectedEntityId, setSelectedEntityId] = useState<string>(initialEntityId || '');
+  const [selectedEntityName, setSelectedEntityName] = useState<string>(initialEntityName || '');
   const [dateRange, setDateRange] = useState<{
     from: Date | undefined;
     to: Date | undefined;
@@ -71,6 +79,13 @@ export function CustomerVendorLedger({ onClose }: CustomerVendorLedgerProps) {
     fetchCustomers();
     fetchSuppliers();
   }, [profile]);
+
+  // Set initial values when provided
+  useEffect(() => {
+    if (initialEntityType) setEntityType(initialEntityType);
+    if (initialEntityId) setSelectedEntityId(initialEntityId);
+    if (initialEntityName) setSelectedEntityName(initialEntityName);
+  }, [initialEntityType, initialEntityId, initialEntityName]);
 
   const fetchCustomers = async () => {
     if (!profile?.company_id) return;

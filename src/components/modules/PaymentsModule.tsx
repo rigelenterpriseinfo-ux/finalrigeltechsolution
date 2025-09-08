@@ -13,7 +13,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { useBusinessAuth } from '@/hooks/useBusinessAuth';
-import { Plus, Search, CreditCard, TrendingUp, TrendingDown, ChevronDown, ChevronUp, Download, ChevronLeft, ChevronRight, ArrowUpDown, ArrowUp, ArrowDown, History, BookOpen } from 'lucide-react';
+import { Plus, Search, CreditCard, TrendingUp, TrendingDown, ChevronDown, ChevronUp, Download, ChevronLeft, ChevronRight, ArrowUpDown, ArrowUp, ArrowDown, History, BookOpen, Wallet, Receipt } from 'lucide-react';
 import { PaymentHistoryDialog } from '@/components/dialogs/PaymentHistoryDialog';
 import { GRNDetailsDialog } from '@/components/dialogs/GRNDetailsDialog';
 import { SalesInvoiceDetailsDialog } from '@/components/dialogs/SalesInvoiceDetailsDialog';
@@ -49,6 +49,7 @@ interface GRNPayable {
   grn_date: string;
   total_amount: number;
   supplier_name: string;
+  supplier_id: string;
   status: string;
   advance_payment: number;
   amount_received: number;
@@ -57,6 +58,7 @@ interface GRNPayable {
   payment_reference_no: string | null;
   pending_payment: number;
   invoice_status: string;
+  payment_terms: string | null;
 }
 
 interface SalesInvoiceReceivable {
@@ -66,6 +68,7 @@ interface SalesInvoiceReceivable {
   total_amount: number;
   payment_terms: string | null;
   customer: {
+    id: string;
     name: string;
   };
   advance_payment: number;
@@ -95,6 +98,13 @@ export function PaymentsModule() {
   const [showLedger, setShowLedger] = useState(false);
   const [apSearchTerm, setApSearchTerm] = useState('');
   const [arSearchTerm, setArSearchTerm] = useState('');
+  
+  // Ledger state for pre-populated data
+  const [ledgerConfig, setLedgerConfig] = useState<{
+    entityType?: 'customer' | 'vendor';
+    entityId?: string;
+    entityName?: string;
+  }>({});
   
   // Payment history dialog state
   const [paymentHistoryOpen, setPaymentHistoryOpen] = useState(false);
@@ -142,7 +152,7 @@ export function PaymentsModule() {
     try {
       setLoading(true);
       
-      // First get GRN data
+      // First get GRN data with payment terms from purchase orders and suppliers
       const { data: grnData, error: grnError } = await supabase
         .from('grn_header')
         .select(`
@@ -151,8 +161,10 @@ export function PaymentsModule() {
           grn_date,
           total_amount,
           supplier_name,
+          supplier_id,
           status,
-          purchase_order_id
+          purchase_order_id,
+          purchase_orders!inner(payment_terms)
         `)
         .in('status', ['accepted', 'received', 'partially_received'])
         .order('grn_date', { ascending: false });
@@ -200,12 +212,16 @@ export function PaymentsModule() {
           invoiceStatus = 'Partially Paid';
         }
 
+        // Get payment terms from PO first, fallback to supplier default (we'll fetch supplier data separately if needed)
+        const paymentTerms = (grn.purchase_orders as any)?.payment_terms || null;
+
         return {
           id: grn.id,
           grn_number: grn.grn_number,
           grn_date: grn.grn_date,
           total_amount: grn.total_amount,
           supplier_name: grn.supplier_name,
+          supplier_id: grn.supplier_id,
           status: grn.status,
           advance_payment: totalAdvancePayment,
           amount_received: totalAmountReceived,
@@ -213,9 +229,28 @@ export function PaymentsModule() {
           payment_method: latestPayment?.payment_method || null,
           payment_reference_no: latestPayment?.reference_number || null,
           pending_payment: Math.max(0, pendingPayment),
-          invoice_status: invoiceStatus
+          invoice_status: invoiceStatus,
+          payment_terms: paymentTerms
         };
       });
+
+      // Fetch supplier payment terms for records that don't have PO payment terms
+      const recordsWithoutPaymentTerms = transformedData.filter(item => !item.payment_terms);
+      if (recordsWithoutPaymentTerms.length > 0) {
+        const supplierIds = [...new Set(recordsWithoutPaymentTerms.map(item => item.supplier_id))];
+        const { data: supplierData } = await supabase
+          .from('suppliers')
+          .select('id, payment_terms')
+          .in('id', supplierIds);
+        
+        // Update records with supplier payment terms
+        recordsWithoutPaymentTerms.forEach(item => {
+          const supplier = supplierData?.find(s => s.id === item.supplier_id);
+          if (supplier?.payment_terms) {
+            item.payment_terms = supplier.payment_terms;
+          }
+        });
+      }
 
       setAccountPayable(transformedData);
     } catch (error) {
@@ -227,7 +262,7 @@ export function PaymentsModule() {
 
   const fetchAccountReceivable = async () => {
     try {
-      // First get sales invoice data
+      // First get sales invoice data with customer details
       const { data: invoiceData, error: invoiceError } = await supabase
         .from('sales_invoices')
         .select(`
@@ -238,7 +273,8 @@ export function PaymentsModule() {
           payment_terms,
           customer_id,
           customer_name,
-          sales_order_id
+          sales_order_id,
+          customers!inner(id, name)
         `)
         .eq('status', 'finalized')
         .order('invoice_date', { ascending: false });
@@ -305,7 +341,10 @@ export function PaymentsModule() {
           invoice_date: invoice.invoice_date,
           total_amount: invoice.total_amount,
           payment_terms: invoice.payment_terms,
-          customer: { name: invoice.customer_name },
+          customer: { 
+            id: invoice.customer_id,
+            name: invoice.customer_name 
+          },
           advance_payment: totalAdvancePayment,
           amount_received: totalAmountReceived,
           payment_date: latestPayment?.payment_date || null,
@@ -580,6 +619,20 @@ export function PaymentsModule() {
   const totalAP = apListForDisplay.reduce((sum, item) => sum + item.pending_payment, 0);
   const totalAR = arListForDisplay.reduce((sum, item) => sum + item.pending_payment, 0);
 
+  // Handler to open ledger with pre-selected data
+  const openLedgerWithEntity = (entityType: 'customer' | 'vendor', entityId: string, entityName: string) => {
+    setLedgerConfig({
+      entityType,
+      entityId,
+      entityName
+    });
+    setShowLedger(true);
+    setShowAPDetails(false);
+    setShowARDetails(false);
+    setShowOverdueVendors(false);
+    setShowOverdueCustomers(false);
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-48">
@@ -677,115 +730,179 @@ export function PaymentsModule() {
       </div>
 
       {/* AP/AR/Ledger Cards Row */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Account Payable Section */}
-        <Card className="cursor-pointer hover:bg-accent/50 transition-colors" onClick={() => { 
+        <Card className={`cursor-pointer transition-all duration-200 hover:shadow-lg group ${
+          showAPDetails 
+            ? 'ring-2 ring-primary border-primary bg-primary/5 shadow-lg' 
+            : 'hover:bg-accent/30 hover:border-accent'
+        }`} onClick={() => { 
           setShowAPDetails(!showAPDetails); 
           setShowARDetails(false); 
           setShowOverdueVendors(false); 
           setShowOverdueCustomers(false); 
           setShowLedger(false);
+          setLedgerConfig({});
         }}>
-          <CardHeader className="pb-3">
+          <CardHeader className="pb-4">
             <CardTitle className="flex items-center justify-between text-sm">
-              <div className="flex items-center gap-2">
-                <TrendingDown className="h-4 w-4 text-destructive" />
-                Account Payable (AP)
+              <div className="flex items-center gap-3">
+                <div className={`p-2 rounded-lg transition-colors ${
+                  showAPDetails 
+                    ? 'bg-primary text-primary-foreground' 
+                    : 'bg-red-100 text-red-600 group-hover:bg-red-200'
+                }`}>
+                  <TrendingDown className="h-4 w-4" />
+                </div>
+                <span className="font-semibold">Account Payable (AP)</span>
               </div>
-              {showAPDetails ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+              <div className={`transition-colors ${showAPDetails ? 'text-primary' : 'text-muted-foreground'}`}>
+                {showAPDetails ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+              </div>
             </CardTitle>
           </CardHeader>
           <CardContent className="pt-0">
-            <div className="text-xl font-bold">₹{totalAP.toLocaleString()}</div>
-            <p className="text-xs text-muted-foreground">
-              {apListForDisplay.length} received GRN records
-            </p>
+            <div className={`text-2xl font-bold transition-colors ${
+              showAPDetails ? 'text-primary' : 'text-foreground'
+            }`}>
+              ₹{totalAP.toLocaleString()}
+            </div>
+            <div className="flex items-center gap-2 mt-2">
+              <Receipt className="h-3 w-3 text-muted-foreground" />
+              <p className="text-sm text-muted-foreground">
+                {apListForDisplay.length} received GRN records
+              </p>
+            </div>
           </CardContent>
         </Card>
 
         {/* Account Receivable Section */}
-        <Card className="cursor-pointer hover:bg-accent/50 transition-colors" onClick={() => { 
+        <Card className={`cursor-pointer transition-all duration-200 hover:shadow-lg group ${
+          showARDetails 
+            ? 'ring-2 ring-primary border-primary bg-primary/5 shadow-lg' 
+            : 'hover:bg-accent/30 hover:border-accent'
+        }`} onClick={() => { 
           setShowARDetails(!showARDetails); 
           setShowAPDetails(false); 
           setShowOverdueVendors(false); 
           setShowOverdueCustomers(false); 
           setShowLedger(false);
+          setLedgerConfig({});
         }}>
-          <CardHeader className="pb-3">
+          <CardHeader className="pb-4">
             <CardTitle className="flex items-center justify-between text-sm">
-              <div className="flex items-center gap-2">
-                <TrendingUp className="h-4 w-4 text-green-600" />
-                Account Receivable (AR)
+              <div className="flex items-center gap-3">
+                <div className={`p-2 rounded-lg transition-colors ${
+                  showARDetails 
+                    ? 'bg-primary text-primary-foreground' 
+                    : 'bg-green-100 text-green-600 group-hover:bg-green-200'
+                }`}>
+                  <TrendingUp className="h-4 w-4" />
+                </div>
+                <span className="font-semibold">Account Receivable (AR)</span>
               </div>
-              {showARDetails ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+              <div className={`transition-colors ${showARDetails ? 'text-primary' : 'text-muted-foreground'}`}>
+                {showARDetails ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+              </div>
             </CardTitle>
           </CardHeader>
           <CardContent className="pt-0">
-            <div className="text-xl font-bold">₹{totalAR.toLocaleString()}</div>
-            <p className="text-xs text-muted-foreground">
-              {arListForDisplay.length} outstanding invoices
-            </p>
+            <div className={`text-2xl font-bold transition-colors ${
+              showARDetails ? 'text-primary' : 'text-foreground'
+            }`}>
+              ₹{totalAR.toLocaleString()}
+            </div>
+            <div className="flex items-center gap-2 mt-2">
+              <Receipt className="h-3 w-3 text-muted-foreground" />
+              <p className="text-sm text-muted-foreground">
+                {arListForDisplay.length} outstanding invoices
+              </p>
+            </div>
           </CardContent>
         </Card>
 
         {/* Customer/Vendor Ledger Section */}
-        <Card className="cursor-pointer hover:bg-accent/50 transition-colors" onClick={() => { 
+        <Card className={`cursor-pointer transition-all duration-200 hover:shadow-lg group ${
+          showLedger 
+            ? 'ring-2 ring-primary border-primary bg-primary/5 shadow-lg' 
+            : 'hover:bg-accent/30 hover:border-accent'
+        }`} onClick={() => { 
           setShowLedger(!showLedger);
           setShowAPDetails(false);
           setShowARDetails(false); 
           setShowOverdueVendors(false); 
           setShowOverdueCustomers(false); 
+          if (!showLedger) setLedgerConfig({});
         }}>
-          <CardHeader className="pb-3">
+          <CardHeader className="pb-4">
             <CardTitle className="flex items-center justify-between text-sm">
-              <div className="flex items-center gap-2">
-                <BookOpen className="h-4 w-4 text-primary" />
-                Customer/Vendor Ledger
+              <div className="flex items-center gap-3">
+                <div className={`p-2 rounded-lg transition-colors ${
+                  showLedger 
+                    ? 'bg-primary text-primary-foreground' 
+                    : 'bg-blue-100 text-blue-600 group-hover:bg-blue-200'
+                }`}>
+                  <BookOpen className="h-4 w-4" />
+                </div>
+                <span className="font-semibold">Customer/Vendor Ledger</span>
               </div>
-              {showLedger ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+              <div className={`transition-colors ${showLedger ? 'text-primary' : 'text-muted-foreground'}`}>
+                {showLedger ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+              </div>
             </CardTitle>
           </CardHeader>
           <CardContent className="pt-0">
-            <div className="text-xl font-bold">Ledger</div>
-            <p className="text-xs text-muted-foreground">
-              View detailed customer/vendor transactions
-            </p>
+            <div className={`text-2xl font-bold transition-colors ${
+              showLedger ? 'text-primary' : 'text-foreground'
+            }`}>
+              Ledger
+            </div>
+            <div className="flex items-center gap-2 mt-2">
+              <Wallet className="h-3 w-3 text-muted-foreground" />
+              <p className="text-sm text-muted-foreground">
+                View detailed customer/vendor transactions
+              </p>
+            </div>
           </CardContent>
         </Card>
       </div>
 
       {/* Account Payable Details */}
       {showAPDetails && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Account Payable Details</CardTitle>
-            <div className="flex gap-4">
+        <Card className="shadow-lg border-primary/20">
+          <CardHeader className="bg-gradient-to-r from-red-50 to-orange-50 border-b">
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <TrendingDown className="h-5 w-5 text-red-600" />
+              Account Payable Details
+            </CardTitle>
+            <div className="flex flex-col sm:flex-row gap-4 mt-4">
               <div className="relative flex-1 max-w-sm">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
                 <Input
                   placeholder="Search vendors or GRN numbers..."
                   value={apSearchTerm}
                   onChange={(e) => { setApSearchTerm(e.target.value); setApCurrentPage(1); }}
-                  className="pl-10"
+                  className="pl-10 bg-white"
                 />
               </div>
-              <Button onClick={handleAPExport} variant="outline" size="sm">
+              <Button onClick={handleAPExport} variant="outline" size="sm" className="shadow-sm">
                 <Download className="h-4 w-4 mr-2" />
-                Export
+                Export CSV
               </Button>
             </div>
           </CardHeader>
           <CardContent>
-            <ScrollArea className="h-[500px]">
+            <ScrollArea className="h-[600px]">
               <Table className="w-full table-fixed">
                 <colgroup>
-                  <col className="w-[15%]" />
-                  <col className="w-[12%]" />
+                  <col className="w-[14%]" />
+                  <col className="w-[11%]" />
+                  <col className="w-[9%]" />
+                  <col className="w-[11%]" />
                   <col className="w-[10%]" />
-                  <col className="w-[12%]" />
-                  <col className="w-[12%]" />
-                  <col className="w-[12%]" />
-                  <col className="w-[12%]" />
+                  <col className="w-[10%]" />
+                  <col className="w-[11%]" />
+                  <col className="w-[9%]" />
                   <col className="w-[10%]" />
                   <col className="w-[5%]" />
                 </colgroup>
@@ -839,79 +956,108 @@ export function PaymentsModule() {
                          ) : <ArrowUpDown className="ml-1 h-3 w-3" />}
                        </Button>
                      </TableHead>
-                    <TableHead>
-                      <Button variant="ghost" className="h-8 p-0 font-semibold hover:bg-transparent" onClick={() => handleApSort('pending_payment')}>
-                        Pending Payment
-                        {apSortField === 'pending_payment' ? (
-                          apSortDirection === 'asc' ? <ArrowUp className="ml-1 h-3 w-3" /> : <ArrowDown className="ml-1 h-3 w-3" />
-                        ) : <ArrowUpDown className="ml-1 h-3 w-3" />}
-                      </Button>
-                    </TableHead>
-                      <TableHead className="p-2">
-                        <Button variant="ghost" className="h-6 p-0 text-xs font-semibold hover:bg-transparent" onClick={() => handleApSort('invoice_status')}>
-                          Status
-                          {apSortField === 'invoice_status' ? (
-                            apSortDirection === 'asc' ? <ArrowUp className="ml-1 h-3 w-3" /> : <ArrowDown className="ml-1 h-3 w-3" />
-                          ) : <ArrowUpDown className="ml-1 h-3 w-3" />}
-                        </Button>
-                      </TableHead>
-                      <TableHead className="p-2 text-xs">Actions</TableHead>
+                     <TableHead className="p-2">
+                       <Button variant="ghost" className="h-6 p-0 text-xs font-semibold hover:bg-transparent" onClick={() => handleApSort('pending_payment')}>
+                         Pending
+                         {apSortField === 'pending_payment' ? (
+                           apSortDirection === 'asc' ? <ArrowUp className="ml-1 h-3 w-3" /> : <ArrowDown className="ml-1 h-3 w-3" />
+                         ) : <ArrowUpDown className="ml-1 h-3 w-3" />}
+                       </Button>
+                     </TableHead>
+                       <TableHead className="p-2">
+                         <Button variant="ghost" className="h-6 p-0 text-xs font-semibold hover:bg-transparent" onClick={() => handleApSort('invoice_status')}>
+                           Status
+                           {apSortField === 'invoice_status' ? (
+                             apSortDirection === 'asc' ? <ArrowUp className="ml-1 h-3 w-3" /> : <ArrowDown className="ml-1 h-3 w-3" />
+                           ) : <ArrowUpDown className="ml-1 h-3 w-3" />}
+                         </Button>
+                       </TableHead>
+                       <TableHead className="p-2">
+                         <Button variant="ghost" className="h-6 p-0 text-xs font-semibold hover:bg-transparent">
+                           Payment Terms
+                         </Button>
+                       </TableHead>
+                       <TableHead className="p-2 text-xs">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                    {paginatedAP.length === 0 ? (
                      <TableRow>
-                       <TableCell colSpan={9} className="text-center text-muted-foreground">
+                       <TableCell colSpan={10} className="text-center text-muted-foreground py-8">
                          No GRN records found
                        </TableCell>
                      </TableRow>
                    ) : (
-                     paginatedAP.map((item) => (
-                        <TableRow key={item.id} className="h-12">
-                          <TableCell className="p-2 text-xs font-medium truncate">{item.supplier_name || 'N/A'}</TableCell>
-                          <TableCell className="p-2 text-xs truncate">
+                     paginatedAP.map((item, index) => (
+                        <TableRow key={item.id} className={`h-14 hover:bg-accent/30 transition-colors ${
+                          index % 2 === 0 ? 'bg-muted/20' : 'bg-background'
+                        }`}>
+                          <TableCell className="p-3 text-xs font-medium truncate">
+                            <div className="flex items-center gap-2">
+                              <div className="w-2 h-2 bg-red-500 rounded-full"></div>
+                              {item.supplier_name || 'N/A'}
+                            </div>
+                          </TableCell>
+                          <TableCell className="p-3 text-xs truncate">
                             <Button
                               variant="link"
                               size="sm"
-                              className="p-0 h-auto font-normal text-blue-600 hover:text-blue-800"
+                              className="p-0 h-auto font-normal text-blue-600 hover:text-blue-800 transition-colors"
                               onClick={() => setGRNDetailsDialog({ open: true, grnId: item.id })}
                             >
                               {item.grn_number}
                             </Button>
                           </TableCell>
-                          <TableCell className="p-2 text-xs">{new Date(item.grn_date).toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: '2-digit' })}</TableCell>
-                          <TableCell className="p-2 text-xs">₹{item.total_amount.toLocaleString('en-IN')}</TableCell>
-                          <TableCell className="p-2 text-xs">₹{item.advance_payment.toLocaleString('en-IN')}</TableCell>
-                          <TableCell className="p-2 text-xs">₹{item.amount_received.toLocaleString('en-IN')}</TableCell>
-                          <TableCell className="p-2 text-xs">₹{item.pending_payment.toLocaleString('en-IN')}</TableCell>
-                          <TableCell className="p-2">
+                          <TableCell className="p-3 text-xs text-muted-foreground">
+                            {new Date(item.grn_date).toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: '2-digit' })}
+                          </TableCell>
+                          <TableCell className="p-3 text-xs font-medium">₹{item.total_amount.toLocaleString('en-IN')}</TableCell>
+                          <TableCell className="p-3 text-xs text-green-600">₹{item.advance_payment.toLocaleString('en-IN')}</TableCell>
+                          <TableCell className="p-3 text-xs text-blue-600">₹{item.amount_received.toLocaleString('en-IN')}</TableCell>
+                          <TableCell className="p-3 text-xs font-semibold text-orange-600">₹{item.pending_payment.toLocaleString('en-IN')}</TableCell>
+                          <TableCell className="p-3">
                             <Badge variant={
                               item.invoice_status === 'Fully Paid' ? 'default' :
                               item.invoice_status === 'Partially Paid' ? 'secondary' :
                               item.invoice_status === 'Overdue' ? 'destructive' : 'outline'
-                            } className="text-xs px-1 py-0">
+                            } className="text-xs px-2 py-1 font-medium">
                               {item.invoice_status === 'Fully Paid' ? 'Paid' : 
                                item.invoice_status === 'Partially Paid' ? 'Partial' :
                                item.invoice_status === 'Overdue' ? 'Overdue' : 'Outstanding'}
                             </Badge>
                           </TableCell>
-                          <TableCell className="p-2">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="h-6 px-2 text-xs"
-                              onClick={() => {
-                                setSelectedRecord({
-                                  id: item.id,
-                                  number: item.grn_number,
-                                  type: 'grn',
-                                  totalAmount: item.total_amount
-                                });
-                                setPaymentHistoryOpen(true);
-                              }}
-                            >
-                              <History className="h-3 w-3" />
-                            </Button>
+                          <TableCell className="p-3 text-xs text-muted-foreground truncate">
+                            {item.payment_terms || 'Net 30'}
+                          </TableCell>
+                          <TableCell className="p-3">
+                            <div className="flex gap-1">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-7 px-2 text-xs hover:bg-blue-50 hover:border-blue-300"
+                                onClick={() => openLedgerWithEntity('vendor', item.supplier_id, item.supplier_name)}
+                                title="View Vendor Ledger"
+                              >
+                                <Wallet className="h-3 w-3" />
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-7 px-2 text-xs hover:bg-green-50 hover:border-green-300"
+                                onClick={() => {
+                                  setSelectedRecord({
+                                    id: item.id,
+                                    number: item.grn_number,
+                                    type: 'grn',
+                                    totalAmount: item.total_amount
+                                  });
+                                  setPaymentHistoryOpen(true);
+                                }}
+                                title="Payment History"
+                              >
+                                <History className="h-3 w-3" />
+                              </Button>
+                            </div>
                           </TableCell>
                        </TableRow>
                     ))
@@ -955,22 +1101,25 @@ export function PaymentsModule() {
 
       {/* Account Receivable Details */}
       {showARDetails && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Account Receivable Details</CardTitle>
-            <div className="flex gap-4">
+        <Card className="shadow-lg border-primary/20">
+          <CardHeader className="bg-gradient-to-r from-green-50 to-blue-50 border-b">
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <TrendingUp className="h-5 w-5 text-green-600" />
+              Account Receivable Details
+            </CardTitle>
+            <div className="flex flex-col sm:flex-row gap-4 mt-4">
               <div className="relative flex-1 max-w-sm">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
                 <Input
                   placeholder="Search customers or invoice numbers..."
                   value={arSearchTerm}
                   onChange={(e) => { setArSearchTerm(e.target.value); setArCurrentPage(1); }}
-                  className="pl-10"
+                  className="pl-10 bg-white"
                 />
               </div>
-              <Button onClick={handleARExport} variant="outline" size="sm">
+              <Button onClick={handleARExport} variant="outline" size="sm" className="shadow-sm">
                 <Download className="h-4 w-4 mr-2" />
-                Export
+                Export CSV
               </Button>
             </div>
           </CardHeader>
@@ -1069,20 +1218,27 @@ export function PaymentsModule() {
                 <TableBody>
                    {paginatedAR.length === 0 ? (
                      <TableRow>
-                       <TableCell colSpan={10} className="text-center text-muted-foreground">
+                       <TableCell colSpan={10} className="text-center text-muted-foreground py-8">
                          No invoices found
                        </TableCell>
                      </TableRow>
                    ) : (
-                     paginatedAR.map((item) => (
-                        <TableRow key={item.id} className="h-12">
-                          <TableCell className="p-2 text-xs font-medium truncate">{item.customer?.name || 'N/A'}</TableCell>
-                          <TableCell className="p-2 text-xs truncate">
+                     paginatedAR.map((item, index) => (
+                        <TableRow key={item.id} className={`h-14 hover:bg-accent/30 transition-colors ${
+                          index % 2 === 0 ? 'bg-muted/20' : 'bg-background'
+                        }`}>
+                          <TableCell className="p-3 text-xs font-medium truncate">
+                            <div className="flex items-center gap-2">
+                              <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                              {item.customer?.name || 'N/A'}
+                            </div>
+                          </TableCell>
+                          <TableCell className="p-3 text-xs truncate">
                             {item.invoice_number ? (
                               <Button
                                 variant="link"
                                 size="sm"
-                                className="p-0 h-auto font-normal text-blue-600 hover:text-blue-800"
+                                className="p-0 h-auto font-normal text-blue-600 hover:text-blue-800 transition-colors"
                                 onClick={() => setInvoiceDetailsDialog({ open: true, invoiceId: item.id })}
                               >
                                 {item.invoice_number}
@@ -1091,41 +1247,55 @@ export function PaymentsModule() {
                               'N/A'
                             )}
                           </TableCell>
-                          <TableCell className="p-2 text-xs">{new Date(item.invoice_date).toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: '2-digit' })}</TableCell>
-                          <TableCell className="p-2 text-xs">₹{item.total_amount.toLocaleString('en-IN')}</TableCell>
-                          <TableCell className="p-2 text-xs">₹{item.advance_payment.toLocaleString('en-IN')}</TableCell>
-                          <TableCell className="p-2 text-xs">₹{item.amount_received.toLocaleString('en-IN')}</TableCell>
-                          <TableCell className="p-2 text-xs">₹{item.pending_payment.toLocaleString('en-IN')}</TableCell>
-                          <TableCell className="p-2">
+                          <TableCell className="p-3 text-xs text-muted-foreground">
+                            {new Date(item.invoice_date).toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: '2-digit' })}
+                          </TableCell>
+                          <TableCell className="p-3 text-xs font-medium">₹{item.total_amount.toLocaleString('en-IN')}</TableCell>
+                          <TableCell className="p-3 text-xs text-green-600">₹{item.advance_payment.toLocaleString('en-IN')}</TableCell>
+                          <TableCell className="p-3 text-xs text-blue-600">₹{item.amount_received.toLocaleString('en-IN')}</TableCell>
+                          <TableCell className="p-3 text-xs font-semibold text-orange-600">₹{item.pending_payment.toLocaleString('en-IN')}</TableCell>
+                          <TableCell className="p-3">
                             <Badge variant={
                               item.invoice_status === 'Fully Paid' ? 'default' :
                               item.invoice_status === 'Partially Paid' ? 'secondary' :
                               item.invoice_status === 'Overdue' ? 'destructive' : 'outline'
-                            } className="text-xs px-1 py-0">
+                            } className="text-xs px-2 py-1 font-medium">
                               {item.invoice_status === 'Fully Paid' ? 'Paid' : 
                                item.invoice_status === 'Partially Paid' ? 'Partial' :
                                item.invoice_status === 'Overdue' ? 'Overdue' : 'Outstanding'}
                             </Badge>
                           </TableCell>
-                          <TableCell className="p-2 text-xs truncate">{item.payment_terms || 'Net 30'}</TableCell>
-                          <TableCell className="p-2">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="h-6 px-2 text-xs"
-                              onClick={() => {
-                                setSelectedRecord({
-                                  id: item.id,
-                                  number: item.invoice_number || 'N/A',
-                                  type: 'sales_invoice',
-                                  totalAmount: item.total_amount
-                                });
-                                setPaymentHistoryOpen(true);
-                              }}
-                            >
-                              <History className="h-3 w-3" />
-                           </Button>
-                         </TableCell>
+                          <TableCell className="p-3 text-xs text-muted-foreground truncate">{item.payment_terms || 'Net 30'}</TableCell>
+                          <TableCell className="p-3">
+                            <div className="flex gap-1">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-7 px-2 text-xs hover:bg-blue-50 hover:border-blue-300"
+                                onClick={() => openLedgerWithEntity('customer', item.customer.id, item.customer.name)}
+                                title="View Customer Ledger"
+                              >
+                                <Wallet className="h-3 w-3" />
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-7 px-2 text-xs hover:bg-green-50 hover:border-green-300"
+                                onClick={() => {
+                                  setSelectedRecord({
+                                    id: item.id,
+                                    number: item.invoice_number || 'N/A',
+                                    type: 'sales_invoice',
+                                    totalAmount: item.total_amount
+                                  });
+                                  setPaymentHistoryOpen(true);
+                                }}
+                                title="Payment History"
+                              >
+                                <History className="h-3 w-3" />
+                              </Button>
+                            </div>
+                          </TableCell>
                        </TableRow>
                     ))
       )}
@@ -1240,7 +1410,21 @@ export function PaymentsModule() {
 
       {/* Customer/Vendor Ledger Details */}
       {showLedger && (
-        <CustomerVendorLedger />
+        <Card className="shadow-lg border-primary/20">
+          <CardHeader className="bg-gradient-to-r from-blue-50 to-purple-50 border-b">
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <BookOpen className="h-5 w-5 text-blue-600" />
+              Customer/Vendor Ledger
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-0">
+            <CustomerVendorLedger 
+              initialEntityType={ledgerConfig.entityType}
+              initialEntityId={ledgerConfig.entityId}
+              initialEntityName={ledgerConfig.entityName}
+            />
+          </CardContent>
+        </Card>
       )}
 
       {/* Payment History Dialog */}
