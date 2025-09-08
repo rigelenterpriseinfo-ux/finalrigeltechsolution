@@ -14,7 +14,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Search, AlertTriangle, Package, ArrowUpDown, ArrowUp, ArrowDown, ChevronLeft, ChevronRight, FileSpreadsheet, Filter, Eye } from 'lucide-react';
+import { Search, AlertTriangle, Package, ArrowUpDown, ArrowUp, ArrowDown, ChevronLeft, ChevronRight, FileSpreadsheet, Filter, Eye, ChevronDown, ChevronUp } from 'lucide-react';
 import { format } from 'date-fns';
 import { exportToExcel, formatCurrency, formatDate, ExportColumn } from '@/utils/excelExport';
 import { CurrentStockViewDialog } from '@/components/dialogs/CurrentStockViewDialog';
@@ -89,7 +89,8 @@ export const CurrentStockTable = ({ refreshTrigger }: CurrentStockTableProps) =>
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [showLowStockOnly, setShowLowStockOnly] = useState(false);
-  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [agingFilter, setAgingFilter] = useState<string>('all');
+  const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
   const [inventoryStats, setInventoryStats] = useState({
     totalSKUs: 0,
     totalQuantity: 0,
@@ -149,7 +150,20 @@ export const CurrentStockTable = ({ refreshTrigger }: CurrentStockTableProps) =>
         product_sku: stock.products.sku,
         min_stock_level: stock.products.min_stock_level || 0,
         warehouse_name: stock.warehouse_bins?.warehouse_name || 'N/A',
-        bin_name: stock.warehouse_bins?.bin_name || 'N/A'
+        bin_name: stock.warehouse_bins?.bin_name || 'N/A',
+        // Map aging fields
+        weighted_avg_age_days: stock.weighted_avg_age_days,
+        aging_status: stock.aging_status,
+        aging_0_30_qty: stock.aging_0_30_qty,
+        aging_0_30_value: stock.aging_0_30_value,
+        aging_31_90_qty: stock.aging_31_90_qty,
+        aging_31_90_value: stock.aging_31_90_value,
+        aging_91_180_qty: stock.aging_91_180_qty,
+        aging_91_180_value: stock.aging_91_180_value,
+        aging_181_365_qty: stock.aging_181_365_qty,
+        aging_181_365_value: stock.aging_181_365_value,
+        aging_365_plus_qty: stock.aging_365_plus_qty,
+        aging_365_plus_value: stock.aging_365_plus_value
       })) || [];
 
       setStockLevels(formattedStock);
@@ -374,6 +388,55 @@ export const CurrentStockTable = ({ refreshTrigger }: CurrentStockTableProps) =>
       <ArrowDown className="w-4 h-4" />;
   };
 
+  // Toggle row expansion
+  const toggleRowExpansion = (stockKey: string) => {
+    const newExpanded = new Set(expandedRows);
+    if (newExpanded.has(stockKey)) {
+      newExpanded.delete(stockKey);
+    } else {
+      newExpanded.add(stockKey);
+    }
+    setExpandedRows(newExpanded);
+  };
+
+  // Render aging breakdown row
+  const renderAgingBreakdown = (stock: CurrentStock) => {
+    if (!stock.aging_status) return null;
+    
+    return (
+      <div className="p-4 bg-muted/20 border-t">
+        <h4 className="text-sm font-medium mb-3">Aging Breakdown</h4>
+        <div className="grid grid-cols-5 gap-4 text-xs">
+          <div className="text-center">
+            <div className="font-medium text-green-600">Fresh (0-30)</div>
+            <div className="text-muted-foreground">Qty: {stock.aging_0_30_qty || 0}</div>
+            <div className="text-muted-foreground">Val: {formatCompactCurrency(stock.aging_0_30_value || 0)}</div>
+          </div>
+          <div className="text-center">
+            <div className="font-medium text-blue-600">Good (31-90)</div>
+            <div className="text-muted-foreground">Qty: {stock.aging_31_90_qty || 0}</div>
+            <div className="text-muted-foreground">Val: {formatCompactCurrency(stock.aging_31_90_value || 0)}</div>
+          </div>
+          <div className="text-center">
+            <div className="font-medium text-yellow-600">Aging (91-180)</div>
+            <div className="text-muted-foreground">Qty: {stock.aging_91_180_qty || 0}</div>
+            <div className="text-muted-foreground">Val: {formatCompactCurrency(stock.aging_91_180_value || 0)}</div>
+          </div>
+          <div className="text-center">
+            <div className="font-medium text-orange-600">Slow (181-365)</div>
+            <div className="text-muted-foreground">Qty: {stock.aging_181_365_qty || 0}</div>
+            <div className="text-muted-foreground">Val: {formatCompactCurrency(stock.aging_181_365_value || 0)}</div>
+          </div>
+          <div className="text-center">
+            <div className="font-medium text-red-600">Dead (365+)</div>
+            <div className="text-muted-foreground">Qty: {stock.aging_365_plus_qty || 0}</div>
+            <div className="text-muted-foreground">Val: {formatCompactCurrency(stock.aging_365_plus_value || 0)}</div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   const filteredAndSortedStock = useMemo(() => {
     let filtered = stockLevels.filter((stock) => {
       const matchesSearch = 
@@ -384,13 +447,15 @@ export const CurrentStockTable = ({ refreshTrigger }: CurrentStockTableProps) =>
       
       const matchesLowStock = !showLowStockOnly || stock.current_stock <= stock.min_stock_level;
       
-      // Enhanced status filtering
-      const matchesStatus = statusFilter === 'all' || 
-        (statusFilter === 'in_stock' && stock.current_stock > stock.min_stock_level) ||
-        (statusFilter === 'low_stock' && stock.current_stock > 0 && stock.current_stock <= stock.min_stock_level) ||
-        (statusFilter === 'out_of_stock' && stock.current_stock <= 0);
+      // Aging filtering
+      const matchesAging = agingFilter === 'all' || 
+        (agingFilter === 'fresh' && stock.aging_status === 'Fresh') ||
+        (agingFilter === 'good' && stock.aging_status === 'Good') ||
+        (agingFilter === 'aging' && stock.aging_status === 'Aging') ||
+        (agingFilter === 'slow' && stock.aging_status === 'Slow') ||
+        (agingFilter === 'dead' && stock.aging_status === 'Dead');
       
-      return matchesSearch && matchesLowStock && matchesStatus;
+      return matchesSearch && matchesLowStock && matchesAging;
     });
 
     if (sortConfig) {
@@ -661,16 +726,18 @@ export const CurrentStockTable = ({ refreshTrigger }: CurrentStockTableProps) =>
         </div>
         
         <div className="flex gap-2 items-center">
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
+          <Select value={agingFilter} onValueChange={setAgingFilter}>
             <SelectTrigger className="w-48 bg-background/50 border-border/50">
               <Filter className="h-4 w-4 mr-2" />
-              <SelectValue placeholder="Filter by status" />
+              <SelectValue placeholder="Filter by aging" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All Status</SelectItem>
-              <SelectItem value="in_stock">In Stock</SelectItem>
-              <SelectItem value="low_stock">Low Stock</SelectItem>
-              <SelectItem value="out_of_stock">Out of Stock</SelectItem>
+              <SelectItem value="all">All Aging</SelectItem>
+              <SelectItem value="fresh">Fresh (0-30 days)</SelectItem>
+              <SelectItem value="good">Good (31-90 days)</SelectItem>
+              <SelectItem value="aging">Aging (91-180 days)</SelectItem>
+              <SelectItem value="slow">Slow (181-365 days)</SelectItem>
+              <SelectItem value="dead">Dead (365+ days)</SelectItem>
             </SelectContent>
           </Select>
           
@@ -735,60 +802,87 @@ export const CurrentStockTable = ({ refreshTrigger }: CurrentStockTableProps) =>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {currentStock.map((stock) => (
-              <TableRow key={`${stock.product_id}-${stock.warehouse_id}-${stock.bin_id}`}>
-                <TableCell>
-                  <div>
-                    <div className="font-medium">{stock.product_name}</div>
-                    <div className="text-sm text-muted-foreground">{stock.product_sku}</div>
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <div>
-                    <div className="font-medium">{stock.warehouse_name}</div>
-                    <div className="text-sm text-muted-foreground">{stock.bin_name}</div>
-                  </div>
-                </TableCell>
-                <TableCell className="text-right font-mono text-lg font-semibold">
-                  {stock.current_stock}
-                </TableCell>
-                <TableCell className="text-right font-mono">
-                  {stock.min_stock_level}
-                </TableCell>
-                <TableCell>
-                  {getStockLevelBadge(stock.current_stock, stock.min_stock_level)}
-                </TableCell>
-                <TableCell>
-                  {stock.aging_status && stock.weighted_avg_age_days !== undefined
-                    ? getAgingBadge(stock.aging_status, stock.weighted_avg_age_days)
-                    : <Badge variant="secondary">N/A</Badge>
-                  }
-                </TableCell>
-                <TableCell>
-                  {stock.last_transaction_date 
-                    ? format(new Date(stock.last_transaction_date), 'MMM dd, yyyy')
-                    : 'No transactions'
-                  }
-                </TableCell>
-                <TableCell>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => {
-                      setViewingStock(stock);
-                      setShowViewDialog(true);
-                    }}
-                    title="View Details"
-                    className="hover:bg-green-50 hover:text-green-600"
-                  >
-                    <Eye className="h-4 w-4" />
-                  </Button>
-                </TableCell>
-                <TableCell className="text-right">
-                  {stock.transaction_count}
-                </TableCell>
-              </TableRow>
-              ))}
+              {currentStock.map((stock) => {
+                const stockKey = `${stock.product_id}-${stock.warehouse_id}-${stock.bin_id}`;
+                const isExpanded = expandedRows.has(stockKey);
+                
+                return (
+                  <>
+                    <TableRow key={stockKey}>
+                      <TableCell>
+                        <div>
+                          <div className="font-medium">{stock.product_name}</div>
+                          <div className="text-sm text-muted-foreground">{stock.product_sku}</div>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div>
+                          <div className="font-medium">{stock.warehouse_name}</div>
+                          <div className="text-sm text-muted-foreground">{stock.bin_name}</div>
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-right font-mono text-lg font-semibold">
+                        {stock.current_stock}
+                      </TableCell>
+                      <TableCell className="text-right font-mono">
+                        {stock.min_stock_level}
+                      </TableCell>
+                      <TableCell>
+                        {getStockLevelBadge(stock.current_stock, stock.min_stock_level)}
+                      </TableCell>
+                      <TableCell>
+                        {stock.aging_status && stock.weighted_avg_age_days !== undefined
+                          ? getAgingBadge(stock.aging_status, stock.weighted_avg_age_days)
+                          : <Badge variant="secondary">N/A</Badge>
+                        }
+                      </TableCell>
+                      <TableCell>
+                        {stock.last_transaction_date 
+                          ? format(new Date(stock.last_transaction_date), 'MMM dd, yyyy')
+                          : 'No transactions'
+                        }
+                      </TableCell>
+                      {/* Actions cell - updated above */}
+                      <TableCell>
+                        <div className="flex gap-1">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => toggleRowExpansion(stockKey)}
+                            title={isExpanded ? "Collapse aging details" : "Expand aging details"}
+                            className="hover:bg-blue-50 hover:text-blue-600"
+                            disabled={!stock.aging_status}
+                          >
+                            {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              setViewingStock(stock);
+                              setShowViewDialog(true);
+                            }}
+                            title="View Details"
+                            className="hover:bg-green-50 hover:text-green-600"
+                          >
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {stock.transaction_count}
+                      </TableCell>
+                    </TableRow>
+                    {isExpanded && (
+                      <TableRow>
+                        <TableCell colSpan={9} className="p-0">
+                          {renderAgingBreakdown(stock)}
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </>
+                );
+              })}
             </TableBody>
           </Table>
 
