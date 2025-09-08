@@ -227,6 +227,7 @@ export function PurchaseOrderForm({
   const validateGSTRate = (index: number, gstType: 'cgst' | 'sgst' | 'igst', value: number) => {
     const masterGST = form.getValues(`items.${index}.master_gst_rate`) || 0;
     const currentGSTType = form.getValues(`items.${index}.gst_type`);
+    const productName = form.getValues(`items.${index}.product_name`) || 'Selected item';
     
     if (currentGSTType === 'intra') {
       const cgst = gstType === 'cgst' ? value : (form.getValues(`items.${index}.cgst_rate`) || 0);
@@ -236,19 +237,37 @@ export function PurchaseOrderForm({
       if (totalGST > masterGST) {
         toast({
           title: 'GST Validation Error',
-          description: `Total GST (${totalGST}%) cannot exceed master rate (${masterGST}%)`,
+          description: `Total GST (CGST: ${cgst}% + SGST: ${sgst}% = ${totalGST}%) cannot exceed ${productName}'s GST rate (${masterGST}%)`,
           variant: 'destructive',
         });
         return false;
+      }
+      
+      // Warning if total GST is less than master rate
+      if (totalGST < masterGST && totalGST > 0) {
+        toast({
+          title: 'GST Rate Warning',
+          description: `Total GST (${totalGST}%) is less than ${productName}'s standard rate (${masterGST}%). Consider adjusting rates.`,
+          variant: 'default',
+        });
       }
     } else {
       if (value > masterGST) {
         toast({
           title: 'GST Validation Error',
-          description: `IGST (${value}%) cannot exceed master rate (${masterGST}%)`,
+          description: `IGST (${value}%) cannot exceed ${productName}'s GST rate (${masterGST}%)`,
           variant: 'destructive',
         });
         return false;
+      }
+      
+      // Warning if IGST is less than master rate
+      if (value < masterGST && value > 0) {
+        toast({
+          title: 'GST Rate Warning',
+          description: `IGST (${value}%) is less than ${productName}'s standard rate (${masterGST}%). Consider adjusting rate.`,
+          variant: 'default',
+        });
       }
     }
     
@@ -745,7 +764,8 @@ export function PurchaseOrderForm({
                             const cgstRate = form.watch(`items.${index}.cgst_rate`) || 0;
                             const sgstRate = form.watch(`items.${index}.sgst_rate`) || 0;
                             const igstRate = form.watch(`items.${index}.igst_rate`) || 0;
-                            const totalAppliedGST = gstType === 'intra' ? cgstRate + sgstRate : igstRate;
+                                             const totalAppliedGST = gstType === 'intra' ? cgstRate + sgstRate : igstRate;
+                                             const gstMismatch = masterGST > 0 && totalAppliedGST !== masterGST;
                             
                             return (
                               <TableRow key={field.id} className={index % 2 === 0 ? 'bg-background' : 'bg-muted/20'}>
@@ -859,7 +879,7 @@ export function PurchaseOrderForm({
                                              disabled={readOnly || gstType === 'inter'}
                                            >
                                              <FormControl>
-                                               <SelectTrigger className={`h-8 text-sm ${gstType === 'inter' ? 'bg-muted/50' : ''} ${totalAppliedGST > masterGST ? 'border-destructive' : ''}`}>
+                                               <SelectTrigger className={`h-8 text-sm ${gstType === 'inter' ? 'bg-muted/50' : ''} ${gstMismatch ? 'border-destructive bg-destructive/10' : ''}`}>
                                                  <SelectValue placeholder="0%" />
                                                </SelectTrigger>
                                              </FormControl>
@@ -897,7 +917,7 @@ export function PurchaseOrderForm({
                                              disabled={readOnly || gstType === 'inter'}
                                            >
                                              <FormControl>
-                                               <SelectTrigger className={`h-8 text-sm ${gstType === 'inter' ? 'bg-muted/50' : ''} ${totalAppliedGST > masterGST ? 'border-destructive' : ''}`}>
+                                               <SelectTrigger className={`h-8 text-sm ${gstType === 'inter' ? 'bg-muted/50' : ''} ${gstMismatch ? 'border-destructive bg-destructive/10' : ''}`}>
                                                  <SelectValue placeholder="0%" />
                                                </SelectTrigger>
                                              </FormControl>
@@ -935,7 +955,7 @@ export function PurchaseOrderForm({
                                              disabled={readOnly}
                                            >
                                              <FormControl>
-                                               <SelectTrigger className={`h-8 text-sm ${gstType === 'intra' ? 'bg-muted/50' : ''} ${totalAppliedGST > masterGST ? 'border-destructive' : ''}`}>
+                                               <SelectTrigger className={`h-8 text-sm ${gstType === 'intra' ? 'bg-muted/50' : ''} ${gstMismatch ? 'border-destructive bg-destructive/10' : ''}`}>
                                                  <SelectValue placeholder="0%" />
                                                </SelectTrigger>
                                              </FormControl>
