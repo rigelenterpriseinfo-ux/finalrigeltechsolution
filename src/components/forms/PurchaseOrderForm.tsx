@@ -728,7 +728,6 @@ export function PurchaseOrderForm({
                              <TableHead className="w-[220px] font-semibold">Product</TableHead>
                              <TableHead className="w-[95px] text-center font-semibold">Qty</TableHead>
                              <TableHead className="w-[110px] text-center font-semibold">Unit Price</TableHead>
-                             <TableHead className="w-[90px] text-center font-semibold">GST Slot %</TableHead>
                              <TableHead className="w-[70px] text-center font-semibold">CGST%</TableHead>
                             <TableHead className="w-[70px] text-center font-semibold">SGST%</TableHead>
                             <TableHead className="w-[70px] text-center font-semibold">IGST%</TableHead>
@@ -844,31 +843,99 @@ export function PurchaseOrderForm({
                                  <TableCell className="p-2">
                                    <FormField
                                      control={form.control}
-                                     name={`items.${index}.master_gst_rate`}
-                                     render={({ field }) => (
+                                     name={`items.${index}.cgst_rate`}
+                                    render={({ field }) => (
                                        <FormItem>
                                          <FormControl>
                                            <Select 
                                              value={field.value?.toString() || "0"}
                                              onValueChange={(value) => {
-                                               const gstRate = parseFloat(value);
-                                               field.onChange(gstRate);
-                                               const gstType = form.getValues(`items.${index}.gst_type`) || 'intra';
-                                               if (gstType === 'intra') {
-                                                 form.setValue(`items.${index}.cgst_rate`, gstRate / 2);
-                                                 form.setValue(`items.${index}.sgst_rate`, gstRate / 2);
-                                                 form.setValue(`items.${index}.igst_rate`, 0);
-                                               } else {
-                                                 form.setValue(`items.${index}.cgst_rate`, 0);
-                                                 form.setValue(`items.${index}.sgst_rate`, 0);
-                                                 form.setValue(`items.${index}.igst_rate`, gstRate);
+                                               const rate = parseFloat(value);
+                                               if (validateGSTRate(index, 'cgst', rate)) {
+                                                 field.onChange(rate);
+                                                 calculateLineAmounts(index);
                                                }
-                                               calculateLineAmounts(index);
+                                             }}
+                                             disabled={readOnly || gstType === 'inter'}
+                                           >
+                                             <FormControl>
+                                               <SelectTrigger className={`h-8 text-sm ${gstType === 'inter' ? 'bg-muted/50' : ''} ${totalAppliedGST > masterGST ? 'border-destructive' : ''}`}>
+                                                 <SelectValue placeholder="0%" />
+                                               </SelectTrigger>
+                                             </FormControl>
+                                             <SelectContent>
+                                               <SelectItem value="0">0%</SelectItem>
+                                               <SelectItem value="2.5">2.5%</SelectItem>
+                                               <SelectItem value="6">6%</SelectItem>
+                                               <SelectItem value="9">9%</SelectItem>
+                                               <SelectItem value="14">14%</SelectItem>
+                                             </SelectContent>
+                                           </Select>
+                                         </FormControl>
+                                        <FormMessage />
+                                      </FormItem>
+                                    )}
+                                  />
+                                </TableCell>
+
+                                <TableCell className="p-2">
+                                  <FormField
+                                    control={form.control}
+                                    name={`items.${index}.sgst_rate`}
+                                    render={({ field }) => (
+                                       <FormItem>
+                                         <FormControl>
+                                           <Select 
+                                             value={field.value?.toString() || "0"}
+                                             onValueChange={(value) => {
+                                               const rate = parseFloat(value);
+                                               if (validateGSTRate(index, 'sgst', rate)) {
+                                                 field.onChange(rate);
+                                                 calculateLineAmounts(index);
+                                               }
+                                             }}
+                                             disabled={readOnly || gstType === 'inter'}
+                                           >
+                                             <FormControl>
+                                               <SelectTrigger className={`h-8 text-sm ${gstType === 'inter' ? 'bg-muted/50' : ''} ${totalAppliedGST > masterGST ? 'border-destructive' : ''}`}>
+                                                 <SelectValue placeholder="0%" />
+                                               </SelectTrigger>
+                                             </FormControl>
+                                             <SelectContent>
+                                               <SelectItem value="0">0%</SelectItem>
+                                               <SelectItem value="2.5">2.5%</SelectItem>
+                                               <SelectItem value="6">6%</SelectItem>
+                                               <SelectItem value="9">9%</SelectItem>
+                                               <SelectItem value="14">14%</SelectItem>
+                                             </SelectContent>
+                                           </Select>
+                                         </FormControl>
+                                        <FormMessage />
+                                      </FormItem>
+                                    )}
+                                  />
+                                </TableCell>
+
+                                <TableCell className="p-2">
+                                  <FormField
+                                    control={form.control}
+                                    name={`items.${index}.igst_rate`}
+                                    render={({ field }) => (
+                                       <FormItem>
+                                         <FormControl>
+                                           <Select 
+                                             value={field.value?.toString() || "0"}
+                                             onValueChange={(value) => {
+                                               const rate = parseFloat(value);
+                                               if (validateGSTRate(index, 'igst', rate)) {
+                                                 field.onChange(rate);
+                                                 calculateLineAmounts(index);
+                                               }
                                              }}
                                              disabled={readOnly}
                                            >
                                              <FormControl>
-                                               <SelectTrigger className="h-8 text-sm">
+                                               <SelectTrigger className={`h-8 text-sm ${gstType === 'intra' ? 'bg-muted/50' : ''} ${totalAppliedGST > masterGST ? 'border-destructive' : ''}`}>
                                                  <SelectValue placeholder="0%" />
                                                </SelectTrigger>
                                              </FormControl>
@@ -881,99 +948,6 @@ export function PurchaseOrderForm({
                                              </SelectContent>
                                            </Select>
                                          </FormControl>
-                                         <FormMessage />
-                                       </FormItem>
-                                     )}
-                                   />
-                                 </TableCell>
-
-                                 <TableCell className="p-2">
-                                   <FormField
-                                     control={form.control}
-                                     name={`items.${index}.cgst_rate`}
-                                    render={({ field }) => (
-                                      <FormItem>
-                                        <FormControl>
-                                          <Input 
-                                            type="number" 
-                                            step="0.01" 
-                                            min="0" 
-                                            max={masterGST}
-                                            className={`h-8 w-full text-center text-sm ${gstType === 'inter' ? 'bg-muted/50' : ''} ${totalAppliedGST > masterGST ? 'border-destructive' : ''}`}
-                                            placeholder="0"
-                                            {...field}
-                                            onChange={(e) => {
-                                              const value = parseFloat(e.target.value) || 0;
-                                              if (validateGSTRate(index, 'cgst', value)) {
-                                                field.onChange(value);
-                                                calculateLineAmounts(index);
-                                              }
-                                            }}
-                                            disabled={readOnly || gstType === 'inter'}
-                                          />
-                                        </FormControl>
-                                        <FormMessage />
-                                      </FormItem>
-                                    )}
-                                  />
-                                </TableCell>
-
-                                <TableCell className="p-2">
-                                  <FormField
-                                    control={form.control}
-                                    name={`items.${index}.sgst_rate`}
-                                    render={({ field }) => (
-                                      <FormItem>
-                                        <FormControl>
-                                          <Input 
-                                            type="number" 
-                                            step="0.01" 
-                                            min="0" 
-                                            max={masterGST}
-                                            className={`h-8 w-full text-center text-sm ${gstType === 'inter' ? 'bg-muted/50' : ''} ${totalAppliedGST > masterGST ? 'border-destructive' : ''}`}
-                                            placeholder="0"
-                                            {...field}
-                                            onChange={(e) => {
-                                              const value = parseFloat(e.target.value) || 0;
-                                              if (validateGSTRate(index, 'sgst', value)) {
-                                                field.onChange(value);
-                                                calculateLineAmounts(index);
-                                              }
-                                            }}
-                                            disabled={readOnly || gstType === 'inter'}
-                                          />
-                                        </FormControl>
-                                        <FormMessage />
-                                      </FormItem>
-                                    )}
-                                  />
-                                </TableCell>
-
-                                <TableCell className="p-2">
-                                  <FormField
-                                    control={form.control}
-                                    name={`items.${index}.igst_rate`}
-                                    render={({ field }) => (
-                                      <FormItem>
-                                        <FormControl>
-                                          <Input 
-                                            type="number" 
-                                            step="0.01" 
-                                            min="0" 
-                                            max={masterGST}
-                                            className={`h-8 w-full text-center text-sm ${gstType === 'intra' ? 'bg-muted/50' : ''} ${totalAppliedGST > masterGST ? 'border-destructive' : ''}`}
-                                            placeholder="0"
-                                            {...field}
-                                            onChange={(e) => {
-                                              const value = parseFloat(e.target.value) || 0;
-                                              if (validateGSTRate(index, 'igst', value)) {
-                                                field.onChange(value);
-                                                calculateLineAmounts(index);
-                                              }
-                                            }}
-                                            disabled={readOnly}
-                                          />
-                                        </FormControl>
                                         <FormMessage />
                                       </FormItem>
                                     )}
