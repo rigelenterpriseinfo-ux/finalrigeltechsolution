@@ -464,9 +464,7 @@ export const SupplierTable: React.FC<SupplierTableProps> = ({
                     </TableCell>
                     <TableCell>
                       <div className="text-sm">
-                        {[supplier.city, supplier.state, supplier.country]
-                          .filter(Boolean)
-                          .join(', ') || 'Not specified'}
+                        {supplier.city || 'Not specified'}
                       </div>
                     </TableCell>
                     <TableCell>
