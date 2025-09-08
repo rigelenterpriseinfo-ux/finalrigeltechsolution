@@ -669,12 +669,6 @@ function PurchaseModuleContent() {
             )}
           </div>
           
-          {/* AP Summary Widget */}
-          <APDashboardWidget
-            filters={apFilters}
-            showFilterLabel={true}
-            onFilterClear={clearAPFilters}
-          />
           
           <Card>
             <CardContent className="p-6">

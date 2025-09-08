@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -30,13 +30,16 @@ export function APDashboardWidget({ filters, showFilterLabel = false, onFilterCl
   const [apSummary, setApSummary] = useState<APSummary | null>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    if (profile?.company_id) {
-      fetchAPSummary();
-    }
-  }, [profile?.company_id, filters]);
+  const memoizedFilters = useMemo(() => filters, [
+    filters?.searchTerm,
+    filters?.statusFilter,
+    filters?.supplierFilter,
+    filters?.customerFilter,
+    filters?.dateRange?.start,
+    filters?.dateRange?.end
+  ]);
 
-  const fetchAPSummary = async () => {
+  const fetchAPSummary = useCallback(async () => {
     try {
       setLoading(true);
       
@@ -51,12 +54,12 @@ export function APDashboardWidget({ filters, showFilterLabel = false, onFilterCl
         .eq('company_id', profile?.company_id);
 
       // Apply filters if provided
-      if (filters?.searchTerm) {
-        query = query.or(`debit_note_number.ilike.%${filters.searchTerm}%,supplier_name.ilike.%${filters.searchTerm}%,reason.ilike.%${filters.searchTerm}%`);
+      if (memoizedFilters?.searchTerm) {
+        query = query.or(`debit_note_number.ilike.%${memoizedFilters.searchTerm}%,supplier_name.ilike.%${memoizedFilters.searchTerm}%,reason.ilike.%${memoizedFilters.searchTerm}%`);
       }
       
-      if (filters?.statusFilter && filters.statusFilter !== 'all') {
-        query = query.eq('status', filters.statusFilter);
+      if (memoizedFilters?.statusFilter && memoizedFilters.statusFilter !== 'all') {
+        query = query.eq('status', memoizedFilters.statusFilter);
       }
 
       const { data, error } = await query;
@@ -113,7 +116,13 @@ export function APDashboardWidget({ filters, showFilterLabel = false, onFilterCl
     } finally {
       setLoading(false);
     }
-  };
+  }, [profile?.company_id, memoizedFilters, toast]);
+
+  useEffect(() => {
+    if (profile?.company_id) {
+      fetchAPSummary();
+    }
+  }, [profile?.company_id, fetchAPSummary]);
 
   if (loading) {
     return (
