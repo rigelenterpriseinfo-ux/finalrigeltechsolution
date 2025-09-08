@@ -292,14 +292,14 @@ function PurchaseModuleContent() {
                   value={dashboardStats.suppliers.active}
                   subtitle="Currently active"
                   icon={Building2}
-                  variant="success"
+                  variant="primary"
                 />
                 <StatsCard
                   title="New This Month"
                   value={dashboardStats.suppliers.newThisMonth}
                   subtitle="Recently added"
                   icon={TrendingUp}
-                  variant="info"
+                  variant="accent"
                 />
               </div>
             </TabsContent>
@@ -318,14 +318,14 @@ function PurchaseModuleContent() {
                   value={`₹${dashboardStats.purchaseOrders.totalValue.toLocaleString()}`}
                   subtitle="All orders"
                   icon={DollarSign}
-                  variant="success"
+                  variant="primary"
                 />
                 <StatsCard
                   title="Overdue POs"
                   value={dashboardStats.purchaseOrders.overdue}
                   subtitle="Need attention"
                   icon={AlertCircle}
-                  variant="warning"
+                  variant="secondary"
                 />
               </div>
             </TabsContent>
@@ -344,14 +344,14 @@ function PurchaseModuleContent() {
                   value={dashboardStats.grns.totalReceived}
                   subtitle="Quantity received"
                   icon={Package}
-                  variant="success"
+                  variant="primary"
                 />
                 <StatsCard
                   title="Pending GRNs"
                   value={dashboardStats.grns.pending}
                   subtitle="In draft"
                   icon={Clock}
-                  variant="warning"
+                  variant="secondary"
                 />
               </div>
             </TabsContent>
@@ -370,14 +370,14 @@ function PurchaseModuleContent() {
                   value={dashboardStats.debitNotes.thisMonth}
                   subtitle="New this month"
                   icon={TrendingUp}
-                  variant="success"
+                  variant="primary"
                 />
                 <StatsCard
                   title="Total Amount"
                   value={`₹${dashboardStats.debitNotes.totalAmount.toLocaleString()}`}
                   subtitle="Total value"
                   icon={DollarSign}
-                  variant="info"
+                  variant="accent"
                 />
               </div>
             </TabsContent>
@@ -396,14 +396,14 @@ function PurchaseModuleContent() {
                   value={dashboardStats.creditNotes.pending}
                   subtitle="Awaiting processing"
                   icon={Clock}
-                  variant="warning"
+                  variant="secondary"
                 />
                 <StatsCard
                   title="Total Amount"
                   value={`₹${dashboardStats.creditNotes.totalAmount.toLocaleString()}`}
                   subtitle="Total value"
                   icon={DollarSign}
-                  variant="success"
+                  variant="primary"
                 />
               </div>
             </TabsContent>
