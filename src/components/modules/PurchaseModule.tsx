@@ -8,7 +8,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useBusinessAuth } from '@/hooks/useBusinessAuth';
 import { useToast } from '@/hooks/use-toast';
 import { Plus, Truck, ShoppingCart, Building2, Package, AlertCircle, FileText, CreditCard } from 'lucide-react';
-import { SupplierForm } from '@/components/forms/SupplierForm';
+import { EnhancedSupplierForm } from '@/components/forms/EnhancedSupplierForm';
 import { SupplierTable } from '@/components/tables/SupplierTable';
 import { PurchaseOrderForm } from '@/components/forms/PurchaseOrderForm';
 import { PurchaseOrderTable } from '@/components/tables/PurchaseOrderTable';
@@ -907,7 +907,7 @@ function PurchaseModuleContent() {
           <DialogHeader>
             <DialogTitle>Add New Supplier</DialogTitle>
           </DialogHeader>
-          <SupplierForm
+          <EnhancedSupplierForm
             onSubmit={handleAddSupplier}
             onCancel={() => setShowAddSupplierDialog(false)}
           />
@@ -920,7 +920,7 @@ function PurchaseModuleContent() {
           <DialogHeader>
             <DialogTitle>Edit Supplier</DialogTitle>
           </DialogHeader>
-          <SupplierForm
+          <EnhancedSupplierForm
             supplier={selectedSupplier}
             onSubmit={handleEditSupplier}
             onCancel={() => {

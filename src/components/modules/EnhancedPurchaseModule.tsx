@@ -23,7 +23,7 @@ import {
   Receipt,
   FileSpreadsheet
 } from 'lucide-react';
-import { SupplierForm } from '@/components/forms/SupplierForm';
+import { EnhancedSupplierForm } from '@/components/forms/EnhancedSupplierForm';
 import { SupplierTable } from '@/components/tables/SupplierTable';
 import { PurchaseOrderForm } from '@/components/forms/PurchaseOrderForm';
 import { PurchaseOrderTable } from '@/components/tables/PurchaseOrderTable';
@@ -509,7 +509,7 @@ function PurchaseModuleContent() {
               Create a new supplier for your purchase operations.
             </DialogDescription>
           </DialogHeader>
-          <SupplierForm
+          <EnhancedSupplierForm
             onSubmit={async (data) => {
               try {
                 const { error } = await supabase
