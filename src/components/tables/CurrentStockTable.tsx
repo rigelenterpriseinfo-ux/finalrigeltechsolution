@@ -65,6 +65,19 @@ interface AgingSummary {
   dead_stock_value: number;
 }
 
+interface WarehouseBinAging {
+  warehouse_name: string;
+  bin_name: string;
+  location_display: string;
+  aging_0_30_value: number;
+  aging_31_90_value: number;
+  aging_91_180_value: number;
+  aging_181_365_value: number;
+  aging_365_plus_value: number;
+  total_value: number;
+  total_qty: number;
+}
+
 interface CurrentStockTableProps {
   refreshTrigger?: number;
 }
@@ -83,6 +96,7 @@ export const CurrentStockTable = ({ refreshTrigger }: CurrentStockTableProps) =>
     totalValue: 0
   });
   const [agingSummary, setAgingSummary] = useState<AgingSummary | null>(null);
+  const [warehouseBinAging, setWarehouseBinAging] = useState<WarehouseBinAging[]>([]);
   const [topLowStockItems, setTopLowStockItems] = useState<{name: string, qty: number}[]>([]);
   const [sortConfig, setSortConfig] = useState<{
     key: string;
@@ -97,6 +111,7 @@ export const CurrentStockTable = ({ refreshTrigger }: CurrentStockTableProps) =>
     fetchCurrentStock();
     fetchInventoryStats();
     fetchAgingSummary();
+    fetchWarehouseBinAging();
   }, [company?.id, refreshTrigger]);
 
   const fetchCurrentStock = async () => {
@@ -284,6 +299,22 @@ export const CurrentStockTable = ({ refreshTrigger }: CurrentStockTableProps) =>
     }
   };
 
+  const fetchWarehouseBinAging = async () => {
+    if (!company?.id) return;
+    
+    try {
+      const { data, error } = await supabase.rpc('get_warehouse_bin_aging_summary', {
+        p_company_id: company.id
+      });
+
+      if (error) throw error;
+
+      setWarehouseBinAging(data || []);
+    } catch (error) {
+      console.error('Error fetching warehouse bin aging:', error);
+    }
+  };
+
   const getAgingBadge = (agingStatus: string, avgAge: number) => {
     switch (agingStatus) {
       case 'Fresh':
@@ -299,6 +330,19 @@ export const CurrentStockTable = ({ refreshTrigger }: CurrentStockTableProps) =>
       default:
         return <Badge variant="secondary">N/A</Badge>;
     }
+  };
+
+  // Format compact currency values
+  const formatCompactCurrency = (value: number) => {
+    if (value === 0) return '₹0';
+    if (value >= 10000000) { // 1 crore
+      return `₹${(value / 10000000).toFixed(1)}Cr`;
+    } else if (value >= 100000) { // 1 lakh
+      return `₹${(value / 100000).toFixed(1)}L`;
+    } else if (value >= 1000) { // 1 thousand
+      return `₹${(value / 1000).toFixed(1)}K`;
+    }
+    return `₹${value.toFixed(0)}`;
   };
 
   const getStockLevelBadge = (currentStock: number, minStock: number) => {
@@ -532,48 +576,53 @@ export const CurrentStockTable = ({ refreshTrigger }: CurrentStockTableProps) =>
             </div>
           </div>
           
-          {/* Aging Breakdown */}
-          {agingSummary && (
+          {/* Warehouse & Bin Aging Table */}
+          {warehouseBinAging.length > 0 && (
             <div className="mt-3 space-y-2">
-              <p className="text-xs text-muted-foreground mb-2">🕒 Aging Overview:</p>
-              <div className="grid grid-cols-2 gap-2 text-xs">
-                <div className="flex justify-between">
-                  <span>0-30 days:</span>
-                  <span className="font-medium">
-                    {Math.round((agingSummary.aging_0_30_value / (agingSummary.total_value || 1)) * 100)}% 
-                    (₹{agingSummary.aging_0_30_value.toLocaleString()})
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span>31-90 days:</span>
-                  <span className="font-medium">
-                    {Math.round((agingSummary.aging_31_90_value / (agingSummary.total_value || 1)) * 100)}%
-                    (₹{agingSummary.aging_31_90_value.toLocaleString()})
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span>91-180 days:</span>
-                  <span className="font-medium text-yellow-600">
-                    {Math.round((agingSummary.aging_91_180_value / (agingSummary.total_value || 1)) * 100)}%
-                    (₹{agingSummary.aging_91_180_value.toLocaleString()})
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span>180+ days:</span>
-                  <span className="font-medium text-red-600">
-                    {Math.round(((agingSummary.aging_181_365_value + agingSummary.aging_365_plus_value) / (agingSummary.total_value || 1)) * 100)}%
-                    (₹{(agingSummary.aging_181_365_value + agingSummary.aging_365_plus_value).toLocaleString()})
-                  </span>
-                </div>
+              <p className="text-xs text-muted-foreground mb-2">📍 Warehouse & Bin Aging:</p>
+              <div className="max-h-48 overflow-y-auto">
+                <table className="w-full text-xs">
+                  <thead className="sticky top-0 bg-background">
+                    <tr className="border-b text-left">
+                      <th className="pb-1 font-medium text-muted-foreground">Location</th>
+                      <th className="pb-1 font-medium text-green-600 text-right">0-30d</th>
+                      <th className="pb-1 font-medium text-blue-600 text-right">31-90d</th>
+                      <th className="pb-1 font-medium text-yellow-600 text-right">90+d</th>
+                      <th className="pb-1 font-medium text-foreground text-right">Total</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {warehouseBinAging.map((location, index) => (
+                      <tr key={index} className="border-b border-border/50">
+                        <td className="py-1 text-foreground font-medium max-w-24 truncate" title={location.location_display}>
+                          {location.location_display}
+                        </td>
+                        <td className="py-1 text-right font-mono text-green-600">
+                          {formatCompactCurrency(location.aging_0_30_value)}
+                        </td>
+                        <td className="py-1 text-right font-mono text-blue-600">
+                          {formatCompactCurrency(location.aging_31_90_value)}
+                        </td>
+                        <td className="py-1 text-right font-mono text-yellow-600">
+                          {formatCompactCurrency(location.aging_91_180_value + location.aging_181_365_value + location.aging_365_plus_value)}
+                        </td>
+                        <td className="py-1 text-right font-mono font-medium">
+                          {formatCompactCurrency(location.total_value)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
-              
-              {agingSummary.dead_stock_value > 0 && (
-                <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded text-xs">
-                  <span className="text-red-700 font-medium">
-                    ⚠️ Dead Stock: ₹{agingSummary.dead_stock_value.toLocaleString()} ({agingSummary.dead_stock_skus} SKUs)
-                  </span>
-                </div>
-              )}
+            </div>
+          )}
+
+          {/* Dead Stock Alert */}
+          {agingSummary && agingSummary.dead_stock_value > 0 && (
+            <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded text-xs">
+              <span className="text-red-700 font-medium">
+                ⚠️ Dead Stock: ₹{agingSummary.dead_stock_value.toLocaleString()} ({agingSummary.dead_stock_skus} SKUs)
+              </span>
             </div>
           )}
         </div>

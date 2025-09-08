@@ -3748,6 +3748,21 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: string
       }
+      get_warehouse_bin_aging_summary: {
+        Args: { p_company_id: string }
+        Returns: {
+          aging_0_30_value: number
+          aging_181_365_value: number
+          aging_31_90_value: number
+          aging_365_plus_value: number
+          aging_91_180_value: number
+          bin_name: string
+          location_display: string
+          total_qty: number
+          total_value: number
+          warehouse_name: string
+        }[]
+      }
       is_user_admin: {
         Args: Record<PropertyKey, never>
         Returns: boolean
