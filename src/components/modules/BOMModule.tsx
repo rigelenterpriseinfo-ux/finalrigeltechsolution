@@ -569,14 +569,22 @@ export function BOMModule() {
         </TabsList>
 
         <TabsContent value="list" className="space-y-4">
-          <div className="flex items-center space-x-2">
-            <Search className="h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search BOMs..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="max-w-sm"
-            />
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-2">
+              <Search className="h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search BOMs..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="max-w-sm"
+              />
+            </div>
+            {canEdit && (
+              <Button onClick={() => setShowBOMDialog(true)}>
+                <Plus className="h-4 w-4 mr-2" />
+                Create BOM
+              </Button>
+            )}
           </div>
 
           <div className="grid gap-4">
