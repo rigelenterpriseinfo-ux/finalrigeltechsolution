@@ -15,7 +15,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { Plus, Trash2, Search, ChevronDown, ChevronRight, Building, MapPin, Info, AlertTriangle, CheckCircle2, RadioIcon } from 'lucide-react';
+import { Plus, Trash2, Search, ChevronDown, ChevronRight, Building, MapPin, Info, AlertTriangle, CheckCircle2, RadioIcon, ShoppingCart, FileText } from 'lucide-react';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { useAuth } from '@/hooks/useAuth';
 
@@ -38,6 +38,8 @@ const purchaseOrderItemSchema = z.object({
   line_subtotal: z.number().min(0).optional(),
   line_total: z.number().min(0).optional(),
   remarks: z.string().optional(),
+  gst_type: z.enum(['intra', 'inter']).default('intra'),
+  master_gst_rate: z.number().optional(),
 });
 
 const purchaseOrderSchema = z.object({
@@ -83,7 +85,7 @@ export function PurchaseOrderForm({
   const [products, setProducts] = useState<any[]>([]);
   const [companyData, setCompanyData] = useState<any>(null);
   const [loading, setLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState('header');
+  const [activeTab, setActiveTab] = useState('order-info');
   const [expandedGSTItems, setExpandedGSTItems] = useState<Set<number>>(new Set());
 
   const form = useForm<PurchaseOrderFormData>({
@@ -94,7 +96,7 @@ export function PurchaseOrderForm({
       order_date: purchaseOrder?.order_date || new Date().toISOString().split('T')[0],
       currency: purchaseOrder?.currency || 'INR',
       payment_terms: purchaseOrder?.payment_terms || '',
-      expected_date: purchaseOrder?.expected_date || null,
+      expected_date: purchaseOrder?.expected_date || '',
       place_of_supply: purchaseOrder?.place_of_supply || '',
       same_as_registered_address: purchaseOrder?.same_as_registered_address || false,
       delivery_address_line1: purchaseOrder?.delivery_address_line1 || '',
@@ -105,32 +107,13 @@ export function PurchaseOrderForm({
       delivery_postal_code: purchaseOrder?.delivery_postal_code || '',
       status: purchaseOrder?.status || 'draft',
       notes: purchaseOrder?.notes || '',
-      items: purchaseOrder?.purchase_order_items || [{
-        product_id: '',
-        product_name: '',
-        item_code: '',
-        hsn_sac_code: '',
-        quantity: 1,
-        unit_of_measure: 'pcs',
-        unit_price: 0,
-        discount_percentage: 0,
-        discount_amount: 0,
-        cgst_rate: 0,
-        sgst_rate: 0,
-        igst_rate: 0,
-        cgst_amount: 0,
-        sgst_amount: 0,
-        igst_amount: 0,
-        line_subtotal: 0,
-        line_total: 0,
-        remarks: ''
-      }]
-    }
+      items: purchaseOrder?.items || [],
+    },
   });
 
   const { fields, append, remove } = useFieldArray({
     control: form.control,
-    name: "items"
+    name: 'items',
   });
 
   useEffect(() => {
@@ -139,80 +122,21 @@ export function PurchaseOrderForm({
     fetchCompanyData();
   }, []);
 
-  const fetchCompanyData = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('companies')
-        .select('*')
-        .eq('id', profile?.company_id)
-        .single();
-
-      if (error) throw error;
-      setCompanyData(data);
-    } catch (error) {
-      console.error('Error fetching company data:', error);
-    }
-  };
-
-  // Reset form with existing PO values when editing
-  useEffect(() => {
-    if (mode !== 'edit' || !purchaseOrder) return;
-
-    const mapped = {
-      po_number: purchaseOrder.po_number || '',
-      supplier_id: purchaseOrder.supplier_id || '',
-      order_date: purchaseOrder.order_date || new Date().toISOString().split('T')[0],
-      currency: purchaseOrder.currency || 'INR',
-      payment_terms: purchaseOrder.payment_terms || '',
-      expected_date: purchaseOrder.expected_date || null,
-      place_of_supply: purchaseOrder.place_of_supply || '',
-      same_as_registered_address: purchaseOrder.same_as_registered_address || false,
-      delivery_address_line1: purchaseOrder.delivery_address_line1 || '',
-      delivery_address_line2: purchaseOrder.delivery_address_line2 || '',
-      delivery_city: purchaseOrder.delivery_city || '',
-      delivery_state: purchaseOrder.delivery_state || '',
-      delivery_country: purchaseOrder.delivery_country || '',
-      delivery_postal_code: purchaseOrder.delivery_postal_code || '',
-      status: purchaseOrder.status || 'draft',
-      notes: purchaseOrder.notes || '',
-      items: (purchaseOrder.purchase_order_items || []).map((it: any) => ({
-        product_id: it.product_id || '',
-        product_name: it.item_description || '',
-        item_code: it.item_code || '',
-        hsn_sac_code: it.hsn_sac_code || '',
-        quantity: Number(it.quantity) || 1,
-        unit_of_measure: it.unit_of_measure || 'pcs',
-        unit_price: Number(it.unit_price) || 0,
-        discount_percentage: Number(it.discount_percentage) || 0,
-        discount_amount: Number(it.discount_amount) || 0,
-        cgst_rate: Number(it.cgst_rate) || 0,
-        sgst_rate: Number(it.sgst_rate) || 0,
-        igst_rate: Number(it.igst_rate) || 0,
-        cgst_amount: Number(it.cgst_amount) || 0,
-        sgst_amount: Number(it.sgst_amount) || 0,
-        igst_amount: Number(it.igst_amount) || 0,
-        line_subtotal: Number(it.taxable_value ?? it.total_price ?? 0),
-        line_total: Number(it.total_price) || 0,
-        remarks: it.remarks || ''
-      }))
-    };
-
-    form.reset(mapped as any);
-  }, [mode, purchaseOrder]);
-
   const fetchSuppliers = async () => {
     try {
       const { data, error } = await supabase
         .from('suppliers')
-        .select('*')
-        .eq('company_id', profile?.company_id)
-        .eq('is_active', true)
-        .order('name');
-
+        .select('*');
+      
       if (error) throw error;
       setSuppliers(data || []);
     } catch (error) {
       console.error('Error fetching suppliers:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to fetch suppliers',
+        variant: 'destructive',
+      });
     }
   };
 
@@ -220,82 +144,78 @@ export function PurchaseOrderForm({
     try {
       const { data, error } = await supabase
         .from('products')
-        .select('*')
-        .eq('company_id', profile?.company_id)
-        .eq('is_active', true)
-        .order('name');
-
+        .select('*');
+      
       if (error) throw error;
       setProducts(data || []);
     } catch (error) {
       console.error('Error fetching products:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to fetch products',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const fetchCompanyData = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('companies')
+        .select('*')
+        .limit(1)
+        .single();
+      
+      if (error) throw error;
+      setCompanyData(data);
+    } catch (error) {
+      console.error('Error fetching company data:', error);
     }
   };
 
   const handleProductSelect = (index: number, productId: string) => {
     const product = products.find(p => p.id === productId);
     if (product) {
-      form.setValue(`items.${index}.product_id`, productId);
+      form.setValue(`items.${index}.product_id`, product.id);
       form.setValue(`items.${index}.product_name`, product.name);
-      form.setValue(`items.${index}.item_code`, product.sku);
-      form.setValue(`items.${index}.hsn_sac_code`, product.hsn_code || '');
-      form.setValue(`items.${index}.unit_price`, product.unit_price || 0);
-      form.setValue(`items.${index}.unit_of_measure`, product.unit || 'pcs');
+      form.setValue(`items.${index}.item_code`, product.sku || '');
+      form.setValue(`items.${index}.hsn_sac_code`, product.hsn_sac_code || '');
+      form.setValue(`items.${index}.unit_of_measure`, product.unit_of_measure || 'PCS');
+      form.setValue(`items.${index}.unit_price`, product.purchase_price || 0);
+      form.setValue(`items.${index}.master_gst_rate`, product.gst_percentage || 0);
       
-      // Auto-populate GST rates from product master
+      // Auto-populate GST rates from master
       const masterGST = product.gst_percentage || 0;
       if (masterGST > 0) {
-        // Default to intra-state (CGST + SGST split)
-        const splitRate = masterGST / 2;
-        form.setValue(`items.${index}.cgst_rate`, splitRate);
-        form.setValue(`items.${index}.sgst_rate`, splitRate);
-        form.setValue(`items.${index}.igst_rate`, 0);
+        const gstType = form.getValues(`items.${index}.gst_type`) || 'intra';
+        if (gstType === 'intra') {
+          // Split equally between CGST and SGST
+          form.setValue(`items.${index}.cgst_rate`, masterGST / 2);
+          form.setValue(`items.${index}.sgst_rate`, masterGST / 2);
+          form.setValue(`items.${index}.igst_rate`, 0);
+        } else {
+          // Inter-state: use IGST
+          form.setValue(`items.${index}.cgst_rate`, 0);
+          form.setValue(`items.${index}.sgst_rate`, 0);
+          form.setValue(`items.${index}.igst_rate`, masterGST);
+        }
       }
       
       calculateLineAmounts(index);
     }
   };
 
-  const calculateLineAmounts = (index: number) => {
-    const values = form.getValues();
-    const item = values.items[index];
+  const handleGSTTypeChange = (index: number, gstType: 'intra' | 'inter') => {
+    form.setValue(`items.${index}.gst_type`, gstType);
+    const masterGST = form.getValues(`items.${index}.master_gst_rate`) || 0;
     
-    const quantity = item.quantity || 0;
-    const unitPrice = item.unit_price || 0;
-    const discountPercentage = item.discount_percentage || 0;
-    
-    const lineSubtotal = quantity * unitPrice;
-    const discountAmount = (lineSubtotal * discountPercentage) / 100;
-    const taxableAmount = lineSubtotal - discountAmount;
-    
-    const cgstAmount = (taxableAmount * (item.cgst_rate || 0)) / 100;
-    const sgstAmount = (taxableAmount * (item.sgst_rate || 0)) / 100;
-    const igstAmount = (taxableAmount * (item.igst_rate || 0)) / 100;
-    
-    const lineTotal = taxableAmount + cgstAmount + sgstAmount + igstAmount;
-    
-    form.setValue(`items.${index}.discount_amount`, discountAmount);
-    form.setValue(`items.${index}.cgst_amount`, cgstAmount);
-    form.setValue(`items.${index}.sgst_amount`, sgstAmount);
-    form.setValue(`items.${index}.igst_amount`, igstAmount);
-    form.setValue(`items.${index}.line_subtotal`, lineSubtotal);
-    form.setValue(`items.${index}.line_total`, lineTotal);
-  };
-
-  // GST Type Toggle Functions
-  const toggleGSTType = (index: number, type: 'intrastate' | 'interstate') => {
-    const item = form.getValues(`items.${index}`);
-    const product = products.find(p => p.id === item.product_id);
-    const masterGST = product?.gst_percentage || 0;
-
-    if (type === 'intrastate') {
-      // Split GST equally between CGST and SGST
-      const splitRate = masterGST / 2;
-      form.setValue(`items.${index}.cgst_rate`, splitRate);
-      form.setValue(`items.${index}.sgst_rate`, splitRate);
+    if (gstType === 'intra') {
+      // Intra-state: Clear IGST, set CGST+SGST
       form.setValue(`items.${index}.igst_rate`, 0);
+      form.setValue(`items.${index}.cgst_rate`, masterGST / 2);
+      form.setValue(`items.${index}.sgst_rate`, masterGST / 2);
     } else {
-      // All GST goes to IGST
+      // Inter-state: Clear CGST+SGST, set IGST
       form.setValue(`items.${index}.cgst_rate`, 0);
       form.setValue(`items.${index}.sgst_rate`, 0);
       form.setValue(`items.${index}.igst_rate`, masterGST);
@@ -304,24 +224,61 @@ export function PurchaseOrderForm({
     calculateLineAmounts(index);
   };
 
-  // Validate GST rates against master
   const validateGSTRate = (index: number, gstType: 'cgst' | 'sgst' | 'igst', value: number) => {
-    const item = form.getValues(`items.${index}`);
-    const product = products.find(p => p.id === item.product_id);
-    const masterGST = product?.gst_percentage || 0;
+    const masterGST = form.getValues(`items.${index}.master_gst_rate`) || 0;
+    const currentGSTType = form.getValues(`items.${index}.gst_type`);
     
-    if (gstType === 'igst') {
-      return value <= masterGST;
+    if (currentGSTType === 'intra') {
+      const cgst = gstType === 'cgst' ? value : (form.getValues(`items.${index}.cgst_rate`) || 0);
+      const sgst = gstType === 'sgst' ? value : (form.getValues(`items.${index}.sgst_rate`) || 0);
+      const totalGST = cgst + sgst;
+      
+      if (totalGST > masterGST) {
+        toast({
+          title: 'GST Validation Error',
+          description: `Total GST (${totalGST}%) cannot exceed master rate (${masterGST}%)`,
+          variant: 'destructive',
+        });
+        return false;
+      }
     } else {
-      const totalGST = (gstType === 'cgst' ? value : item.cgst_rate || 0) + (gstType === 'sgst' ? value : item.sgst_rate || 0);
-      return totalGST <= masterGST;
+      if (value > masterGST) {
+        toast({
+          title: 'GST Validation Error',
+          description: `IGST (${value}%) cannot exceed master rate (${masterGST}%)`,
+          variant: 'destructive',
+        });
+        return false;
+      }
     }
+    
+    return true;
   };
 
-  // Get product master GST rate
-  const getProductMasterGST = (productId: string): number => {
-    const product = products.find(p => p.id === productId);
-    return product?.gst_percentage || 0;
+  const calculateLineAmounts = (index: number) => {
+    const quantity = form.getValues(`items.${index}.quantity`) || 0;
+    const unitPrice = form.getValues(`items.${index}.unit_price`) || 0;
+    const discountPercentage = form.getValues(`items.${index}.discount_percentage`) || 0;
+    const cgstRate = form.getValues(`items.${index}.cgst_rate`) || 0;
+    const sgstRate = form.getValues(`items.${index}.sgst_rate`) || 0;
+    const igstRate = form.getValues(`items.${index}.igst_rate`) || 0;
+
+    const subtotal = quantity * unitPrice;
+    const discountAmount = (subtotal * discountPercentage) / 100;
+    const lineSubtotal = subtotal - discountAmount;
+
+    const cgstAmount = (lineSubtotal * cgstRate) / 100;
+    const sgstAmount = (lineSubtotal * sgstRate) / 100;
+    const igstAmount = (lineSubtotal * igstRate) / 100;
+
+    const lineTotal = lineSubtotal + cgstAmount + sgstAmount + igstAmount;
+
+    form.setValue(`items.${index}.discount_amount`, discountAmount);
+    form.setValue(`items.${index}.line_subtotal`, lineSubtotal);
+    form.setValue(`items.${index}.cgst_amount`, cgstAmount);
+    form.setValue(`items.${index}.sgst_amount`, sgstAmount);
+    form.setValue(`items.${index}.igst_amount`, igstAmount);
+    form.setValue(`items.${index}.line_total`, lineTotal);
   };
 
   const addItem = () => {
@@ -331,7 +288,7 @@ export function PurchaseOrderForm({
       item_code: '',
       hsn_sac_code: '',
       quantity: 1,
-      unit_of_measure: 'pcs',
+      unit_of_measure: 'PCS',
       unit_price: 0,
       discount_percentage: 0,
       discount_amount: 0,
@@ -343,117 +300,36 @@ export function PurchaseOrderForm({
       igst_amount: 0,
       line_subtotal: 0,
       line_total: 0,
-      remarks: ''
+      remarks: '',
+      gst_type: 'intra',
+      master_gst_rate: 0,
     });
   };
 
-  // Helper function to sanitize date values
-  const sanitizeDateValue = (dateValue: string | null | undefined): string | null => {
-    if (!dateValue || dateValue === '') {
-      return null;
-    }
-    return dateValue;
-  };
-
   const handleSubmit = async (data: PurchaseOrderFormData) => {
-    if (readOnly) return;
-    
     setLoading(true);
     try {
-      // Calculate totals
-      const subtotalAmount = data.items.reduce((sum, item) => sum + (item.line_subtotal || 0), 0);
-      const totalDiscountAmount = data.items.reduce((sum, item) => sum + (item.discount_amount || 0), 0);
-      const totalTaxAmount = data.items.reduce((sum, item) => 
-        sum + (item.cgst_amount || 0) + (item.sgst_amount || 0) + (item.igst_amount || 0), 0);
-      const totalAmount = data.items.reduce((sum, item) => sum + (item.line_total || 0), 0);
-
-      const purchaseOrderData = {
-        ...data,
-        // Sanitize date fields to convert empty strings to null
-        expected_date: sanitizeDateValue(data.expected_date),
-        subtotal_amount: subtotalAmount,
-        total_discount_amount: totalDiscountAmount,
-        total_tax_amount: totalTaxAmount,
-        total_amount: totalAmount,
-        items: data.items.map(item => {
-          // For edit mode, preserve existing received quantities
-          const existingItem = mode === 'edit' && purchaseOrder?.purchase_order_items?.find(
-            (poItem: any) => poItem.product_id === item.product_id
-          );
-          const receivedQuantity = existingItem?.received_quantity || 0;
-          const pendingQuantity = Math.max(0, item.quantity - receivedQuantity);
-
-          return {
-            product_id: item.product_id,
-            item_code: item.item_code,
-            item_description: item.product_name,
-            hsn_sac_code: item.hsn_sac_code,
-            quantity: item.quantity,
-            unit_of_measure: item.unit_of_measure,
-            unit_price: item.unit_price,
-            discount_percentage: item.discount_percentage || 0,
-            discount_amount: item.discount_amount || 0,
-            cgst_rate: item.cgst_rate || 0,
-            sgst_rate: item.sgst_rate || 0,
-            igst_rate: item.igst_rate || 0,
-            cgst_amount: item.cgst_amount || 0,
-            sgst_amount: item.sgst_amount || 0,
-            igst_amount: item.igst_amount || 0,
-            total_price: item.line_total || 0,
-            received_quantity: receivedQuantity,
-            pending_quantity: pendingQuantity,
-            remarks: item.remarks || '',
-            is_taxable: true,
-            taxable_value: item.line_subtotal || 0,
-            gst_rate: (item.cgst_rate || 0) + (item.sgst_rate || 0) + (item.igst_rate || 0)
-          };
-        })
-      };
-
-      const result = await onSubmit(purchaseOrderData);
-      if (result?.po_number) {
-        form.setValue('po_number', result.po_number);
-      }
-    } catch (error) {
-      console.error('Error submitting purchase order:', error);
+      await onSubmit(data);
       toast({
-        title: "Error",
-        description: "Failed to save purchase order",
-        variant: "destructive",
+        title: 'Success',
+        description: `Purchase Order ${mode === 'edit' ? 'updated' : 'created'} successfully`,
+      });
+    } catch (error) {
+      console.error('Error submitting form:', error);
+      toast({
+        title: 'Error',
+        description: `Failed to ${mode === 'edit' ? 'update' : 'create'} Purchase Order`,
+        variant: 'destructive',
       });
     } finally {
       setLoading(false);
     }
   };
 
-  const calculateTotals = () => {
-    const items = form.watch('items');
-    const subtotal = items.reduce((sum, item) => sum + (item.line_subtotal || 0), 0);
-    const totalDiscount = items.reduce((sum, item) => sum + (item.discount_amount || 0), 0);
-    const totalTax = items.reduce((sum, item) => 
-      sum + (item.cgst_amount || 0) + (item.sgst_amount || 0) + (item.igst_amount || 0), 0);
-    const total = items.reduce((sum, item) => sum + (item.line_total || 0), 0);
-    
-    return { subtotal, totalDiscount, totalTax, total };
-  };
-
-  const { subtotal, totalDiscount, totalTax, total } = calculateTotals();
-
-  const toggleGSTExpansion = (index: number) => {
-    const newSet = new Set(expandedGSTItems);
-    if (newSet.has(index)) {
-      newSet.delete(index);
-    } else {
-      newSet.add(index);
-    }
-    setExpandedGSTItems(newSet);
-  };
-
   const handleSameAsRegisteredAddressChange = (checked: boolean) => {
     form.setValue('same_as_registered_address', checked);
     
     if (checked && companyData) {
-      // Auto-populate delivery address with company address
       form.setValue('delivery_address_line1', companyData.address_line1 || companyData.address || '');
       form.setValue('delivery_address_line2', companyData.address_line2 || '');
       form.setValue('delivery_city', companyData.city || '');
@@ -461,7 +337,6 @@ export function PurchaseOrderForm({
       form.setValue('delivery_country', companyData.country || '');
       form.setValue('delivery_postal_code', companyData.postal_code || '');
     } else {
-      // Clear delivery address fields
       form.setValue('delivery_address_line1', '');
       form.setValue('delivery_address_line2', '');
       form.setValue('delivery_city', '');
@@ -473,255 +348,273 @@ export function PurchaseOrderForm({
 
   const sameAsRegisteredAddress = form.watch('same_as_registered_address');
 
+  // Calculate totals
+  const items = form.watch('items') || [];
+  const subtotal = items.reduce((sum, item) => sum + (item.line_subtotal || 0), 0);
+  const totalDiscount = items.reduce((sum, item) => sum + (item.discount_amount || 0), 0);
+  const totalTax = items.reduce((sum, item) => sum + (item.cgst_amount || 0) + (item.sgst_amount || 0) + (item.igst_amount || 0), 0);
+  const total = items.reduce((sum, item) => sum + (item.line_total || 0), 0);
+
   return (
-    <div className="h-[calc(100vh-120px)] flex flex-col">
-      {/* Header */}
-      <div className="flex justify-between items-center mb-4 px-1">
+    <div className="h-[calc(100vh-120px)] flex flex-col bg-background">
+      {/* Compact Header */}
+      <div className="flex justify-between items-center mb-3 px-4 py-3 border-b bg-card/50 backdrop-blur-sm">
         <div>
-          <h2 className="text-2xl font-bold">
-            {mode === 'create' ? 'Create Purchase Order' : 
+          <h1 className="text-xl font-bold text-foreground">
+            {mode === 'create' ? 'New Purchase Order' : 
              mode === 'edit' ? 'Edit Purchase Order' : 'Purchase Order Details'}
-          </h2>
+          </h1>
           {purchaseOrder?.po_number && (
-            <p className="text-muted-foreground">PO Number: {purchaseOrder.po_number}</p>
+            <p className="text-sm text-muted-foreground">PO: {purchaseOrder.po_number}</p>
           )}
         </div>
-        <div className="flex items-center gap-4">
-          <Badge variant={readOnly ? "secondary" : "default"}>
-            {readOnly ? 'View Only' : (mode === 'edit' ? 'Edit Mode' : 'Create Mode')}
+        <div className="flex items-center gap-3">
+          <Badge variant={readOnly ? "secondary" : "default"} className="text-xs px-2">
+            {readOnly ? 'View Only' : (mode === 'edit' ? 'Edit' : 'Create')}
           </Badge>
-          <div className="text-right text-sm">
-            <div className="font-semibold">Total: ₹{total.toFixed(2)}</div>
-            <div className="text-muted-foreground">{fields.length} items</div>
+          <div className="text-right text-sm bg-primary/10 px-3 py-2 rounded-lg border">
+            <div className="font-bold text-primary text-lg">₹{total.toFixed(2)}</div>
+            <div className="text-xs text-muted-foreground">{fields.length} items</div>
           </div>
         </div>
       </div>
 
       <Form {...form}>
         <form onSubmit={form.handleSubmit(handleSubmit)} className="flex-1 flex flex-col">
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col">
-            <TabsList className="grid w-full grid-cols-3 mb-4">
-              <TabsTrigger value="header">Order Info</TabsTrigger>
-              <TabsTrigger value="items">Items ({fields.length})</TabsTrigger>
-              <TabsTrigger value="summary">Summary</TabsTrigger>
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col px-4">
+            <TabsList className="grid w-full grid-cols-3 mb-4 bg-muted/30 h-12">
+              <TabsTrigger value="order-info" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground flex items-center gap-2">
+                <Building className="h-4 w-4" />
+                Order Info
+              </TabsTrigger>
+              <TabsTrigger value="items" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground flex items-center gap-2">
+                <ShoppingCart className="h-4 w-4" />
+                Items ({fields.length})
+              </TabsTrigger>
+              <TabsTrigger value="summary" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground flex items-center gap-2">
+                <FileText className="h-4 w-4" />
+                Summary
+              </TabsTrigger>
             </TabsList>
 
             <div className="flex-1 overflow-hidden">
-              <TabsContent value="header" className="flex-1 overflow-auto space-y-6">
-                {/* Basic Information Section */}
-                <Card className="shadow-sm">
+              {/* Order Info Tab */}
+              <TabsContent value="order-info" className="flex-1 overflow-auto space-y-4 m-0">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                  {/* Basic Information */}
+                  <Card className="shadow-sm border-border/50">
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-base font-semibold flex items-center gap-2">
+                        <Building className="h-4 w-4 text-primary" />
+                        Basic Information
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="grid grid-cols-1 gap-4">
+                        <FormField
+                          control={form.control}
+                          name="po_number"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">PO Number</FormLabel>
+                              <FormControl>
+                                <Input 
+                                  placeholder="Auto-generated on save" 
+                                  {...field} 
+                                  disabled 
+                                  className="h-9 bg-muted/30 text-muted-foreground" 
+                                />
+                              </FormControl>
+                            </FormItem>
+                          )}
+                        />
+
+                        <FormField
+                          control={form.control}
+                          name="supplier_id"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                                Supplier <span className="text-destructive">*</span>
+                              </FormLabel>
+                              <Select value={field.value} onValueChange={field.onChange} disabled={readOnly}>
+                                <FormControl>
+                                  <SelectTrigger className="h-9">
+                                    <SelectValue placeholder="Choose supplier" />
+                                  </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                  {suppliers.map((supplier) => (
+                                    <SelectItem key={supplier.id} value={supplier.id}>
+                                      <div className="flex flex-col">
+                                        <span className="font-medium">{supplier.name}</span>
+                                        <span className="text-xs text-muted-foreground">{supplier.supplier_ref}</span>
+                                      </div>
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+
+                        <div className="grid grid-cols-2 gap-3">
+                          <FormField
+                            control={form.control}
+                            name="order_date"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                                  Order Date <span className="text-destructive">*</span>
+                                </FormLabel>
+                                <FormControl>
+                                  <Input type="date" {...field} disabled={readOnly} className="h-9" />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+
+                          <FormField
+                            control={form.control}
+                            name="expected_date"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Expected Date</FormLabel>
+                                <FormControl>
+                                  <Input type="date" {...field} disabled={readOnly} className="h-9" />
+                                </FormControl>
+                              </FormItem>
+                            )}
+                          />
+                        </div>
+
+                        <FormField
+                          control={form.control}
+                          name="status"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                                Status <span className="text-destructive">*</span>
+                              </FormLabel>
+                              <Select value={field.value} onValueChange={field.onChange} disabled={readOnly}>
+                                <FormControl>
+                                  <SelectTrigger className="h-9">
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                  <SelectItem value="draft">
+                                    <div className="flex items-center gap-2">
+                                      <div className="w-2 h-2 rounded-full bg-muted-foreground"></div>
+                                      <span>Draft</span>
+                                    </div>
+                                  </SelectItem>
+                                  <SelectItem value="open">
+                                    <div className="flex items-center gap-2">
+                                      <div className="w-2 h-2 rounded-full bg-blue-500"></div>
+                                      <span>Open</span>
+                                    </div>
+                                  </SelectItem>
+                                  <SelectItem value="cancelled">
+                                    <div className="flex items-center gap-2">
+                                      <div className="w-2 h-2 rounded-full bg-destructive"></div>
+                                      <span>Cancelled</span>
+                                    </div>
+                                  </SelectItem>
+                                </SelectContent>
+                              </Select>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* Business Details */}
+                  <Card className="shadow-sm border-border/50">
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-base font-semibold flex items-center gap-2">
+                        <Info className="h-4 w-4 text-primary" />
+                        Business Details
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="grid grid-cols-1 gap-4">
+                        <FormField
+                          control={form.control}
+                          name="currency"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                                Currency <span className="text-destructive">*</span>
+                              </FormLabel>
+                              <Select value={field.value} onValueChange={field.onChange} disabled={readOnly}>
+                                <FormControl>
+                                  <SelectTrigger className="h-9">
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                  <SelectItem value="INR">INR - Indian Rupee</SelectItem>
+                                  <SelectItem value="USD">USD - US Dollar</SelectItem>
+                                  <SelectItem value="EUR">EUR - Euro</SelectItem>
+                                  <SelectItem value="GBP">GBP - British Pound</SelectItem>
+                                </SelectContent>
+                              </Select>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+
+                        <FormField
+                          control={form.control}
+                          name="payment_terms"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Payment Terms</FormLabel>
+                              <FormControl>
+                                <Input 
+                                  placeholder="e.g., Net 30 days, Advance payment" 
+                                  {...field} 
+                                  disabled={readOnly} 
+                                  className="h-9" 
+                                />
+                              </FormControl>
+                            </FormItem>
+                          )}
+                        />
+
+                        <FormField
+                          control={form.control}
+                          name="place_of_supply"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Place of Supply</FormLabel>
+                              <FormControl>
+                                <Input 
+                                  placeholder="e.g., Mumbai, Maharashtra" 
+                                  {...field} 
+                                  disabled={readOnly} 
+                                  className="h-9" 
+                                />
+                              </FormControl>
+                              <p className="text-xs text-muted-foreground">For GST calculation purposes</p>
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                {/* Delivery Address */}
+                <Card className="shadow-sm border-border/50">
                   <CardHeader className="pb-3">
-                    <CardTitle className="flex items-center gap-2 text-lg">
-                      <Building className="h-5 w-5 text-primary" />
-                      Basic Information
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    <FormField
-                      control={form.control}
-                      name="po_number"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="text-sm font-medium">PO Number</FormLabel>
-                          <FormControl>
-                            <Input 
-                              placeholder="Will be generated on save" 
-                              {...field} 
-                              disabled 
-                              readOnly 
-                              className="bg-muted/50 text-muted-foreground" 
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={form.control}
-                      name="supplier_id"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="text-sm font-medium">
-                            Supplier <span className="text-destructive">*</span>
-                          </FormLabel>
-                          <Select value={field.value} onValueChange={field.onChange} disabled={readOnly}>
-                            <FormControl>
-                              <SelectTrigger className="h-11">
-                                <SelectValue placeholder="Choose a supplier" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              {suppliers.map((supplier) => (
-                                <SelectItem key={supplier.id} value={supplier.id}>
-                                  <div className="flex flex-col">
-                                    <span className="font-medium">{supplier.name}</span>
-                                    <span className="text-xs text-muted-foreground">{supplier.supplier_ref}</span>
-                                  </div>
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={form.control}
-                      name="order_date"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="text-sm font-medium">
-                            PO Date <span className="text-destructive">*</span>
-                          </FormLabel>
-                          <FormControl>
-                            <Input type="date" {...field} disabled={readOnly} className="h-11" />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </CardContent>
-                </Card>
-
-                {/* Business Details Section */}
-                <Card className="shadow-sm">
-                  <CardHeader className="pb-3">
-                    <CardTitle className="flex items-center gap-2 text-lg">
-                      <Info className="h-5 w-5 text-primary" />
-                      Business Details
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    <FormField
-                      control={form.control}
-                      name="currency"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="text-sm font-medium">
-                            Currency <span className="text-destructive">*</span>
-                          </FormLabel>
-                          <Select value={field.value} onValueChange={field.onChange} disabled={readOnly}>
-                            <FormControl>
-                              <SelectTrigger className="h-11">
-                                <SelectValue />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              <SelectItem value="INR">INR - Indian Rupee</SelectItem>
-                              <SelectItem value="USD">USD - US Dollar</SelectItem>
-                              <SelectItem value="EUR">EUR - Euro</SelectItem>
-                              <SelectItem value="GBP">GBP - British Pound</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={form.control}
-                      name="payment_terms"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="text-sm font-medium">Payment Terms</FormLabel>
-                          <FormControl>
-                            <Input 
-                              placeholder="e.g., Net 30 days, Advance payment" 
-                              {...field} 
-                              disabled={readOnly} 
-                              className="h-11" 
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={form.control}
-                      name="expected_date"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="text-sm font-medium">Expected Delivery Date</FormLabel>
-                          <FormControl>
-                            <Input type="date" {...field} disabled={readOnly} className="h-11" />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={form.control}
-                      name="place_of_supply"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="text-sm font-medium">Place of Supply</FormLabel>
-                          <FormControl>
-                            <Input 
-                              placeholder="e.g., Mumbai, Maharashtra" 
-                              {...field} 
-                              disabled={readOnly} 
-                              className="h-11" 
-                            />
-                          </FormControl>
-                          <p className="text-xs text-muted-foreground mt-1">
-                            Location for GST tax calculation purposes
-                          </p>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={form.control}
-                      name="status"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="text-sm font-medium">
-                            Status <span className="text-destructive">*</span>
-                          </FormLabel>
-                          <Select value={field.value} onValueChange={field.onChange} disabled={readOnly}>
-                            <FormControl>
-                              <SelectTrigger className="h-11">
-                                <SelectValue />
-                              </SelectTrigger>
-                            </FormControl>
-                             <SelectContent>
-                               <SelectItem value="draft">
-                                 <div className="flex items-center gap-2">
-                                   <div className="w-2 h-2 rounded-full bg-muted-foreground"></div>
-                                   <span>Draft</span>
-                                 </div>
-                               </SelectItem>
-                               <SelectItem value="open">
-                                 <div className="flex items-center gap-2">
-                                   <div className="w-2 h-2 rounded-full bg-blue-500"></div>
-                                   <span>Open</span>
-                                 </div>
-                               </SelectItem>
-                               <SelectItem value="cancelled">
-                                 <div className="flex items-center gap-2">
-                                   <div className="w-2 h-2 rounded-full bg-destructive"></div>
-                                   <span>Cancelled</span>
-                                 </div>
-                               </SelectItem>
-                             </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </CardContent>
-                </Card>
-
-                {/* Delivery Address Section */}
-                <Card className="shadow-sm">
-                  <CardHeader className="pb-3">
-                    <CardTitle className="flex items-center gap-2 text-lg">
-                      <MapPin className="h-5 w-5 text-primary" />
+                    <CardTitle className="text-base font-semibold flex items-center gap-2">
+                      <MapPin className="h-4 w-4 text-primary" />
                       Delivery Address
                     </CardTitle>
                   </CardHeader>
@@ -750,719 +643,541 @@ export function PurchaseOrderForm({
                       )}
                     />
 
-                    {!sameAsRegisteredAddress && (
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-                        <FormField
-                          control={form.control}
-                          name="delivery_address_line1"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel className="text-sm font-medium">
-                                Address Line 1 <span className="text-destructive">*</span>
-                              </FormLabel>
-                              <FormControl>
-                                <Input 
-                                  placeholder="Street address, building name" 
-                                  {...field} 
-                                  disabled={readOnly} 
-                                  className="h-11" 
-                                />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <FormField
+                        control={form.control}
+                        name="delivery_address_line1"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Address Line 1</FormLabel>
+                            <FormControl>
+                              <Input 
+                                placeholder="Street address" 
+                                {...field} 
+                                disabled={readOnly || sameAsRegisteredAddress} 
+                                className="h-9" 
+                              />
+                            </FormControl>
+                          </FormItem>
+                        )}
+                      />
 
-                        <FormField
-                          control={form.control}
-                          name="delivery_address_line2"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel className="text-sm font-medium">Address Line 2</FormLabel>
-                              <FormControl>
-                                <Input 
-                                  placeholder="Apartment, suite, floor (optional)" 
-                                  {...field} 
-                                  disabled={readOnly} 
-                                  className="h-11" 
-                                />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
+                      <FormField
+                        control={form.control}
+                        name="delivery_address_line2"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Address Line 2</FormLabel>
+                            <FormControl>
+                              <Input 
+                                placeholder="Apartment, suite, etc." 
+                                {...field} 
+                                disabled={readOnly || sameAsRegisteredAddress} 
+                                className="h-9" 
+                              />
+                            </FormControl>
+                          </FormItem>
+                        )}
+                      />
 
-                        <FormField
-                          control={form.control}
-                          name="delivery_city"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel className="text-sm font-medium">
-                                City <span className="text-destructive">*</span>
-                              </FormLabel>
-                              <FormControl>
-                                <Input 
-                                  placeholder="Enter city" 
-                                  {...field} 
-                                  disabled={readOnly} 
-                                  className="h-11" 
-                                />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
+                      <FormField
+                        control={form.control}
+                        name="delivery_city"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">City</FormLabel>
+                            <FormControl>
+                              <Input 
+                                placeholder="City" 
+                                {...field} 
+                                disabled={readOnly || sameAsRegisteredAddress} 
+                                className="h-9" 
+                              />
+                            </FormControl>
+                          </FormItem>
+                        )}
+                      />
 
-                        <FormField
-                          control={form.control}
-                          name="delivery_state"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel className="text-sm font-medium">
-                                State <span className="text-destructive">*</span>
-                              </FormLabel>
-                              <FormControl>
-                                <Input 
-                                  placeholder="Enter state/province" 
-                                  {...field} 
-                                  disabled={readOnly} 
-                                  className="h-11" 
-                                />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
+                      <FormField
+                        control={form.control}
+                        name="delivery_state"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">State</FormLabel>
+                            <FormControl>
+                              <Input 
+                                placeholder="State" 
+                                {...field} 
+                                disabled={readOnly || sameAsRegisteredAddress} 
+                                className="h-9" 
+                              />
+                            </FormControl>
+                          </FormItem>
+                        )}
+                      />
 
-                        <FormField
-                          control={form.control}
-                          name="delivery_country"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel className="text-sm font-medium">
-                                Country <span className="text-destructive">*</span>
-                              </FormLabel>
-                              <FormControl>
-                                <Input 
-                                  placeholder="Enter country" 
-                                  {...field} 
-                                  disabled={readOnly} 
-                                  className="h-11" 
-                                />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
+                      <FormField
+                        control={form.control}
+                        name="delivery_country"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Country</FormLabel>
+                            <FormControl>
+                              <Input 
+                                placeholder="Country" 
+                                {...field} 
+                                disabled={readOnly || sameAsRegisteredAddress} 
+                                className="h-9" 
+                              />
+                            </FormControl>
+                          </FormItem>
+                        )}
+                      />
 
-                        <FormField
-                          control={form.control}
-                          name="delivery_postal_code"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel className="text-sm font-medium">
-                                Pin Code <span className="text-destructive">*</span>
-                              </FormLabel>
-                              <FormControl>
-                                <Input 
-                                  placeholder="Enter postal/zip code" 
-                                  {...field} 
-                                  disabled={readOnly} 
-                                  className="h-11" 
-                                />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                      </div>
-                    )}
-
-                    {sameAsRegisteredAddress && companyData && (
-                      <div className="bg-muted/50 p-4 rounded-lg border">
-                        <p className="text-sm font-medium text-muted-foreground mb-2">Delivery Address:</p>
-                        <div className="text-sm space-y-1">
-                          <p>{companyData.address_line1 || companyData.address}</p>
-                          {companyData.address_line2 && <p>{companyData.address_line2}</p>}
-                          <p>{companyData.city}, {companyData.state} {companyData.postal_code}</p>
-                          {companyData.country && <p>{companyData.country}</p>}
-                        </div>
-                      </div>
-                    )}
+                      <FormField
+                        control={form.control}
+                        name="delivery_postal_code"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Postal Code</FormLabel>
+                            <FormControl>
+                              <Input 
+                                placeholder="PIN Code" 
+                                {...field} 
+                                disabled={readOnly || sameAsRegisteredAddress} 
+                                className="h-9" 
+                              />
+                            </FormControl>
+                          </FormItem>
+                        )}
+                      />
+                    </div>
                   </CardContent>
                 </Card>
               </TabsContent>
 
-              <TabsContent value="items" className="flex-1 overflow-auto">
-                <Card className="flex-1 shadow-sm">
-                  <CardHeader className="flex flex-row items-center justify-between sticky top-0 bg-background z-10 border-b">
-                    <CardTitle className="text-lg">Purchase Order Items</CardTitle>
-                    {!readOnly && (
-                      <Button type="button" onClick={addItem} variant="outline" size="sm">
-                        <Plus className="h-4 w-4 mr-2" />
-                        Add Item
-                      </Button>
-                    )}
+              {/* Items Tab */}
+              <TabsContent value="items" className="flex-1 overflow-auto m-0">
+                <Card className="shadow-sm border-border/50">
+                  <CardHeader className="pb-3">
+                    <div className="flex justify-between items-center">
+                      <CardTitle className="text-base font-semibold flex items-center gap-2">
+                        <ShoppingCart className="h-4 w-4 text-primary" />
+                        Purchase Order Items
+                      </CardTitle>
+                      {!readOnly && (
+                        <Button type="button" onClick={addItem} size="sm" className="h-8 gap-2">
+                          <Plus className="h-4 w-4" />
+                          Add Item
+                        </Button>
+                      )}
+                    </div>
                   </CardHeader>
                   <CardContent className="p-0">
-                    <Table>
-                      <TableHeader className="sticky top-16 bg-background z-10">
-                        <TableRow>
-                          <TableHead className="w-[300px]">Product</TableHead>
-                          <TableHead className="w-[80px]">Qty</TableHead>
-                          <TableHead className="w-[80px]">UOM</TableHead>
-                          <TableHead className="w-[100px]">Price</TableHead>
-                          <TableHead className="w-[80px]">Disc%</TableHead>
-                          <TableHead className="w-[80px]">GST%</TableHead>
-                          <TableHead className="w-[120px]">Total</TableHead>
-                          <TableHead className="w-[100px]">Actions</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {fields.map((field, index) => (
-                          <>
-                            <TableRow key={field.id} className="border-b">
-                              <TableCell className="p-2">
-                                <FormField
-                                  control={form.control}
-                                  name={`items.${index}.product_id`}
-                                  render={({ field }) => (
-                                    <FormItem>
-                                      <Select 
-                                        value={field.value} 
-                                        onValueChange={(value) => handleProductSelect(index, value)}
-                                        disabled={readOnly}
-                                      >
-                                        <FormControl>
-                                          <SelectTrigger className="h-8 text-xs">
-                                            <SelectValue placeholder="Select product" />
-                                          </SelectTrigger>
-                                        </FormControl>
-                                        <SelectContent>
-                                          {products.map((product) => (
-                                            <SelectItem key={product.id} value={product.id}>
-                                              {product.name} ({product.sku})
-                                            </SelectItem>
-                                          ))}
-                                        </SelectContent>
-                                      </Select>
-                                      <FormMessage />
-                                    </FormItem>
-                                  )}
-                                />
-                              </TableCell>
-                              <TableCell className="p-2">
-                                <FormField
-                                  control={form.control}
-                                  name={`items.${index}.quantity`}
-                                  render={({ field }) => (
-                                    <FormItem>
-                                      <FormControl>
-                                        <Input 
-                                          type="number" 
-                                          className="h-8 text-xs"
-                                          {...field} 
-                                          onChange={(e) => {
-                                            field.onChange(parseFloat(e.target.value) || 0);
-                                            calculateLineAmounts(index);
-                                          }}
-                                          disabled={readOnly}
-                                        />
-                                      </FormControl>
-                                      <FormMessage />
-                                    </FormItem>
-                                  )}
-                                />
-                              </TableCell>
-                              <TableCell className="p-2">
-                                <FormField
-                                  control={form.control}
-                                  name={`items.${index}.unit_of_measure`}
-                                  render={({ field }) => (
-                                    <FormItem>
-                                      <FormControl>
-                                        <Input className="h-8 text-xs" {...field} disabled={readOnly} />
-                                      </FormControl>
-                                      <FormMessage />
-                                    </FormItem>
-                                  )}
-                                />
-                              </TableCell>
-                              <TableCell className="p-2">
-                                <FormField
-                                  control={form.control}
-                                  name={`items.${index}.unit_price`}
-                                  render={({ field }) => (
-                                    <FormItem>
-                                      <FormControl>
-                                        <Input 
-                                          type="number" 
-                                          step="0.01"
-                                          className="h-8 text-xs"
-                                          {...field} 
-                                          onChange={(e) => {
-                                            field.onChange(parseFloat(e.target.value) || 0);
-                                            calculateLineAmounts(index);
-                                          }}
-                                          disabled={readOnly}
-                                        />
-                                      </FormControl>
-                                      <FormMessage />
-                                    </FormItem>
-                                  )}
-                                />
-                              </TableCell>
-                              <TableCell className="p-2">
-                                <FormField
-                                  control={form.control}
-                                  name={`items.${index}.discount_percentage`}
-                                  render={({ field }) => (
-                                    <FormItem>
-                                      <FormControl>
-                                        <Input 
-                                          type="number" 
-                                          step="0.01"
-                                          className="h-8 text-xs"
-                                          {...field} 
-                                          onChange={(e) => {
-                                            field.onChange(parseFloat(e.target.value) || 0);
-                                            calculateLineAmounts(index);
-                                          }}
-                                          disabled={readOnly}
-                                        />
-                                      </FormControl>
-                                      <FormMessage />
-                                    </FormItem>
-                                  )}
-                                />
-                              </TableCell>
-                              <TableCell className="p-2">
-                                <div className="space-y-1">
-                                  {(() => {
-                                    const item = form.getValues(`items.${index}`);
-                                    const masterGST = getProductMasterGST(item.product_id);
-                                    const currentGST = (form.watch(`items.${index}.cgst_rate`) || 0) + 
-                                                      (form.watch(`items.${index}.sgst_rate`) || 0) + 
-                                                      (form.watch(`items.${index}.igst_rate`) || 0);
-                                    const isValid = currentGST <= masterGST;
-                                    const hasIGST = (form.watch(`items.${index}.igst_rate`) || 0) > 0;
-                                    
-                                    return (
-                                      <div className="flex items-center gap-2">
-                                        <div className="flex flex-col text-xs min-w-[60px]">
-                                          {masterGST > 0 && (
-                                            <span className="text-muted-foreground">
-                                              Max: {masterGST}%
-                                            </span>
-                                          )}
-                                          <span className={`font-medium ${isValid ? 'text-foreground' : 'text-destructive'}`}>
-                                            Applied: {currentGST.toFixed(1)}%
-                                          </span>
-                                        </div>
-                                        
-                                        <div className="flex items-center gap-1">
-                                          {masterGST > 0 && (
-                                            <div className={`w-2 h-2 rounded-full ${
-                                              isValid ? 'bg-green-500' : 'bg-destructive'
-                                            }`} />
-                                          )}
-                                          
-                                          {hasIGST ? (
-                                            <Badge variant="secondary" className="text-xs px-1 py-0">
-                                              IGST
-                                            </Badge>
-                                          ) : (
-                                            <Badge variant="outline" className="text-xs px-1 py-0">
-                                              C+S
-                                            </Badge>
-                                          )}
-                                          
-                                          <Button
-                                            type="button"
-                                            variant="ghost"
-                                            size="sm"
-                                            className="h-6 w-6 p-0"
-                                            onClick={() => toggleGSTExpansion(index)}
+                    <div className="overflow-x-auto">
+                      <Table>
+                        <TableHeader className="bg-muted/50">
+                          <TableRow>
+                            <TableHead className="w-[250px] font-semibold">Product</TableHead>
+                            <TableHead className="text-center font-semibold">Qty</TableHead>
+                            <TableHead className="text-center font-semibold">Unit Price</TableHead>
+                            <TableHead className="text-center font-semibold">Discount</TableHead>
+                            <TableHead className="text-center font-semibold">GST Details</TableHead>
+                            <TableHead className="text-right font-semibold">Line Total</TableHead>
+                            {!readOnly && <TableHead className="w-[50px]"></TableHead>}
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {fields.map((field, index) => {
+                            const isExpanded = expandedGSTItems.has(index);
+                            const masterGST = form.watch(`items.${index}.master_gst_rate`) || 0;
+                            const gstType = form.watch(`items.${index}.gst_type`) || 'intra';
+                            const cgstRate = form.watch(`items.${index}.cgst_rate`) || 0;
+                            const sgstRate = form.watch(`items.${index}.sgst_rate`) || 0;
+                            const igstRate = form.watch(`items.${index}.igst_rate`) || 0;
+                            const totalAppliedGST = gstType === 'intra' ? cgstRate + sgstRate : igstRate;
+                            
+                            return (
+                              <>
+                                <TableRow key={field.id} className={index % 2 === 0 ? 'bg-background' : 'bg-muted/20'}>
+                                  <TableCell className="p-3">
+                                    <FormField
+                                      control={form.control}
+                                      name={`items.${index}.product_id`}
+                                      render={({ field }) => (
+                                        <FormItem>
+                                          <Select 
+                                            value={field.value} 
+                                            onValueChange={(value) => handleProductSelect(index, value)}
+                                            disabled={readOnly}
                                           >
-                                            {expandedGSTItems.has(index) ? 
-                                              <ChevronDown className="h-3 w-3" /> : 
-                                              <ChevronRight className="h-3 w-3" />
-                                            }
-                                          </Button>
-                                        </div>
+                                            <FormControl>
+                                              <SelectTrigger className="h-8 text-sm">
+                                                <SelectValue placeholder="Select product" />
+                                              </SelectTrigger>
+                                            </FormControl>
+                                            <SelectContent>
+                                              {products.map((product) => (
+                                                <SelectItem key={product.id} value={product.id}>
+                                                  <div className="flex flex-col">
+                                                    <span className="font-medium text-sm">{product.name}</span>
+                                                    <span className="text-xs text-muted-foreground">
+                                                      {product.sku} | ₹{product.purchase_price} | GST: {product.gst_percentage}%
+                                                    </span>
+                                                  </div>
+                                                </SelectItem>
+                                              ))}
+                                            </SelectContent>
+                                          </Select>
+                                          <FormMessage />
+                                        </FormItem>
+                                      )}
+                                    />
+                                  </TableCell>
+
+                                  <TableCell className="p-3">
+                                    <FormField
+                                      control={form.control}
+                                      name={`items.${index}.quantity`}
+                                      render={({ field }) => (
+                                        <FormItem>
+                                          <FormControl>
+                                            <Input 
+                                              type="number" 
+                                              min="1" 
+                                              className="h-8 w-20 text-center text-sm" 
+                                              {...field}
+                                              onChange={(e) => {
+                                                field.onChange(parseFloat(e.target.value) || 0);
+                                                calculateLineAmounts(index);
+                                              }}
+                                              disabled={readOnly}
+                                            />
+                                          </FormControl>
+                                          <FormMessage />
+                                        </FormItem>
+                                      )}
+                                    />
+                                  </TableCell>
+
+                                  <TableCell className="p-3">
+                                    <FormField
+                                      control={form.control}
+                                      name={`items.${index}.unit_price`}
+                                      render={({ field }) => (
+                                        <FormItem>
+                                          <FormControl>
+                                            <Input 
+                                              type="number" 
+                                              step="0.01" 
+                                              min="0" 
+                                              className="h-8 w-24 text-center text-sm" 
+                                              {...field}
+                                              onChange={(e) => {
+                                                field.onChange(parseFloat(e.target.value) || 0);
+                                                calculateLineAmounts(index);
+                                              }}
+                                              disabled={readOnly}
+                                            />
+                                          </FormControl>
+                                          <FormMessage />
+                                        </FormItem>
+                                      )}
+                                    />
+                                  </TableCell>
+
+                                  <TableCell className="p-3">
+                                    <FormField
+                                      control={form.control}
+                                      name={`items.${index}.discount_percentage`}
+                                      render={({ field }) => (
+                                        <FormItem>
+                                          <FormControl>
+                                            <Input 
+                                              type="number" 
+                                              step="0.01" 
+                                              min="0" 
+                                              max="100"
+                                              className="h-8 w-20 text-center text-sm" 
+                                              placeholder="0%"
+                                              {...field}
+                                              onChange={(e) => {
+                                                field.onChange(parseFloat(e.target.value) || 0);
+                                                calculateLineAmounts(index);
+                                              }}
+                                              disabled={readOnly}
+                                            />
+                                          </FormControl>
+                                          <FormMessage />
+                                        </FormItem>
+                                      )}
+                                    />
+                                  </TableCell>
+
+                                  <TableCell className="p-3">
+                                    <div className="flex flex-col gap-1">
+                                      <div className="flex items-center gap-2">
+                                        <Badge variant="outline" className="text-xs">
+                                          Master: {masterGST}%
+                                        </Badge>
+                                        <Badge 
+                                          variant={totalAppliedGST <= masterGST ? "secondary" : "destructive"} 
+                                          className="text-xs"
+                                        >
+                                          Applied: {totalAppliedGST}%
+                                        </Badge>
                                       </div>
-                                    );
-                                  })()}
-                                </div>
-                              </TableCell>
-                              <TableCell className="p-2">
-                                <div className="text-xs font-medium">
-                                  ₹{(form.watch(`items.${index}.line_total`) || 0).toFixed(2)}
-                                </div>
-                              </TableCell>
-                              <TableCell className="p-2">
-                                <div className="flex items-center gap-1">
-                                  <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="sm"
-                                    className="h-6 w-6 p-0"
-                                    onClick={() => toggleGSTExpansion(index)}
-                                  >
-                                    <Search className="h-3 w-3" />
-                                  </Button>
-                                  {!readOnly && fields.length > 1 && (
-                                    <Button
-                                      type="button"
-                                      variant="ghost"
-                                      size="sm"
-                                      className="h-6 w-6 p-0 text-destructive"
-                                      onClick={() => remove(index)}
-                                    >
-                                      <Trash2 className="h-3 w-3" />
-                                    </Button>
+                                      <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="sm"
+                                        className="h-6 p-1 text-xs"
+                                        onClick={() => {
+                                          if (isExpanded) {
+                                            setExpandedGSTItems(prev => {
+                                              const newSet = new Set(prev);
+                                              newSet.delete(index);
+                                              return newSet;
+                                            });
+                                          } else {
+                                            setExpandedGSTItems(prev => new Set(prev).add(index));
+                                          }
+                                        }}
+                                      >
+                                        {isExpanded ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+                                        GST Details
+                                      </Button>
+                                    </div>
+                                  </TableCell>
+
+                                  <TableCell className="p-3 text-right">
+                                    <div className="font-semibold text-sm">
+                                      ₹{(form.watch(`items.${index}.line_total`) || 0).toFixed(2)}
+                                    </div>
+                                    <div className="text-xs text-muted-foreground">
+                                      Tax: ₹{((form.watch(`items.${index}.cgst_amount`) || 0) + 
+                                                (form.watch(`items.${index}.sgst_amount`) || 0) + 
+                                                (form.watch(`items.${index}.igst_amount`) || 0)).toFixed(2)}
+                                    </div>
+                                  </TableCell>
+
+                                  {!readOnly && (
+                                    <TableCell className="p-3">
+                                      <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="sm"
+                                        className="h-8 w-8 p-0 text-destructive hover:text-destructive"
+                                        onClick={() => remove(index)}
+                                      >
+                                        <Trash2 className="h-4 w-4" />
+                                      </Button>
+                                    </TableCell>
                                   )}
-                                </div>
-                              </TableCell>
-                            </TableRow>
-                            {expandedGSTItems.has(index) && (
-                              <TableRow key={`${field.id}-gst`} className="bg-gradient-to-r from-muted/30 to-muted/10 border-l-4 border-l-primary/30">
-                                <TableCell colSpan={8} className="p-6">
-                                  <div className="space-y-6">
-                                    {/* Master GST Info & Toggle */}
-                                    <div className="bg-card border border-border/50 rounded-lg p-4">
-                                      {(() => {
-                                        const item = form.getValues(`items.${index}`);
-                                        const product = products.find(p => p.id === item.product_id);
-                                        const masterGST = product?.gst_percentage || 0;
-                                        const currentGST = (form.watch(`items.${index}.cgst_rate`) || 0) + 
-                                                          (form.watch(`items.${index}.sgst_rate`) || 0) + 
-                                                          (form.watch(`items.${index}.igst_rate`) || 0);
-                                        const hasIGST = (form.watch(`items.${index}.igst_rate`) || 0) > 0;
-                                        
-                                        return (
-                                          <div className="space-y-4">
-                                            <div className="flex items-center justify-between">
-                                              <div className="flex items-center gap-3">
-                                                <div className="flex items-center gap-2">
-                                                  <Info className="h-4 w-4 text-primary" />
-                                                  <span className="font-medium text-sm">GST Configuration</span>
-                                                </div>
-                                                {product && (
-                                                  <Badge variant="outline" className="text-xs">
-                                                    {product.name} - Master GST: {masterGST}%
-                                                  </Badge>
-                                                )}
-                                              </div>
-                                              
-                                              <div className="flex items-center gap-2">
-                                                {masterGST > 0 && currentGST > masterGST && (
-                                                  <div className="flex items-center gap-1 text-destructive">
-                                                    <AlertTriangle className="h-3 w-3" />
-                                                    <span className="text-xs">Exceeds master rate</span>
-                                                  </div>
-                                                )}
-                                                {masterGST > 0 && currentGST <= masterGST && (
-                                                  <div className="flex items-center gap-1 text-green-600">
-                                                    <CheckCircle2 className="h-3 w-3" />
-                                                    <span className="text-xs">Valid</span>
-                                                  </div>
-                                                )}
-                                              </div>
-                                            </div>
-                                            
-                                            {!readOnly && masterGST > 0 && (
-                                              <div className="space-y-3">
-                                                <div className="flex items-center gap-4">
-                                                  <span className="text-sm font-medium">GST Type:</span>
+                                </TableRow>
+
+                                {/* Expanded GST Details Row */}
+                                {isExpanded && (
+                                  <TableRow>
+                                    <TableCell colSpan={readOnly ? 6 : 7} className="p-0">
+                                      <div className="bg-muted/30 border-t p-4 space-y-4">
+                                        {/* GST Type Toggle */}
+                                        <div>
+                                          <FormField
+                                            control={form.control}
+                                            name={`items.${index}.gst_type`}
+                                            render={({ field }) => (
+                                              <FormItem>
+                                                <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">GST Type</FormLabel>
+                                                <FormControl>
                                                   <RadioGroup
-                                                    value={hasIGST ? "interstate" : "intrastate"}
-                                                    onValueChange={(value) => toggleGSTType(index, value as 'intrastate' | 'interstate')}
+                                                    value={field.value}
+                                                    onValueChange={(value: 'intra' | 'inter') => {
+                                                      field.onChange(value);
+                                                      handleGSTTypeChange(index, value);
+                                                    }}
                                                     className="flex gap-6"
+                                                    disabled={readOnly}
                                                   >
                                                     <div className="flex items-center space-x-2">
-                                                      <RadioGroupItem value="intrastate" id={`intrastate-${index}`} />
-                                                      <label htmlFor={`intrastate-${index}`} className="text-sm cursor-pointer">
+                                                      <RadioGroupItem value="intra" id={`intra-${index}`} />
+                                                      <label htmlFor={`intra-${index}`} className="text-sm font-medium cursor-pointer">
                                                         Intra-State (CGST + SGST)
                                                       </label>
                                                     </div>
                                                     <div className="flex items-center space-x-2">
-                                                      <RadioGroupItem value="interstate" id={`interstate-${index}`} />
-                                                      <label htmlFor={`interstate-${index}`} className="text-sm cursor-pointer">
+                                                      <RadioGroupItem value="inter" id={`inter-${index}`} />
+                                                      <label htmlFor={`inter-${index}`} className="text-sm font-medium cursor-pointer">
                                                         Inter-State (IGST)
                                                       </label>
                                                     </div>
                                                   </RadioGroup>
-                                                </div>
-                                                
-                                                <Button
-                                                  type="button"
-                                                  variant="outline"
-                                                  size="sm"
-                                                  onClick={() => {
-                                                    if (hasIGST) {
-                                                      form.setValue(`items.${index}.igst_rate`, masterGST);
-                                                      form.setValue(`items.${index}.cgst_rate`, 0);
-                                                      form.setValue(`items.${index}.sgst_rate`, 0);
-                                                    } else {
-                                                      const splitRate = masterGST / 2;
-                                                      form.setValue(`items.${index}.cgst_rate`, splitRate);
-                                                      form.setValue(`items.${index}.sgst_rate`, splitRate);
-                                                      form.setValue(`items.${index}.igst_rate`, 0);
-                                                    }
-                                                    calculateLineAmounts(index);
-                                                  }}
-                                                  className="text-xs"
-                                                >
-                                                  Reset to Master GST
-                                                </Button>
-                                              </div>
+                                                </FormControl>
+                                              </FormItem>
                                             )}
+                                          />
+                                        </div>
+
+                                        {/* GST Rate Inputs */}
+                                        {gstType === 'intra' ? (
+                                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            <FormField
+                                              control={form.control}
+                                              name={`items.${index}.cgst_rate`}
+                                              render={({ field }) => (
+                                                <FormItem>
+                                                  <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                                                    CGST Rate (%)
+                                                  </FormLabel>
+                                                  <FormControl>
+                                                    <Input 
+                                                      type="number" 
+                                                      step="0.01" 
+                                                      min="0" 
+                                                      max={masterGST}
+                                                      className="h-8 text-sm" 
+                                                      {...field}
+                                                      onChange={(e) => {
+                                                        const value = parseFloat(e.target.value) || 0;
+                                                        if (validateGSTRate(index, 'cgst', value)) {
+                                                          field.onChange(value);
+                                                          calculateLineAmounts(index);
+                                                        }
+                                                      }}
+                                                      disabled={readOnly}
+                                                    />
+                                                  </FormControl>
+                                                  <div className="text-xs text-muted-foreground">
+                                                    Amount: ₹{(form.watch(`items.${index}.cgst_amount`) || 0).toFixed(2)}
+                                                  </div>
+                                                  <FormMessage />
+                                                </FormItem>
+                                              )}
+                                            />
+                                            <FormField
+                                              control={form.control}
+                                              name={`items.${index}.sgst_rate`}
+                                              render={({ field }) => (
+                                                <FormItem>
+                                                  <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                                                    SGST Rate (%)
+                                                  </FormLabel>
+                                                  <FormControl>
+                                                    <Input 
+                                                      type="number" 
+                                                      step="0.01" 
+                                                      min="0" 
+                                                      max={masterGST}
+                                                      className="h-8 text-sm" 
+                                                      {...field}
+                                                      onChange={(e) => {
+                                                        const value = parseFloat(e.target.value) || 0;
+                                                        if (validateGSTRate(index, 'sgst', value)) {
+                                                          field.onChange(value);
+                                                          calculateLineAmounts(index);
+                                                        }
+                                                      }}
+                                                      disabled={readOnly}
+                                                    />
+                                                  </FormControl>
+                                                  <div className="text-xs text-muted-foreground">
+                                                    Amount: ₹{(form.watch(`items.${index}.sgst_amount`) || 0).toFixed(2)}
+                                                  </div>
+                                                  <FormMessage />
+                                                </FormItem>
+                                              )}
+                                            />
                                           </div>
-                                        );
-                                      })()}
-                                    </div>
+                                        ) : (
+                                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            <FormField
+                                              control={form.control}
+                                              name={`items.${index}.igst_rate`}
+                                              render={({ field }) => (
+                                                <FormItem>
+                                                  <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                                                    IGST Rate (%)
+                                                  </FormLabel>
+                                                  <FormControl>
+                                                    <Input 
+                                                      type="number" 
+                                                      step="0.01" 
+                                                      min="0" 
+                                                      max={masterGST}
+                                                      className="h-8 text-sm" 
+                                                      {...field}
+                                                      onChange={(e) => {
+                                                        const value = parseFloat(e.target.value) || 0;
+                                                        if (validateGSTRate(index, 'igst', value)) {
+                                                          field.onChange(value);
+                                                          calculateLineAmounts(index);
+                                                        }
+                                                      }}
+                                                      disabled={readOnly}
+                                                    />
+                                                  </FormControl>
+                                                  <div className="text-xs text-muted-foreground">
+                                                    Amount: ₹{(form.watch(`items.${index}.igst_amount`) || 0).toFixed(2)}
+                                                  </div>
+                                                  <FormMessage />
+                                                </FormItem>
+                                              )}
+                                            />
+                                          </div>
+                                        )}
 
-                                    {/* GST Rate Inputs */}
-                                    <div className="bg-card border border-border/50 rounded-lg p-4">
-                                      <h5 className="font-medium mb-3 text-sm flex items-center gap-2">
-                                        <span>GST Rate Details</span>
-                                        <Badge variant="secondary" className="text-xs">
-                                          Total: {((form.watch(`items.${index}.cgst_rate`) || 0) + 
-                                                  (form.watch(`items.${index}.sgst_rate`) || 0) + 
-                                                  (form.watch(`items.${index}.igst_rate`) || 0)).toFixed(1)}%
-                                        </Badge>
-                                      </h5>
-                                      
-                                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                        <FormField
-                                          control={form.control}
-                                          name={`items.${index}.cgst_rate`}
-                                          render={({ field }) => {
-                                            const item = form.getValues(`items.${index}`);
-                                            const masterGST = getProductMasterGST(item.product_id);
-                                            const hasIGST = (form.watch(`items.${index}.igst_rate`) || 0) > 0;
-                                            const isValid = validateGSTRate(index, 'cgst', field.value || 0);
-                                            
-                                            return (
+                                        {/* Additional Details */}
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                          <FormField
+                                            control={form.control}
+                                            name={`items.${index}.hsn_sac_code`}
+                                            render={({ field }) => (
                                               <FormItem>
-                                                <FormLabel className="text-xs flex items-center gap-1">
-                                                  CGST %
-                                                  {masterGST > 0 && (
-                                                    <span className="text-muted-foreground">(Max: {masterGST}%)</span>
-                                                  )}
-                                                </FormLabel>
+                                                <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">HSN/SAC Code</FormLabel>
                                                 <FormControl>
-                                                  <div className="relative">
-                                                    <Input 
-                                                      type="number" 
-                                                      step="0.01"
-                                                      max={masterGST || undefined}
-                                                      className={`h-8 pr-8 ${
-                                                        hasIGST ? 'bg-muted cursor-not-allowed' : 
-                                                        !isValid ? 'border-destructive focus:border-destructive' : 
-                                                        isValid && masterGST > 0 ? 'border-green-500 focus:border-green-500' : ''
-                                                      }`}
-                                                      {...field} 
-                                                      onChange={(e) => {
-                                                        if (!hasIGST) {
-                                                          field.onChange(parseFloat(e.target.value) || 0);
-                                                          calculateLineAmounts(index);
-                                                        }
-                                                      }}
-                                                      disabled={readOnly || hasIGST}
-                                                    />
-                                                    {masterGST > 0 && (
-                                                      <div className="absolute right-2 top-1/2 -translate-y-1/2">
-                                                        {isValid ? (
-                                                          <CheckCircle2 className="h-3 w-3 text-green-500" />
-                                                        ) : (
-                                                          <AlertTriangle className="h-3 w-3 text-destructive" />
-                                                        )}
-                                                      </div>
-                                                    )}
-                                                  </div>
+                                                  <Input className="h-8 text-sm" {...field} disabled={readOnly} />
                                                 </FormControl>
-                                                <div className="text-xs text-muted-foreground">
-                                                  Amount: ₹{(form.watch(`items.${index}.cgst_amount`) || 0).toFixed(2)}
-                                                </div>
-                                                <FormMessage />
                                               </FormItem>
-                                            );
-                                          }}
-                                        />
-                                        
-                                        <FormField
-                                          control={form.control}
-                                          name={`items.${index}.sgst_rate`}
-                                          render={({ field }) => {
-                                            const item = form.getValues(`items.${index}`);
-                                            const masterGST = getProductMasterGST(item.product_id);
-                                            const hasIGST = (form.watch(`items.${index}.igst_rate`) || 0) > 0;
-                                            const isValid = validateGSTRate(index, 'sgst', field.value || 0);
-                                            
-                                            return (
+                                            )}
+                                          />
+                                          <FormField
+                                            control={form.control}
+                                            name={`items.${index}.remarks`}
+                                            render={({ field }) => (
                                               <FormItem>
-                                                <FormLabel className="text-xs flex items-center gap-1">
-                                                  SGST %
-                                                  {masterGST > 0 && (
-                                                    <span className="text-muted-foreground">(Max: {masterGST}%)</span>
-                                                  )}
-                                                </FormLabel>
+                                                <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Remarks</FormLabel>
                                                 <FormControl>
-                                                  <div className="relative">
-                                                    <Input 
-                                                      type="number" 
-                                                      step="0.01"
-                                                      max={masterGST || undefined}
-                                                      className={`h-8 pr-8 ${
-                                                        hasIGST ? 'bg-muted cursor-not-allowed' : 
-                                                        !isValid ? 'border-destructive focus:border-destructive' : 
-                                                        isValid && masterGST > 0 ? 'border-green-500 focus:border-green-500' : ''
-                                                      }`}
-                                                      {...field} 
-                                                      onChange={(e) => {
-                                                        if (!hasIGST) {
-                                                          field.onChange(parseFloat(e.target.value) || 0);
-                                                          calculateLineAmounts(index);
-                                                        }
-                                                      }}
-                                                      disabled={readOnly || hasIGST}
-                                                    />
-                                                    {masterGST > 0 && (
-                                                      <div className="absolute right-2 top-1/2 -translate-y-1/2">
-                                                        {isValid ? (
-                                                          <CheckCircle2 className="h-3 w-3 text-green-500" />
-                                                        ) : (
-                                                          <AlertTriangle className="h-3 w-3 text-destructive" />
-                                                        )}
-                                                      </div>
-                                                    )}
-                                                  </div>
+                                                  <Input 
+                                                    className="h-8 text-sm" 
+                                                    placeholder="Additional notes for this item"
+                                                    {...field} 
+                                                    disabled={readOnly} 
+                                                  />
                                                 </FormControl>
-                                                <div className="text-xs text-muted-foreground">
-                                                  Amount: ₹{(form.watch(`items.${index}.sgst_amount`) || 0).toFixed(2)}
-                                                </div>
-                                                <FormMessage />
                                               </FormItem>
-                                            );
-                                          }}
-                                        />
-                                        
-                                        <FormField
-                                          control={form.control}
-                                          name={`items.${index}.igst_rate`}
-                                          render={({ field }) => {
-                                            const item = form.getValues(`items.${index}`);
-                                            const masterGST = getProductMasterGST(item.product_id);
-                                            const hasCGSTSGST = (form.watch(`items.${index}.cgst_rate`) || 0) > 0 || 
-                                                               (form.watch(`items.${index}.sgst_rate`) || 0) > 0;
-                                            const isValid = validateGSTRate(index, 'igst', field.value || 0);
-                                            
-                                            return (
-                                              <FormItem>
-                                                <FormLabel className="text-xs flex items-center gap-1">
-                                                  IGST %
-                                                  {masterGST > 0 && (
-                                                    <span className="text-muted-foreground">(Max: {masterGST}%)</span>
-                                                  )}
-                                                </FormLabel>
-                                                <FormControl>
-                                                  <div className="relative">
-                                                    <Input 
-                                                      type="number" 
-                                                      step="0.01"
-                                                      max={masterGST || undefined}
-                                                      className={`h-8 pr-8 ${
-                                                        hasCGSTSGST ? 'bg-muted cursor-not-allowed' : 
-                                                        !isValid ? 'border-destructive focus:border-destructive' : 
-                                                        isValid && masterGST > 0 ? 'border-green-500 focus:border-green-500' : ''
-                                                      }`}
-                                                      {...field} 
-                                                      onChange={(e) => {
-                                                        if (!hasCGSTSGST) {
-                                                          field.onChange(parseFloat(e.target.value) || 0);
-                                                          calculateLineAmounts(index);
-                                                        }
-                                                      }}
-                                                      disabled={readOnly || hasCGSTSGST}
-                                                    />
-                                                    {masterGST > 0 && (
-                                                      <div className="absolute right-2 top-1/2 -translate-y-1/2">
-                                                        {isValid ? (
-                                                          <CheckCircle2 className="h-3 w-3 text-green-500" />
-                                                        ) : (
-                                                          <AlertTriangle className="h-3 w-3 text-destructive" />
-                                                        )}
-                                                      </div>
-                                                    )}
-                                                  </div>
-                                                </FormControl>
-                                                <div className="text-xs text-muted-foreground">
-                                                  Amount: ₹{(form.watch(`items.${index}.igst_amount`) || 0).toFixed(2)}
-                                                </div>
-                                                <FormMessage />
-                                              </FormItem>
-                                            );
-                                          }}
-                                        />
+                                            )}
+                                          />
+                                        </div>
                                       </div>
-                                    </div>
-
-                                    {/* Additional Details */}
-                                    <div className="bg-card border border-border/50 rounded-lg p-4">
-                                      <h5 className="font-medium mb-3 text-sm">Additional Details</h5>
-                                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        <FormField
-                                          control={form.control}
-                                          name={`items.${index}.hsn_sac_code`}
-                                          render={({ field }) => (
-                                            <FormItem>
-                                              <FormLabel className="text-xs">HSN/SAC Code</FormLabel>
-                                              <FormControl>
-                                                <Input className="h-8" {...field} disabled={readOnly} />
-                                              </FormControl>
-                                              <FormMessage />
-                                            </FormItem>
-                                          )}
-                                        />
-                                        <FormField
-                                          control={form.control}
-                                          name={`items.${index}.remarks`}
-                                          render={({ field }) => (
-                                            <FormItem>
-                                              <FormLabel className="text-xs">Remarks</FormLabel>
-                                              <FormControl>
-                                                <Input 
-                                                  className="h-8" 
-                                                  placeholder="Additional notes for this item"
-                                                  {...field} 
-                                                  disabled={readOnly} 
-                                                />
-                                              </FormControl>
-                                              <FormMessage />
-                                            </FormItem>
-                                          )}
-                                        />
-                                      </div>
-                                    </div>
-                                  </div>
-                                </TableCell>
-                              </TableRow>
-                            )}
-                          </>
-                        ))}
-                      </TableBody>
-                    </Table>
+                                    </TableCell>
+                                  </TableRow>
+                                )}
+                              </>
+                            );
+                          })}
+                        </TableBody>
+                      </Table>
+                    </div>
                   </CardContent>
                 </Card>
               </TabsContent>
 
-              <TabsContent value="summary" className="flex-1 overflow-auto space-y-6">
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 h-full">
-                  <Card className="shadow-sm">
-                    <CardHeader>
-                      <CardTitle className="text-lg">Notes & Instructions</CardTitle>
+              {/* Summary Tab */}
+              <TabsContent value="summary" className="flex-1 overflow-auto m-0">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                  <Card className="shadow-sm border-border/50">
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-base font-semibold">Notes & Instructions</CardTitle>
                     </CardHeader>
                     <CardContent>
                       <FormField
@@ -1470,12 +1185,12 @@ export function PurchaseOrderForm({
                         name="notes"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel className="text-sm font-medium">Remarks / Notes</FormLabel>
+                            <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Remarks / Notes</FormLabel>
                             <FormControl>
                               <Textarea 
                                 {...field} 
                                 placeholder="Add any special instructions, terms, or notes for the supplier..."
-                                className="min-h-[200px] resize-none"
+                                className="min-h-[200px] resize-none text-sm"
                                 disabled={readOnly}
                               />
                             </FormControl>
@@ -1486,9 +1201,9 @@ export function PurchaseOrderForm({
                     </CardContent>
                   </Card>
 
-                  <Card className="shadow-sm">
-                    <CardHeader>
-                      <CardTitle className="text-lg">Order Summary</CardTitle>
+                  <Card className="shadow-sm border-border/50">
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-base font-semibold">Order Summary</CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-4">
                       <div className="space-y-3">
@@ -1504,9 +1219,9 @@ export function PurchaseOrderForm({
                           <span className="text-sm text-muted-foreground">Total Tax:</span>
                           <span className="font-mono text-sm">₹{totalTax.toFixed(2)}</span>
                         </div>
-                        <div className="flex justify-between items-center py-3 border-t-2 border-primary/20">
+                        <div className="flex justify-between items-center py-3 border-t-2 border-primary/20 bg-primary/5 px-3 rounded-lg">
                           <span className="font-semibold text-base">Total Amount:</span>
-                          <span className="font-bold text-lg text-primary">₹{total.toFixed(2)}</span>
+                          <span className="font-bold text-xl text-primary">₹{total.toFixed(2)}</span>
                         </div>
                       </div>
                       
@@ -1554,12 +1269,12 @@ export function PurchaseOrderForm({
 
           {/* Form Actions - Sticky Footer */}
           {!readOnly && (
-            <div className="flex justify-end space-x-4 p-4 border-t bg-background">
+            <div className="flex justify-end space-x-3 p-4 border-t bg-background">
               <Button type="button" variant="outline" onClick={onCancel}>
                 Cancel
               </Button>
-              <Button type="submit" disabled={loading}>
-                {loading ? 'Saving...' : (mode === 'edit' ? 'Update Purchase Order' : 'Create Purchase Order')}
+              <Button type="submit" disabled={loading} className="min-w-[140px]">
+                {loading ? 'Saving...' : (mode === 'edit' ? 'Update Order' : 'Create Order')}
               </Button>
             </div>
           )}
