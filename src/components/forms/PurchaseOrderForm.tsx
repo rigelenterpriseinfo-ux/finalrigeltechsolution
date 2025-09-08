@@ -15,7 +15,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { Plus, Trash2, Search, ChevronDown, ChevronRight, Building, MapPin, Info } from 'lucide-react';
+import { Plus, Trash2, Search, ChevronDown, ChevronRight, Building, MapPin, Info, AlertTriangle, CheckCircle2, RadioIcon } from 'lucide-react';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { useAuth } from '@/hooks/useAuth';
 
 const purchaseOrderItemSchema = z.object({
@@ -240,6 +241,17 @@ export function PurchaseOrderForm({
       form.setValue(`items.${index}.hsn_sac_code`, product.hsn_code || '');
       form.setValue(`items.${index}.unit_price`, product.unit_price || 0);
       form.setValue(`items.${index}.unit_of_measure`, product.unit || 'pcs');
+      
+      // Auto-populate GST rates from product master
+      const masterGST = product.gst_percentage || 0;
+      if (masterGST > 0) {
+        // Default to intra-state (CGST + SGST split)
+        const splitRate = masterGST / 2;
+        form.setValue(`items.${index}.cgst_rate`, splitRate);
+        form.setValue(`items.${index}.sgst_rate`, splitRate);
+        form.setValue(`items.${index}.igst_rate`, 0);
+      }
+      
       calculateLineAmounts(index);
     }
   };
@@ -268,6 +280,48 @@ export function PurchaseOrderForm({
     form.setValue(`items.${index}.igst_amount`, igstAmount);
     form.setValue(`items.${index}.line_subtotal`, lineSubtotal);
     form.setValue(`items.${index}.line_total`, lineTotal);
+  };
+
+  // GST Type Toggle Functions
+  const toggleGSTType = (index: number, type: 'intrastate' | 'interstate') => {
+    const item = form.getValues(`items.${index}`);
+    const product = products.find(p => p.id === item.product_id);
+    const masterGST = product?.gst_percentage || 0;
+
+    if (type === 'intrastate') {
+      // Split GST equally between CGST and SGST
+      const splitRate = masterGST / 2;
+      form.setValue(`items.${index}.cgst_rate`, splitRate);
+      form.setValue(`items.${index}.sgst_rate`, splitRate);
+      form.setValue(`items.${index}.igst_rate`, 0);
+    } else {
+      // All GST goes to IGST
+      form.setValue(`items.${index}.cgst_rate`, 0);
+      form.setValue(`items.${index}.sgst_rate`, 0);
+      form.setValue(`items.${index}.igst_rate`, masterGST);
+    }
+    
+    calculateLineAmounts(index);
+  };
+
+  // Validate GST rates against master
+  const validateGSTRate = (index: number, gstType: 'cgst' | 'sgst' | 'igst', value: number) => {
+    const item = form.getValues(`items.${index}`);
+    const product = products.find(p => p.id === item.product_id);
+    const masterGST = product?.gst_percentage || 0;
+    
+    if (gstType === 'igst') {
+      return value <= masterGST;
+    } else {
+      const totalGST = (gstType === 'cgst' ? value : item.cgst_rate || 0) + (gstType === 'sgst' ? value : item.sgst_rate || 0);
+      return totalGST <= masterGST;
+    }
+  };
+
+  // Get product master GST rate
+  const getProductMasterGST = (productId: string): number => {
+    const product = products.find(p => p.id === productId);
+    return product?.gst_percentage || 0;
   };
 
   const addItem = () => {
@@ -983,24 +1037,62 @@ export function PurchaseOrderForm({
                                 />
                               </TableCell>
                               <TableCell className="p-2">
-                                <div className="flex items-center gap-1">
-                                  <div className="text-xs">
-                                    {((form.watch(`items.${index}.cgst_rate`) || 0) + 
-                                      (form.watch(`items.${index}.sgst_rate`) || 0) + 
-                                      (form.watch(`items.${index}.igst_rate`) || 0)).toFixed(1)}%
-                                  </div>
-                                  <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="sm"
-                                    className="h-6 w-6 p-0"
-                                    onClick={() => toggleGSTExpansion(index)}
-                                  >
-                                    {expandedGSTItems.has(index) ? 
-                                      <ChevronDown className="h-3 w-3" /> : 
-                                      <ChevronRight className="h-3 w-3" />
-                                    }
-                                  </Button>
+                                <div className="space-y-1">
+                                  {(() => {
+                                    const item = form.getValues(`items.${index}`);
+                                    const masterGST = getProductMasterGST(item.product_id);
+                                    const currentGST = (form.watch(`items.${index}.cgst_rate`) || 0) + 
+                                                      (form.watch(`items.${index}.sgst_rate`) || 0) + 
+                                                      (form.watch(`items.${index}.igst_rate`) || 0);
+                                    const isValid = currentGST <= masterGST;
+                                    const hasIGST = (form.watch(`items.${index}.igst_rate`) || 0) > 0;
+                                    
+                                    return (
+                                      <div className="flex items-center gap-2">
+                                        <div className="flex flex-col text-xs min-w-[60px]">
+                                          {masterGST > 0 && (
+                                            <span className="text-muted-foreground">
+                                              Max: {masterGST}%
+                                            </span>
+                                          )}
+                                          <span className={`font-medium ${isValid ? 'text-foreground' : 'text-destructive'}`}>
+                                            Applied: {currentGST.toFixed(1)}%
+                                          </span>
+                                        </div>
+                                        
+                                        <div className="flex items-center gap-1">
+                                          {masterGST > 0 && (
+                                            <div className={`w-2 h-2 rounded-full ${
+                                              isValid ? 'bg-green-500' : 'bg-destructive'
+                                            }`} />
+                                          )}
+                                          
+                                          {hasIGST ? (
+                                            <Badge variant="secondary" className="text-xs px-1 py-0">
+                                              IGST
+                                            </Badge>
+                                          ) : (
+                                            <Badge variant="outline" className="text-xs px-1 py-0">
+                                              C+S
+                                            </Badge>
+                                          )}
+                                          
+                                          <Button
+                                            type="button"
+                                            variant="ghost"
+                                            size="sm"
+                                            className="h-6 w-6 p-0"
+                                            onClick={() => toggleGSTExpansion(index)}
+                                          >
+                                            {expandedGSTItems.has(index) ? 
+                                              <ChevronDown className="h-3 w-3" /> : 
+                                              <ChevronRight className="h-3 w-3" />
+                                            }
+                                          </Button>
+                                        </div>
+                                      </div>
+                                    );
+                                  })()}
                                 </div>
                               </TableCell>
                               <TableCell className="p-2">
@@ -1034,85 +1126,293 @@ export function PurchaseOrderForm({
                               </TableCell>
                             </TableRow>
                             {expandedGSTItems.has(index) && (
-                              <TableRow key={`${field.id}-gst`} className="bg-muted/50">
-                                <TableCell colSpan={8} className="p-4">
-                                  <div className="space-y-4">
-                                    <div>
-                                      <h5 className="font-medium mb-2 text-sm">GST Details</h5>
+                              <TableRow key={`${field.id}-gst`} className="bg-gradient-to-r from-muted/30 to-muted/10 border-l-4 border-l-primary/30">
+                                <TableCell colSpan={8} className="p-6">
+                                  <div className="space-y-6">
+                                    {/* Master GST Info & Toggle */}
+                                    <div className="bg-card border border-border/50 rounded-lg p-4">
+                                      {(() => {
+                                        const item = form.getValues(`items.${index}`);
+                                        const product = products.find(p => p.id === item.product_id);
+                                        const masterGST = product?.gst_percentage || 0;
+                                        const currentGST = (form.watch(`items.${index}.cgst_rate`) || 0) + 
+                                                          (form.watch(`items.${index}.sgst_rate`) || 0) + 
+                                                          (form.watch(`items.${index}.igst_rate`) || 0);
+                                        const hasIGST = (form.watch(`items.${index}.igst_rate`) || 0) > 0;
+                                        
+                                        return (
+                                          <div className="space-y-4">
+                                            <div className="flex items-center justify-between">
+                                              <div className="flex items-center gap-3">
+                                                <div className="flex items-center gap-2">
+                                                  <Info className="h-4 w-4 text-primary" />
+                                                  <span className="font-medium text-sm">GST Configuration</span>
+                                                </div>
+                                                {product && (
+                                                  <Badge variant="outline" className="text-xs">
+                                                    {product.name} - Master GST: {masterGST}%
+                                                  </Badge>
+                                                )}
+                                              </div>
+                                              
+                                              <div className="flex items-center gap-2">
+                                                {masterGST > 0 && currentGST > masterGST && (
+                                                  <div className="flex items-center gap-1 text-destructive">
+                                                    <AlertTriangle className="h-3 w-3" />
+                                                    <span className="text-xs">Exceeds master rate</span>
+                                                  </div>
+                                                )}
+                                                {masterGST > 0 && currentGST <= masterGST && (
+                                                  <div className="flex items-center gap-1 text-green-600">
+                                                    <CheckCircle2 className="h-3 w-3" />
+                                                    <span className="text-xs">Valid</span>
+                                                  </div>
+                                                )}
+                                              </div>
+                                            </div>
+                                            
+                                            {!readOnly && masterGST > 0 && (
+                                              <div className="space-y-3">
+                                                <div className="flex items-center gap-4">
+                                                  <span className="text-sm font-medium">GST Type:</span>
+                                                  <RadioGroup
+                                                    value={hasIGST ? "interstate" : "intrastate"}
+                                                    onValueChange={(value) => toggleGSTType(index, value as 'intrastate' | 'interstate')}
+                                                    className="flex gap-6"
+                                                  >
+                                                    <div className="flex items-center space-x-2">
+                                                      <RadioGroupItem value="intrastate" id={`intrastate-${index}`} />
+                                                      <label htmlFor={`intrastate-${index}`} className="text-sm cursor-pointer">
+                                                        Intra-State (CGST + SGST)
+                                                      </label>
+                                                    </div>
+                                                    <div className="flex items-center space-x-2">
+                                                      <RadioGroupItem value="interstate" id={`interstate-${index}`} />
+                                                      <label htmlFor={`interstate-${index}`} className="text-sm cursor-pointer">
+                                                        Inter-State (IGST)
+                                                      </label>
+                                                    </div>
+                                                  </RadioGroup>
+                                                </div>
+                                                
+                                                <Button
+                                                  type="button"
+                                                  variant="outline"
+                                                  size="sm"
+                                                  onClick={() => {
+                                                    if (hasIGST) {
+                                                      form.setValue(`items.${index}.igst_rate`, masterGST);
+                                                      form.setValue(`items.${index}.cgst_rate`, 0);
+                                                      form.setValue(`items.${index}.sgst_rate`, 0);
+                                                    } else {
+                                                      const splitRate = masterGST / 2;
+                                                      form.setValue(`items.${index}.cgst_rate`, splitRate);
+                                                      form.setValue(`items.${index}.sgst_rate`, splitRate);
+                                                      form.setValue(`items.${index}.igst_rate`, 0);
+                                                    }
+                                                    calculateLineAmounts(index);
+                                                  }}
+                                                  className="text-xs"
+                                                >
+                                                  Reset to Master GST
+                                                </Button>
+                                              </div>
+                                            )}
+                                          </div>
+                                        );
+                                      })()}
+                                    </div>
+
+                                    {/* GST Rate Inputs */}
+                                    <div className="bg-card border border-border/50 rounded-lg p-4">
+                                      <h5 className="font-medium mb-3 text-sm flex items-center gap-2">
+                                        <span>GST Rate Details</span>
+                                        <Badge variant="secondary" className="text-xs">
+                                          Total: {((form.watch(`items.${index}.cgst_rate`) || 0) + 
+                                                  (form.watch(`items.${index}.sgst_rate`) || 0) + 
+                                                  (form.watch(`items.${index}.igst_rate`) || 0)).toFixed(1)}%
+                                        </Badge>
+                                      </h5>
+                                      
                                       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                         <FormField
                                           control={form.control}
                                           name={`items.${index}.cgst_rate`}
-                                          render={({ field }) => (
-                                            <FormItem>
-                                              <FormLabel className="text-xs">CGST %</FormLabel>
-                                              <FormControl>
-                                                <Input 
-                                                  type="number" 
-                                                  step="0.01"
-                                                  className="h-8"
-                                                  {...field} 
-                                                  onChange={(e) => {
-                                                    field.onChange(parseFloat(e.target.value) || 0);
-                                                    calculateLineAmounts(index);
-                                                  }}
-                                                  disabled={readOnly}
-                                                />
-                                              </FormControl>
-                                              <FormMessage />
-                                            </FormItem>
-                                          )}
+                                          render={({ field }) => {
+                                            const item = form.getValues(`items.${index}`);
+                                            const masterGST = getProductMasterGST(item.product_id);
+                                            const hasIGST = (form.watch(`items.${index}.igst_rate`) || 0) > 0;
+                                            const isValid = validateGSTRate(index, 'cgst', field.value || 0);
+                                            
+                                            return (
+                                              <FormItem>
+                                                <FormLabel className="text-xs flex items-center gap-1">
+                                                  CGST %
+                                                  {masterGST > 0 && (
+                                                    <span className="text-muted-foreground">(Max: {masterGST}%)</span>
+                                                  )}
+                                                </FormLabel>
+                                                <FormControl>
+                                                  <div className="relative">
+                                                    <Input 
+                                                      type="number" 
+                                                      step="0.01"
+                                                      max={masterGST || undefined}
+                                                      className={`h-8 pr-8 ${
+                                                        hasIGST ? 'bg-muted cursor-not-allowed' : 
+                                                        !isValid ? 'border-destructive focus:border-destructive' : 
+                                                        isValid && masterGST > 0 ? 'border-green-500 focus:border-green-500' : ''
+                                                      }`}
+                                                      {...field} 
+                                                      onChange={(e) => {
+                                                        if (!hasIGST) {
+                                                          field.onChange(parseFloat(e.target.value) || 0);
+                                                          calculateLineAmounts(index);
+                                                        }
+                                                      }}
+                                                      disabled={readOnly || hasIGST}
+                                                    />
+                                                    {masterGST > 0 && (
+                                                      <div className="absolute right-2 top-1/2 -translate-y-1/2">
+                                                        {isValid ? (
+                                                          <CheckCircle2 className="h-3 w-3 text-green-500" />
+                                                        ) : (
+                                                          <AlertTriangle className="h-3 w-3 text-destructive" />
+                                                        )}
+                                                      </div>
+                                                    )}
+                                                  </div>
+                                                </FormControl>
+                                                <div className="text-xs text-muted-foreground">
+                                                  Amount: ₹{(form.watch(`items.${index}.cgst_amount`) || 0).toFixed(2)}
+                                                </div>
+                                                <FormMessage />
+                                              </FormItem>
+                                            );
+                                          }}
                                         />
+                                        
                                         <FormField
                                           control={form.control}
                                           name={`items.${index}.sgst_rate`}
-                                          render={({ field }) => (
-                                            <FormItem>
-                                              <FormLabel className="text-xs">SGST %</FormLabel>
-                                              <FormControl>
-                                                <Input 
-                                                  type="number" 
-                                                  step="0.01"
-                                                  className="h-8"
-                                                  {...field} 
-                                                  onChange={(e) => {
-                                                    field.onChange(parseFloat(e.target.value) || 0);
-                                                    calculateLineAmounts(index);
-                                                  }}
-                                                  disabled={readOnly}
-                                                />
-                                              </FormControl>
-                                              <FormMessage />
-                                            </FormItem>
-                                          )}
+                                          render={({ field }) => {
+                                            const item = form.getValues(`items.${index}`);
+                                            const masterGST = getProductMasterGST(item.product_id);
+                                            const hasIGST = (form.watch(`items.${index}.igst_rate`) || 0) > 0;
+                                            const isValid = validateGSTRate(index, 'sgst', field.value || 0);
+                                            
+                                            return (
+                                              <FormItem>
+                                                <FormLabel className="text-xs flex items-center gap-1">
+                                                  SGST %
+                                                  {masterGST > 0 && (
+                                                    <span className="text-muted-foreground">(Max: {masterGST}%)</span>
+                                                  )}
+                                                </FormLabel>
+                                                <FormControl>
+                                                  <div className="relative">
+                                                    <Input 
+                                                      type="number" 
+                                                      step="0.01"
+                                                      max={masterGST || undefined}
+                                                      className={`h-8 pr-8 ${
+                                                        hasIGST ? 'bg-muted cursor-not-allowed' : 
+                                                        !isValid ? 'border-destructive focus:border-destructive' : 
+                                                        isValid && masterGST > 0 ? 'border-green-500 focus:border-green-500' : ''
+                                                      }`}
+                                                      {...field} 
+                                                      onChange={(e) => {
+                                                        if (!hasIGST) {
+                                                          field.onChange(parseFloat(e.target.value) || 0);
+                                                          calculateLineAmounts(index);
+                                                        }
+                                                      }}
+                                                      disabled={readOnly || hasIGST}
+                                                    />
+                                                    {masterGST > 0 && (
+                                                      <div className="absolute right-2 top-1/2 -translate-y-1/2">
+                                                        {isValid ? (
+                                                          <CheckCircle2 className="h-3 w-3 text-green-500" />
+                                                        ) : (
+                                                          <AlertTriangle className="h-3 w-3 text-destructive" />
+                                                        )}
+                                                      </div>
+                                                    )}
+                                                  </div>
+                                                </FormControl>
+                                                <div className="text-xs text-muted-foreground">
+                                                  Amount: ₹{(form.watch(`items.${index}.sgst_amount`) || 0).toFixed(2)}
+                                                </div>
+                                                <FormMessage />
+                                              </FormItem>
+                                            );
+                                          }}
                                         />
+                                        
                                         <FormField
                                           control={form.control}
                                           name={`items.${index}.igst_rate`}
-                                          render={({ field }) => (
-                                            <FormItem>
-                                              <FormLabel className="text-xs">IGST %</FormLabel>
-                                              <FormControl>
-                                                <Input 
-                                                  type="number" 
-                                                  step="0.01"
-                                                  className="h-8"
-                                                  {...field} 
-                                                  onChange={(e) => {
-                                                    field.onChange(parseFloat(e.target.value) || 0);
-                                                    calculateLineAmounts(index);
-                                                  }}
-                                                  disabled={readOnly}
-                                                />
-                                              </FormControl>
-                                              <FormMessage />
-                                            </FormItem>
-                                          )}
+                                          render={({ field }) => {
+                                            const item = form.getValues(`items.${index}`);
+                                            const masterGST = getProductMasterGST(item.product_id);
+                                            const hasCGSTSGST = (form.watch(`items.${index}.cgst_rate`) || 0) > 0 || 
+                                                               (form.watch(`items.${index}.sgst_rate`) || 0) > 0;
+                                            const isValid = validateGSTRate(index, 'igst', field.value || 0);
+                                            
+                                            return (
+                                              <FormItem>
+                                                <FormLabel className="text-xs flex items-center gap-1">
+                                                  IGST %
+                                                  {masterGST > 0 && (
+                                                    <span className="text-muted-foreground">(Max: {masterGST}%)</span>
+                                                  )}
+                                                </FormLabel>
+                                                <FormControl>
+                                                  <div className="relative">
+                                                    <Input 
+                                                      type="number" 
+                                                      step="0.01"
+                                                      max={masterGST || undefined}
+                                                      className={`h-8 pr-8 ${
+                                                        hasCGSTSGST ? 'bg-muted cursor-not-allowed' : 
+                                                        !isValid ? 'border-destructive focus:border-destructive' : 
+                                                        isValid && masterGST > 0 ? 'border-green-500 focus:border-green-500' : ''
+                                                      }`}
+                                                      {...field} 
+                                                      onChange={(e) => {
+                                                        if (!hasCGSTSGST) {
+                                                          field.onChange(parseFloat(e.target.value) || 0);
+                                                          calculateLineAmounts(index);
+                                                        }
+                                                      }}
+                                                      disabled={readOnly || hasCGSTSGST}
+                                                    />
+                                                    {masterGST > 0 && (
+                                                      <div className="absolute right-2 top-1/2 -translate-y-1/2">
+                                                        {isValid ? (
+                                                          <CheckCircle2 className="h-3 w-3 text-green-500" />
+                                                        ) : (
+                                                          <AlertTriangle className="h-3 w-3 text-destructive" />
+                                                        )}
+                                                      </div>
+                                                    )}
+                                                  </div>
+                                                </FormControl>
+                                                <div className="text-xs text-muted-foreground">
+                                                  Amount: ₹{(form.watch(`items.${index}.igst_amount`) || 0).toFixed(2)}
+                                                </div>
+                                                <FormMessage />
+                                              </FormItem>
+                                            );
+                                          }}
                                         />
                                       </div>
                                     </div>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                      <div>
+
+                                    {/* Additional Details */}
+                                    <div className="bg-card border border-border/50 rounded-lg p-4">
+                                      <h5 className="font-medium mb-3 text-sm">Additional Details</h5>
+                                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                         <FormField
                                           control={form.control}
                                           name={`items.${index}.hsn_sac_code`}
@@ -1126,8 +1426,6 @@ export function PurchaseOrderForm({
                                             </FormItem>
                                           )}
                                         />
-                                      </div>
-                                      <div>
                                         <FormField
                                           control={form.control}
                                           name={`items.${index}.remarks`}
@@ -1135,7 +1433,12 @@ export function PurchaseOrderForm({
                                             <FormItem>
                                               <FormLabel className="text-xs">Remarks</FormLabel>
                                               <FormControl>
-                                                <Input className="h-8" {...field} disabled={readOnly} />
+                                                <Input 
+                                                  className="h-8" 
+                                                  placeholder="Additional notes for this item"
+                                                  {...field} 
+                                                  disabled={readOnly} 
+                                                />
                                               </FormControl>
                                               <FormMessage />
                                             </FormItem>
