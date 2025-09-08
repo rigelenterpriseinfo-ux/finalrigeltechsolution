@@ -152,7 +152,7 @@ export function PaymentsModule() {
     try {
       setLoading(true);
       
-      // First get GRN data with payment terms from purchase orders and suppliers
+      // Get GRN data with supplier information using the new foreign key
       const { data: grnData, error: grnError } = await supabase
         .from('grn_header')
         .select(`
@@ -164,18 +164,38 @@ export function PaymentsModule() {
           supplier_id,
           status,
           purchase_order_id,
-          purchase_orders!inner(payment_terms)
+          supplier:supplier_id(payment_terms)
         `)
+        .eq('company_id', profile.company_id)
         .in('status', ['accepted', 'received', 'partially_received'])
         .order('grn_date', { ascending: false });
 
       if (grnError) {
         console.error('Error fetching GRN data:', grnError);
+        toast({
+          title: "Error",
+          description: "Failed to load account payable data",
+          variant: "destructive",
+        });
         return;
       }
 
-      // Get payment data for all purchase orders and directly for GRNs
+      console.log('Fetched GRN data:', grnData);
+
+      // Get payment terms from purchase orders where available
       const purchaseOrderIds = grnData?.map(grn => grn.purchase_order_id).filter(Boolean) || [];
+      let purchaseOrderData: any[] = [];
+      
+      if (purchaseOrderIds.length > 0) {
+        const { data: poData } = await supabase
+          .from('purchase_orders')
+          .select('id, payment_terms')
+          .in('id', purchaseOrderIds);
+        
+        purchaseOrderData = poData || [];
+      }
+
+      // Get payment data for all purchase orders and directly for GRNs
       const grnIds = grnData?.map(grn => grn.id) || [];
       let paymentsData: any[] = [];
       
@@ -183,6 +203,7 @@ export function PaymentsModule() {
         const { data: payments, error: paymentsError } = await supabase
           .from('payments')
           .select('*')
+          .eq('company_id', profile.company_id)
           .or(`purchase_order_id.in.(${purchaseOrderIds.join(',')}),grn_id.in.(${grnIds.join(',')})`);
           
         if (!paymentsError) {
@@ -212,8 +233,9 @@ export function PaymentsModule() {
           invoiceStatus = 'Partially Paid';
         }
 
-        // Get payment terms from PO first, fallback to supplier default (we'll fetch supplier data separately if needed)
-        const paymentTerms = (grn.purchase_orders as any)?.payment_terms || null;
+        // Get payment terms from PO first, fallback to supplier default
+        const poPaymentTerms = purchaseOrderData.find(po => po.id === grn.purchase_order_id)?.payment_terms;
+        const paymentTerms = poPaymentTerms || grn.supplier?.payment_terms || 'Net 30';
 
         return {
           id: grn.id,
@@ -234,27 +256,14 @@ export function PaymentsModule() {
         };
       });
 
-      // Fetch supplier payment terms for records that don't have PO payment terms
-      const recordsWithoutPaymentTerms = transformedData.filter(item => !item.payment_terms);
-      if (recordsWithoutPaymentTerms.length > 0) {
-        const supplierIds = [...new Set(recordsWithoutPaymentTerms.map(item => item.supplier_id))];
-        const { data: supplierData } = await supabase
-          .from('suppliers')
-          .select('id, payment_terms')
-          .in('id', supplierIds);
-        
-        // Update records with supplier payment terms
-        recordsWithoutPaymentTerms.forEach(item => {
-          const supplier = supplierData?.find(s => s.id === item.supplier_id);
-          if (supplier?.payment_terms) {
-            item.payment_terms = supplier.payment_terms;
-          }
-        });
-      }
-
       setAccountPayable(transformedData);
     } catch (error) {
       console.error('Error fetching account payable:', error);
+      toast({
+        title: "Error",
+        description: "An unexpected error occurred while loading account payable data",
+        variant: "destructive",
+      });
     } finally {
       setLoading(false);
     }
@@ -262,7 +271,7 @@ export function PaymentsModule() {
 
   const fetchAccountReceivable = async () => {
     try {
-      // First get sales invoice data with customer details
+      // Get sales invoice data with customer details using the new foreign key
       const { data: invoiceData, error: invoiceError } = await supabase
         .from('sales_invoices')
         .select(`
@@ -274,15 +283,23 @@ export function PaymentsModule() {
           customer_id,
           customer_name,
           sales_order_id,
-          customers!inner(id, name)
+          customer:customer_id(id, name)
         `)
+        .eq('company_id', profile.company_id)
         .eq('status', 'finalized')
         .order('invoice_date', { ascending: false });
 
       if (invoiceError) {
         console.error('Error fetching sales invoice data:', invoiceError);
+        toast({
+          title: "Error",
+          description: "Failed to load account receivable data",
+          variant: "destructive",
+        });
         return;
       }
+
+      console.log('Fetched sales invoice data:', invoiceData);
 
       // Get payment data for all sales orders and directly for invoices
       const salesOrderIds = invoiceData?.map(invoice => invoice.sales_order_id).filter(Boolean) || [];
@@ -293,6 +310,7 @@ export function PaymentsModule() {
         const { data: payments, error: paymentsError } = await supabase
           .from('payments')
           .select('*')
+          .eq('company_id', profile.company_id)
           .or(`sales_order_id.in.(${salesOrderIds.join(',')}),sales_invoice_id.in.(${invoiceIds.join(',')})`);
           
         if (!paymentsError) {
@@ -343,7 +361,7 @@ export function PaymentsModule() {
           payment_terms: invoice.payment_terms,
           customer: { 
             id: invoice.customer_id,
-            name: invoice.customer_name 
+            name: invoice.customer?.name || invoice.customer_name 
           },
           advance_payment: totalAdvancePayment,
           amount_received: totalAmountReceived,
@@ -358,6 +376,11 @@ export function PaymentsModule() {
       setAccountReceivable(transformedData);
     } catch (error) {
       console.error('Error fetching account receivable:', error);
+      toast({
+        title: "Error",
+        description: "An unexpected error occurred while loading account receivable data",
+        variant: "destructive",
+      });
     }
   };
 
