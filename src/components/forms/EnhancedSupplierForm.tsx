@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -11,6 +11,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { toast } from 'sonner';
 import { useBusinessAuth } from '@/hooks/useBusinessAuth';
 import { 
@@ -24,7 +26,10 @@ import {
   CheckCircle2, 
   AlertCircle, 
   User,
-  Landmark
+  Landmark,
+  AlertTriangle,
+  ChevronDown,
+  X
 } from 'lucide-react';
 import { 
   supplierValidationSchema, 
@@ -81,6 +86,7 @@ export const EnhancedSupplierForm: React.FC<EnhancedSupplierFormProps> = ({
   const { hasEditAccess } = useBusinessAuth();
   const [loading, setLoading] = useState(false);
   const [completionProgress, setCompletionProgress] = useState(0);
+  const [showErrorSummary, setShowErrorSummary] = useState(false);
   const canEdit = hasEditAccess('purchase') && !readOnly;
 
   const form = useForm<SupplierFormData>({
@@ -97,6 +103,59 @@ export const EnhancedSupplierForm: React.FC<EnhancedSupplierFormProps> = ({
 
   const { watch, setValue, formState: { errors } } = form;
   const watchedValues = watch();
+
+  // Field labels mapping for error display
+  const fieldLabels: Record<string, string> = {
+    name: 'Supplier Name',
+    supplier_type: 'Supplier Type',
+    contact_person: 'Contact Person',
+    phone: 'Phone Number',
+    email: 'Email Address',
+    website: 'Website',
+    address_line1: 'Address Line 1',
+    address_line2: 'Address Line 2',
+    city: 'City',
+    state: 'State/Province',
+    country: 'Country',
+    pin_code: 'PIN Code',
+    gst_number: 'GST Number',
+    pan_number: 'PAN Number',
+    business_registration_no: 'Business Registration Number',
+    preferred_currency: 'Preferred Currency',
+    payment_terms: 'Payment Terms',
+    bank_name: 'Bank Name',
+    branch_name: 'Branch Name',
+    account_number: 'Account Number',
+    ifsc_code: 'IFSC Code',
+    swift_code: 'SWIFT Code'
+  };
+
+  // Required fields definition
+  const requiredFields = ['name'];
+  
+  // Tab error checking
+  const getTabErrors = useMemo(() => {
+    const basicFields = ['name', 'supplier_type', 'contact_person'];
+    const contactFields = ['phone', 'email', 'website', 'address_line1', 'address_line2', 'city', 'state', 'country', 'pin_code'];
+    const businessFields = ['gst_number', 'pan_number', 'business_registration_no', 'preferred_currency', 'payment_terms'];
+    const bankingFields = ['bank_name', 'branch_name', 'account_number', 'ifsc_code', 'swift_code'];
+
+    return {
+      basic: basicFields.some(field => errors[field as keyof SupplierFormData]),
+      contact: contactFields.some(field => errors[field as keyof SupplierFormData]),
+      business: businessFields.some(field => errors[field as keyof SupplierFormData]),
+      banking: bankingFields.some(field => errors[field as keyof SupplierFormData])
+    };
+  }, [errors]);
+
+  // Auto-show error summary when errors exist
+  useEffect(() => {
+    if (Object.keys(errors).length > 0) {
+      setShowErrorSummary(true);
+    } else {
+      setShowErrorSummary(false);
+    }
+  }, [errors]);
 
   // Calculate form completion progress
   useEffect(() => {
@@ -162,26 +221,26 @@ export const EnhancedSupplierForm: React.FC<EnhancedSupplierFormProps> = ({
   };
 
   return (
-    <div className="max-w-4xl mx-auto p-6 space-y-6">
+    <div className="max-w-4xl mx-auto p-4 space-y-4">
       {/* Header with Progress */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2">
-            <Building2 className="h-6 w-6" />
+          <h1 className="text-xl font-bold flex items-center gap-2">
+            <Building2 className="h-5 w-5" />
             {supplier ? 'Edit Supplier' : 'New Supplier'}
           </h1>
-          <p className="text-muted-foreground mt-1">
+          <p className="text-sm text-muted-foreground mt-1">
             {supplier ? 'Update supplier information' : 'Add a new supplier to your database'}
           </p>
         </div>
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2">
-            <span className="text-sm text-muted-foreground">Completion</span>
-            <Progress value={completionProgress} className="w-20" />
-            <span className="text-sm font-medium">{completionProgress}%</span>
+            <span className="text-xs text-muted-foreground">Progress</span>
+            <Progress value={completionProgress} className="w-16 h-2" />
+            <span className="text-xs font-medium">{completionProgress}%</span>
           </div>
           {supplier?.is_active && (
-            <Badge variant="default" className="flex items-center gap-1">
+            <Badge variant="default" className="flex items-center gap-1 text-xs">
               <CheckCircle2 className="h-3 w-3" />
               Active
             </Badge>
@@ -189,57 +248,116 @@ export const EnhancedSupplierForm: React.FC<EnhancedSupplierFormProps> = ({
         </div>
       </div>
 
+      {/* Error Summary Panel */}
+      {Object.keys(errors).length > 0 && (
+        <Collapsible open={showErrorSummary} onOpenChange={setShowErrorSummary}>
+          <Alert variant="destructive" className="border-destructive/50">
+            <AlertTriangle className="h-4 w-4" />
+            <div className="flex items-center justify-between w-full">
+              <div className="flex-1">
+                <AlertDescription className="font-medium">
+                  {Object.keys(errors).length} field{Object.keys(errors).length > 1 ? 's' : ''} need{Object.keys(errors).length === 1 ? 's' : ''} attention
+                </AlertDescription>
+              </div>
+              <CollapsibleTrigger asChild>
+                <Button variant="ghost" size="sm" className="h-auto p-1">
+                  <ChevronDown className={`h-4 w-4 transition-transform ${showErrorSummary ? 'rotate-180' : ''}`} />
+                </Button>
+              </CollapsibleTrigger>
+            </div>
+            <CollapsibleContent className="mt-3">
+              <div className="space-y-2">
+                {Object.entries(errors).map(([field, error]) => (
+                  <div key={field} className="flex items-start gap-2 text-sm">
+                    <X className="h-3 w-3 mt-0.5 flex-shrink-0" />
+                    <span>
+                      <span className="font-medium">{fieldLabels[field] || field}:</span>{' '}
+                      {error?.message}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </CollapsibleContent>
+          </Alert>
+        </Collapsible>
+      )}
+
       <Form {...form}>
-        <form onSubmit={form.handleSubmit(onFormSubmit)} className="space-y-6">
+        <form onSubmit={form.handleSubmit(onFormSubmit)} className="space-y-4">
           <Tabs defaultValue="basic" className="w-full">
-            <TabsList className="grid w-full grid-cols-4">
-              <TabsTrigger value="basic" className="flex items-center gap-2">
-                <User className="h-4 w-4" />
-                <span className="hidden sm:inline">Basic Info</span>
+            <TabsList className="grid w-full grid-cols-4 h-auto p-1">
+              <TabsTrigger 
+                value="basic" 
+                className={`flex items-center gap-2 py-2 px-3 ${getTabErrors.basic ? 'text-destructive border-destructive' : ''}`}
+              >
+                <div className="flex items-center gap-1">
+                  <User className="h-3 w-3" />
+                  {getTabErrors.basic && <AlertCircle className="h-3 w-3" />}
+                </div>
+                <span className="hidden sm:inline text-xs">Basic</span>
               </TabsTrigger>
-              <TabsTrigger value="contact" className="flex items-center gap-2">
-                <Phone className="h-4 w-4" />
-                <span className="hidden sm:inline">Contact</span>
+              <TabsTrigger 
+                value="contact" 
+                className={`flex items-center gap-2 py-2 px-3 ${getTabErrors.contact ? 'text-destructive border-destructive' : ''}`}
+              >
+                <div className="flex items-center gap-1">
+                  <Phone className="h-3 w-3" />
+                  {getTabErrors.contact && <AlertCircle className="h-3 w-3" />}
+                </div>
+                <span className="hidden sm:inline text-xs">Contact</span>
               </TabsTrigger>
-              <TabsTrigger value="business" className="flex items-center gap-2">
-                <FileText className="h-4 w-4" />
-                <span className="hidden sm:inline">Business</span>
+              <TabsTrigger 
+                value="business" 
+                className={`flex items-center gap-2 py-2 px-3 ${getTabErrors.business ? 'text-destructive border-destructive' : ''}`}
+              >
+                <div className="flex items-center gap-1">
+                  <FileText className="h-3 w-3" />
+                  {getTabErrors.business && <AlertCircle className="h-3 w-3" />}
+                </div>
+                <span className="hidden sm:inline text-xs">Business</span>
               </TabsTrigger>
-              <TabsTrigger value="banking" className="flex items-center gap-2">
-                <Landmark className="h-4 w-4" />
-                <span className="hidden sm:inline">Banking</span>
+              <TabsTrigger 
+                value="banking" 
+                className={`flex items-center gap-2 py-2 px-3 ${getTabErrors.banking ? 'text-destructive border-destructive' : ''}`}
+              >
+                <div className="flex items-center gap-1">
+                  <Landmark className="h-3 w-3" />
+                  {getTabErrors.banking && <AlertCircle className="h-3 w-3" />}
+                </div>
+                <span className="hidden sm:inline text-xs">Banking</span>
               </TabsTrigger>
             </TabsList>
 
             {/* Basic Information Tab */}
-            <TabsContent value="basic" className="space-y-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Building2 className="h-5 w-5" />
+            <TabsContent value="basic" className="space-y-4">
+              <Card className="border-border/50">
+                <CardHeader className="pb-4">
+                  <CardTitle className="flex items-center gap-2 text-lg">
+                    <Building2 className="h-4 w-4" />
                     Basic Information
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-6">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <FormField
                       control={form.control}
                       name="name"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel className="flex items-center gap-2">
-                            <Building2 className="h-4 w-4" />
-                            Supplier Name *
+                          <FormLabel className="flex items-center gap-2 text-sm font-medium">
+                            <Building2 className="h-3 w-3" />
+                            Supplier Name
+                            <span className="text-destructive">*</span>
                           </FormLabel>
                           <FormControl>
                             <Input
                               {...field}
                               placeholder="Enter legal/trade name"
-                              className="h-11"
+                              className="h-10"
                               disabled={!canEdit}
                             />
                           </FormControl>
-                          <FormDescription>
+                          <FormDescription className="text-xs">
                             Legal or trade name as registered
                           </FormDescription>
                           <FormMessage />
@@ -252,14 +370,14 @@ export const EnhancedSupplierForm: React.FC<EnhancedSupplierFormProps> = ({
                       name="supplier_type"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Supplier Type</FormLabel>
+                          <FormLabel className="text-sm font-medium">Supplier Type</FormLabel>
                           <Select 
                             onValueChange={field.onChange} 
                             defaultValue={field.value}
                             disabled={!canEdit}
                           >
                             <FormControl>
-                              <SelectTrigger className="h-11">
+                              <SelectTrigger className="h-10">
                                 <SelectValue placeholder="Select type" />
                               </SelectTrigger>
                             </FormControl>
@@ -281,15 +399,15 @@ export const EnhancedSupplierForm: React.FC<EnhancedSupplierFormProps> = ({
                       name="contact_person"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel className="flex items-center gap-2">
-                            <User className="h-4 w-4" />
+                          <FormLabel className="flex items-center gap-2 text-sm font-medium">
+                            <User className="h-3 w-3" />
                             Contact Person
                           </FormLabel>
                           <FormControl>
                             <Input
                               {...field}
                               placeholder="Primary contact name"
-                              className="h-11"
+                              className="h-10"
                               disabled={!canEdit}
                             />
                           </FormControl>
@@ -303,16 +421,16 @@ export const EnhancedSupplierForm: React.FC<EnhancedSupplierFormProps> = ({
                       name="supplier_ref"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Supplier ID</FormLabel>
+                          <FormLabel className="text-sm font-medium">Supplier ID</FormLabel>
                           <FormControl>
                             <Input
                               {...field}
                               placeholder="Auto-generated"
-                              className="h-11 bg-muted"
+                              className="h-10 bg-muted"
                               disabled={true}
                             />
                           </FormControl>
-                          <FormDescription>
+                          <FormDescription className="text-xs">
                             Auto-generated: First 4 letters + DDMMYYYY
                           </FormDescription>
                           <FormMessage />
@@ -325,10 +443,10 @@ export const EnhancedSupplierForm: React.FC<EnhancedSupplierFormProps> = ({
                     control={form.control}
                     name="is_active"
                     render={({ field }) => (
-                      <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                      <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 md:col-span-2">
                         <div className="space-y-0.5">
-                          <FormLabel className="text-base">Active Status</FormLabel>
-                          <FormDescription>
+                          <FormLabel className="text-sm font-medium">Active Status</FormLabel>
+                          <FormDescription className="text-xs">
                             Enable to allow transactions with this supplier
                           </FormDescription>
                         </div>
@@ -347,30 +465,30 @@ export const EnhancedSupplierForm: React.FC<EnhancedSupplierFormProps> = ({
             </TabsContent>
 
             {/* Contact & Address Tab */}
-            <TabsContent value="contact" className="space-y-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Phone className="h-5 w-5" />
+            <TabsContent value="contact" className="space-y-4">
+              <Card className="border-border/50">
+                <CardHeader className="pb-4">
+                  <CardTitle className="flex items-center gap-2 text-lg">
+                    <Phone className="h-4 w-4" />
                     Contact Details
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-6">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <FormField
                       control={form.control}
                       name="phone"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel className="flex items-center gap-2">
-                            <Phone className="h-4 w-4" />
+                          <FormLabel className="flex items-center gap-2 text-sm font-medium">
+                            <Phone className="h-3 w-3" />
                             Phone Number
                           </FormLabel>
                           <FormControl>
                             <Input
                               {...field}
                               placeholder="9876543210"
-                              className="h-11"
+                              className="h-10"
                               disabled={!canEdit}
                               onChange={(e) => {
                                 field.onChange(e);
@@ -378,7 +496,7 @@ export const EnhancedSupplierForm: React.FC<EnhancedSupplierFormProps> = ({
                               }}
                             />
                           </FormControl>
-                          <FormDescription>
+                          <FormDescription className="text-xs">
                             Indian mobile number (10 digits)
                           </FormDescription>
                           <FormMessage />
@@ -391,8 +509,8 @@ export const EnhancedSupplierForm: React.FC<EnhancedSupplierFormProps> = ({
                       name="email"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel className="flex items-center gap-2">
-                            <Mail className="h-4 w-4" />
+                          <FormLabel className="flex items-center gap-2 text-sm font-medium">
+                            <Mail className="h-3 w-3" />
                             Email Address
                           </FormLabel>
                           <FormControl>
@@ -400,11 +518,11 @@ export const EnhancedSupplierForm: React.FC<EnhancedSupplierFormProps> = ({
                               {...field}
                               type="email"
                               placeholder="contact@supplier.com"
-                              className="h-11"
+                              className="h-10"
                               disabled={!canEdit}
                             />
                           </FormControl>
-                          <FormDescription>
+                          <FormDescription className="text-xs">
                             Business email for official communication
                           </FormDescription>
                           <FormMessage />
@@ -417,18 +535,28 @@ export const EnhancedSupplierForm: React.FC<EnhancedSupplierFormProps> = ({
                       name="website"
                       render={({ field }) => (
                         <FormItem className="md:col-span-2">
-                          <FormLabel className="flex items-center gap-2">
-                            <Globe className="h-4 w-4" />
-                            Website
+                          <FormLabel className="flex items-center gap-2 text-sm font-medium">
+                            <Globe className="h-3 w-3" />
+                            Website <span className="text-xs text-muted-foreground">(Optional)</span>
                           </FormLabel>
                           <FormControl>
                             <Input
                               {...field}
                               placeholder="https://www.supplier.com"
-                              className="h-11"
+                              className="h-10"
                               disabled={!canEdit}
+                              onChange={(e) => {
+                                let value = e.target.value;
+                                if (value && !value.startsWith('http://') && !value.startsWith('https://')) {
+                                  value = 'https://' + value;
+                                }
+                                field.onChange(value);
+                              }}
                             />
                           </FormControl>
+                          <FormDescription className="text-xs">
+                            Company website URL (automatically adds https://)
+                          </FormDescription>
                           <FormMessage />
                         </FormItem>
                       )}
@@ -437,26 +565,26 @@ export const EnhancedSupplierForm: React.FC<EnhancedSupplierFormProps> = ({
                 </CardContent>
               </Card>
 
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <MapPin className="h-5 w-5" />
+              <Card className="border-border/50">
+                <CardHeader className="pb-4">
+                  <CardTitle className="flex items-center gap-2 text-lg">
+                    <MapPin className="h-4 w-4" />
                     Address Information
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-6">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <FormField
                       control={form.control}
                       name="address_line1"
                       render={({ field }) => (
                         <FormItem className="md:col-span-2">
-                          <FormLabel>Address Line 1</FormLabel>
+                          <FormLabel className="text-sm font-medium">Address Line 1</FormLabel>
                           <FormControl>
                             <Input
                               {...field}
                               placeholder="Street address, building number"
-                              className="h-11"
+                              className="h-10"
                               disabled={!canEdit}
                             />
                           </FormControl>
@@ -470,12 +598,14 @@ export const EnhancedSupplierForm: React.FC<EnhancedSupplierFormProps> = ({
                       name="address_line2"
                       render={({ field }) => (
                         <FormItem className="md:col-span-2">
-                          <FormLabel>Address Line 2 (Optional)</FormLabel>
+                          <FormLabel className="text-sm font-medium">
+                            Address Line 2 <span className="text-xs text-muted-foreground">(Optional)</span>
+                          </FormLabel>
                           <FormControl>
                             <Input
                               {...field}
                               placeholder="Apartment, suite, landmark"
-                              className="h-11"
+                              className="h-10"
                               disabled={!canEdit}
                             />
                           </FormControl>
@@ -489,12 +619,12 @@ export const EnhancedSupplierForm: React.FC<EnhancedSupplierFormProps> = ({
                       name="city"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>City</FormLabel>
+                          <FormLabel className="text-sm font-medium">City</FormLabel>
                           <FormControl>
                             <Input
                               {...field}
                               placeholder="City name"
-                              className="h-11"
+                              className="h-10"
                               disabled={!canEdit}
                             />
                           </FormControl>
@@ -508,12 +638,12 @@ export const EnhancedSupplierForm: React.FC<EnhancedSupplierFormProps> = ({
                       name="state"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>State/Province</FormLabel>
+                          <FormLabel className="text-sm font-medium">State/Province</FormLabel>
                           <FormControl>
                             <Input
                               {...field}
                               placeholder="State or province"
-                              className="h-11"
+                              className="h-10"
                               disabled={!canEdit}
                             />
                           </FormControl>
@@ -527,12 +657,12 @@ export const EnhancedSupplierForm: React.FC<EnhancedSupplierFormProps> = ({
                       name="pin_code"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>PIN Code</FormLabel>
+                          <FormLabel className="text-sm font-medium">PIN Code</FormLabel>
                           <FormControl>
                             <Input
                               {...field}
                               placeholder="123456"
-                              className="h-11"
+                              className="h-10"
                               disabled={!canEdit}
                               onChange={(e) => {
                                 field.onChange(e);
@@ -540,7 +670,7 @@ export const EnhancedSupplierForm: React.FC<EnhancedSupplierFormProps> = ({
                               }}
                             />
                           </FormControl>
-                          <FormDescription>
+                          <FormDescription className="text-xs">
                             6-digit postal code
                           </FormDescription>
                           <FormMessage />
@@ -553,12 +683,12 @@ export const EnhancedSupplierForm: React.FC<EnhancedSupplierFormProps> = ({
                       name="country"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Country</FormLabel>
+                          <FormLabel className="text-sm font-medium">Country</FormLabel>
                           <FormControl>
                             <Input
                               {...field}
                               placeholder="India"
-                              className="h-11"
+                              className="h-10"
                               disabled={!canEdit}
                             />
                           </FormControl>
@@ -572,30 +702,30 @@ export const EnhancedSupplierForm: React.FC<EnhancedSupplierFormProps> = ({
             </TabsContent>
 
             {/* Business & Tax Tab */}
-            <TabsContent value="business" className="space-y-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <FileText className="h-5 w-5" />
+            <TabsContent value="business" className="space-y-4">
+              <Card className="border-border/50">
+                <CardHeader className="pb-4">
+                  <CardTitle className="flex items-center gap-2 text-lg">
+                    <FileText className="h-4 w-4" />
                     Business & Tax Details
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-6">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <FormField
                       control={form.control}
                       name="gst_number"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel className="flex items-center gap-2">
-                            <FileText className="h-4 w-4" />
+                          <FormLabel className="flex items-center gap-2 text-sm font-medium">
+                            <FileText className="h-3 w-3" />
                             GSTIN / Tax ID
                           </FormLabel>
                           <FormControl>
                             <Input
                               {...field}
                               placeholder="22AAAAA0000A1Z5"
-                              className="h-11"
+                              className="h-10"
                               disabled={!canEdit}
                               onChange={(e) => {
                                 field.onChange(e);
@@ -603,7 +733,7 @@ export const EnhancedSupplierForm: React.FC<EnhancedSupplierFormProps> = ({
                               }}
                             />
                           </FormControl>
-                          <FormDescription>
+                          <FormDescription className="text-xs">
                             15-character GSTIN for tax compliance
                           </FormDescription>
                           <FormMessage />
@@ -616,12 +746,12 @@ export const EnhancedSupplierForm: React.FC<EnhancedSupplierFormProps> = ({
                       name="pan_number"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>PAN Number</FormLabel>
+                          <FormLabel className="text-sm font-medium">PAN Number</FormLabel>
                           <FormControl>
                             <Input
                               {...field}
                               placeholder="ABCDE1234F"
-                              className="h-11"
+                              className="h-10"
                               disabled={!canEdit}
                               onChange={(e) => {
                                 field.onChange(e);
@@ -629,7 +759,7 @@ export const EnhancedSupplierForm: React.FC<EnhancedSupplierFormProps> = ({
                               }}
                             />
                           </FormControl>
-                          <FormDescription>
+                          <FormDescription className="text-xs">
                             10-character PAN number
                           </FormDescription>
                           <FormMessage />
@@ -642,16 +772,18 @@ export const EnhancedSupplierForm: React.FC<EnhancedSupplierFormProps> = ({
                       name="business_registration_no"
                       render={({ field }) => (
                         <FormItem className="md:col-span-2">
-                          <FormLabel>Business Registration Number</FormLabel>
+                          <FormLabel className="text-sm font-medium">
+                            Business Registration Number <span className="text-xs text-muted-foreground">(Optional)</span>
+                          </FormLabel>
                           <FormControl>
                             <Input
                               {...field}
                               placeholder="Registration number"
-                              className="h-11"
+                              className="h-10"
                               disabled={!canEdit}
                             />
                           </FormControl>
-                          <FormDescription>
+                          <FormDescription className="text-xs">
                             Company registration or incorporation number
                           </FormDescription>
                           <FormMessage />
@@ -664,14 +796,14 @@ export const EnhancedSupplierForm: React.FC<EnhancedSupplierFormProps> = ({
                       name="preferred_currency"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Preferred Currency</FormLabel>
+                          <FormLabel className="text-sm font-medium">Preferred Currency</FormLabel>
                           <Select 
                             onValueChange={field.onChange} 
                             defaultValue={field.value}
                             disabled={!canEdit}
                           >
                             <FormControl>
-                              <SelectTrigger className="h-11">
+                              <SelectTrigger className="h-10">
                                 <SelectValue placeholder="Select currency" />
                               </SelectTrigger>
                             </FormControl>
@@ -693,14 +825,14 @@ export const EnhancedSupplierForm: React.FC<EnhancedSupplierFormProps> = ({
                       name="payment_terms"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Payment Terms</FormLabel>
+                          <FormLabel className="text-sm font-medium">Payment Terms</FormLabel>
                           <Select 
                             onValueChange={field.onChange} 
                             defaultValue={field.value}
                             disabled={!canEdit}
                           >
                             <FormControl>
-                              <SelectTrigger className="h-11">
+                              <SelectTrigger className="h-10">
                                 <SelectValue placeholder="Select terms" />
                               </SelectTrigger>
                             </FormControl>
@@ -724,30 +856,30 @@ export const EnhancedSupplierForm: React.FC<EnhancedSupplierFormProps> = ({
             </TabsContent>
 
             {/* Banking Information Tab */}
-            <TabsContent value="banking" className="space-y-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <CreditCard className="h-5 w-5" />
+            <TabsContent value="banking" className="space-y-4">
+              <Card className="border-border/50">
+                <CardHeader className="pb-4">
+                  <CardTitle className="flex items-center gap-2 text-lg">
+                    <CreditCard className="h-4 w-4" />
                     Banking Information
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-6">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <FormField
                       control={form.control}
                       name="bank_name"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel className="flex items-center gap-2">
-                            <Landmark className="h-4 w-4" />
+                          <FormLabel className="flex items-center gap-2 text-sm font-medium">
+                            <Landmark className="h-3 w-3" />
                             Bank Name
                           </FormLabel>
                           <FormControl>
                             <Input
                               {...field}
                               placeholder="State Bank of India"
-                              className="h-11"
+                              className="h-10"
                               disabled={!canEdit}
                             />
                           </FormControl>
@@ -761,12 +893,14 @@ export const EnhancedSupplierForm: React.FC<EnhancedSupplierFormProps> = ({
                       name="branch_name"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Branch Name</FormLabel>
+                          <FormLabel className="text-sm font-medium">
+                            Branch Name <span className="text-xs text-muted-foreground">(Optional)</span>
+                          </FormLabel>
                           <FormControl>
                             <Input
                               {...field}
                               placeholder="Main Branch"
-                              className="h-11"
+                              className="h-10"
                               disabled={!canEdit}
                             />
                           </FormControl>
@@ -780,16 +914,16 @@ export const EnhancedSupplierForm: React.FC<EnhancedSupplierFormProps> = ({
                       name="account_number"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Account Number</FormLabel>
+                          <FormLabel className="text-sm font-medium">Account Number</FormLabel>
                           <FormControl>
                             <Input
                               {...field}
                               placeholder="Account number"
-                              className="h-11"
+                              className="h-10"
                               disabled={!canEdit}
                             />
                           </FormControl>
-                          <FormDescription>
+                          <FormDescription className="text-xs">
                             9-18 digit bank account number
                           </FormDescription>
                           <FormMessage />
@@ -802,12 +936,12 @@ export const EnhancedSupplierForm: React.FC<EnhancedSupplierFormProps> = ({
                       name="ifsc_code"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>IFSC Code</FormLabel>
+                          <FormLabel className="text-sm font-medium">IFSC Code</FormLabel>
                           <FormControl>
                             <Input
                               {...field}
                               placeholder="SBIN0001234"
-                              className="h-11"
+                              className="h-10"
                               disabled={!canEdit}
                               onChange={(e) => {
                                 field.onChange(e);
@@ -815,7 +949,7 @@ export const EnhancedSupplierForm: React.FC<EnhancedSupplierFormProps> = ({
                               }}
                             />
                           </FormControl>
-                          <FormDescription>
+                          <FormDescription className="text-xs">
                             11-character IFSC code for Indian banks
                           </FormDescription>
                           <FormMessage />
@@ -828,16 +962,18 @@ export const EnhancedSupplierForm: React.FC<EnhancedSupplierFormProps> = ({
                       name="swift_code"
                       render={({ field }) => (
                         <FormItem className="md:col-span-2">
-                          <FormLabel>SWIFT Code (International)</FormLabel>
+                          <FormLabel className="text-sm font-medium">
+                            SWIFT Code <span className="text-xs text-muted-foreground">(Optional - International)</span>
+                          </FormLabel>
                           <FormControl>
                             <Input
                               {...field}
                               placeholder="SBININBB123"
-                              className="h-11"
+                              className="h-10"
                               disabled={!canEdit}
                             />
                           </FormControl>
-                          <FormDescription>
+                          <FormDescription className="text-xs">
                             8 or 11 character SWIFT code for international transfers
                           </FormDescription>
                           <FormMessage />
@@ -851,18 +987,20 @@ export const EnhancedSupplierForm: React.FC<EnhancedSupplierFormProps> = ({
           </Tabs>
 
           {/* Action Buttons */}
-          <div className="flex flex-col-reverse sm:flex-row justify-between items-center gap-4 pt-6 border-t">
+          <div className="flex flex-col-reverse sm:flex-row justify-between items-center gap-4 pt-4 border-t border-border/50">
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               {Object.keys(errors).length > 0 && (
                 <>
                   <AlertCircle className="h-4 w-4 text-destructive" />
-                  <span>Please fix {Object.keys(errors).length} error(s) above</span>
+                  <span className="text-xs">
+                    {Object.keys(errors).length} error{Object.keys(errors).length > 1 ? 's' : ''} to fix
+                  </span>
                 </>
               )}
               {Object.keys(errors).length === 0 && completionProgress === 100 && (
                 <>
                   <CheckCircle2 className="h-4 w-4 text-green-600" />
-                  <span>Form is complete and ready to submit</span>
+                  <span className="text-xs">Form complete and ready to submit</span>
                 </>
               )}
             </div>
@@ -872,14 +1010,14 @@ export const EnhancedSupplierForm: React.FC<EnhancedSupplierFormProps> = ({
                 type="button" 
                 variant="outline" 
                 onClick={onCancel}
-                className="min-w-[100px]"
+                className="min-w-[80px] h-10 text-sm"
               >
                 Cancel
               </Button>
               <Button 
                 type="submit" 
                 disabled={loading || !canEdit}
-                className="min-w-[120px]"
+                className="min-w-[100px] h-10 text-sm"
               >
                 {loading ? (
                   <>
