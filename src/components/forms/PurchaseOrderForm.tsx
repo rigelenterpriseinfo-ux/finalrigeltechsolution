@@ -381,18 +381,14 @@ export function PurchaseOrderForm({
       <Form {...form}>
         <form onSubmit={form.handleSubmit(handleSubmit)} className="flex-1 flex flex-col">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col px-4">
-            <TabsList className="grid w-full grid-cols-3 mb-4 bg-muted/30 h-12">
+            <TabsList className="grid w-full grid-cols-2 mb-4 bg-muted/30 h-12">
               <TabsTrigger value="order-info" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground flex items-center gap-2">
                 <Building className="h-4 w-4" />
                 Order Info
               </TabsTrigger>
               <TabsTrigger value="items" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground flex items-center gap-2">
                 <ShoppingCart className="h-4 w-4" />
-                Items ({fields.length})
-              </TabsTrigger>
-              <TabsTrigger value="summary" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground flex items-center gap-2">
-                <FileText className="h-4 w-4" />
-                Summary
+                Items & Summary ({fields.length})
               </TabsTrigger>
             </TabsList>
 
@@ -746,7 +742,7 @@ export function PurchaseOrderForm({
                         <TableHeader className="bg-muted/50">
                           <TableRow>
                             <TableHead className="w-[200px] font-semibold">Product</TableHead>
-                            <TableHead className="w-[60px] text-center font-semibold">Qty</TableHead>
+                            <TableHead className="w-[80px] text-center font-semibold">Qty</TableHead>
                             <TableHead className="w-[100px] text-center font-semibold">Unit Price</TableHead>
                             <TableHead className="w-[80px] text-center font-semibold">HSN/SAC</TableHead>
                             <TableHead className="w-[60px] text-center font-semibold">CGST%</TableHead>
@@ -1005,25 +1001,18 @@ export function PurchaseOrderForm({
                                   />
                                 </TableCell>
 
-                                <TableCell className="p-2 text-right">
-                                  <div className="space-y-1">
-                                    <div className="font-semibold text-sm">
-                                      ₹{(form.watch(`items.${index}.line_total`) || 0).toFixed(2)}
-                                    </div>
-                                    <div className="text-xs text-muted-foreground">
-                                      Tax: ₹{((form.watch(`items.${index}.cgst_amount`) || 0) + 
-                                                (form.watch(`items.${index}.sgst_amount`) || 0) + 
-                                                (form.watch(`items.${index}.igst_amount`) || 0)).toFixed(2)}
-                                    </div>
-                                    {masterGST > 0 && (
-                                      <div className="text-xs">
-                                        <Badge variant={totalAppliedGST <= masterGST ? "secondary" : "destructive"} className="text-xs px-1">
-                                          {totalAppliedGST}%/{masterGST}%
-                                        </Badge>
-                                      </div>
-                                    )}
-                                  </div>
-                                </TableCell>
+                                 <TableCell className="p-2 text-right">
+                                   <div className="space-y-1">
+                                     <div className="font-semibold text-sm">
+                                       ₹{(form.watch(`items.${index}.line_total`) || 0).toFixed(2)}
+                                     </div>
+                                     <div className="text-xs text-muted-foreground">
+                                       Tax: ₹{((form.watch(`items.${index}.cgst_amount`) || 0) + 
+                                                 (form.watch(`items.${index}.sgst_amount`) || 0) + 
+                                                 (form.watch(`items.${index}.igst_amount`) || 0)).toFixed(2)}
+                                     </div>
+                                   </div>
+                                 </TableCell>
 
                                 {!readOnly && (
                                   <TableCell className="p-2">
@@ -1043,75 +1032,73 @@ export function PurchaseOrderForm({
                           })}
                         </TableBody>
                       </Table>
-                    </div>
-                  </CardContent>
-                </Card>
-              </TabsContent>
+                     </div>
+                   </CardContent>
+                 </Card>
+                 
+                 {/* Summary Section - Moved from separate tab */}
+                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-6">
+                   {/* Order Summary */}
+                   <Card className="shadow-sm border-border/50">
+                     <CardHeader className="pb-3">
+                       <CardTitle className="text-base font-semibold flex items-center gap-2">
+                         <FileText className="h-4 w-4 text-primary" />
+                         Order Summary
+                       </CardTitle>
+                     </CardHeader>
+                     <CardContent className="space-y-4">
+                       <div className="space-y-3">
+                         <div className="flex justify-between items-center py-2 border-b border-border/50">
+                           <span className="text-sm text-muted-foreground">Subtotal:</span>
+                           <span className="font-medium">₹{subtotal.toFixed(2)}</span>
+                         </div>
+                         <div className="flex justify-between items-center py-2 border-b border-border/50">
+                           <span className="text-sm text-muted-foreground">Total Discount:</span>
+                           <span className="font-medium text-green-600">-₹{totalDiscount.toFixed(2)}</span>
+                         </div>
+                         <div className="flex justify-between items-center py-2 border-b border-border/50">
+                           <span className="text-sm text-muted-foreground">Total Tax:</span>
+                           <span className="font-medium">₹{totalTax.toFixed(2)}</span>
+                         </div>
+                         <div className="flex justify-between items-center py-3 border-t-2 border-primary/20">
+                           <span className="text-lg font-semibold">Total Amount:</span>
+                           <span className="text-xl font-bold text-primary">₹{total.toFixed(2)}</span>
+                         </div>
+                       </div>
+                     </CardContent>
+                   </Card>
 
-              {/* Summary Tab */}
-              <TabsContent value="summary" className="flex-1 overflow-auto space-y-4 m-0">
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                  {/* Order Summary */}
-                  <Card className="shadow-sm border-border/50">
-                    <CardHeader className="pb-3">
-                      <CardTitle className="text-base font-semibold flex items-center gap-2">
-                        <FileText className="h-4 w-4 text-primary" />
-                        Order Summary
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      <div className="space-y-3">
-                        <div className="flex justify-between items-center py-2 border-b border-border/50">
-                          <span className="text-sm text-muted-foreground">Subtotal:</span>
-                          <span className="font-medium">₹{subtotal.toFixed(2)}</span>
-                        </div>
-                        <div className="flex justify-between items-center py-2 border-b border-border/50">
-                          <span className="text-sm text-muted-foreground">Total Discount:</span>
-                          <span className="font-medium text-green-600">-₹{totalDiscount.toFixed(2)}</span>
-                        </div>
-                        <div className="flex justify-between items-center py-2 border-b border-border/50">
-                          <span className="text-sm text-muted-foreground">Total Tax:</span>
-                          <span className="font-medium">₹{totalTax.toFixed(2)}</span>
-                        </div>
-                        <div className="flex justify-between items-center py-3 border-t-2 border-primary/20">
-                          <span className="text-lg font-semibold">Total Amount:</span>
-                          <span className="text-xl font-bold text-primary">₹{total.toFixed(2)}</span>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  {/* Order Details */}
-                  <Card className="shadow-sm border-border/50">
-                    <CardHeader className="pb-3">
-                      <CardTitle className="text-base font-semibold flex items-center gap-2">
-                        <Info className="h-4 w-4 text-primary" />
-                        Order Details
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-3">
-                      <div className="grid grid-cols-2 gap-4 text-sm">
-                        <div>
-                          <span className="text-muted-foreground">Items Count:</span>
-                          <div className="font-medium">{fields.length}</div>
-                        </div>
-                        <div>
-                          <span className="text-muted-foreground">Currency:</span>
-                          <div className="font-medium">{form.watch('currency')}</div>
-                        </div>
-                        <div>
-                          <span className="text-muted-foreground">Status:</span>
-                          <div className="font-medium capitalize">{form.watch('status')}</div>
-                        </div>
-                        <div>
-                          <span className="text-muted-foreground">Order Date:</span>
-                          <div className="font-medium">{form.watch('order_date')}</div>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </div>
-              </TabsContent>
+                   {/* Order Details */}
+                   <Card className="shadow-sm border-border/50">
+                     <CardHeader className="pb-3">
+                       <CardTitle className="text-base font-semibold flex items-center gap-2">
+                         <Info className="h-4 w-4 text-primary" />
+                         Order Details
+                       </CardTitle>
+                     </CardHeader>
+                     <CardContent className="space-y-3">
+                       <div className="grid grid-cols-2 gap-4 text-sm">
+                         <div>
+                           <span className="text-muted-foreground">Items Count:</span>
+                           <div className="font-medium">{fields.length}</div>
+                         </div>
+                         <div>
+                           <span className="text-muted-foreground">Currency:</span>
+                           <div className="font-medium">{form.watch('currency')}</div>
+                         </div>
+                         <div>
+                           <span className="text-muted-foreground">Status:</span>
+                           <div className="font-medium capitalize">{form.watch('status')}</div>
+                         </div>
+                         <div>
+                           <span className="text-muted-foreground">Order Date:</span>
+                           <div className="font-medium">{form.watch('order_date')}</div>
+                         </div>
+                       </div>
+                     </CardContent>
+                   </Card>
+                 </div>
+               </TabsContent>
             </div>
           </Tabs>
 
