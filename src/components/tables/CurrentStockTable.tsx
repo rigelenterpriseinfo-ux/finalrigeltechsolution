@@ -32,6 +32,9 @@ interface CurrentStock {
   min_stock_level: number;
   warehouse_name: string;
   bin_name: string;
+  unit_price: number;
+  cost_price: number;
+  total_value: number;
   // Aging fields
   weighted_avg_age_days?: number;
   aging_status?: 'Fresh' | 'Good' | 'Aging' | 'Slow' | 'Dead';
@@ -125,7 +128,7 @@ export const CurrentStockTable = ({ refreshTrigger }: CurrentStockTableProps) =>
         .from('current_stock_with_aging')
         .select(`
           *,
-          products!inner(name, sku, min_stock_level),
+          products!inner(name, sku, min_stock_level, unit_price, cost_price),
           warehouse_bins!fk_inventory_transactions_warehouse_id(warehouse_name, bin_name)
         `)
         .eq('company_id', company.id)
@@ -138,33 +141,41 @@ export const CurrentStockTable = ({ refreshTrigger }: CurrentStockTableProps) =>
         return;
       }
 
-      const formattedStock: CurrentStock[] = data?.map((stock: any) => ({
-        company_id: stock.company_id,
-        product_id: stock.product_id,
-        warehouse_id: stock.warehouse_id,
-        bin_id: stock.bin_id,
-        current_stock: stock.current_stock,
-        last_transaction_date: stock.last_transaction_date,
-        transaction_count: stock.transaction_count,
-        product_name: stock.products.name,
-        product_sku: stock.products.sku,
-        min_stock_level: stock.products.min_stock_level || 0,
-        warehouse_name: stock.warehouse_bins?.warehouse_name || 'N/A',
-        bin_name: stock.warehouse_bins?.bin_name || 'N/A',
-        // Map aging fields
-        weighted_avg_age_days: stock.weighted_avg_age_days,
-        aging_status: stock.aging_status,
-        aging_0_30_qty: stock.aging_0_30_qty,
-        aging_0_30_value: stock.aging_0_30_value,
-        aging_31_90_qty: stock.aging_31_90_qty,
-        aging_31_90_value: stock.aging_31_90_value,
-        aging_91_180_qty: stock.aging_91_180_qty,
-        aging_91_180_value: stock.aging_91_180_value,
-        aging_181_365_qty: stock.aging_181_365_qty,
-        aging_181_365_value: stock.aging_181_365_value,
-        aging_365_plus_qty: stock.aging_365_plus_qty,
-        aging_365_plus_value: stock.aging_365_plus_value
-      })) || [];
+      const formattedStock: CurrentStock[] = data?.map((stock: any) => {
+        const unitPrice = stock.products.unit_price || stock.products.cost_price || 0;
+        const totalValue = (stock.current_stock || 0) * unitPrice;
+        
+        return {
+          company_id: stock.company_id,
+          product_id: stock.product_id,
+          warehouse_id: stock.warehouse_id,
+          bin_id: stock.bin_id,
+          current_stock: stock.current_stock,
+          last_transaction_date: stock.last_transaction_date,
+          transaction_count: stock.transaction_count,
+          product_name: stock.products.name,
+          product_sku: stock.products.sku,
+          min_stock_level: stock.products.min_stock_level || 0,
+          warehouse_name: stock.warehouse_bins?.warehouse_name || 'N/A',
+          bin_name: stock.warehouse_bins?.bin_name || 'N/A',
+          unit_price: unitPrice,
+          cost_price: stock.products.cost_price || 0,
+          total_value: totalValue,
+          // Map aging fields
+          weighted_avg_age_days: stock.weighted_avg_age_days,
+          aging_status: stock.aging_status,
+          aging_0_30_qty: stock.aging_0_30_qty,
+          aging_0_30_value: stock.aging_0_30_value,
+          aging_31_90_qty: stock.aging_31_90_qty,
+          aging_31_90_value: stock.aging_31_90_value,
+          aging_91_180_qty: stock.aging_91_180_qty,
+          aging_91_180_value: stock.aging_91_180_value,
+          aging_181_365_qty: stock.aging_181_365_qty,
+          aging_181_365_value: stock.aging_181_365_value,
+          aging_365_plus_qty: stock.aging_365_plus_qty,
+          aging_365_plus_value: stock.aging_365_plus_value
+        };
+      }) || [];
 
       setStockLevels(formattedStock);
       
@@ -202,7 +213,7 @@ export const CurrentStockTable = ({ refreshTrigger }: CurrentStockTableProps) =>
           bin_id,
           quantity_change,
           transaction_date,
-          products!inner(name, sku, min_stock_level),
+          products!inner(name, sku, min_stock_level, unit_price, cost_price),
           warehouse_bins!inner(warehouse_name, bin_name)
         `)
         .eq('company_id', company.id)
@@ -217,6 +228,7 @@ export const CurrentStockTable = ({ refreshTrigger }: CurrentStockTableProps) =>
         const key = `${trans.product_id}-${trans.warehouse_id}-${trans.bin_id}`;
         
         if (!stockMap.has(key)) {
+          const unitPrice = trans.products.unit_price || trans.products.cost_price || 0;
           stockMap.set(key, {
             company_id: company.id,
             product_id: trans.product_id,
@@ -229,13 +241,17 @@ export const CurrentStockTable = ({ refreshTrigger }: CurrentStockTableProps) =>
             product_sku: trans.products.sku,
             min_stock_level: trans.products.min_stock_level || 0,
             warehouse_name: trans.warehouse_bins.warehouse_name || 'N/A',
-            bin_name: trans.warehouse_bins.bin_name || 'N/A'
+            bin_name: trans.warehouse_bins.bin_name || 'N/A',
+            unit_price: unitPrice,
+            cost_price: trans.products.cost_price || 0,
+            total_value: 0
           });
         }
         
         const stock = stockMap.get(key);
         stock.current_stock += trans.quantity_change || 0;
         stock.transaction_count += 1;
+        stock.total_value = stock.current_stock * stock.unit_price;
         
         // Update last transaction date if this is more recent
         if (new Date(trans.transaction_date) > new Date(stock.last_transaction_date)) {
@@ -472,6 +488,14 @@ export const CurrentStockTable = ({ refreshTrigger }: CurrentStockTableProps) =>
             aValue = a.current_stock;
             bValue = b.current_stock;
             break;
+          case 'unit_price':
+            aValue = a.unit_price;
+            bValue = b.unit_price;
+            break;
+          case 'total_value':
+            aValue = a.total_value;
+            bValue = b.total_value;
+            break;
           case 'min_stock_level':
             aValue = a.min_stock_level;
             bValue = b.min_stock_level;
@@ -512,7 +536,11 @@ export const CurrentStockTable = ({ refreshTrigger }: CurrentStockTableProps) =>
       { key: 'warehouse_name', label: 'Warehouse' },
       { key: 'bin_name', label: 'Bin Location' },
       { key: 'current_stock', label: 'Current Stock' },
+      { key: 'unit_price', label: 'Unit Price', format: formatCurrency },
+      { key: 'total_value', label: 'Total Value', format: formatCurrency },
       { key: 'min_stock_level', label: 'Min Stock Level' },
+      { key: 'aging_status', label: 'Aging Status' },
+      { key: 'weighted_avg_age_days', label: 'Avg Age (Days)' },
       { key: 'last_transaction_date', label: 'Last Transaction', format: formatDate },
       { key: 'transaction_count', label: 'Total Transactions' },
     ];
@@ -632,62 +660,86 @@ export const CurrentStockTable = ({ refreshTrigger }: CurrentStockTableProps) =>
             ).flat()}
           </div>
         </div>
-        <div className="p-4 border rounded-lg">
+        <div className="p-4 border rounded-lg bg-gradient-to-br from-amber-50 to-orange-50">
           <div className="flex items-center gap-2 mb-3">
-            <AlertTriangle className="h-5 w-5 text-orange-500" />
+            <AlertTriangle className="h-5 w-5 text-amber-600" />
             <div>
               <p className="text-sm text-muted-foreground">Stock Analysis</p>
-              <p className="text-lg font-bold">{lowStockItems} Low Stock • {agingSummary?.dead_stock_skus || 0} Dead Stock</p>
+              <p className="text-lg font-bold text-amber-700">{lowStockItems} Low Stock • {agingSummary?.dead_stock_skus || 0} Dead Stock</p>
             </div>
           </div>
           
-          {/* Warehouse & Bin Aging Table */}
-          {warehouseBinAging.length > 0 && (
-            <div className="mt-3 space-y-2">
-              <p className="text-xs text-muted-foreground mb-2">📍 Warehouse & Bin Aging:</p>
-              <div className="max-h-48 overflow-y-auto">
-                <table className="w-full text-xs">
-                  <thead className="sticky top-0 bg-background">
-                    <tr className="border-b text-left">
-                      <th className="pb-1 font-medium text-muted-foreground">Location</th>
-                      <th className="pb-1 font-medium text-green-600 text-right">0-30d</th>
-                      <th className="pb-1 font-medium text-blue-600 text-right">31-90d</th>
-                      <th className="pb-1 font-medium text-yellow-600 text-right">90+d</th>
-                      <th className="pb-1 font-medium text-foreground text-right">Total</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {warehouseBinAging.map((location, index) => (
-                      <tr key={index} className="border-b border-border/50">
-                        <td className="py-1 text-foreground font-medium max-w-24 truncate" title={location.location_display}>
-                          {location.location_display}
-                        </td>
-                        <td className="py-1 text-right font-mono text-green-600">
-                          {formatCompactCurrency(location.aging_0_30_value)}
-                        </td>
-                        <td className="py-1 text-right font-mono text-blue-600">
-                          {formatCompactCurrency(location.aging_31_90_value)}
-                        </td>
-                        <td className="py-1 text-right font-mono text-yellow-600">
-                          {formatCompactCurrency(location.aging_91_180_value + location.aging_181_365_value + location.aging_365_plus_value)}
-                        </td>
-                        <td className="py-1 text-right font-mono font-medium">
-                          {formatCompactCurrency(location.total_value)}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+          {/* Aging Analysis by Category */}
+          {agingSummary && (
+            <div className="space-y-3">
+              <div className="grid grid-cols-5 gap-2 text-xs">
+                <div className="text-center p-2 bg-green-100 rounded-lg border border-green-200">
+                  <div className="font-semibold text-green-700">Fresh</div>
+                  <div className="text-green-600 font-mono">0-30 days</div>
+                  <div className="mt-1">
+                    <div className="font-bold text-green-800">{formatCompactCurrency(agingSummary.aging_0_30_value)}</div>
+                    <div className="text-green-600">
+                      {agingSummary.total_value > 0 ? 
+                        Math.round((agingSummary.aging_0_30_value / agingSummary.total_value) * 100) : 0}%
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="text-center p-2 bg-blue-100 rounded-lg border border-blue-200">
+                  <div className="font-semibold text-blue-700">Good</div>
+                  <div className="text-blue-600 font-mono">31-90 days</div>
+                  <div className="mt-1">
+                    <div className="font-bold text-blue-800">{formatCompactCurrency(agingSummary.aging_31_90_value)}</div>
+                    <div className="text-blue-600">
+                      {agingSummary.total_value > 0 ? 
+                        Math.round((agingSummary.aging_31_90_value / agingSummary.total_value) * 100) : 0}%
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="text-center p-2 bg-yellow-100 rounded-lg border border-yellow-200">
+                  <div className="font-semibold text-yellow-700">Aging</div>
+                  <div className="text-yellow-600 font-mono">91-180 days</div>
+                  <div className="mt-1">
+                    <div className="font-bold text-yellow-800">{formatCompactCurrency(agingSummary.aging_91_180_value)}</div>
+                    <div className="text-yellow-600">
+                      {agingSummary.total_value > 0 ? 
+                        Math.round((agingSummary.aging_91_180_value / agingSummary.total_value) * 100) : 0}%
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="text-center p-2 bg-orange-100 rounded-lg border border-orange-200">
+                  <div className="font-semibold text-orange-700">Slow</div>
+                  <div className="text-orange-600 font-mono">181-365 days</div>
+                  <div className="mt-1">
+                    <div className="font-bold text-orange-800">{formatCompactCurrency(agingSummary.aging_181_365_value)}</div>
+                    <div className="text-orange-600">
+                      {agingSummary.total_value > 0 ? 
+                        Math.round((agingSummary.aging_181_365_value / agingSummary.total_value) * 100) : 0}%
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="text-center p-2 bg-red-100 rounded-lg border border-red-200">
+                  <div className="font-semibold text-red-700">Dead</div>
+                  <div className="text-red-600 font-mono">365+ days</div>
+                  <div className="mt-1">
+                    <div className="font-bold text-red-800">{formatCompactCurrency(agingSummary.aging_365_plus_value)}</div>
+                    <div className="text-red-600">
+                      {agingSummary.total_value > 0 ? 
+                        Math.round((agingSummary.aging_365_plus_value / agingSummary.total_value) * 100) : 0}%
+                    </div>
+                  </div>
+                </div>
               </div>
-            </div>
-          )}
-
-          {/* Dead Stock Alert */}
-          {agingSummary && agingSummary.dead_stock_value > 0 && (
-            <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded text-xs">
-              <span className="text-red-700 font-medium">
-                ⚠️ Dead Stock: ₹{agingSummary.dead_stock_value.toLocaleString()} ({agingSummary.dead_stock_skus} SKUs)
-              </span>
+              
+              {/* Total Summary */}
+              <div className="p-2 bg-gray-100 rounded-lg border text-center">
+                <div className="font-semibold text-gray-700">Total Inventory Value</div>
+                <div className="text-lg font-bold text-gray-800">{formatCompactCurrency(agingSummary.total_value)}</div>
+                <div className="text-sm text-gray-600">{agingSummary.total_skus} SKUs • {agingSummary.total_qty} Units</div>
+              </div>
             </div>
           )}
         </div>
@@ -784,6 +836,18 @@ export const CurrentStockTable = ({ refreshTrigger }: CurrentStockTableProps) =>
                     {getSortIcon('current_stock')}
                   </div>
                 </TableHead>
+                <TableHead className="text-right cursor-pointer" onClick={() => handleSort('unit_price')}>
+                  <div className="flex items-center justify-end space-x-2">
+                    <span>Unit Price</span>
+                    {getSortIcon('unit_price')}
+                  </div>
+                </TableHead>
+                <TableHead className="text-right cursor-pointer" onClick={() => handleSort('total_value')}>
+                  <div className="flex items-center justify-end space-x-2">
+                    <span>Total Value</span>
+                    {getSortIcon('total_value')}
+                  </div>
+                </TableHead>
                 <TableHead className="text-right cursor-pointer" onClick={() => handleSort('min_stock_level')}>
                   <div className="flex items-center justify-end space-x-2">
                     <span>Min Stock</span>
@@ -798,6 +862,7 @@ export const CurrentStockTable = ({ refreshTrigger }: CurrentStockTableProps) =>
                     {getSortIcon('last_transaction_date')}
                   </div>
                 </TableHead>
+                <TableHead className="text-center">Txns</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
@@ -808,10 +873,10 @@ export const CurrentStockTable = ({ refreshTrigger }: CurrentStockTableProps) =>
                 
                 return (
                   <>
-                    <TableRow key={stockKey}>
+                    <TableRow key={stockKey} className="hover:bg-muted/30 transition-colors">
                       <TableCell>
                         <div>
-                          <div className="font-medium">{stock.product_name}</div>
+                          <div className="font-medium text-foreground">{stock.product_name}</div>
                           <div className="text-sm text-muted-foreground">{stock.product_sku}</div>
                         </div>
                       </TableCell>
@@ -821,10 +886,16 @@ export const CurrentStockTable = ({ refreshTrigger }: CurrentStockTableProps) =>
                           <div className="text-sm text-muted-foreground">{stock.bin_name}</div>
                         </div>
                       </TableCell>
-                      <TableCell className="text-right font-mono text-lg font-semibold">
+                      <TableCell className="text-right font-mono text-lg font-semibold text-foreground">
                         {stock.current_stock}
                       </TableCell>
-                      <TableCell className="text-right font-mono">
+                      <TableCell className="text-right font-mono text-sm">
+                        ₹{stock.unit_price.toFixed(2)}
+                      </TableCell>
+                      <TableCell className="text-right font-mono font-semibold text-sm">
+                        {formatCompactCurrency(stock.total_value)}
+                      </TableCell>
+                      <TableCell className="text-right font-mono text-sm text-muted-foreground">
                         {stock.min_stock_level}
                       </TableCell>
                       <TableCell>
@@ -842,7 +913,11 @@ export const CurrentStockTable = ({ refreshTrigger }: CurrentStockTableProps) =>
                           : 'No transactions'
                         }
                       </TableCell>
-                      {/* Actions cell - updated above */}
+                      <TableCell className="text-center">
+                        <Badge variant="outline" className="bg-yellow-50 border-yellow-200 text-yellow-700">
+                          {stock.transaction_count}
+                        </Badge>
+                      </TableCell>
                       <TableCell>
                         <div className="flex gap-1">
                           <Button
@@ -869,13 +944,10 @@ export const CurrentStockTable = ({ refreshTrigger }: CurrentStockTableProps) =>
                           </Button>
                         </div>
                       </TableCell>
-                      <TableCell className="text-right">
-                        {stock.transaction_count}
-                      </TableCell>
                     </TableRow>
                     {isExpanded && (
                       <TableRow>
-                        <TableCell colSpan={9} className="p-0">
+                        <TableCell colSpan={11} className="p-0">
                           {renderAgingBreakdown(stock)}
                         </TableCell>
                       </TableRow>
