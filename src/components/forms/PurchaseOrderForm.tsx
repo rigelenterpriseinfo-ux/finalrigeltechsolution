@@ -391,7 +391,11 @@ export function PurchaseOrderForm({
             <TabsList className="grid w-full grid-cols-2 mb-4 bg-muted/30 h-12">
               <TabsTrigger value="order-info" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground flex items-center gap-2">
                 <Building className="h-4 w-4" />
-                Order Info
+                {(() => {
+                  const selectedSupplierId = form.watch('supplier_id');
+                  const selectedSupplier = suppliers.find(s => s.id === selectedSupplierId);
+                  return selectedSupplier ? `Order Info (${selectedSupplier.name})` : 'Order Info';
+                })()}
               </TabsTrigger>
               <TabsTrigger value="items" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground flex items-center gap-2">
                 <ShoppingCart className="h-4 w-4" />
@@ -721,10 +725,11 @@ export function PurchaseOrderForm({
                       <Table>
                         <TableHeader className="bg-muted/50">
                           <TableRow>
-                            <TableHead className="w-[220px] font-semibold">Product</TableHead>
-                            <TableHead className="w-[80px] text-center font-semibold">Qty</TableHead>
-                            <TableHead className="w-[110px] text-center font-semibold">Unit Price</TableHead>
-                            <TableHead className="w-[70px] text-center font-semibold">CGST%</TableHead>
+                             <TableHead className="w-[220px] font-semibold">Product</TableHead>
+                             <TableHead className="w-[95px] text-center font-semibold">Qty</TableHead>
+                             <TableHead className="w-[110px] text-center font-semibold">Unit Price</TableHead>
+                             <TableHead className="w-[90px] text-center font-semibold">GST Slot %</TableHead>
+                             <TableHead className="w-[70px] text-center font-semibold">CGST%</TableHead>
                             <TableHead className="w-[70px] text-center font-semibold">SGST%</TableHead>
                             <TableHead className="w-[70px] text-center font-semibold">IGST%</TableHead>
                             <TableHead className="w-[80px] text-center font-semibold">Disc%</TableHead>
@@ -834,12 +839,58 @@ export function PurchaseOrderForm({
                                       </FormItem>
                                     )}
                                   />
-                                </TableCell>
+                                 </TableCell>
 
-                                <TableCell className="p-2">
-                                  <FormField
-                                    control={form.control}
-                                    name={`items.${index}.cgst_rate`}
+                                 <TableCell className="p-2">
+                                   <FormField
+                                     control={form.control}
+                                     name={`items.${index}.master_gst_rate`}
+                                     render={({ field }) => (
+                                       <FormItem>
+                                         <FormControl>
+                                           <Select 
+                                             value={field.value?.toString() || "0"}
+                                             onValueChange={(value) => {
+                                               const gstRate = parseFloat(value);
+                                               field.onChange(gstRate);
+                                               const gstType = form.getValues(`items.${index}.gst_type`) || 'intra';
+                                               if (gstType === 'intra') {
+                                                 form.setValue(`items.${index}.cgst_rate`, gstRate / 2);
+                                                 form.setValue(`items.${index}.sgst_rate`, gstRate / 2);
+                                                 form.setValue(`items.${index}.igst_rate`, 0);
+                                               } else {
+                                                 form.setValue(`items.${index}.cgst_rate`, 0);
+                                                 form.setValue(`items.${index}.sgst_rate`, 0);
+                                                 form.setValue(`items.${index}.igst_rate`, gstRate);
+                                               }
+                                               calculateLineAmounts(index);
+                                             }}
+                                             disabled={readOnly}
+                                           >
+                                             <FormControl>
+                                               <SelectTrigger className="h-8 text-sm">
+                                                 <SelectValue placeholder="0%" />
+                                               </SelectTrigger>
+                                             </FormControl>
+                                             <SelectContent>
+                                               <SelectItem value="0">0%</SelectItem>
+                                               <SelectItem value="5">5%</SelectItem>
+                                               <SelectItem value="12">12%</SelectItem>
+                                               <SelectItem value="18">18%</SelectItem>
+                                               <SelectItem value="28">28%</SelectItem>
+                                             </SelectContent>
+                                           </Select>
+                                         </FormControl>
+                                         <FormMessage />
+                                       </FormItem>
+                                     )}
+                                   />
+                                 </TableCell>
+
+                                 <TableCell className="p-2">
+                                   <FormField
+                                     control={form.control}
+                                     name={`items.${index}.cgst_rate`}
                                     render={({ field }) => (
                                       <FormItem>
                                         <FormControl>
@@ -920,7 +971,7 @@ export function PurchaseOrderForm({
                                                 calculateLineAmounts(index);
                                               }
                                             }}
-                                            disabled={readOnly || gstType === 'intra'}
+                                            disabled={readOnly}
                                           />
                                         </FormControl>
                                         <FormMessage />
