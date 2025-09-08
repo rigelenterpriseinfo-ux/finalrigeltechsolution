@@ -32,6 +32,37 @@ interface CurrentStock {
   min_stock_level: number;
   warehouse_name: string;
   bin_name: string;
+  // Aging fields
+  weighted_avg_age_days?: number;
+  aging_status?: 'Fresh' | 'Good' | 'Aging' | 'Slow' | 'Dead';
+  aging_0_30_qty?: number;
+  aging_0_30_value?: number;
+  aging_31_90_qty?: number;
+  aging_31_90_value?: number;
+  aging_91_180_qty?: number;
+  aging_91_180_value?: number;
+  aging_181_365_qty?: number;
+  aging_181_365_value?: number;
+  aging_365_plus_qty?: number;
+  aging_365_plus_value?: number;
+}
+
+interface AgingSummary {
+  total_skus: number;
+  total_qty: number;
+  total_value: number;
+  aging_0_30_qty: number;
+  aging_0_30_value: number;
+  aging_31_90_qty: number;
+  aging_31_90_value: number;
+  aging_91_180_qty: number;
+  aging_91_180_value: number;
+  aging_181_365_qty: number;
+  aging_181_365_value: number;
+  aging_365_plus_qty: number;
+  aging_365_plus_value: number;
+  dead_stock_skus: number;
+  dead_stock_value: number;
 }
 
 interface CurrentStockTableProps {
@@ -51,6 +82,7 @@ export const CurrentStockTable = ({ refreshTrigger }: CurrentStockTableProps) =>
     totalQuantity: 0,
     totalValue: 0
   });
+  const [agingSummary, setAgingSummary] = useState<AgingSummary | null>(null);
   const [topLowStockItems, setTopLowStockItems] = useState<{name: string, qty: number}[]>([]);
   const [sortConfig, setSortConfig] = useState<{
     key: string;
@@ -64,6 +96,7 @@ export const CurrentStockTable = ({ refreshTrigger }: CurrentStockTableProps) =>
   useEffect(() => {
     fetchCurrentStock();
     fetchInventoryStats();
+    fetchAgingSummary();
   }, [company?.id, refreshTrigger]);
 
   const fetchCurrentStock = async () => {
@@ -71,9 +104,9 @@ export const CurrentStockTable = ({ refreshTrigger }: CurrentStockTableProps) =>
     
     setLoading(true);
     try {
-      // First try the current_stock_levels view
+      // First try the current_stock_with_aging view
       const { data, error } = await supabase
-        .from('current_stock_levels')
+        .from('current_stock_with_aging')
         .select(`
           *,
           products!inner(name, sku, min_stock_level),
@@ -230,6 +263,41 @@ export const CurrentStockTable = ({ refreshTrigger }: CurrentStockTableProps) =>
       });
     } catch (error) {
       console.error('Error fetching inventory stats:', error);
+    }
+  };
+
+  const fetchAgingSummary = async () => {
+    if (!company?.id) return;
+    
+    try {
+      const { data, error } = await supabase.rpc('get_company_aging_summary', {
+        p_company_id: company.id
+      });
+
+      if (error) throw error;
+
+      if (data && data.length > 0) {
+        setAgingSummary(data[0]);
+      }
+    } catch (error) {
+      console.error('Error fetching aging summary:', error);
+    }
+  };
+
+  const getAgingBadge = (agingStatus: string, avgAge: number) => {
+    switch (agingStatus) {
+      case 'Fresh':
+        return <Badge variant="default" className="bg-green-500 text-white">Fresh ({avgAge}d)</Badge>;
+      case 'Good':
+        return <Badge variant="secondary">Good ({avgAge}d)</Badge>;
+      case 'Aging':
+        return <Badge variant="outline" className="border-yellow-500 text-yellow-600">Aging ({avgAge}d)</Badge>;
+      case 'Slow':
+        return <Badge variant="outline" className="border-orange-500 text-orange-600">Slow ({avgAge}d)</Badge>;
+      case 'Dead':
+        return <Badge variant="destructive">Dead ({avgAge}d)</Badge>;
+      default:
+        return <Badge variant="secondary">N/A</Badge>;
     }
   };
 
@@ -456,13 +524,58 @@ export const CurrentStockTable = ({ refreshTrigger }: CurrentStockTableProps) =>
           </div>
         </div>
         <div className="p-4 border rounded-lg">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 mb-3">
             <AlertTriangle className="h-5 w-5 text-orange-500" />
             <div>
-              <p className="text-sm text-muted-foreground">Low Stock</p>
-              <p className="text-2xl font-bold text-orange-600">{lowStockItems}</p>
+              <p className="text-sm text-muted-foreground">Stock Analysis</p>
+              <p className="text-lg font-bold">{lowStockItems} Low Stock • {agingSummary?.dead_stock_skus || 0} Dead Stock</p>
             </div>
           </div>
+          
+          {/* Aging Breakdown */}
+          {agingSummary && (
+            <div className="mt-3 space-y-2">
+              <p className="text-xs text-muted-foreground mb-2">🕒 Aging Overview:</p>
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                <div className="flex justify-between">
+                  <span>0-30 days:</span>
+                  <span className="font-medium">
+                    {Math.round((agingSummary.aging_0_30_value / (agingSummary.total_value || 1)) * 100)}% 
+                    (₹{agingSummary.aging_0_30_value.toLocaleString()})
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span>31-90 days:</span>
+                  <span className="font-medium">
+                    {Math.round((agingSummary.aging_31_90_value / (agingSummary.total_value || 1)) * 100)}%
+                    (₹{agingSummary.aging_31_90_value.toLocaleString()})
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span>91-180 days:</span>
+                  <span className="font-medium text-yellow-600">
+                    {Math.round((agingSummary.aging_91_180_value / (agingSummary.total_value || 1)) * 100)}%
+                    (₹{agingSummary.aging_91_180_value.toLocaleString()})
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span>180+ days:</span>
+                  <span className="font-medium text-red-600">
+                    {Math.round(((agingSummary.aging_181_365_value + agingSummary.aging_365_plus_value) / (agingSummary.total_value || 1)) * 100)}%
+                    (₹{(agingSummary.aging_181_365_value + agingSummary.aging_365_plus_value).toLocaleString()})
+                  </span>
+                </div>
+              </div>
+              
+              {agingSummary.dead_stock_value > 0 && (
+                <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded text-xs">
+                  <span className="text-red-700 font-medium">
+                    ⚠️ Dead Stock: ₹{agingSummary.dead_stock_value.toLocaleString()} ({agingSummary.dead_stock_skus} SKUs)
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
         </div>
         <div className="p-4 border rounded-lg">
           <div className="flex items-center gap-2">
@@ -562,13 +675,14 @@ export const CurrentStockTable = ({ refreshTrigger }: CurrentStockTableProps) =>
                   </div>
                 </TableHead>
                 <TableHead>Status</TableHead>
+                <TableHead>Aging</TableHead>
                 <TableHead className="cursor-pointer" onClick={() => handleSort('last_transaction_date')}>
                   <div className="flex items-center space-x-2">
                     <span>Last Transaction</span>
                     {getSortIcon('last_transaction_date')}
                   </div>
                 </TableHead>
-                <TableHead className="text-right">Transactions</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -594,6 +708,12 @@ export const CurrentStockTable = ({ refreshTrigger }: CurrentStockTableProps) =>
                 </TableCell>
                 <TableCell>
                   {getStockLevelBadge(stock.current_stock, stock.min_stock_level)}
+                </TableCell>
+                <TableCell>
+                  {stock.aging_status && stock.weighted_avg_age_days !== undefined
+                    ? getAgingBadge(stock.aging_status, stock.weighted_avg_age_days)
+                    : <Badge variant="secondary">N/A</Badge>
+                  }
                 </TableCell>
                 <TableCell>
                   {stock.last_transaction_date 

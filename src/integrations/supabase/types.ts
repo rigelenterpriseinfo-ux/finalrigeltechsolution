@@ -3403,8 +3403,76 @@ export type Database = {
           },
         ]
       }
+      current_stock_with_aging: {
+        Row: {
+          aging_0_30_qty: number | null
+          aging_0_30_value: number | null
+          aging_181_365_qty: number | null
+          aging_181_365_value: number | null
+          aging_31_90_qty: number | null
+          aging_31_90_value: number | null
+          aging_365_plus_qty: number | null
+          aging_365_plus_value: number | null
+          aging_91_180_qty: number | null
+          aging_91_180_value: number | null
+          aging_status: string | null
+          bin_id: string | null
+          company_id: string | null
+          current_stock: number | null
+          last_transaction_date: string | null
+          product_id: string | null
+          transaction_count: number | null
+          warehouse_id: string | null
+          weighted_avg_age_days: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_inventory_transactions_bin_id"
+            columns: ["bin_id"]
+            isOneToOne: false
+            referencedRelation: "warehouse_bins"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_inventory_transactions_product_id"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_inventory_transactions_warehouse_id"
+            columns: ["warehouse_id"]
+            isOneToOne: false
+            referencedRelation: "warehouse_bins"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
+      calculate_fifo_aging: {
+        Args: {
+          p_bin_id?: string
+          p_product_id: string
+          p_warehouse_id: string
+        }
+        Returns: {
+          aging_0_30_qty: number
+          aging_0_30_value: number
+          aging_181_365_qty: number
+          aging_181_365_value: number
+          aging_31_90_qty: number
+          aging_31_90_value: number
+          aging_365_plus_qty: number
+          aging_365_plus_value: number
+          aging_91_180_qty: number
+          aging_91_180_value: number
+          total_current_qty: number
+          total_current_value: number
+          weighted_avg_age_days: number
+        }[]
+      }
       can_manage_user_role: {
         Args: { current_user_id?: string; target_role: string }
         Returns: boolean
@@ -3559,6 +3627,26 @@ export type Database = {
       generate_user_ref: {
         Args: { comp_id: string }
         Returns: string
+      }
+      get_company_aging_summary: {
+        Args: { p_company_id: string }
+        Returns: {
+          aging_0_30_qty: number
+          aging_0_30_value: number
+          aging_181_365_qty: number
+          aging_181_365_value: number
+          aging_31_90_qty: number
+          aging_31_90_value: number
+          aging_365_plus_qty: number
+          aging_365_plus_value: number
+          aging_91_180_qty: number
+          aging_91_180_value: number
+          dead_stock_skus: number
+          dead_stock_value: number
+          total_qty: number
+          total_skus: number
+          total_value: number
+        }[]
       }
       get_current_company_context: {
         Args: Record<PropertyKey, never>
