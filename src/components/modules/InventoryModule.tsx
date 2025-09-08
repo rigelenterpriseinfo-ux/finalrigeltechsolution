@@ -988,9 +988,8 @@ export function InventoryModule() {
               <Dialog open={showBOMDialog} onOpenChange={setShowBOMDialog}>
                 <DialogContent className="max-w-7xl max-h-[95vh] overflow-hidden">
                   <DialogHeader>
-                    <DialogTitle>Bill of Materials Management</DialogTitle>
+                    <DialogTitle></DialogTitle>
                     <DialogDescription>
-                      Create and manage production recipes with proper warehouse/bin mapping
                     </DialogDescription>
                   </DialogHeader>
                   <div className="flex-1 overflow-hidden">
