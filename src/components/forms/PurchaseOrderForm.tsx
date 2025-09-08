@@ -95,7 +95,7 @@ export function PurchaseOrderForm({
       currency: purchaseOrder?.currency || 'INR',
       payment_terms: purchaseOrder?.payment_terms || '',
       expected_date: purchaseOrder?.expected_date || '',
-      place_of_supply: purchaseOrder?.place_of_supply || '',
+      place_of_supply: purchaseOrder?.company_place_of_supply || '',
       same_as_registered_address: purchaseOrder?.same_as_registered_address || false,
       delivery_address_line1: purchaseOrder?.delivery_address_line1 || '',
       delivery_address_line2: purchaseOrder?.delivery_address_line2 || '',
@@ -229,46 +229,49 @@ export function PurchaseOrderForm({
     const currentGSTType = form.getValues(`items.${index}.gst_type`);
     const productName = form.getValues(`items.${index}.product_name`) || 'Selected item';
     
-    if (currentGSTType === 'intra') {
-      const cgst = gstType === 'cgst' ? value : (form.getValues(`items.${index}.cgst_rate`) || 0);
-      const sgst = gstType === 'sgst' ? value : (form.getValues(`items.${index}.sgst_rate`) || 0);
-      const totalGST = cgst + sgst;
-      
-      if (totalGST > masterGST) {
-        toast({
-          title: 'GST Validation Error',
-          description: `Total GST (CGST: ${cgst}% + SGST: ${sgst}% = ${totalGST}%) cannot exceed ${productName}'s GST rate (${masterGST}%)`,
-          variant: 'destructive',
-        });
-        return false;
-      }
-      
-      // Warning if total GST is less than master rate
-      if (totalGST < masterGST && totalGST > 0) {
-        toast({
-          title: 'GST Rate Warning',
-          description: `Total GST (${totalGST}%) is less than ${productName}'s standard rate (${masterGST}%). Consider adjusting rates.`,
-          variant: 'default',
-        });
-      }
-    } else {
-      if (value > masterGST) {
-        toast({
-          title: 'GST Validation Error',
-          description: `IGST (${value}%) cannot exceed ${productName}'s GST rate (${masterGST}%)`,
-          variant: 'destructive',
-        });
-        return false;
-      }
-      
-      // Warning if IGST is less than master rate
-      if (value < masterGST && value > 0) {
-        toast({
-          title: 'GST Rate Warning',
-          description: `IGST (${value}%) is less than ${productName}'s standard rate (${masterGST}%). Consider adjusting rate.`,
-          variant: 'default',
-        });
-      }
+    // Get current values for all GST types
+    const cgst = gstType === 'cgst' ? value : (form.getValues(`items.${index}.cgst_rate`) || 0);
+    const sgst = gstType === 'sgst' ? value : (form.getValues(`items.${index}.sgst_rate`) || 0);
+    const igst = gstType === 'igst' ? value : (form.getValues(`items.${index}.igst_rate`) || 0);
+    const totalGST = cgst + sgst + igst;
+    
+    // Check if total GST exceeds master rate
+    if (totalGST > masterGST) {
+      toast({
+        title: 'GST Validation Error',
+        description: `Total GST (CGST: ${cgst}% + SGST: ${sgst}% + IGST: ${igst}% = ${totalGST}%) cannot exceed ${productName}'s GST rate (${masterGST}%)`,
+        variant: 'destructive',
+      });
+      return false;
+    }
+    
+    // For intra-state, IGST should be 0
+    if (currentGSTType === 'intra' && igst > 0) {
+      toast({
+        title: 'GST Validation Error',
+        description: `For intra-state transactions, IGST should be 0%. Use CGST and SGST instead.`,
+        variant: 'destructive',
+      });
+      return false;
+    }
+    
+    // For inter-state, CGST and SGST should be 0
+    if (currentGSTType === 'inter' && (cgst > 0 || sgst > 0)) {
+      toast({
+        title: 'GST Validation Error',
+        description: `For inter-state transactions, CGST and SGST should be 0%. Use IGST instead.`,
+        variant: 'destructive',
+      });
+      return false;
+    }
+    
+    // Warning if total GST is less than master rate (but greater than 0)
+    if (totalGST < masterGST && totalGST > 0) {
+      toast({
+        title: 'GST Rate Warning',
+        description: `Total GST (${totalGST}%) is less than ${productName}'s standard rate (${masterGST}%). Consider adjusting rates.`,
+        variant: 'default',
+      });
     }
     
     return true;
@@ -334,11 +337,21 @@ export function PurchaseOrderForm({
   const handleSubmit = async (data: PurchaseOrderFormData) => {
     setLoading(true);
     try {
-      await onSubmit(data);
+      // Map place_of_supply to company_place_of_supply for database
+      const mappedData = {
+        ...data,
+        company_place_of_supply: data.place_of_supply,
+      };
+      delete mappedData.place_of_supply;
+      
+      await onSubmit(mappedData);
       toast({
         title: 'Success',
         description: `Purchase Order ${mode === 'edit' ? 'updated' : 'created'} successfully`,
       });
+      
+      // Close dialog after successful submission
+      onCancel();
     } catch (error) {
       console.error('Error submitting form:', error);
       toast({
@@ -943,17 +956,17 @@ export function PurchaseOrderForm({
                                     render={({ field }) => (
                                        <FormItem>
                                          <FormControl>
-                                           <Select 
-                                             value={field.value?.toString() || "0"}
-                                             onValueChange={(value) => {
-                                               const rate = parseFloat(value);
-                                               if (validateGSTRate(index, 'igst', rate)) {
-                                                 field.onChange(rate);
-                                                 calculateLineAmounts(index);
-                                               }
-                                             }}
-                                             disabled={readOnly}
-                                           >
+                                            <Select 
+                                              value={field.value?.toString() || "0"}
+                                              onValueChange={(value) => {
+                                                const rate = parseFloat(value);
+                                                if (validateGSTRate(index, 'igst', rate)) {
+                                                  field.onChange(rate);
+                                                  calculateLineAmounts(index);
+                                                }
+                                              }}
+                                              disabled={readOnly || gstType === 'intra'}
+                                            >
                                              <FormControl>
                                                <SelectTrigger className={`h-8 text-sm ${gstType === 'intra' ? 'bg-muted/50' : ''} ${gstMismatch ? 'border-destructive bg-destructive/10' : ''}`}>
                                                  <SelectValue placeholder="0%" />

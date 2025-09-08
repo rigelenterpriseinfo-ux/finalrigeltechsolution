@@ -138,6 +138,7 @@ function PurchaseModuleContent() {
 
   const fetchPurchaseOrders = async () => {
     try {
+      console.log('Fetching purchase orders for company:', profile?.company_id);
       const { data, error } = await supabase
         .from('purchase_orders')
         .select(`
@@ -149,7 +150,11 @@ function PurchaseModuleContent() {
         .order('order_date', { ascending: false })
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Purchase orders fetch error:', error);
+        throw error;
+      }
+      console.log('Purchase orders fetched:', data?.length, 'records');
       setPurchaseOrders(data || []);
     } catch (error) {
       console.error('Error fetching purchase orders:', error);
@@ -383,6 +388,7 @@ function PurchaseModuleContent() {
   // Purchase Order handlers
   const handleAddPurchaseOrder = async (poData: any) => {
     try {
+      console.log('Creating purchase order with data:', poData);
       const { items, ...purchaseOrderData } = poData;
       
       if (!purchaseOrderData.po_number) {
@@ -403,7 +409,12 @@ function PurchaseModuleContent() {
         .select()
         .single();
 
-      if (poError) throw poError;
+      if (poError) {
+        console.error('Purchase order creation error:', poError);
+        throw poError;
+      }
+
+      console.log('Purchase order created:', po);
 
       if (items && items.length > 0) {
         const { error: itemsError } = await supabase
@@ -415,7 +426,10 @@ function PurchaseModuleContent() {
             }))
           );
 
-        if (itemsError) throw itemsError;
+        if (itemsError) {
+          console.error('Purchase order items creation error:', itemsError);
+          throw itemsError;
+        }
       }
 
       toast({
@@ -424,7 +438,8 @@ function PurchaseModuleContent() {
       });
 
       setShowAddPODialog(false);
-      fetchPurchaseOrders();
+      console.log('Refreshing purchase orders...');
+      await fetchPurchaseOrders();
     } catch (error) {
       console.error('Error creating purchase order:', error);
       toast({
