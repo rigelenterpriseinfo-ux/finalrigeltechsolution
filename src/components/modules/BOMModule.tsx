@@ -560,12 +560,6 @@ export function BOMModule() {
           <h2 className="text-2xl font-bold">Bill of Materials (BOM)</h2>
           <p className="text-muted-foreground">Manage production recipes with proper warehouse/bin mapping and production controls</p>
         </div>
-        {canEdit && (
-          <Button onClick={() => setShowBOMDialog(true)}>
-            <Plus className="h-4 w-4 mr-2" />
-            Create BOM
-          </Button>
-        )}
       </div>
 
       <Tabs defaultValue="list" className="space-y-4">
