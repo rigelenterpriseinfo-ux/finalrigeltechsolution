@@ -362,7 +362,52 @@ export const CurrentStockTable = ({ refreshTrigger }: CurrentStockTableProps) =>
     }
   };
 
+  // Process warehouse-bin breakdown data
+  const warehouseBinData = useMemo(() => {
+    const warehouseMap = new Map<string, {
+      totalSKUs: number;
+      totalQty: number;
+      totalValue: number;
+      bins: Map<string, { skus: number; qty: number; value: number }>;
+    }>();
+
+    stockLevels.forEach(stock => {
+      const warehouseName = stock.warehouse_name || 'Unknown';
+      const binName = stock.bin_name || 'Unknown';
+      
+      if (!warehouseMap.has(warehouseName)) {
+        warehouseMap.set(warehouseName, {
+          totalSKUs: 0,
+          totalQty: 0,
+          totalValue: 0,
+          bins: new Map()
+        });
+      }
+      
+      const warehouse = warehouseMap.get(warehouseName)!;
+      
+      // Update warehouse totals
+      warehouse.totalSKUs += 1;
+      warehouse.totalQty += stock.current_stock || 0;
+      warehouse.totalValue += (stock.current_stock || 0) * 10; // Assuming avg cost of 10 per unit
+      
+      // Update bin data
+      if (!warehouse.bins.has(binName)) {
+        warehouse.bins.set(binName, { skus: 0, qty: 0, value: 0 });
+      }
+      
+      const bin = warehouse.bins.get(binName)!;
+      bin.skus += 1;
+      bin.qty += stock.current_stock || 0;
+      bin.value += (stock.current_stock || 0) * 10;
+    });
+
+    return warehouseMap;
+  }, [stockLevels]);
+
   const totalProducts = stockLevels.length;
+  const totalQuantity = stockLevels.reduce((sum, stock) => sum + (stock.current_stock || 0), 0);
+  const totalValue = stockLevels.reduce((sum, stock) => sum + ((stock.current_stock || 0) * 10), 0);
   const lowStockItems = stockLevels.filter(stock => stock.current_stock <= stock.min_stock_level && stock.current_stock > 0).length;
   const outOfStockItems = stockLevels.filter(stock => stock.current_stock <= 0).length;
 
@@ -374,13 +419,52 @@ export const CurrentStockTable = ({ refreshTrigger }: CurrentStockTableProps) =>
     <div className="space-y-4">
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="p-4 border rounded-lg">
-          <div className="flex items-center gap-2">
-            <Package className="h-5 w-5 text-primary" />
-            <div>
-              <p className="text-sm text-muted-foreground">Total SKUs</p>
-              <p className="text-2xl font-bold">{totalProducts}</p>
+        <div className="p-4 border rounded-lg bg-gradient-to-br from-primary/5 to-primary/10 border-primary/20">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <Package className="h-5 w-5 text-primary" />
+              <span className="text-sm font-medium text-muted-foreground">Total Inventory</span>
             </div>
+          </div>
+          
+          {/* Overall Totals */}
+          <div className="mb-4 p-3 bg-background/50 rounded-lg">
+            <div className="flex justify-between items-center text-sm">
+              <span className="font-semibold">SKUs: {totalProducts}</span>
+              <span className="font-semibold">Qty: {totalQuantity.toLocaleString()}</span>
+              <span className="font-semibold">Value: ₹{totalValue.toLocaleString()}</span>
+            </div>
+          </div>
+
+          {/* Warehouse Breakdown */}
+          <div className="space-y-3 max-h-48 overflow-y-auto">
+            {Array.from(warehouseBinData.entries()).map(([warehouseName, warehouse]) => (
+              <div key={warehouseName} className="border-l-2 border-primary/30 pl-3">
+                {/* Warehouse Header */}
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="w-2 h-2 bg-primary rounded-full" />
+                  <span className="font-medium text-sm">{warehouseName}</span>
+                </div>
+                <div className="text-xs text-muted-foreground mb-2">
+                  {warehouse.totalSKUs} SKUs • {warehouse.totalQty.toLocaleString()} qty • ₹{warehouse.totalValue.toLocaleString()}
+                </div>
+                
+                {/* Bins */}
+                <div className="ml-4 space-y-1">
+                  {Array.from(warehouse.bins.entries()).slice(0, 3).map(([binName, bin]) => (
+                    <div key={binName} className="flex justify-between items-center text-xs bg-secondary/20 px-2 py-1 rounded">
+                      <span className="text-muted-foreground truncate max-w-20">📁 {binName}</span>
+                      <span>{bin.skus} • {bin.qty} • ₹{bin.value.toLocaleString()}</span>
+                    </div>
+                  ))}
+                  {warehouse.bins.size > 3 && (
+                    <div className="text-xs text-muted-foreground ml-2">
+                      +{warehouse.bins.size - 3} more bins
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
           </div>
         </div>
         <div className="p-4 border rounded-lg">
