@@ -1088,6 +1088,12 @@ export function InventoryModule() {
             Products
           </TabsTrigger>
           <TabsTrigger 
+            value="bom"
+            className="data-[state=active]:bg-yellow-500 data-[state=active]:text-white"
+          >
+            BOM
+          </TabsTrigger>
+          <TabsTrigger 
             value="bins"
             className="data-[state=active]:bg-green-500 data-[state=active]:text-white"
           >
@@ -1110,12 +1116,6 @@ export function InventoryModule() {
             className="data-[state=active]:bg-green-500 data-[state=active]:text-white"
           >
             Current Stock
-          </TabsTrigger>
-          <TabsTrigger 
-            value="bom"
-            className="data-[state=active]:bg-green-500 data-[state=active]:text-white"
-          >
-            BOM
           </TabsTrigger>
         </TabsList>
 
