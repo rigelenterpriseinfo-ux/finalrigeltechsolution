@@ -259,13 +259,20 @@ export function PurchaseOrderForm({
     const quantity = form.getValues(`items.${index}.quantity`) || 0;
     const unitPrice = form.getValues(`items.${index}.unit_price`) || 0;
     const discountPercentage = form.getValues(`items.${index}.discount_percentage`) || 0;
+    const discountAmount = form.getValues(`items.${index}.discount_amount`) || 0;
     const cgstRate = form.getValues(`items.${index}.cgst_rate`) || 0;
     const sgstRate = form.getValues(`items.${index}.sgst_rate`) || 0;
     const igstRate = form.getValues(`items.${index}.igst_rate`) || 0;
 
     const subtotal = quantity * unitPrice;
-    const discountAmount = (subtotal * discountPercentage) / 100;
-    const lineSubtotal = subtotal - discountAmount;
+    
+    // Calculate discount - use amount if provided, otherwise use percentage
+    let finalDiscountAmount = discountAmount;
+    if (discountAmount === 0 && discountPercentage > 0) {
+      finalDiscountAmount = (subtotal * discountPercentage) / 100;
+    }
+    
+    const lineSubtotal = subtotal - finalDiscountAmount;
 
     const cgstAmount = (lineSubtotal * cgstRate) / 100;
     const sgstAmount = (lineSubtotal * sgstRate) / 100;
@@ -273,7 +280,7 @@ export function PurchaseOrderForm({
 
     const lineTotal = lineSubtotal + cgstAmount + sgstAmount + igstAmount;
 
-    form.setValue(`items.${index}.discount_amount`, discountAmount);
+    form.setValue(`items.${index}.discount_amount`, finalDiscountAmount);
     form.setValue(`items.${index}.line_subtotal`, lineSubtotal);
     form.setValue(`items.${index}.cgst_amount`, cgstAmount);
     form.setValue(`items.${index}.sgst_amount`, sgstAmount);
@@ -690,33 +697,6 @@ export function PurchaseOrderForm({
                   </Card>
                 </div>
 
-                <Card className="shadow-sm border-border/50">
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-base font-semibold flex items-center gap-2">
-                      <Info className="h-4 w-4 text-primary" />
-                      Additional Information
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <FormField
-                      control={form.control}
-                      name="notes"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Notes</FormLabel>
-                          <FormControl>
-                            <Textarea 
-                              placeholder="Additional notes or special instructions..." 
-                              {...field} 
-                              disabled={readOnly} 
-                              className="min-h-[80px]" 
-                            />
-                          </FormControl>
-                        </FormItem>
-                      )}
-                    />
-                  </CardContent>
-                </Card>
               </TabsContent>
 
               {/* Items Tab */}
@@ -748,7 +728,9 @@ export function PurchaseOrderForm({
                             <TableHead className="w-[60px] text-center font-semibold">CGST%</TableHead>
                             <TableHead className="w-[60px] text-center font-semibold">SGST%</TableHead>
                             <TableHead className="w-[60px] text-center font-semibold">IGST%</TableHead>
-                            <TableHead className="w-[70px] text-center font-semibold">Disc%</TableHead>
+                            <TableHead className="w-[80px] text-center font-semibold">Disc%</TableHead>
+                            <TableHead className="w-[90px] text-center font-semibold">Disc Value</TableHead>
+                            <TableHead className="w-[90px] text-center font-semibold">GST Value</TableHead>
                             <TableHead className="text-right font-semibold">Line Total</TableHead>
                             {!readOnly && <TableHead className="w-[50px]"></TableHead>}
                           </TableRow>
@@ -989,7 +971,12 @@ export function PurchaseOrderForm({
                                             placeholder="0"
                                             {...field}
                                             onChange={(e) => {
-                                              field.onChange(parseFloat(e.target.value) || 0);
+                                              const percentage = parseFloat(e.target.value) || 0;
+                                              field.onChange(percentage);
+                                              // Clear discount amount when percentage is entered
+                                              if (percentage > 0) {
+                                                form.setValue(`items.${index}.discount_amount`, 0);
+                                              }
                                               calculateLineAmounts(index);
                                             }}
                                             disabled={readOnly}
@@ -999,6 +986,46 @@ export function PurchaseOrderForm({
                                       </FormItem>
                                     )}
                                   />
+                                </TableCell>
+
+                                <TableCell className="p-2">
+                                  <FormField
+                                    control={form.control}
+                                    name={`items.${index}.discount_amount`}
+                                    render={({ field }) => (
+                                      <FormItem>
+                                        <FormControl>
+                                          <Input 
+                                            type="number" 
+                                            step="0.01" 
+                                            min="0"
+                                            className="h-8 w-full text-center text-sm" 
+                                            placeholder="0"
+                                            {...field}
+                                            onChange={(e) => {
+                                              const amount = parseFloat(e.target.value) || 0;
+                                              field.onChange(amount);
+                                              // Clear discount percentage when amount is entered
+                                              if (amount > 0) {
+                                                form.setValue(`items.${index}.discount_percentage`, 0);
+                                              }
+                                              calculateLineAmounts(index);
+                                            }}
+                                            disabled={readOnly}
+                                          />
+                                        </FormControl>
+                                        <FormMessage />
+                                      </FormItem>
+                                    )}
+                                  />
+                                </TableCell>
+
+                                <TableCell className="p-2">
+                                  <div className="h-8 w-full text-center text-sm font-medium flex items-center justify-center bg-muted/30 rounded">
+                                    ₹{((form.watch(`items.${index}.cgst_amount`) || 0) + 
+                                        (form.watch(`items.${index}.sgst_amount`) || 0) + 
+                                        (form.watch(`items.${index}.igst_amount`) || 0)).toFixed(2)}
+                                  </div>
                                 </TableCell>
 
                                  <TableCell className="p-2 text-right">
@@ -1096,11 +1123,40 @@ export function PurchaseOrderForm({
                          </div>
                        </div>
                      </CardContent>
-                   </Card>
-                 </div>
-               </TabsContent>
-            </div>
-          </Tabs>
+                    </Card>
+                  </div>
+                  
+                  {/* Additional Information Section - Moved from Order Info tab */}
+                  <Card className="shadow-sm border-border/50 mt-6">
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-base font-semibold flex items-center gap-2">
+                        <Info className="h-4 w-4 text-primary" />
+                        Additional Information
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <FormField
+                        control={form.control}
+                        name="notes"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Notes</FormLabel>
+                            <FormControl>
+                              <Textarea 
+                                placeholder="Additional notes or special instructions..." 
+                                {...field} 
+                                disabled={readOnly} 
+                                className="min-h-[80px]" 
+                              />
+                            </FormControl>
+                          </FormItem>
+                        )}
+                      />
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+             </div>
+           </Tabs>
 
           {/* Sticky Footer */}
           <div className="sticky bottom-0 bg-background border-t border-border/50 px-4 py-3 flex justify-between items-center">
@@ -1113,7 +1169,7 @@ export function PurchaseOrderForm({
               <Button type="button" variant="outline" onClick={onCancel}>
                 Cancel
               </Button>
-              {!readOnly && (
+              {!readOnly && activeTab === 'items' && (
                 <Button type="submit" disabled={loading} className="min-w-[120px]">
                   {loading ? 'Saving...' : (mode === 'edit' ? 'Update Order' : 'Create Order')}
                 </Button>
