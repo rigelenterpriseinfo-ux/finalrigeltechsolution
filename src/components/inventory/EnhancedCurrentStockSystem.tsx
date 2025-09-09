@@ -5,7 +5,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ItemSearchBox } from './ItemSearchBox';
 import { LocationSearchBox } from './LocationSearchBox';
-import { StockSummaryCards } from './StockSummaryCards';
+import { StockAnalysisPanel } from './StockAnalysisPanel';
 import { ComprehensiveStockTable } from './ComprehensiveStockTable';
 import { Package, MapPin, TrendingUp, AlertTriangle } from 'lucide-react';
 
@@ -310,10 +310,12 @@ export const EnhancedCurrentStockSystem = () => {
         </Card>
       </div>
 
-      {/* Summary Cards */}
-      <StockSummaryCards 
-        data={summaryData}
+      {/* Stock Analysis Panel */}
+      <StockAnalysisPanel 
+        stockData={filteredStockData}
         loading={loading}
+        selectedItem={selectedItem}
+        selectedLocation={selectedLocation}
       />
 
       {/* Main Stock Table */}
