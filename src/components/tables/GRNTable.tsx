@@ -143,21 +143,39 @@ export function GRNTable({ refreshTrigger, onView, onEdit, onDelete }: GRNTableP
 
   const getSortIcon = (field: keyof GRN) => {
     if (sortField !== field) {
-      return <ArrowUpDown className="h-4 w-4 text-muted-foreground" />;
+      return <ArrowUpDown className="h-4 w-4" />;
     }
-    return <ArrowUpDown className={`h-4 w-4 ${sortDirection === 'asc' ? 'rotate-180' : ''}`} />;
+    return sortDirection === 'asc' ? 
+      <ArrowUpDown className="h-4 w-4 rotate-180" /> : 
+      <ArrowUpDown className="h-4 w-4" />;
   };
 
   const getStatusBadge = (status: string) => {
     const statusConfig = {
-      draft: { variant: 'secondary' as const, label: 'Draft' },
-      received: { variant: 'default' as const, label: 'Received' },
-      accepted: { variant: 'default' as const, label: 'Accepted' },
-      rejected: { variant: 'destructive' as const, label: 'Rejected' },
+      draft: { 
+        className: 'bg-gray-100 text-gray-800 hover:bg-gray-200', 
+        label: 'Draft' 
+      },
+      received: { 
+        className: 'bg-blue-100 text-blue-800 hover:bg-blue-200', 
+        label: 'Received' 
+      },
+      accepted: { 
+        className: 'bg-green-100 text-green-800 hover:bg-green-200', 
+        label: 'Accepted' 
+      },
+      partially_received: { 
+        className: 'bg-yellow-100 text-yellow-800 hover:bg-yellow-200', 
+        label: 'Partially Received' 
+      },
+      rejected: { 
+        className: 'bg-red-100 text-red-800 hover:bg-red-200', 
+        label: 'Rejected' 
+      },
     };
     
     const config = statusConfig[status as keyof typeof statusConfig] || statusConfig.draft;
-    return <Badge variant={config.variant}>{config.label}</Badge>;
+    return <Badge variant="secondary" className={config.className}>{config.label}</Badge>;
   };
 
   const exportToExcel = async (grn: GRN) => {
@@ -493,7 +511,7 @@ export function GRNTable({ refreshTrigger, onView, onEdit, onDelete }: GRNTableP
                     description: "Bulk Excel export will be available soon",
                   });
                 }}
-                className="flex items-center gap-2 ml-2"
+                className="flex items-center gap-2 ml-2 bg-white hover:bg-gray-50"
               >
                 <FileSpreadsheet className="h-4 w-4" />
                 Export Excel
@@ -501,9 +519,9 @@ export function GRNTable({ refreshTrigger, onView, onEdit, onDelete }: GRNTableP
             </div>
           </div>
           
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mt-4 gap-2">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mt-4 gap-2 text-sm text-muted-foreground">
             <Select value={statusFilter} onValueChange={(value: any) => setStatusFilter(value)}>
-              <SelectTrigger className="w-[180px]">
+              <SelectTrigger className="w-[180px] bg-white">
                 <SelectValue placeholder="Status" />
               </SelectTrigger>
               <SelectContent>
@@ -515,9 +533,12 @@ export function GRNTable({ refreshTrigger, onView, onEdit, onDelete }: GRNTableP
               </SelectContent>
             </Select>
             
-            <div className="text-sm text-muted-foreground">
+            <span>
               Showing {currentGRNs.length} of {filteredGRNs.length} GRNs
-            </div>
+            </span>
+            <span>
+              Page {currentPage} of {totalPages}
+            </span>
           </div>
         </div>
         {filteredGRNs.length === 0 ? (
@@ -531,12 +552,12 @@ export function GRNTable({ refreshTrigger, onView, onEdit, onDelete }: GRNTableP
           </div>
         ) : (
           <>
-            <div className="rounded-md border">
+            <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
-                  <TableRow>
+                  <TableRow className="bg-gray-50 hover:bg-gray-50">
                     <TableHead 
-                      className="cursor-pointer hover:bg-muted/50"
+                      className="font-semibold text-gray-700 cursor-pointer hover:bg-gray-100 transition-colors"
                       onClick={() => handleSort('grn_number')}
                     >
                       <div className="flex items-center gap-2">
@@ -545,7 +566,7 @@ export function GRNTable({ refreshTrigger, onView, onEdit, onDelete }: GRNTableP
                       </div>
                     </TableHead>
                     <TableHead 
-                      className="cursor-pointer hover:bg-muted/50"
+                      className="font-semibold text-gray-700 cursor-pointer hover:bg-gray-100 transition-colors"
                       onClick={() => handleSort('grn_date')}
                     >
                       <div className="flex items-center gap-2">
@@ -553,9 +574,9 @@ export function GRNTable({ refreshTrigger, onView, onEdit, onDelete }: GRNTableP
                         {getSortIcon('grn_date')}
                       </div>
                     </TableHead>
-                    <TableHead>PO Number</TableHead>
+                    <TableHead className="font-semibold text-gray-700">PO Number</TableHead>
                     <TableHead 
-                      className="cursor-pointer hover:bg-muted/50"
+                      className="font-semibold text-gray-700 cursor-pointer hover:bg-gray-100 transition-colors"
                       onClick={() => handleSort('supplier_name')}
                     >
                       <div className="flex items-center gap-2">
@@ -563,9 +584,9 @@ export function GRNTable({ refreshTrigger, onView, onEdit, onDelete }: GRNTableP
                         {getSortIcon('supplier_name')}
                       </div>
                     </TableHead>
-                    <TableHead>Supplier Invoice</TableHead>
+                    <TableHead className="font-semibold text-gray-700">Supplier Invoice</TableHead>
                     <TableHead 
-                      className="cursor-pointer hover:bg-muted/50"
+                      className="font-semibold text-gray-700 cursor-pointer hover:bg-gray-100 transition-colors"
                       onClick={() => handleSort('status')}
                     >
                       <div className="flex items-center gap-2">
@@ -573,76 +594,78 @@ export function GRNTable({ refreshTrigger, onView, onEdit, onDelete }: GRNTableP
                         {getSortIcon('status')}
                       </div>
                     </TableHead>
-                    <TableHead className="text-right">
+                    <TableHead 
+                      className="font-semibold text-gray-700 cursor-pointer hover:bg-gray-100 transition-colors text-right"
+                      onClick={() => handleSort('total_amount')}
+                    >
                       <div className="flex items-center gap-2 justify-end">
                         Total Amount
-                        <ArrowUpDown 
-                          className="h-4 w-4 text-muted-foreground cursor-pointer"
-                          onClick={() => handleSort('total_amount')}
-                        />
+                        {getSortIcon('total_amount')}
                       </div>
                     </TableHead>
-                    <TableHead className="text-center">Actions</TableHead>
+                    <TableHead className="font-semibold text-muted-foreground text-center min-w-[200px]">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {currentGRNs.map((grn) => (
-                    <TableRow key={grn.id}>
-                      <TableCell className="font-medium">{grn.grn_number}</TableCell>
+                    <TableRow key={grn.id} className="hover:bg-gray-50 transition-colors">
+                      <TableCell className="font-medium text-blue-600">{grn.grn_number}</TableCell>
                       <TableCell>{format(new Date(grn.grn_date), 'dd/MM/yyyy')}</TableCell>
                       <TableCell>
-                        <Badge variant="outline">PO-{grn.purchase_order_id.slice(-6)}</Badge>
+                        <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
+                          PO-{grn.purchase_order_id.slice(-6)}
+                        </Badge>
                       </TableCell>
-                      <TableCell>{grn.supplier_name}</TableCell>
-                      <TableCell>{grn.supplier_invoice_number || '-'}</TableCell>
+                      <TableCell className="font-medium">{grn.supplier_name}</TableCell>
+                      <TableCell className="text-muted-foreground">{grn.supplier_invoice_number || '-'}</TableCell>
                       <TableCell>{getStatusBadge(grn.status)}</TableCell>
-                      <TableCell className="text-right">₹{grn.total_amount.toFixed(2)}</TableCell>
+                      <TableCell className="text-right font-semibold">₹{grn.total_amount.toLocaleString()}</TableCell>
                       <TableCell>
-                        <div className="flex items-center justify-center gap-1">
+                        <div className="flex items-center gap-1.5 justify-center flex-wrap">
                           <Button
-                            variant="ghost"
+                            variant="outline"
                             size="sm"
                             onClick={() => onView(grn)}
-                            className="h-8 w-8 p-0 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
-                            title="View GRN"
+                            className="h-8 w-8 p-0 border-blue-200 bg-blue-50 hover:bg-blue-100 hover:border-blue-300 text-blue-700 transition-all duration-200"
+                            title="View GRN Details"
                           >
-                            <Eye className="h-4 w-4" />
+                            <Eye className="h-3.5 w-3.5" />
                           </Button>
                           <Button
-                            variant="ghost"
+                            variant="outline"
                             size="sm"
                             onClick={() => onEdit(grn)}
-                            className="h-8 w-8 p-0 text-amber-600 hover:text-amber-700 hover:bg-amber-50"
+                            className="h-8 w-8 p-0 border-emerald-200 bg-emerald-50 hover:bg-emerald-100 hover:border-emerald-300 text-emerald-700 transition-all duration-200"
                             title="Edit GRN"
                           >
-                            <Edit className="h-4 w-4" />
+                            <Edit className="h-3.5 w-3.5" />
                           </Button>
                           <Button
-                            variant="ghost"
+                            variant="outline"
                             size="sm"
                             onClick={() => onDelete(grn.id)}
-                            className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                            className="h-8 w-8 p-0 border-red-200 bg-red-50 hover:bg-red-100 hover:border-red-300 text-red-700 transition-all duration-200"
                             title="Delete GRN"
                           >
-                            <Trash2 className="h-4 w-4" />
+                            <Trash2 className="h-3.5 w-3.5" />
                           </Button>
                           <Button
-                            variant="ghost"
+                            variant="outline"
                             size="sm"
                             onClick={() => exportToExcel(grn)}
-                            className="h-8 w-8 p-0 text-green-600 hover:text-green-700 hover:bg-green-50"
-                            title="Export to Excel"
+                            className="h-8 w-8 p-0 border-green-200 bg-green-50 hover:bg-green-100 hover:border-green-300 text-green-700 transition-all duration-200"
+                            title="Export to Excel Spreadsheet"
                           >
-                            <FileSpreadsheet className="h-4 w-4" />
+                            <FileSpreadsheet className="h-3.5 w-3.5" />
                           </Button>
                           <Button
-                            variant="ghost"
+                            variant="outline"
                             size="sm"
                             onClick={() => exportToPDF(grn)}
-                            className="h-8 w-8 p-0 text-purple-600 hover:text-purple-700 hover:bg-purple-50"
-                            title="Export to PDF"
+                            className="h-8 w-8 p-0 border-purple-200 bg-purple-50 hover:bg-purple-100 hover:border-purple-300 text-purple-700 transition-all duration-200"
+                            title="Export to PDF Document"
                           >
-                            <Download className="h-4 w-4" />
+                            <Download className="h-3.5 w-3.5" />
                           </Button>
                         </div>
                       </TableCell>
@@ -654,28 +677,43 @@ export function GRNTable({ refreshTrigger, onView, onEdit, onDelete }: GRNTableP
 
             {/* Pagination */}
             {totalPages > 1 && (
-              <div className="flex items-center justify-between mt-4">
+              <div className="flex items-center justify-between p-6 border-t bg-gray-50">
                 <div className="text-sm text-muted-foreground">
-                  Showing {startIndex + 1} to {Math.min(endIndex, filteredGRNs.length)} of {filteredGRNs.length} GRNs
+                  Showing {startIndex + 1} to {Math.min(endIndex, filteredGRNs.length)} of {filteredGRNs.length} results
                 </div>
+                
                 <div className="flex items-center gap-2">
                   <Button
                     variant="outline"
                     size="sm"
                     onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
                     disabled={currentPage === 1}
+                    className="hover:bg-gray-200"
                   >
                     <ChevronLeft className="h-4 w-4" />
                     Previous
                   </Button>
-                  <span className="text-sm">
-                    Page {currentPage} of {totalPages}
-                  </span>
+                  
+                  <div className="flex items-center gap-1">
+                    {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                      <Button
+                        key={page}
+                        variant={currentPage === page ? "default" : "ghost"}
+                        size="sm"
+                        onClick={() => setCurrentPage(page)}
+                        className={currentPage === page ? "bg-blue-600 hover:bg-blue-700" : "hover:bg-gray-200"}
+                      >
+                        {page}
+                      </Button>
+                    ))}
+                  </div>
+                  
                   <Button
                     variant="outline"
                     size="sm"
                     onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
                     disabled={currentPage === totalPages}
+                    className="hover:bg-gray-200"
                   >
                     Next
                     <ChevronRight className="h-4 w-4" />
