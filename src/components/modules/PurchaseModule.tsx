@@ -624,98 +624,98 @@ function PurchaseModuleContent() {
   return (
     <div className="space-y-6">
       {/* Stats Dashboard */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div 
-          className="cursor-pointer transition-transform hover:scale-105"
+          className="cursor-pointer transition-transform hover:scale-[1.02]"
           onClick={() => setActiveTab('purchase-orders')}
         >
-          <Card className="card-interactive shadow-card hover:shadow-elevated transition-all duration-300 bg-gradient-to-br from-primary/5 to-primary/10 border-primary/20">
-            <CardContent className="p-6">
-              <div className="flex items-start justify-between mb-4">
+          <Card className="card-interactive shadow-card hover:shadow-elevated transition-all duration-300 bg-gradient-to-br from-primary/5 to-primary/10 border-primary/20 h-fit">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between mb-3">
                 <div>
-                  <p className="text-sm font-medium text-muted-foreground">Open Purchase Orders</p>
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Open Purchase Orders</p>
                 </div>
-                <div className="p-3 rounded-xl bg-background/50 text-primary">
-                  <ShoppingCart className="h-6 w-6" />
+                <div className="p-2 rounded-lg bg-background/50 text-primary">
+                  <ShoppingCart className="h-4 w-4" />
                 </div>
               </div>
               
               {stats.openPOs.details.length > 0 ? (
-                <div className="space-y-2">
+                <div className="space-y-1">
                   {stats.openPOs.details.map((po: any, index: number) => (
-                    <div key={index} className="flex justify-between items-center py-2 border-b border-border/50 last:border-0">
-                      <span className="text-sm font-medium text-foreground">
+                    <div key={index} className="flex justify-between items-center py-1.5 border-b border-border/30 last:border-0">
+                      <span className="text-xs font-medium text-foreground truncate pr-2">
                         {po.supplier?.name || 'Unknown'}
                       </span>
-                      <span className="text-sm font-semibold text-foreground">
+                      <span className="text-xs font-bold text-foreground shrink-0">
                         ₹{(po.total_amount || 0).toLocaleString()}
                       </span>
                     </div>
                   ))}
                 </div>
               ) : (
-                <p className="text-sm text-muted-foreground">No open purchase orders</p>
+                <p className="text-xs text-muted-foreground">No open purchase orders</p>
               )}
             </CardContent>
           </Card>
         </div>
         
-        <Card className="card-interactive shadow-card hover:shadow-elevated transition-all duration-300 bg-gradient-to-br from-secondary/5 to-secondary/10 border-secondary/20">
-          <CardContent className="p-6">
-            <div className="flex items-start justify-between mb-4">
+        <Card className="card-interactive shadow-card hover:shadow-elevated transition-all duration-300 bg-gradient-to-br from-secondary/5 to-secondary/10 border-secondary/20 h-fit">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between mb-3">
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Open Debit Notes</p>
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Open Debit Notes</p>
               </div>
-              <div className="p-3 rounded-xl bg-background/50 text-secondary">
-                <Package className="h-6 w-6" />
+              <div className="p-2 rounded-lg bg-background/50 text-secondary">
+                <Package className="h-4 w-4" />
               </div>
             </div>
             
             {stats.openDebitNotes.details.length > 0 ? (
-              <div className="space-y-2">
+              <div className="space-y-1">
                 {stats.openDebitNotes.details.map((dn: any, index: number) => (
-                  <div key={index} className="flex justify-between items-center py-2 border-b border-border/50 last:border-0">
-                    <span className="text-sm font-medium text-foreground">
+                  <div key={index} className="flex justify-between items-center py-1.5 border-b border-border/30 last:border-0">
+                    <span className="text-xs font-medium text-foreground truncate pr-2">
                       {dn.supplier_name || 'Unknown'}
                     </span>
-                    <span className="text-sm font-semibold text-foreground">
+                    <span className="text-xs font-bold text-foreground shrink-0">
                       ₹{(dn.total_amount || 0).toLocaleString()}
                     </span>
                   </div>
                 ))}
               </div>
             ) : (
-              <p className="text-sm text-muted-foreground">No open debit notes</p>
+              <p className="text-xs text-muted-foreground">No open debit notes</p>
             )}
           </CardContent>
         </Card>
         
-        <Card className="card-interactive shadow-card hover:shadow-elevated transition-all duration-300 bg-gradient-to-br from-secondary/5 to-secondary/10 border-secondary/20">
-          <CardContent className="p-6">
-            <div className="flex items-start justify-between mb-4">
+        <Card className="card-interactive shadow-card hover:shadow-elevated transition-all duration-300 bg-gradient-to-br from-secondary/5 to-secondary/10 border-secondary/20 h-fit">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between mb-3">
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Overdue Purchase Orders</p>
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Overdue Purchase Orders</p>
               </div>
-              <div className="p-3 rounded-xl bg-background/50 text-secondary">
-                <AlertCircle className="h-6 w-6" />
+              <div className="p-2 rounded-lg bg-background/50 text-secondary">
+                <AlertCircle className="h-4 w-4" />
               </div>
             </div>
             
             {stats.overduePOs.details.length > 0 ? (
-              <div className="space-y-2">
+              <div className="space-y-1">
                 {stats.overduePOs.details.map((po: any, index: number) => (
-                  <div key={index} className="flex justify-between items-center py-2 border-b border-border/50 last:border-0">
-                    <span className="text-sm font-medium text-foreground">
+                  <div key={index} className="flex justify-between items-center py-1.5 border-b border-border/30 last:border-0">
+                    <span className="text-xs font-medium text-foreground truncate pr-2">
                       {po.supplier?.name || 'Unknown'}
                     </span>
-                    <span className="text-sm font-semibold text-foreground">
+                    <span className="text-xs font-bold text-foreground shrink-0">
                       ₹{(po.total_amount || 0).toLocaleString()}
                     </span>
                   </div>
                 ))}
               </div>
             ) : (
-              <p className="text-sm text-muted-foreground">No overdue purchase orders</p>
+              <p className="text-xs text-muted-foreground">No overdue purchase orders</p>
             )}
           </CardContent>
         </Card>
