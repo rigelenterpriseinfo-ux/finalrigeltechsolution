@@ -399,220 +399,209 @@ export function SupplierCreditNoteForm({ supplierCreditNote, onSubmit, onCancel,
         </div>
       </div>
 
-      <Card>
-        <CardContent className="p-4">
-          <div className="flex justify-between items-center mb-4">
-            <h3 className="text-lg font-medium">Items</h3>
-            <Button type="button" onClick={addItem} variant="outline" size="sm">
-              <Plus className="h-4 w-4 mr-2" />
+      <div className="bg-background border rounded-lg overflow-hidden">
+        {/* Header */}
+        <div className="bg-primary/10 border-b px-4 py-3 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="w-5 h-5 bg-primary/20 rounded flex items-center justify-center">
+              <div className="w-2 h-2 bg-primary rounded"></div>
+            </div>
+            <h3 className="font-medium text-foreground">Supplier Credit Note Items</h3>
+          </div>
+          <div className="flex items-center gap-2">
+            {/* Tax Type Toggle */}
+            <div className="flex rounded-md border overflow-hidden">
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="bg-primary text-primary-foreground hover:bg-primary/90 px-3 py-1 text-xs rounded-none"
+              >
+                Intra-State (CGST+SGST)
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="bg-muted hover:bg-muted/80 px-3 py-1 text-xs rounded-none"
+              >
+                Inter-State (IGST)
+              </Button>
+            </div>
+            <Button type="button" onClick={addItem} size="sm" className="gap-1">
+              <Plus className="h-4 w-4" />
               Add Item
             </Button>
           </div>
+        </div>
 
-          <div className="space-y-4">
-            {items.map((item, index) => (
-              <div key={index} className="p-3 border rounded-lg space-y-3">
-                 <div className="grid grid-cols-12 gap-2 items-center">
-                   <div className="col-span-3">
-                     <Label className="text-xs">Product *</Label>
-                     <Input
-                       type="text"
-                       value={item.product_name || ""}
-                       readOnly
-                       className="bg-muted text-xs"
-                       placeholder="Auto-filled from debit note"
-                     />
-                   </div>
-
-                   <div className="col-span-2">
-                     <Label className="text-xs">Original Qty</Label>
-                     <Input
-                       type="number"
-                       value={item.quantity}
-                       readOnly
-                       className="bg-muted text-xs"
-                     />
-                   </div>
-
-                   <div className="col-span-2">
-                     <Label className="text-xs">Credit Note Qty *</Label>
-                     <Input
-                       type="number"
-                       min="0"
-                       max={item.quantity}
-                       value={item.credit_note_quantity}
-                       onChange={(e) => {
-                         const value = parseInt(e.target.value) || 0;
-                         handleItemChange(index, 'credit_note_quantity', value);
-                       }}
-                       placeholder="0"
-                       className="text-xs"
-                       title={`Maximum allowed: ${item.quantity}`}
-                     />
-                     {item.credit_note_quantity > item.quantity && (
-                       <p className="text-xs text-destructive mt-1">
-                         Cannot exceed original quantity ({item.quantity})
-                       </p>
-                     )}
-                   </div>
-
-                   <div className="col-span-2">
-                     <Label className="text-xs">Pending Qty</Label>
-                     <Input
-                       type="number"
-                       value={item.pending_quantity}
-                       readOnly
-                       className="bg-muted text-xs"
-                     />
-                   </div>
-
-                   <div className="col-span-2">
-                     <Label className="text-xs">Unit Price</Label>
-                     <Input
-                       type="number"
-                       step="0.01"
-                       min="0"
-                       value={item.unit_price}
-                       onChange={(e) => handleItemChange(index, 'unit_price', parseFloat(e.target.value) || 0)}
-                       placeholder="Unit Price"
-                       className="text-xs"
-                     />
-                   </div>
-
-                   <div className="col-span-1">
-                     <Label className="text-xs">Disc %</Label>
-                     <Input
-                       type="number"
-                       min="0"
-                       max="100"
-                       step="0.01"
-                       value={item.discount_percentage}
-                       onChange={(e) => handleItemChange(index, 'discount_percentage', parseFloat(e.target.value) || 0)}
-                       placeholder="0"
-                       className="text-xs"
-                     />
-                   </div>
-                 </div>
-
-                 <div className="grid grid-cols-12 gap-2 items-center">
-                   <div className="col-span-2">
-                     <Label className="text-xs">CGST %</Label>
-                     <Input
-                       type="number"
-                       min="0"
-                       max="50"
-                       step="0.01"
-                       value={item.cgst_rate}
-                       onChange={(e) => handleItemChange(index, 'cgst_rate', parseFloat(e.target.value) || 0)}
-                       placeholder="0"
-                       className="text-xs"
-                     />
-                   </div>
-
-                   <div className="col-span-2">
-                     <Label className="text-xs">SGST %</Label>
-                     <Input
-                       type="number"
-                       min="0"
-                       max="50"
-                       step="0.01"
-                       value={item.sgst_rate}
-                       onChange={(e) => handleItemChange(index, 'sgst_rate', parseFloat(e.target.value) || 0)}
-                       placeholder="0"
-                       className="text-xs"
-                     />
-                   </div>
-
-                   <div className="col-span-2">
-                     <Label className="text-xs">IGST %</Label>
-                     <Input
-                       type="number"
-                       min="0"
-                       max="50"
-                       step="0.01"
-                       value={item.igst_rate}
-                       onChange={(e) => handleItemChange(index, 'igst_rate', parseFloat(e.target.value) || 0)}
-                       placeholder="0"
-                       className="text-xs"
-                     />
-                   </div>
-
-                   <div className="col-span-2">
-                     <Label className="text-xs">HSN Code</Label>
-                     <Input
-                       type="text"
-                       value={item.hsn_sac_code}
-                       onChange={(e) => handleItemChange(index, 'hsn_sac_code', e.target.value)}
-                       placeholder="HSN"
-                       className="text-xs"
-                     />
-                   </div>
-
-                   <div className="col-span-2">
-                     <Label className="text-xs">UOM</Label>
-                     <Input
-                       type="text"
-                       value={item.unit_of_measure}
-                       onChange={(e) => handleItemChange(index, 'unit_of_measure', e.target.value)}
-                       placeholder="pcs"
-                       className="text-xs"
-                     />
-                   </div>
-
-                   <div className="col-span-2">
-                     <Label className="text-xs">Line Total</Label>
-                     <Input
-                       type="text"
-                       value={`₹${(item.line_total || 0).toFixed(2)}`}
-                       readOnly
-                       className="bg-muted text-xs"
-                     />
-                   </div>
-                 </div>
-
-                 <div className="text-right">
-                   <Button
-                     type="button"
-                     variant="ghost"
-                     size="sm"
-                     onClick={() => removeItem(index)}
-                     disabled={items.length === 1}
-                     className="mt-4"
-                   >
-                     <Trash2 className="h-4 w-4" />
-                   </Button>
-                 </div>
-
-                 <div className="grid grid-cols-4 gap-2 text-xs text-muted-foreground">
-                   <div>Subtotal: ₹{(item.line_subtotal || 0).toFixed(2)}</div>
-                   <div>Tax: ₹{(item.tax_amount || 0).toFixed(2)}</div>
-                   <div>Total: ₹{(item.line_total || 0).toFixed(2)}</div>
-                   <div>UOM: {item.unit_of_measure}</div>
-                 </div>
-              </div>
-            ))}
+        {/* Table Header */}
+        <div className="bg-muted/30 border-b">
+          <div className="grid grid-cols-12 gap-4 px-4 py-2 text-sm font-medium text-muted-foreground">
+            <div className="col-span-3">Product</div>
+            <div className="col-span-1 text-center">Qty</div>
+            <div className="col-span-1 text-center">Unit Price</div>
+            <div className="col-span-1 text-center">CGST%</div>
+            <div className="col-span-1 text-center">SGST%</div>
+            <div className="col-span-1 text-center">Disc%</div>
+            <div className="col-span-1 text-center">Disc Value</div>
+            <div className="col-span-1 text-center">GST Value</div>
+            <div className="col-span-1 text-center">Line Total</div>
+            <div className="col-span-1 text-center">Action</div>
           </div>
+        </div>
 
-          <div className="mt-4 space-y-2 border-t pt-4">
-            <div className="flex justify-between">
-              <span>Subtotal:</span>
+        {/* Table Body */}
+        <div className="divide-y">
+          {items.map((item, index) => (
+            <div key={index} className="grid grid-cols-12 gap-4 px-4 py-3 items-center hover:bg-muted/20">
+              {/* Product */}
+              <div className="col-span-3">
+                <Input
+                  type="text"
+                  value={item.product_name || ""}
+                  readOnly
+                  className="bg-muted/50 border-0 text-sm h-8"
+                  placeholder="Auto-filled from debit note"
+                />
+              </div>
+
+              {/* Quantity */}
+              <div className="col-span-1">
+                <div className="relative">
+                  <Input
+                    type="number"
+                    min="0"
+                    max={item.quantity}
+                    value={item.credit_note_quantity}
+                    onChange={(e) => {
+                      const value = parseInt(e.target.value) || 0;
+                      handleItemChange(index, 'credit_note_quantity', value);
+                    }}
+                    className="text-center text-sm h-8 border-primary/30 focus:border-primary"
+                    placeholder="0"
+                  />
+                  <div className="text-xs text-muted-foreground mt-1 text-center">
+                    Max: {item.quantity}
+                  </div>
+                </div>
+              </div>
+
+              {/* Unit Price */}
+              <div className="col-span-1">
+                <Input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={item.unit_price}
+                  onChange={(e) => handleItemChange(index, 'unit_price', parseFloat(e.target.value) || 0)}
+                  className="text-center text-sm h-8"
+                  placeholder="0"
+                />
+              </div>
+
+              {/* CGST% */}
+              <div className="col-span-1">
+                <Input
+                  type="number"
+                  min="0"
+                  max="50"
+                  step="0.01"
+                  value={item.cgst_rate}
+                  onChange={(e) => handleItemChange(index, 'cgst_rate', parseFloat(e.target.value) || 0)}
+                  className="text-center text-sm h-8"
+                  placeholder="0%"
+                />
+              </div>
+
+              {/* SGST% */}
+              <div className="col-span-1">
+                <Input
+                  type="number"
+                  min="0"
+                  max="50"
+                  step="0.01"
+                  value={item.sgst_rate}
+                  onChange={(e) => handleItemChange(index, 'sgst_rate', parseFloat(e.target.value) || 0)}
+                  className="text-center text-sm h-8"
+                  placeholder="0%"
+                />
+              </div>
+
+              {/* Disc% */}
+              <div className="col-span-1">
+                <Input
+                  type="number"
+                  min="0"
+                  max="100"
+                  step="0.01"
+                  value={item.discount_percentage}
+                  onChange={(e) => handleItemChange(index, 'discount_percentage', parseFloat(e.target.value) || 0)}
+                  className="text-center text-sm h-8"
+                  placeholder="0%"
+                />
+              </div>
+
+              {/* Disc Value */}
+              <div className="col-span-1">
+                <div className="text-center text-sm py-2 text-muted-foreground">
+                  ₹{(item.discount_amount || 0).toFixed(2)}
+                </div>
+              </div>
+
+              {/* GST Value */}
+              <div className="col-span-1">
+                <div className="text-center text-sm py-2 text-muted-foreground">
+                  ₹{(item.tax_amount || 0).toFixed(2)}
+                </div>
+              </div>
+
+              {/* Line Total */}
+              <div className="col-span-1">
+                <div className="text-center text-sm py-2 font-medium text-foreground">
+                  ₹{(item.line_total || 0).toFixed(2)}
+                </div>
+              </div>
+
+              {/* Action */}
+              <div className="col-span-1 text-center">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => removeItem(index)}
+                  disabled={items.length === 1}
+                  className="h-8 w-8 p-0 hover:bg-destructive/10 hover:text-destructive"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Totals Section */}
+        <div className="bg-muted/20 border-t px-4 py-3">
+          <div className="grid grid-cols-2 gap-4 max-w-md ml-auto">
+            <div className="flex justify-between text-sm">
+              <span className="text-muted-foreground">Subtotal:</span>
               <span>₹{totals.subtotal.toFixed(2)}</span>
             </div>
-            <div className="flex justify-between">
-              <span>Discount:</span>
-              <span>-₹{totals.totalDiscount.toFixed(2)}</span>
+            <div className="flex justify-between text-sm">
+              <span className="text-muted-foreground">Discount:</span>
+              <span className="text-destructive">-₹{totals.totalDiscount.toFixed(2)}</span>
             </div>
-            <div className="flex justify-between">
-              <span>Tax:</span>
+            <div className="flex justify-between text-sm">
+              <span className="text-muted-foreground">Tax:</span>
               <span>₹{totals.totalTax.toFixed(2)}</span>
             </div>
-            <div className="flex justify-between font-semibold text-lg border-t pt-2">
+            <div className="flex justify-between font-semibold text-base border-t pt-2">
               <span>Total:</span>
-              <span>₹{totals.total.toFixed(2)}</span>
+              <span className="text-primary">₹{totals.total.toFixed(2)}</span>
             </div>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
       <div className="space-y-2">
         <Label htmlFor="notes">Notes</Label>
