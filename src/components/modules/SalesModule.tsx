@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Plus, FileText, Clock, Package2, Users } from 'lucide-react';
+import { Plus, FileText, Clock, Package2, Users, AlertTriangle } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useBusinessAuth } from '@/hooks/useBusinessAuth';
 import { supabase } from '@/integrations/supabase/client';
@@ -18,16 +18,53 @@ import { SalesOrderForm } from '@/components/forms/SalesOrderForm';
 import { SalesInvoiceForm } from '@/components/forms/SalesInvoiceForm';
 import { SalesInvoiceTable } from '@/components/tables/SalesInvoiceTable';
 import { SalesOrderDetailsDialog } from '../dialogs/SalesOrderDetailsDialog';
+import BackorderModule from '@/components/modules/BackorderModule';
 
 export default function SalesModule() {
   const { user, company, profile } = useAuth();
-  const { hasEditAccess } = useBusinessAuth();
+  const { hasEditAccess, businessUser } = useBusinessAuth();
   const canEdit = hasEditAccess('sales');
   
   // State for all modules
   const [customers, setCustomers] = useState([]);
   const [salesOrders, setSalesOrders] = useState([]);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+
+  // Function to create backorder entries when sales order has backorders
+  const createBackorderEntries = async (salesOrderId: string, customerId: string, orderItems: any[]) => {
+    try {
+      const backorderItems = orderItems
+        .filter(item => item.back_order_quantity && item.back_order_quantity > 0)
+        .map(item => ({
+          company_id: businessUser?.company_id,
+          customer_id: customerId,
+          product_id: item.product_id,
+          quantity_backordered: item.back_order_quantity,
+          original_sales_order_id: salesOrderId,
+          original_order_item_id: item.id,
+          warehouse_id: item.warehouse_id,
+          bin_id: item.bin_id,
+          unit_price: item.unit_price || 0,
+          status: 'pending',
+        }));
+
+      if (backorderItems.length > 0) {
+        const { error } = await supabase
+          .from('backorder_items')
+          .insert(backorderItems);
+
+        if (error) throw error;
+
+        toast({
+          title: 'Backorders Created',
+          description: `${backorderItems.length} backorder items created for this order.`,
+        });
+      }
+    } catch (error) {
+      console.error('Error creating backorder entries:', error);
+      // Don't fail the main order creation for backorder creation issues
+    }
+  };
   
   // Sales metrics state
   const [salesMetrics, setSalesMetrics] = useState({
@@ -680,6 +717,11 @@ export default function SalesModule() {
           .insert(itemsToInsert);
 
         if (itemsError) throw itemsError;
+        
+        // Create backorder entries if there are any backorder quantities
+        if (data.items && newOrder) {
+          await createBackorderEntries(newOrder.id, data.customer_id, data.items);
+        }
       }
 
       toast({
@@ -775,10 +817,14 @@ export default function SalesModule() {
       </div>
 
       <Tabs defaultValue="customers" className="w-full">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="customers">Customers</TabsTrigger>
           <TabsTrigger value="sales-orders">Sales Orders</TabsTrigger>
           <TabsTrigger value="invoices">Sales Invoices</TabsTrigger>
+          <TabsTrigger value="backorders">
+            <AlertTriangle className="h-4 w-4 mr-2" />
+            Backorders
+          </TabsTrigger>
         </TabsList>
 
         {/* Customers Tab */}
@@ -862,6 +908,20 @@ export default function SalesModule() {
               />
             </CardContent>
           </Card>
+        </TabsContent>
+
+        {/* Backorders Tab */}
+        <TabsContent value="backorders" className="space-y-4">
+          <div className="flex justify-between items-center">
+            <div>
+              <h3 className="text-lg font-medium">Backorder Management</h3>
+              <p className="text-sm text-muted-foreground">
+                Manage customer and item-wise backorders, process when stock is available
+              </p>
+            </div>
+          </div>
+          
+          <BackorderModule />
         </TabsContent>
       </Tabs>
 

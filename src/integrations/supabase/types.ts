@@ -44,6 +44,57 @@ export type Database = {
         }
         Relationships: []
       }
+      backorder_items: {
+        Row: {
+          bin_id: string | null
+          company_id: string
+          created_at: string
+          created_by: string
+          customer_id: string
+          id: string
+          original_order_item_id: string | null
+          original_sales_order_id: string | null
+          product_id: string
+          quantity_backordered: number
+          status: string
+          unit_price: number
+          updated_at: string
+          warehouse_id: string | null
+        }
+        Insert: {
+          bin_id?: string | null
+          company_id: string
+          created_at?: string
+          created_by?: string
+          customer_id: string
+          id?: string
+          original_order_item_id?: string | null
+          original_sales_order_id?: string | null
+          product_id: string
+          quantity_backordered?: number
+          status?: string
+          unit_price?: number
+          updated_at?: string
+          warehouse_id?: string | null
+        }
+        Update: {
+          bin_id?: string | null
+          company_id?: string
+          created_at?: string
+          created_by?: string
+          customer_id?: string
+          id?: string
+          original_order_item_id?: string | null
+          original_sales_order_id?: string | null
+          product_id?: string
+          quantity_backordered?: number
+          status?: string
+          unit_price?: number
+          updated_at?: string
+          warehouse_id?: string | null
+        }
+        Relationships: []
+      }
       bom_components: {
         Row: {
           bom_id: string
@@ -3628,6 +3679,22 @@ export type Database = {
         Args: { comp_id: string }
         Returns: string
       }
+      get_backorder_summary: {
+        Args: { p_company_id: string }
+        Returns: {
+          available_to_process: number
+          avg_unit_price: number
+          current_stock: number
+          customer_id: string
+          customer_name: string
+          oldest_backorder_date: string
+          product_id: string
+          product_name: string
+          product_sku: string
+          ready_to_deliver: number
+          total_backordered: number
+        }[]
+      }
       get_company_aging_summary: {
         Args: { p_company_id: string }
         Returns: {
@@ -3770,6 +3837,14 @@ export type Database = {
       is_user_admin: {
         Args: Record<PropertyKey, never>
         Returns: boolean
+      }
+      process_backorder_fulfillment: {
+        Args: {
+          p_backorder_ids: string[]
+          p_company_id: string
+          p_created_by?: string
+        }
+        Returns: Json
       }
       process_bom_production: {
         Args: {
