@@ -18,6 +18,8 @@ import { format } from 'date-fns';
 import { Search, AlertTriangle, Package, ArrowUpDown, ArrowUp, ArrowDown, ChevronLeft, ChevronRight, FileSpreadsheet, Filter, Eye } from 'lucide-react';
 import { exportToExcel, formatCurrency, formatDateTime, ExportColumn } from '@/utils/excelExport';
 import { InventoryTransactionViewDialog } from '@/components/dialogs/InventoryTransactionViewDialog';
+import { useIsMobile } from '@/hooks/use-mobile';
+import { InventoryTransactionTableMobile } from './InventoryTransactionTableMobile';
 
 interface InventoryTransaction {
   id: string;
@@ -40,8 +42,14 @@ interface InventoryTransactionTableProps {
 }
 
 export const InventoryTransactionTable = ({ refreshTrigger }: InventoryTransactionTableProps) => {
+  const isMobile = useIsMobile();
   const { company } = useAuth();
   const { toast } = useToast();
+
+  // Use mobile version if on mobile device
+  if (isMobile) {
+    return <InventoryTransactionTableMobile refreshTrigger={refreshTrigger} />;
+  }
   const [transactions, setTransactions] = useState<InventoryTransaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');

@@ -13,6 +13,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { useBusinessAuth } from '@/hooks/useBusinessAuth';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { Plus, Search, Package, AlertTriangle, Edit, Trash2, Eye, Download, ArrowUpDown, ArrowUp, ArrowDown, ChevronLeft, ChevronRight, MapPin, TrendingUp, ClipboardList, ArrowRightLeft, CheckCircle, XCircle, RotateCcw } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { WarehouseBinForm } from '@/components/forms/WarehouseBinForm';
@@ -61,6 +62,7 @@ export function InventoryModule() {
   const { profile } = useAuth();
   const { toast } = useToast();
   const { hasEditAccess } = useBusinessAuth();
+  const isMobile = useIsMobile();
   const canEdit = hasEditAccess('inventory');
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);

@@ -18,6 +18,8 @@ import { toast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { exportToExcel, formatCurrency, formatDateTime, ExportColumn } from '@/utils/excelExport';
 import { InventoryAdjustmentViewDialog } from '@/components/dialogs/InventoryAdjustmentViewDialog';
+import { useIsMobile } from '@/hooks/use-mobile';
+import { InventoryAdjustmentTableMobile } from './InventoryAdjustmentTableMobile';
 
 interface InventoryAdjustment {
   id: string;
@@ -52,7 +54,13 @@ interface InventoryAdjustmentTableProps {
 export const InventoryAdjustmentTable: React.FC<InventoryAdjustmentTableProps> = ({
   refreshTrigger = 0,
 }) => {
+  const isMobile = useIsMobile();
   const { company } = useAuth();
+
+  // Use mobile version if on mobile device
+  if (isMobile) {
+    return <InventoryAdjustmentTableMobile refreshTrigger={refreshTrigger} />;
+  }
   const [adjustments, setAdjustments] = useState<InventoryAdjustment[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');

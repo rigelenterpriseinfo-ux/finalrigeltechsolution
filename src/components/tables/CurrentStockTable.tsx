@@ -18,6 +18,8 @@ import { Search, AlertTriangle, Package, ArrowUpDown, ArrowUp, ArrowDown, Chevro
 import { format } from 'date-fns';
 import { exportToExcel, formatCurrency, formatDate, ExportColumn } from '@/utils/excelExport';
 import { CurrentStockViewDialog } from '@/components/dialogs/CurrentStockViewDialog';
+import { useIsMobile } from '@/hooks/use-mobile';
+import { CurrentStockTableMobile } from './CurrentStockTableMobile';
 
 interface CurrentStock {
   company_id: string;
@@ -86,8 +88,14 @@ interface CurrentStockTableProps {
 }
 
 export const CurrentStockTable = ({ refreshTrigger }: CurrentStockTableProps) => {
+  const isMobile = useIsMobile();
   const { company } = useAuth();
   const { toast } = useToast();
+
+  // Use mobile version if on mobile device
+  if (isMobile) {
+    return <CurrentStockTableMobile refreshTrigger={refreshTrigger} />;
+  }
   const [stockLevels, setStockLevels] = useState<CurrentStock[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
