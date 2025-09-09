@@ -64,7 +64,7 @@ export const Header: React.FC<HeaderProps> = ({
   const displayName = getDisplayName();
 
   return (
-    <header className="bg-gradient-primary border-b border-border/20 sticky top-0 z-40 backdrop-blur supports-[backdrop-filter]:bg-gradient-primary/95 shadow-lg">
+    <header className="bg-gradient-primary border-b border-border/20 sticky top-0 inset-x-0 w-screen z-40 backdrop-blur supports-[backdrop-filter]:bg-gradient-primary/95 shadow-lg">
       <div className="px-4 md:px-6 py-4 md:py-5">
         <div className="flex items-center">
           {/* Left Section - Title/Welcome */}
