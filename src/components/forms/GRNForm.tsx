@@ -1181,14 +1181,6 @@ export function GRNForm({ grn, onSubmit, onCancel, readOnly = false, mode }: GRN
                                            </div>
                                          </div>
                                        )}
-                                       {!form.formState.errors.items?.[index]?.received_quantity && (item.received_quantity || 0) > 0 && (
-                                         <div className="absolute z-10 top-8 left-0 right-0 bg-green-100 border border-green-300 rounded px-2 py-1 text-xs text-green-700 shadow-sm">
-                                           <div className="flex items-center gap-1">
-                                             <CheckCircle2 className="h-3 w-3" />
-                                             Valid quantity
-                                           </div>
-                                         </div>
-                                       )}
                                      </div>
                                    </TableCell>
 
