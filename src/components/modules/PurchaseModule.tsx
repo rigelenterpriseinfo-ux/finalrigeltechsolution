@@ -722,12 +722,52 @@ function PurchaseModuleContent() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-5">
-          <TabsTrigger value="suppliers">Suppliers</TabsTrigger>
-          <TabsTrigger value="purchase-orders">Purchase Orders</TabsTrigger>
-          <TabsTrigger value="grn">Goods Receipt Notes</TabsTrigger>
-          <TabsTrigger value="debit-notes">Debit Notes</TabsTrigger>
-          <TabsTrigger value="supplier-credit-notes">Supplier Credit Notes</TabsTrigger>
+        <TabsList className="grid w-full grid-cols-5 bg-gradient-to-r from-muted/50 to-muted/80 p-1.5 rounded-lg border border-border/50 shadow-sm">
+          <TabsTrigger 
+            value="suppliers" 
+            className="relative data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary data-[state=active]:to-primary/90 data-[state=active]:text-primary-foreground data-[state=active]:shadow-lg data-[state=active]:shadow-primary/25 data-[state=active]:border data-[state=active]:border-primary/20 data-[state=active]:font-semibold transition-all duration-200 hover:bg-background/80"
+          >
+            Suppliers
+            {activeTab === 'suppliers' && (
+              <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 w-8 h-0.5 bg-primary-foreground rounded-full" />
+            )}
+          </TabsTrigger>
+          <TabsTrigger 
+            value="purchase-orders" 
+            className="relative data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary data-[state=active]:to-primary/90 data-[state=active]:text-primary-foreground data-[state=active]:shadow-lg data-[state=active]:shadow-primary/25 data-[state=active]:border data-[state=active]:border-primary/20 data-[state=active]:font-semibold transition-all duration-200 hover:bg-background/80"
+          >
+            Purchase Orders
+            {activeTab === 'purchase-orders' && (
+              <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 w-8 h-0.5 bg-primary-foreground rounded-full" />
+            )}
+          </TabsTrigger>
+          <TabsTrigger 
+            value="grn" 
+            className="relative data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary data-[state=active]:to-primary/90 data-[state=active]:text-primary-foreground data-[state=active]:shadow-lg data-[state=active]:shadow-primary/25 data-[state=active]:border data-[state=active]:border-primary/20 data-[state=active]:font-semibold transition-all duration-200 hover:bg-background/80"
+          >
+            Goods Receipt Notes
+            {activeTab === 'grn' && (
+              <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 w-8 h-0.5 bg-primary-foreground rounded-full" />
+            )}
+          </TabsTrigger>
+          <TabsTrigger 
+            value="debit-notes" 
+            className="relative data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary data-[state=active]:to-primary/90 data-[state=active]:text-primary-foreground data-[state=active]:shadow-lg data-[state=active]:shadow-primary/25 data-[state=active]:border data-[state=active]:border-primary/20 data-[state=active]:font-semibold transition-all duration-200 hover:bg-background/80"
+          >
+            Debit Notes
+            {activeTab === 'debit-notes' && (
+              <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 w-8 h-0.5 bg-primary-foreground rounded-full" />
+            )}
+          </TabsTrigger>
+          <TabsTrigger 
+            value="supplier-credit-notes" 
+            className="relative data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary data-[state=active]:to-primary/90 data-[state=active]:text-primary-foreground data-[state=active]:shadow-lg data-[state=active]:shadow-primary/25 data-[state=active]:border data-[state=active]:border-primary/20 data-[state=active]:font-semibold transition-all duration-200 hover:bg-background/80"
+          >
+            Supplier Credit Notes
+            {activeTab === 'supplier-credit-notes' && (
+              <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 w-8 h-0.5 bg-primary-foreground rounded-full" />
+            )}
+          </TabsTrigger>
         </TabsList>
 
         {/* Suppliers Tab */}
