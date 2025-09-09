@@ -126,7 +126,9 @@ export const LocationSearchBox = ({ value, onChange, onRefresh }: LocationSearch
   };
 
   const handleBinChange = (binId: string) => {
-    onChange({ warehouse: value.warehouse, bin: binId });
+    // Handle "all-bins" selection as empty string internally
+    const actualBinId = binId === 'all-bins' ? '' : binId;
+    onChange({ warehouse: value.warehouse, bin: actualBinId });
   };
 
   const handleClear = () => {
@@ -190,12 +192,12 @@ export const LocationSearchBox = ({ value, onChange, onRefresh }: LocationSearch
             <Package className="h-4 w-4 text-accent" />
             Bin Location
           </label>
-          <Select value={value.bin} onValueChange={handleBinChange}>
+          <Select value={value.bin || 'all-bins'} onValueChange={handleBinChange}>
             <SelectTrigger className="h-12">
               <SelectValue placeholder="Select bin location..." />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">All Bins in Warehouse</SelectItem>
+              <SelectItem value="all-bins">All Bins in Warehouse</SelectItem>
               {availableBins.map((bin) => (
                 <SelectItem key={bin.bin_id} value={bin.bin_id}>
                   <div className="flex items-center justify-between w-full">
