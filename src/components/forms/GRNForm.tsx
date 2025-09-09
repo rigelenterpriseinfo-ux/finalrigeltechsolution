@@ -8,10 +8,29 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { Badge } from '@/components/ui/badge';
+import { Separator } from '@/components/ui/separator';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
-import { CalendarIcon, Plus, Trash2 } from 'lucide-react';
+import { 
+  CalendarIcon, 
+  Plus, 
+  Trash2, 
+  FileText, 
+  Package, 
+  Warehouse, 
+  Calculator, 
+  ClipboardCheck, 
+  Building, 
+  CheckCircle2, 
+  AlertTriangle,
+  Info,
+  MapPin,
+  ShoppingCart
+} from 'lucide-react';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { format } from 'date-fns';
@@ -1326,7 +1345,5 @@ export function GRNForm({ grn, onSubmit, onCancel, readOnly = false, mode }: GRN
         </form>
       </Form>
     </div>
-  );
-}
   );
 }
