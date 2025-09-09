@@ -117,33 +117,34 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({
   };
 
   return (
-    <form onSubmit={handleSubmit(onFormSubmit)} className="space-y-6">
-      {/* Basic Information */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Basic Information</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 gap-4">
-            <div>
-              <Label htmlFor="customer_ref">Customer ID</Label>
-              <Input
-                id="customer_ref"
-                {...register('customer_ref')}
-                placeholder="Auto-generated after submission"
-                disabled={true}
-                className="bg-muted"
-              />
-              <p className="text-xs text-muted-foreground mt-1">
-                Format: First 4 letters of customer name + unique number (starting from 1001)
-              </p>
-            </div>
+    <div className="w-full max-w-[95vw] md:max-w-4xl lg:max-w-6xl mx-auto">
+      <form onSubmit={handleSubmit(onFormSubmit)} className="space-y-4 md:space-y-6">
+        {/* Basic Information */}
+        <Card>
+          <CardHeader className="pb-3 md:pb-6">
+            <CardTitle className="text-lg md:text-xl">Basic Information</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 gap-4">
+              <div>
+                <Label htmlFor="customer_ref">Customer ID</Label>
+                <Input
+                  id="customer_ref"
+                  {...register('customer_ref')}
+                  placeholder="Auto-generated after submission"
+                  disabled={true}
+                  className="bg-muted min-h-[48px] text-base"
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Format: First 4 letters of customer name + unique number (starting from 1001)
+                </p>
+              </div>
             <div>
               <Label htmlFor="name">Customer Name / Company Name *</Label>
               <Input
                 id="name"
                 {...register('name', { required: 'Customer name is required' })}
-                className={errors.name ? 'border-destructive' : ''}
+                className={`min-h-[48px] text-base ${errors.name ? 'border-destructive' : ''}`}
                 disabled={!canEdit}
               />
               {errors.name && (
@@ -186,27 +187,30 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({
         </CardContent>
       </Card>
 
-      {/* Contact Information */}
-      <Card>
-        <CardHeader>
-          <CardTitle>✅ Contact Information</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 gap-4">
+        {/* Contact Information */}
+        <Card>
+          <CardHeader className="pb-3 md:pb-6">
+            <CardTitle className="text-lg md:text-xl">✅ Contact Information</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 gap-4">
             <div>
               <Label htmlFor="contact_person">Primary Contact Person Name</Label>
-              <Input
-                id="contact_person"
-                {...register('contact_person')}
-                disabled={!canEdit}
-              />
+                <Input
+                  id="contact_person"
+                  {...register('contact_person')}
+                  disabled={!canEdit}
+                  className="min-h-[48px] text-base"
+                />
             </div>
             <div>
               <Label htmlFor="phone">Phone / Mobile</Label>
               <Input
                 id="phone"
+                type="tel"
                 {...register('phone')}
                 disabled={!canEdit}
+                className="min-h-[48px] text-base"
               />
             </div>
             <div>
@@ -216,6 +220,7 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({
                 type="email"
                 {...register('email')}
                 disabled={!canEdit}
+                className="min-h-[48px] text-base"
               />
             </div>
             <div>
@@ -239,14 +244,15 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({
         <CardContent className="space-y-6">
           {/* Billing Address */}
           <div>
-            <h4 className="font-medium mb-3">Billing Address</h4>
-            <div className="grid grid-cols-1 gap-4">
+            <h4 className="font-medium mb-3 text-base md:text-lg">Billing Address</h4>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="md:col-span-2">
                 <Label htmlFor="address_line1">Address Line 1</Label>
                 <Input
                   id="address_line1"
                   {...register('address_line1')}
                   disabled={!canEdit}
+                  className="min-h-[48px] text-base"
                 />
               </div>
               <div className="md:col-span-2">
@@ -296,19 +302,20 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({
           {/* Shipping Address */}
           <div>
             <div className="flex items-center space-x-2 mb-3">
-              <h4 className="font-medium">Shipping / Delivery Address (if different)</h4>
+              <h4 className="font-medium text-base md:text-lg">Shipping / Delivery Address (if different)</h4>
             </div>
-            <div className="flex items-center space-x-2 mb-4">
+            <div className="flex items-center space-x-3 mb-4">
               <Switch
                 id="same_as_registered"
                 checked={sameAsRegistered}
                 onCheckedChange={setSameAsRegistered}
                 disabled={!canEdit}
+                className="data-[state=checked]:bg-primary"
               />
-              <Label htmlFor="same_as_registered">Same as billing address</Label>
+              <Label htmlFor="same_as_registered" className="text-base cursor-pointer">Same as billing address</Label>
             </div>
             
-            <div className="grid grid-cols-1 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="md:col-span-2">
                 <Label htmlFor="shipping_address_line1">Address Line 1</Label>
                 <Input
@@ -380,13 +387,14 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({
           <CardTitle>✅ Financial & Tax Details</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <Label htmlFor="gstin">GSTIN (depending on country)</Label>
               <Input
                 id="gstin"
                 {...register('gstin')}
                 disabled={!canEdit}
+                className="min-h-[48px] text-base"
               />
             </div>
             <div>
@@ -461,8 +469,8 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({
 
           {/* Bank Details */}
           <div className="mt-6">
-            <h4 className="font-medium mb-3">Bank Details (if needed)</h4>
-            <div className="grid grid-cols-1 gap-4">
+            <h4 className="font-medium mb-3 text-base md:text-lg">Bank Details (if needed)</h4>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="bank_name">Bank Name</Label>
                 <Input

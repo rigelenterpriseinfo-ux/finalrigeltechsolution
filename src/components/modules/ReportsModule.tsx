@@ -154,15 +154,15 @@ export function ReportsModule() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 md:space-y-6">
       {/* Header */}
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold">Reports & Analytics</h1>
-          <p className="text-muted-foreground">Business insights and performance metrics</p>
+          <h1 className="text-2xl md:text-3xl font-bold">Reports & Analytics</h1>
+          <p className="text-muted-foreground text-sm md:text-base">Business insights and performance metrics</p>
         </div>
         <Select value={timeRange} onValueChange={setTimeRange}>
-          <SelectTrigger className="w-48">
+          <SelectTrigger className="w-full sm:w-48 min-h-[48px]">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -174,7 +174,7 @@ export function ReportsModule() {
       </div>
 
       {/* Key Metrics */}
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-5">
+      <div className="grid gap-3 md:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-5">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Products</CardTitle>
@@ -232,19 +232,19 @@ export function ReportsModule() {
       </div>
 
       {/* Charts */}
-      <div className="grid gap-6 md:grid-cols-2">
+      <div className="grid gap-4 md:gap-6 grid-cols-1 lg:grid-cols-2">
         {/* Sales Trend */}
         <Card>
-          <CardHeader>
-            <CardTitle>Revenue Trend</CardTitle>
-            <CardDescription>Daily revenue over the selected period</CardDescription>
+          <CardHeader className="pb-3 md:pb-6">
+            <CardTitle className="text-lg md:text-xl">Revenue Trend</CardTitle>
+            <CardDescription className="text-sm">Daily revenue over the selected period</CardDescription>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
+            <ResponsiveContainer width="100%" height={250}>
               <LineChart data={salesData}>
                 <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="date" />
-                <YAxis />
+                <XAxis dataKey="date" fontSize={12} />
+                <YAxis fontSize={12} />
                 <Tooltip formatter={(value) => [`$${value}`, 'Revenue']} />
                 <Line type="monotone" dataKey="revenue" stroke="#8884d8" strokeWidth={2} />
               </LineChart>
@@ -254,16 +254,16 @@ export function ReportsModule() {
 
         {/* Top Products */}
         <Card>
-          <CardHeader>
-            <CardTitle>Top Products by Sales</CardTitle>
-            <CardDescription>Best performing products</CardDescription>
+          <CardHeader className="pb-3 md:pb-6">
+            <CardTitle className="text-lg md:text-xl">Top Products by Sales</CardTitle>
+            <CardDescription className="text-sm">Best performing products</CardDescription>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
+            <ResponsiveContainer width="100%" height={250}>
               <BarChart data={topProducts}>
                 <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="name" />
-                <YAxis />
+                <XAxis dataKey="name" fontSize={12} />
+                <YAxis fontSize={12} />
                 <Tooltip formatter={(value) => [value, 'Sales']} />
                 <Bar dataKey="sales" fill="#8884d8" />
               </BarChart>
@@ -274,15 +274,15 @@ export function ReportsModule() {
 
       {/* Order Status Distribution */}
       <Card>
-        <CardHeader>
-          <CardTitle>Order Status Distribution</CardTitle>
-          <CardDescription>Breakdown of order statuses</CardDescription>
+        <CardHeader className="pb-3 md:pb-6">
+          <CardTitle className="text-lg md:text-xl">Order Status Distribution</CardTitle>
+          <CardDescription className="text-sm">Breakdown of order statuses</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <div>
               <h4 className="text-sm font-medium mb-4">Sales Orders</h4>
-              <ResponsiveContainer width="100%" height={200}>
+              <ResponsiveContainer width="100%" height={180}>
                 <PieChart>
                   <Pie
                     data={[
@@ -293,7 +293,7 @@ export function ReportsModule() {
                     ]}
                     cx="50%"
                     cy="50%"
-                    outerRadius={80}
+                    outerRadius={60}
                     fill="#8884d8"
                     dataKey="value"
                     label
@@ -314,7 +314,7 @@ export function ReportsModule() {
             
             <div>
               <h4 className="text-sm font-medium mb-4">Purchase Orders</h4>
-              <ResponsiveContainer width="100%" height={200}>
+              <ResponsiveContainer width="100%" height={180}>
                 <PieChart>
                   <Pie
                     data={[
@@ -325,7 +325,7 @@ export function ReportsModule() {
                     ]}
                     cx="50%"
                     cy="50%"
-                    outerRadius={80}
+                    outerRadius={60}
                     fill="#8884d8"
                     dataKey="value"
                     label
@@ -349,16 +349,16 @@ export function ReportsModule() {
 
       {/* Export Options */}
       <Card>
-        <CardHeader>
-          <CardTitle>Export Reports</CardTitle>
-          <CardDescription>Download detailed reports for analysis</CardDescription>
+        <CardHeader className="pb-3 md:pb-6">
+          <CardTitle className="text-lg md:text-xl">Export Reports</CardTitle>
+          <CardDescription className="text-sm">Download detailed reports for analysis</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="flex flex-wrap gap-4">
-            <Button variant="outline">Export Inventory Report</Button>
-            <Button variant="outline">Export Sales Report</Button>
-            <Button variant="outline">Export Purchase Report</Button>
-            <Button variant="outline">Export Financial Summary</Button>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            <Button variant="outline" className="min-h-[48px] text-sm">Export Inventory Report</Button>
+            <Button variant="outline" className="min-h-[48px] text-sm">Export Sales Report</Button>
+            <Button variant="outline" className="min-h-[48px] text-sm">Export Purchase Report</Button>
+            <Button variant="outline" className="min-h-[48px] text-sm">Export Financial Summary</Button>
           </div>
         </CardContent>
       </Card>
