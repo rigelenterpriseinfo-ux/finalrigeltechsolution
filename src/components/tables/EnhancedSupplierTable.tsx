@@ -132,42 +132,66 @@ export const EnhancedSupplierTable: React.FC<EnhancedSupplierTableProps> = ({
   // Check for supplier transactions
   useEffect(() => {
     const checkSupplierTransactions = async () => {
-      if (!profile?.company_id || suppliers.length === 0) return;
+      if (!profile?.company_id || suppliers.length === 0) {
+        console.log('SupplierTable: Skipping transaction check - no company_id or suppliers', { 
+          company_id: profile?.company_id, 
+          suppliers_count: suppliers.length 
+        });
+        return;
+      }
       
       const supplierIds = suppliers.map(s => s.id);
       const suppliersWithTxns = new Set<string>();
       
+      console.log('SupplierTable: Checking transactions for suppliers:', supplierIds);
+      
       try {
         // Check for purchase orders
-        const { data: poData } = await supabase
+        const { data: poData, error: poError } = await supabase
           .from('purchase_orders')
           .select('supplier_id')
           .eq('company_id', profile.company_id)
           .in('supplier_id', supplierIds);
         
-        poData?.forEach(po => suppliersWithTxns.add(po.supplier_id));
+        if (poError) {
+          console.error('SupplierTable: Error checking purchase orders:', poError);
+        } else {
+          console.log('SupplierTable: Found purchase orders:', poData);
+          poData?.forEach(po => suppliersWithTxns.add(po.supplier_id));
+        }
         
         // Check for GRNs
-        const { data: grnData } = await supabase
+        const { data: grnData, error: grnError } = await supabase
           .from('grn_header')
           .select('supplier_id')
           .eq('company_id', profile.company_id)
           .in('supplier_id', supplierIds);
         
-        grnData?.forEach(grn => suppliersWithTxns.add(grn.supplier_id));
+        if (grnError) {
+          console.error('SupplierTable: Error checking GRNs:', grnError);
+        } else {
+          console.log('SupplierTable: Found GRNs:', grnData);
+          grnData?.forEach(grn => suppliersWithTxns.add(grn.supplier_id));
+        }
         
         // Check for debit notes
-        const { data: dnData } = await supabase
+        const { data: dnData, error: dnError } = await supabase
           .from('debit_notes')
           .select('supplier_id')
           .eq('company_id', profile.company_id)
           .in('supplier_id', supplierIds);
         
-        dnData?.forEach(dn => suppliersWithTxns.add(dn.supplier_id));
+        if (dnError) {
+          console.error('SupplierTable: Error checking debit notes:', dnError);
+        } else {
+          console.log('SupplierTable: Found debit notes:', dnData);
+          dnData?.forEach(dn => suppliersWithTxns.add(dn.supplier_id));
+        }
         
+        console.log('SupplierTable: Final suppliers with transactions:', Array.from(suppliersWithTxns));
         setSuppliersWithTransactions(suppliersWithTxns);
       } catch (error) {
-        console.error('Error checking supplier transactions:', error);
+        console.error('SupplierTable: Error checking supplier transactions:', error);
       }
     };
     
@@ -231,6 +255,13 @@ export const EnhancedSupplierTable: React.FC<EnhancedSupplierTableProps> = ({
   const totalPages = Math.ceil(sortedSuppliers.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const paginatedSuppliers = sortedSuppliers.slice(startIndex, startIndex + itemsPerPage);
+
+  // Debug logging for transaction protection
+  console.log('SupplierTable: Current state:', {
+    totalSuppliers: suppliers.length,
+    suppliersWithTransactions: Array.from(suppliersWithTransactions),
+    paginatedSuppliers: paginatedSuppliers.map(s => ({ id: s.id, name: s.name }))
+  });
 
   // Sorting functions
   const handleSort = (field: SortField) => {
@@ -544,7 +575,10 @@ export const EnhancedSupplierTable: React.FC<EnhancedSupplierTableProps> = ({
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => onDelete(supplier.id)}
+                          onClick={() => {
+                            console.log('SupplierTable: Delete button clicked for supplier:', supplier.id, 'Has transactions:', suppliersWithTransactions.has(supplier.id));
+                            onDelete(supplier.id);
+                          }}
                           disabled={suppliersWithTransactions.has(supplier.id)}
                           className="h-8 w-8 p-0 hover:bg-red-100 hover:text-red-600 dark:hover:bg-red-900/20 dark:hover:text-red-400 disabled:opacity-50 disabled:cursor-not-allowed"
                           title={suppliersWithTransactions.has(supplier.id) ? "Cannot delete supplier with existing transactions" : "Delete supplier"}
