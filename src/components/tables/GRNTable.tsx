@@ -628,55 +628,37 @@ export function GRNTable({ refreshTrigger, onView, onEdit, onDelete }: GRNTableP
                       <TableCell className="text-muted-foreground">{grn.supplier_invoice_number || '-'}</TableCell>
                       <TableCell>{getStatusBadge(grn.status)}</TableCell>
                       <TableCell className="text-right font-semibold">₹{grn.total_amount.toLocaleString()}</TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-1.5 justify-center flex-wrap">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => onView(grn)}
-                            className="h-8 w-8 p-0 border-blue-200 bg-blue-50 hover:bg-blue-100 hover:border-blue-300 text-blue-700 transition-all duration-200"
-                            title="View GRN Details"
-                          >
-                            <Eye className="h-3.5 w-3.5" />
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => onEdit(grn)}
-                            className="h-8 w-8 p-0 border-emerald-200 bg-emerald-50 hover:bg-emerald-100 hover:border-emerald-300 text-emerald-700 transition-all duration-200"
-                            title="Edit GRN"
-                          >
-                            <Edit className="h-3.5 w-3.5" />
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => onDelete(grn.id)}
-                            className="h-8 w-8 p-0 border-red-200 bg-red-50 hover:bg-red-100 hover:border-red-300 text-red-700 transition-all duration-200"
-                            title="Delete GRN"
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => exportToExcel(grn)}
-                            className="h-8 w-8 p-0 border-green-200 bg-green-50 hover:bg-green-100 hover:border-green-300 text-green-700 transition-all duration-200"
-                            title="Export to Excel Spreadsheet"
-                          >
-                            <FileSpreadsheet className="h-3.5 w-3.5" />
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => exportToPDF(grn)}
-                            className="h-8 w-8 p-0 border-purple-200 bg-purple-50 hover:bg-purple-100 hover:border-purple-300 text-purple-700 transition-all duration-200"
-                            title="Export to PDF Document"
-                          >
-                            <Download className="h-3.5 w-3.5" />
-                          </Button>
-                        </div>
-                      </TableCell>
+                       <TableCell>
+                         <div className="flex items-center gap-1.5 justify-center flex-wrap">
+                           <Button
+                             variant="outline"
+                             size="sm"
+                             onClick={() => onView(grn)}
+                             className="h-8 w-8 p-0 border-blue-200 bg-blue-50 hover:bg-blue-100 hover:border-blue-300 text-blue-700 transition-all duration-200"
+                             title="View GRN Details"
+                           >
+                             <Eye className="h-3.5 w-3.5" />
+                           </Button>
+                           <Button
+                             variant="outline"
+                             size="sm"
+                             onClick={() => exportToExcel(grn)}
+                             className="h-8 w-8 p-0 border-green-200 bg-green-50 hover:bg-green-100 hover:border-green-300 text-green-700 transition-all duration-200"
+                             title="Export to Excel Spreadsheet"
+                           >
+                             <FileSpreadsheet className="h-3.5 w-3.5" />
+                           </Button>
+                           <Button
+                             variant="outline"
+                             size="sm"
+                             onClick={() => exportToPDF(grn)}
+                             className="h-8 w-8 p-0 border-purple-200 bg-purple-50 hover:bg-purple-100 hover:border-purple-300 text-purple-700 transition-all duration-200"
+                             title="Export to PDF Document"
+                           >
+                             <Download className="h-3.5 w-3.5" />
+                           </Button>
+                         </div>
+                       </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
