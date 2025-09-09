@@ -6,7 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Trash2, Plus } from "lucide-react";
+import { Trash2 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { ProductSearch } from "@/components/ui/product-search";
 
@@ -257,30 +257,6 @@ export function SupplierCreditNoteForm({ supplierCreditNote, onSubmit, onCancel,
     setItems(newItems);
   };
 
-  const addItem = () => {
-    setItems([...items, {
-      product_id: "",
-      product_name: "",
-      product_sku: "",
-      quantity: 1,
-      credit_note_quantity: 0,
-      pending_quantity: 1,
-      unit_price: 0,
-      discount_percentage: 0,
-      discount_amount: 0,
-      cgst_rate: 0,
-      sgst_rate: 0,
-      igst_rate: 0,
-      cgst_amount: 0,
-      sgst_amount: 0,
-      igst_amount: 0,
-      tax_amount: 0,
-      line_subtotal: 0,
-      line_total: 0,
-      unit_of_measure: "pcs",
-      hsn_sac_code: ""
-    }]);
-  };
 
   const removeItem = (index: number) => {
     if (items.length > 1) {
@@ -428,10 +404,6 @@ export function SupplierCreditNoteForm({ supplierCreditNote, onSubmit, onCancel,
                 Inter-State (IGST)
               </Button>
             </div>
-            <Button type="button" onClick={addItem} size="sm" className="gap-1">
-              <Plus className="h-4 w-4" />
-              Add Item
-            </Button>
           </div>
         </div>
 
