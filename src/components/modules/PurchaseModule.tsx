@@ -77,6 +77,7 @@ function PurchaseModuleContent() {
       const [debitNotes, setDebitNotes] = useState<any[]>([]);
   const [supplierCreditNotes, setSupplierCreditNotes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState('suppliers');
   
   // Stats state
   const [stats, setStats] = useState({
@@ -611,13 +612,18 @@ function PurchaseModuleContent() {
     <div className="space-y-6">
       {/* Stats Dashboard */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <StatsCard
-          title="Open Purchase Orders"
-          value={stats.openPOs.count}
-          subtitle={`₹${stats.openPOs.value.toLocaleString()}`}
-          icon={ShoppingCart}
-          variant="primary"
-        />
+        <div 
+          className="cursor-pointer transition-transform hover:scale-105"
+          onClick={() => setActiveTab('purchase-orders')}
+        >
+          <StatsCard
+            title="Open Purchase Orders"
+            value={stats.openPOs.count}
+            subtitle={`₹${stats.openPOs.value.toLocaleString()}`}
+            icon={ShoppingCart}
+            variant="primary"
+          />
+        </div>
         
         <StatsCard
           title="Recent GRNs (15 days)"
@@ -639,7 +645,7 @@ function PurchaseModuleContent() {
         />
       </div>
 
-      <Tabs defaultValue="suppliers" className="w-full">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="suppliers">Suppliers</TabsTrigger>
           <TabsTrigger value="purchase-orders">Purchase Orders</TabsTrigger>
