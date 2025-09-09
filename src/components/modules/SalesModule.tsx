@@ -719,8 +719,8 @@ export default function SalesModule() {
         if (itemsError) throw itemsError;
         
         // Create backorder entries if there are any backorder quantities
-        if (data.items && newOrder) {
-          await createBackorderEntries(newOrder.id, data.customer_id, data.items);
+        if (lineItems && !editingSalesOrder) {
+          await createBackorderEntries(result.id, orderData.customer_id, lineItems);
         }
       }
 
