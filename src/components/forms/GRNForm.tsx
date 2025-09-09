@@ -1076,36 +1076,36 @@ export function GRNForm({ grn, onSubmit, onCancel, readOnly = false, mode }: GRN
                           <Table>
                             <TableHeader>
                               <TableRow className="bg-muted/50 border-b">
-                                <TableHead className="text-left font-semibold text-foreground border-r text-xs">Product</TableHead>
-                                <TableHead className="text-center font-semibold text-foreground border-r w-20 text-xs">Ord Qty</TableHead>
-                                <TableHead className="text-center font-semibold text-foreground border-r w-18 text-xs">Total Rec</TableHead>
-                                <TableHead className="text-center font-semibold text-foreground border-r w-18 text-xs">Pending</TableHead>
-                                <TableHead className="text-center font-semibold text-foreground border-r w-18 text-xs">Rec Qty</TableHead>
-                                <TableHead className="text-center font-semibold text-foreground border-r w-18 text-xs">Acc Qty</TableHead>
-                                <TableHead className="text-center font-semibold text-foreground border-r w-18 text-xs">Rej Qty</TableHead>
-                                <TableHead className="text-center font-semibold text-foreground border-r w-20 text-xs">Unit Price</TableHead>
-                                <TableHead className="text-center font-semibold text-foreground border-r w-16 text-xs">Disc%</TableHead>
-                                <TableHead className="text-center font-semibold text-foreground border-r w-20 text-xs">Disc Value</TableHead>
+                                <TableHead className="text-left font-semibold text-foreground border-r min-w-[180px] text-xs">Product</TableHead>
+                                <TableHead className="text-center font-semibold text-foreground border-r w-[70px] text-xs">Ord Qty</TableHead>
+                                <TableHead className="text-center font-semibold text-foreground border-r w-[70px] text-xs">Total Rec</TableHead>
+                                <TableHead className="text-center font-semibold text-foreground border-r w-[70px] text-xs">Pending</TableHead>
+                                <TableHead className="text-center font-semibold text-foreground border-r w-[70px] text-xs">Rec Qty</TableHead>
+                                <TableHead className="text-center font-semibold text-foreground border-r w-[70px] text-xs">Acc Qty</TableHead>
+                                <TableHead className="text-center font-semibold text-foreground border-r w-[70px] text-xs">Rej Qty</TableHead>
+                                <TableHead className="text-center font-semibold text-foreground border-r w-[90px] text-xs">Unit Price</TableHead>
+                                <TableHead className="text-center font-semibold text-foreground border-r w-[65px] text-xs">Disc%</TableHead>
+                                <TableHead className="text-center font-semibold text-foreground border-r w-[80px] text-xs">Disc Value</TableHead>
                                 {shouldShowCGSTSGST && (
                                   <>
-                                    <TableHead className="text-center font-semibold text-foreground border-r w-16 text-xs">CGST%</TableHead>
-                                    <TableHead className="text-center font-semibold text-foreground border-r w-16 text-xs">SGST%</TableHead>
+                                    <TableHead className="text-center font-semibold text-foreground border-r w-[65px] text-xs">CGST%</TableHead>
+                                    <TableHead className="text-center font-semibold text-foreground border-r w-[65px] text-xs">SGST%</TableHead>
                                   </>
                                 )}
                                 {shouldShowIGST && (
-                                  <TableHead className="text-center font-semibold text-foreground border-r w-16 text-xs">IGST%</TableHead>
+                                  <TableHead className="text-center font-semibold text-foreground border-r w-[65px] text-xs">IGST%</TableHead>
                                 )}
-                                <TableHead className="text-center font-semibold text-foreground border-r w-20 text-xs">GST Value</TableHead>
-                                <TableHead className="text-right font-semibold text-foreground w-24 text-xs">Line Total</TableHead>
+                                <TableHead className="text-center font-semibold text-foreground border-r w-[80px] text-xs">GST Value</TableHead>
+                                <TableHead className="text-right font-semibold text-foreground w-[100px] text-xs">Line Total</TableHead>
                               </TableRow>
                             </TableHeader>
                             <TableBody>
                               {items.map((item: any, index: number) => (
                                 <TableRow key={index} className="hover:bg-muted/30 transition-colors border-b">
                                   {/* Product */}
-                                  <TableCell className="border-r p-2">
+                                  <TableCell className="border-r p-2 min-w-[180px]">
                                     <div className="space-y-0.5">
-                                      <div className="font-medium text-xs">{item.product_name || 'Unknown Product'}</div>
+                                      <div className="font-medium text-xs leading-tight">{item.product_name || 'Unknown Product'}</div>
                                       <div className="text-xs text-muted-foreground">
                                         {item.product_sku || 'N/A'} | {item.unit_of_measure || 'PCS'}
                                       </div>
@@ -1113,31 +1113,31 @@ export function GRNForm({ grn, onSubmit, onCancel, readOnly = false, mode }: GRN
                                   </TableCell>
                                   
                                   {/* Ordered Qty */}
-                                  <TableCell className="border-r p-2 text-center">
+                                  <TableCell className="border-r p-1 text-center w-[70px]">
                                     <Input
                                       type="number"
                                       value={item.ordered_quantity || 0}
                                       disabled
-                                      className="bg-muted/30 text-xs text-center h-7 w-16 border-0"
+                                      className="bg-muted/30 text-xs text-center h-7 w-full border-0"
                                     />
                                   </TableCell>
 
                                   {/* Total Received So Far */}
-                                  <TableCell className="border-r p-2 text-center">
-                                    <div className="text-xs text-center h-7 w-14 bg-blue-50 border border-blue-200 rounded px-1 py-1 font-medium text-blue-700 flex items-center justify-center">
+                                  <TableCell className="border-r p-1 text-center w-[70px]">
+                                    <div className="text-xs text-center h-7 w-full bg-blue-50 border border-blue-200 rounded px-1 py-1 font-medium text-blue-700 flex items-center justify-center">
                                       {item.cumulative_received || 0}
                                     </div>
                                   </TableCell>
 
                                   {/* Pending Qty */}
-                                  <TableCell className="border-r p-2 text-center">
-                                    <div className="text-xs text-center h-7 w-14 bg-orange-50 border border-orange-200 rounded px-1 py-1 font-medium text-orange-700 flex items-center justify-center">
+                                  <TableCell className="border-r p-1 text-center w-[70px]">
+                                    <div className="text-xs text-center h-7 w-full bg-orange-50 border border-orange-200 rounded px-1 py-1 font-medium text-orange-700 flex items-center justify-center">
                                       {calculatePendingQty(item.ordered_quantity || 0, item.cumulative_received || 0)}
                                     </div>
                                   </TableCell>
 
                                    {/* Received Qty */}
-                                   <TableCell className="border-r p-2 text-center relative">
+                                   <TableCell className="border-r p-1 text-center relative w-[70px]">
                                      <div className="space-y-1">
                                        <Input
                                          type="number"
@@ -1165,7 +1165,7 @@ export function GRNForm({ grn, onSubmit, onCancel, readOnly = false, mode }: GRN
                                          }}
                                          disabled={readOnly}
                                          className={cn(
-                                           "text-xs text-center h-7 w-16 transition-colors",
+                                           "text-xs text-center h-7 w-full transition-colors",
                                            form.formState.errors.items?.[index]?.received_quantity
                                              ? "border-red-500 bg-red-50 focus:border-red-500 focus:ring-red-200" 
                                              : (item.received_quantity || 0) > 0 
@@ -1185,7 +1185,7 @@ export function GRNForm({ grn, onSubmit, onCancel, readOnly = false, mode }: GRN
                                    </TableCell>
 
                                   {/* Accepted Qty */}
-                                  <TableCell className="border-r p-2 text-center">
+                                  <TableCell className="border-r p-1 text-center w-[70px]">
                                     <Input
                                       type="number"
                                       min="0"
@@ -1199,12 +1199,12 @@ export function GRNForm({ grn, onSubmit, onCancel, readOnly = false, mode }: GRN
                                         calculateItemTotals(index);
                                       }}
                                       disabled={readOnly}
-                                      className="text-xs text-center h-7 w-14 border-green-200 focus:border-green-400 bg-green-50"
+                                      className="text-xs text-center h-7 w-full border-green-200 focus:border-green-400 bg-green-50"
                                     />
                                   </TableCell>
 
                                   {/* Rejected Qty */}
-                                  <TableCell className="border-r p-2 text-center">
+                                  <TableCell className="border-r p-1 text-center w-[70px]">
                                     <Input
                                       type="number"
                                       min="0"
@@ -1217,12 +1217,12 @@ export function GRNForm({ grn, onSubmit, onCancel, readOnly = false, mode }: GRN
                                         validateQuantities(index);
                                       }}
                                       disabled={readOnly}
-                                      className="text-xs text-center h-7 w-14 border-red-200 focus:border-red-400 bg-red-50"
+                                      className="text-xs text-center h-7 w-full border-red-200 focus:border-red-400 bg-red-50"
                                     />
                                   </TableCell>
 
                                   {/* Unit Price */}
-                                  <TableCell className="border-r p-2 text-center">
+                                  <TableCell className="border-r p-1 text-center w-[90px]">
                                     <Input
                                       type="number"
                                       step="0.01"
@@ -1234,12 +1234,12 @@ export function GRNForm({ grn, onSubmit, onCancel, readOnly = false, mode }: GRN
                                         calculateItemTotals(index);
                                       }}
                                       disabled={readOnly}
-                                      className="text-xs text-center h-7 w-18 font-medium"
+                                      className="text-xs text-center h-7 w-full font-medium"
                                     />
                                   </TableCell>
 
                                   {/* Disc% */}
-                                  <TableCell className="border-r p-2 text-center">
+                                  <TableCell className="border-r p-1 text-center w-[65px]">
                                     <Input
                                       type="number"
                                       step="0.01"
@@ -1254,12 +1254,12 @@ export function GRNForm({ grn, onSubmit, onCancel, readOnly = false, mode }: GRN
                                         calculateItemTotals(index);
                                       }}
                                       disabled={readOnly}
-                                      className="text-xs text-center h-7 w-14"
+                                      className="text-xs text-center h-7 w-full"
                                     />
                                   </TableCell>
 
                                   {/* Disc Value */}
-                                  <TableCell className="border-r p-2 text-center">
+                                  <TableCell className="border-r p-1 text-center w-[80px]">
                                     <Input
                                       type="number"
                                       step="0.01"
@@ -1273,7 +1273,7 @@ export function GRNForm({ grn, onSubmit, onCancel, readOnly = false, mode }: GRN
                                         calculateItemTotals(index);
                                       }}
                                       disabled={readOnly}
-                                      className="text-xs text-center h-7 w-18"
+                                      className="text-xs text-center h-7 w-full"
                                     />
                                   </TableCell>
 
@@ -1281,7 +1281,7 @@ export function GRNForm({ grn, onSubmit, onCancel, readOnly = false, mode }: GRN
                                   {shouldShowCGSTSGST && (
                                     <>
                                       {/* CGST% */}
-                                      <TableCell className="border-r p-2 text-center">
+                                      <TableCell className="border-r p-1 text-center w-[65px]">
                                         <Input
                                           type="number"
                                           step="0.01"
@@ -1294,12 +1294,12 @@ export function GRNForm({ grn, onSubmit, onCancel, readOnly = false, mode }: GRN
                                             calculateItemTotals(index);
                                           }}
                                           disabled={readOnly}
-                                          className="text-xs text-center h-7 w-14"
+                                          className="text-xs text-center h-7 w-full"
                                         />
                                       </TableCell>
 
                                       {/* SGST% */}
-                                      <TableCell className="border-r p-2 text-center">
+                                      <TableCell className="border-r p-1 text-center w-[65px]">
                                         <Input
                                           type="number"
                                           step="0.01"
@@ -1312,7 +1312,7 @@ export function GRNForm({ grn, onSubmit, onCancel, readOnly = false, mode }: GRN
                                             calculateItemTotals(index);
                                           }}
                                           disabled={readOnly}
-                                          className="text-xs text-center h-7 w-14"
+                                          className="text-xs text-center h-7 w-full"
                                         />
                                       </TableCell>
                                     </>
@@ -1321,7 +1321,7 @@ export function GRNForm({ grn, onSubmit, onCancel, readOnly = false, mode }: GRN
                                   {shouldShowIGST && (
                                     <>
                                       {/* IGST% */}
-                                      <TableCell className="border-r p-2 text-center">
+                                      <TableCell className="border-r p-1 text-center w-[65px]">
                                         <Input
                                           type="number"
                                           step="0.01"
@@ -1334,21 +1334,21 @@ export function GRNForm({ grn, onSubmit, onCancel, readOnly = false, mode }: GRN
                                             calculateItemTotals(index);
                                           }}
                                           disabled={readOnly}
-                                          className="text-xs text-center h-7 w-14"
+                                          className="text-xs text-center h-7 w-full"
                                         />
                                       </TableCell>
                                     </>
                                   )}
 
                                   {/* GST Value */}
-                                  <TableCell className="border-r p-2 text-center">
-                                    <div className="text-xs font-medium">
+                                  <TableCell className="border-r p-1 text-center w-[80px]">
+                                    <div className="text-xs font-medium text-primary">
                                       ₹{((item.cgst_amount || 0) + (item.sgst_amount || 0) + (item.igst_amount || 0)).toFixed(2)}
                                     </div>
                                   </TableCell>
                                   
                                   {/* Line Total */}
-                                  <TableCell className="p-2 text-right">
+                                  <TableCell className="p-1 text-right w-[100px]">
                                     <div className="text-xs font-bold text-primary">
                                       ₹{(item.line_total || 0).toFixed(2)}
                                     </div>
