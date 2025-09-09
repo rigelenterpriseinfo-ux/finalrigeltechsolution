@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -29,6 +29,14 @@ export function SearchableCombobox({
 }: SearchableComboboxProps) {
   const [open, setOpen] = React.useState(false);
   const [searchValue, setSearchValue] = React.useState("");
+  const inputRef = React.useRef<HTMLInputElement>(null);
+
+  React.useEffect(() => {
+    if (open) {
+      // Ensure typing works immediately when opening the dropdown
+      setTimeout(() => inputRef.current?.focus(), 0);
+    }
+  }, [open]);
 
   const filteredOptions = React.useMemo(() => {
     if (!searchValue) return options;
@@ -63,15 +71,17 @@ export function SearchableCombobox({
         </Button>
       </PopoverTrigger>
       <PopoverContent 
-        className="z-[9999] w-[var(--radix-popover-trigger-width)] min-w-[20rem] p-0 bg-popover shadow-lg border rounded-md"
+        className="z-[9999] pointer-events-auto w-[var(--radix-popover-trigger-width)] min-w-[20rem] p-0 bg-popover shadow-lg border rounded-md"
         align="start"
         sideOffset={4}
       >
         <Command className="bg-popover">
           <CommandInput 
+            ref={inputRef}
             placeholder={searchPlaceholder}
             value={searchValue}
-            onValueChange={setSearchValue}
+            onValueChange={(v) => { console.debug("Supplier combobox search:", v); setSearchValue(v); }}
+            autoFocus
           />
           <CommandList>
             {loading ? (
