@@ -138,7 +138,10 @@ function PurchaseModuleContent() {
 
   const fetchPurchaseOrders = async () => {
     try {
+      console.log('=== PURCHASE ORDERS DEBUG ===');
       console.log('Fetching purchase orders for company:', profile?.company_id);
+      console.log('User auth state:', { user: !!user, profile: !!profile });
+      
       const { data, error } = await supabase
         .from('purchase_orders')
         .select(`
@@ -155,6 +158,7 @@ function PurchaseModuleContent() {
         throw error;
       }
       console.log('Purchase orders fetched:', data?.length, 'records');
+      console.log('First PO data:', data?.[0]);
       setPurchaseOrders(data || []);
     } catch (error) {
       console.error('Error fetching purchase orders:', error);
