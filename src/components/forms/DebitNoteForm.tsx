@@ -498,215 +498,225 @@ export function DebitNoteForm({ debitNote, onSubmit, onCancel, mode }: DebitNote
         </Card>
       )}
 
-      <Card>
-        <CardContent className="p-4">
-          <div className="flex justify-between items-center mb-4">
-            <h3 className="text-lg font-medium">Items</h3>
-            {!selectedInvoice && (
-              <Button type="button" onClick={addItem} variant="outline" size="sm">
-                <Plus className="h-4 w-4 mr-2" />
-                Add Item
-              </Button>
-            )}
+      <Card className="border-0 shadow-sm">
+        <CardContent className="p-0">
+          <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/20 dark:to-indigo-950/20 px-6 py-4 border-b">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2">
+                <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                Debit Note Items
+              </h3>
+              {!selectedInvoice && (
+                <Button 
+                  type="button" 
+                  onClick={addItem} 
+                  className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 shadow-sm"
+                >
+                  <Plus className="h-4 w-4" />
+                  Add Item
+                </Button>
+              )}
+            </div>
           </div>
 
-          <div className="space-y-4">
-            {items.map((item, index) => (
-              <div key={index} className="p-3 border rounded-lg">
-                <div className="grid grid-cols-12 gap-2 items-center mb-2">
-                  <div className="col-span-2">
-                    {!selectedInvoice ? (
-                      <div>
-                        <Label className="text-xs">Product *</Label>
-                        <ProductSearch
-                          value={item.product_id}
-                          onSelect={(product) => {
-                            handleItemChange(index, 'product_id', product.id);
-                            handleItemChange(index, 'product_name', product.name);
-                            handleItemChange(index, 'product_sku', product.sku);
-                            handleItemChange(index, 'unit_price', product.cost_price || 0);
-                          }}
-                          placeholder="Select product"
+          <div className="overflow-x-auto">
+            <div className="min-w-full">
+              {/* Table Header */}
+              <div className="bg-gray-50 dark:bg-gray-900/50 border-b grid grid-cols-12 gap-4 px-6 py-4 text-sm font-medium text-gray-700 dark:text-gray-300">
+                <div className="col-span-3">Product</div>
+                {selectedInvoice && <div className="col-span-1 text-center">Received</div>}
+                <div className={selectedInvoice ? "col-span-1 text-center" : "col-span-2 text-center"}>Quantity</div>
+                {selectedInvoice && <div className="col-span-1 text-center">Pending</div>}
+                <div className="col-span-1 text-center">Unit Price</div>
+                <div className="col-span-1 text-center">CGST%</div>
+                <div className="col-span-1 text-center">SGST%</div>
+                <div className="col-span-1 text-center">IGST%</div>
+                <div className="col-span-1 text-center">Disc%</div>
+                <div className="col-span-1 text-center">Line Total</div>
+                <div className="col-span-1 text-center">Action</div>
+              </div>
+
+              {/* Table Rows */}
+              <div className="divide-y divide-gray-100 dark:divide-gray-800">
+                {items.map((item, index) => (
+                  <div key={index} className="grid grid-cols-12 gap-4 px-6 py-4 hover:bg-gray-50/50 dark:hover:bg-gray-900/25 transition-colors">
+                    {/* Product Column */}
+                    <div className="col-span-3">
+                      {!selectedInvoice ? (
+                        <div className="space-y-1">
+                          <ProductSearch
+                            value={item.product_id}
+                            onSelect={(product) => {
+                              handleItemChange(index, 'product_id', product.id);
+                              handleItemChange(index, 'product_name', product.name);
+                              handleItemChange(index, 'product_sku', product.sku);
+                              handleItemChange(index, 'unit_price', product.cost_price || 0);
+                            }}
+                            placeholder="Select product"
+                          />
+                        </div>
+                      ) : (
+                        <div>
+                          <div className="font-medium text-gray-900 dark:text-gray-100">{item.product_name || "Product"}</div>
+                          <div className="text-sm text-gray-500 dark:text-gray-400">{item.product_sku}</div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Received Quantity (only for selected invoice) */}
+                    {selectedInvoice && (
+                      <div className="col-span-1">
+                        <div className="text-center py-2 px-3 bg-gray-50 dark:bg-gray-900 rounded-md border">
+                          <span className="font-medium text-gray-700 dark:text-gray-300">
+                            {item.received_quantity}
+                          </span>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Quantity */}
+                    <div className={selectedInvoice ? "col-span-1" : "col-span-2"}>
+                      <div className="relative">
+                        <Input
+                          type="number"
+                          min="1"
+                          max={selectedInvoice ? item.received_quantity : undefined}
+                          value={item.quantity}
+                          onChange={(e) => handleItemChange(index, 'quantity', parseInt(e.target.value) || 0)}
+                          className={`text-center font-medium border-blue-200 focus:border-blue-500 focus:ring-blue-500/20 ${
+                            selectedInvoice && item.quantity > item.received_quantity ? 'border-red-500 focus:border-red-500' : ''
+                          }`}
                         />
+                        {selectedInvoice && item.quantity > item.received_quantity && (
+                          <div className="text-xs text-red-500 mt-1 text-center">Exceeds received</div>
+                        )}
                       </div>
-                    ) : (
-                      <div>
-                        <div className="text-sm font-medium">{item.product_name || "Product"}</div>
-                        <div className="text-xs text-muted-foreground">{item.product_sku}</div>
+                    </div>
+
+                    {/* Pending Quantity (only for selected invoice) */}
+                    {selectedInvoice && (
+                      <div className="col-span-1">
+                        <div className="text-center py-2 px-3 bg-amber-50 dark:bg-amber-950/20 rounded-md border">
+                          <span className="font-medium text-amber-900 dark:text-amber-100">
+                            {Math.max(0, item.received_quantity - item.quantity)}
+                          </span>
+                        </div>
                       </div>
                     )}
-                  </div>
 
-                  {selectedInvoice && (
+                    {/* Unit Price */}
                     <div className="col-span-1">
-                      <Label className="text-xs">Received Qty</Label>
                       <Input
                         type="number"
-                        value={item.received_quantity}
-                        readOnly
-                        className="bg-muted text-xs"
+                        step="0.01"
+                        min="0"
+                        value={item.unit_price}
+                        onChange={(e) => handleItemChange(index, 'unit_price', parseFloat(e.target.value) || 0)}
+                        className="text-center"
                       />
                     </div>
-                  )}
 
-                  <div className={selectedInvoice ? "col-span-1" : "col-span-3"}>
-                    <Label className="text-xs">{selectedInvoice ? "Debit Qty *" : "Quantity *"}</Label>
-                    <Input
-                      type="number"
-                      min="1"
-                      max={selectedInvoice ? item.received_quantity : undefined}
-                      value={item.quantity}
-                      onChange={(e) => handleItemChange(index, 'quantity', parseInt(e.target.value) || 0)}
-                      placeholder="Qty"
-                      className={`text-xs ${selectedInvoice && item.quantity > item.received_quantity ? 'border-red-500' : ''}`}
-                    />
-                    {selectedInvoice && item.quantity > item.received_quantity && (
-                      <div className="text-xs text-red-500 mt-1">Exceeds received qty</div>
-                    )}
-                  </div>
-
-                  {selectedInvoice && (
+                    {/* CGST % */}
                     <div className="col-span-1">
-                      <Label className="text-xs">Pending Qty</Label>
                       <Input
                         type="number"
-                        value={Math.max(0, item.received_quantity - item.quantity)}
-                        readOnly
-                        className="bg-muted text-xs"
+                        min="0"
+                        max="50"
+                        step="0.01"
+                        value={item.cgst_rate}
+                        onChange={(e) => handleItemChange(index, 'cgst_rate', parseFloat(e.target.value) || 0)}
+                        className="text-center"
                       />
                     </div>
-                  )}
 
-                  <div className={selectedInvoice ? "col-span-2" : "col-span-2"}>
-                    <Label className="text-xs">Unit Price</Label>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      value={item.unit_price}
-                      onChange={(e) => handleItemChange(index, 'unit_price', parseFloat(e.target.value) || 0)}
-                      placeholder="Unit Price"
-                      className="text-xs"
-                    />
+                    {/* SGST % */}
+                    <div className="col-span-1">
+                      <Input
+                        type="number"
+                        min="0"
+                        max="50"
+                        step="0.01"
+                        value={item.sgst_rate}
+                        onChange={(e) => handleItemChange(index, 'sgst_rate', parseFloat(e.target.value) || 0)}
+                        className="text-center"
+                      />
+                    </div>
+
+                    {/* IGST % */}
+                    <div className="col-span-1">
+                      <Input
+                        type="number"
+                        min="0"
+                        max="50"
+                        step="0.01"
+                        value={item.igst_rate}
+                        onChange={(e) => handleItemChange(index, 'igst_rate', parseFloat(e.target.value) || 0)}
+                        className="text-center"
+                      />
+                    </div>
+
+                    {/* Discount % */}
+                    <div className="col-span-1">
+                      <Input
+                        type="number"
+                        min="0"
+                        max="100"
+                        step="0.01"
+                        value={item.discount_percentage}
+                        onChange={(e) => handleItemChange(index, 'discount_percentage', parseFloat(e.target.value) || 0)}
+                        className="text-center"
+                      />
+                    </div>
+
+                    {/* Line Total */}
+                    <div className="col-span-1">
+                      <div className="text-center py-2 px-3 bg-green-50 dark:bg-green-950/20 rounded-md border">
+                        <span className="font-semibold text-green-900 dark:text-green-100">
+                          ₹{item.line_total.toFixed(2)}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Action */}
+                    <div className="col-span-1 flex justify-center">
+                      {!selectedInvoice && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => removeItem(index)}
+                          disabled={items.length === 1}
+                          className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/20 p-2"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
                   </div>
+                ))}
+              </div>
 
-                  <div className={selectedInvoice ? "col-span-1" : "col-span-1"}>
-                    <Label className="text-xs">Discount %</Label>
-                    <Input
-                      type="number"
-                      min="0"
-                      max="100"
-                      step="0.01"
-                      value={item.discount_percentage}
-                      onChange={(e) => handleItemChange(index, 'discount_percentage', parseFloat(e.target.value) || 0)}
-                      placeholder="0"
-                      className="text-xs"
-                    />
+              {/* Summary Row */}
+              <div className="bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-900/50 dark:to-gray-800/50 border-t-2 border-blue-200 px-6 py-4">
+                <div className="grid grid-cols-4 gap-6">
+                  <div className="text-center">
+                    <div className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">Subtotal</div>
+                    <div className="font-semibold text-gray-900 dark:text-gray-100">₹{totals.subtotal.toFixed(2)}</div>
                   </div>
-
-                  <div className={selectedInvoice ? "col-span-2" : "col-span-2"}>
-                    <Label className="text-xs">CGST %</Label>
-                    <Input
-                      type="number"
-                      min="0"
-                      max="50"
-                      step="0.01"
-                      value={item.cgst_rate}
-                      onChange={(e) => handleItemChange(index, 'cgst_rate', parseFloat(e.target.value) || 0)}
-                      placeholder="0"
-                      className="text-xs"
-                    />
+                  <div className="text-center">
+                    <div className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">Discount</div>
+                    <div className="font-semibold text-orange-600 dark:text-orange-400">-₹{totals.totalDiscount.toFixed(2)}</div>
                   </div>
-
-                  <div className="col-span-1 text-center">
-                    {!selectedInvoice && (
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => removeItem(index)}
-                        disabled={items.length === 1}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    )}
+                  <div className="text-center">
+                    <div className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">Total Tax</div>
+                    <div className="font-semibold text-blue-600 dark:text-blue-400">₹{totals.totalTax.toFixed(2)}</div>
                   </div>
-                </div>
-
-                <div className="grid grid-cols-12 gap-2 items-center mb-2">
-                  <div className="col-span-2"></div>
-                  {selectedInvoice && <div className="col-span-1"></div>}
-                  <div className={selectedInvoice ? "col-span-1" : "col-span-3"}></div>
-                  {selectedInvoice && <div className="col-span-1"></div>}
-                  
-                  <div className={selectedInvoice ? "col-span-2" : "col-span-2"}>
-                    <Label className="text-xs">SGST %</Label>
-                    <Input
-                      type="number"
-                      min="0"
-                      max="50"
-                      step="0.01"
-                      value={item.sgst_rate}
-                      onChange={(e) => handleItemChange(index, 'sgst_rate', parseFloat(e.target.value) || 0)}
-                      placeholder="0"
-                      className="text-xs"
-                    />
+                  <div className="text-center">
+                    <div className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">Grand Total</div>
+                    <div className="text-xl font-bold text-green-700 dark:text-green-400">₹{totals.total.toFixed(2)}</div>
                   </div>
-
-                  <div className={selectedInvoice ? "col-span-1" : "col-span-1"}>
-                    <Label className="text-xs">IGST %</Label>
-                    <Input
-                      type="number"
-                      min="0"
-                      max="50"
-                      step="0.01"
-                      value={item.igst_rate}
-                      onChange={(e) => handleItemChange(index, 'igst_rate', parseFloat(e.target.value) || 0)}
-                      placeholder="0"
-                      className="text-xs"
-                    />
-                  </div>
-
-                  <div className={selectedInvoice ? "col-span-2" : "col-span-2"}>
-                    <Label className="text-xs">HSN</Label>
-                    <Input
-                      type="text"
-                      value={item.hsn_sac_code}
-                      onChange={(e) => handleItemChange(index, 'hsn_sac_code', e.target.value)}
-                      placeholder="HSN"
-                      className="text-xs"
-                    />
-                  </div>
-
-                  <div className="col-span-1"></div>
-                </div>
-                
-                <div className="grid grid-cols-4 gap-2 text-xs text-muted-foreground">
-                  <div>Subtotal: ₹{item.line_subtotal.toFixed(2)}</div>
-                  <div>Tax: ₹{item.tax_amount.toFixed(2)}</div>
-                  <div>Total: ₹{item.line_total.toFixed(2)}</div>
-                  <div>UOM: {item.unit_of_measure}</div>
                 </div>
               </div>
-            ))}
-          </div>
-
-          <div className="mt-4 space-y-2 border-t pt-4">
-            <div className="flex justify-between">
-              <span>Subtotal:</span>
-              <span>₹{totals.subtotal.toFixed(2)}</span>
-            </div>
-            <div className="flex justify-between">
-              <span>Discount:</span>
-              <span>-₹{totals.totalDiscount.toFixed(2)}</span>
-            </div>
-            <div className="flex justify-between">
-              <span>Tax (18%):</span>
-              <span>₹{totals.totalTax.toFixed(2)}</span>
-            </div>
-            <div className="flex justify-between font-semibold text-lg border-t pt-2">
-              <span>Total:</span>
-              <span>₹{totals.total.toFixed(2)}</span>
             </div>
           </div>
         </CardContent>
