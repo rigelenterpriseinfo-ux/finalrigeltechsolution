@@ -4,11 +4,11 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { ChevronDown, ChevronUp } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Progress } from '@/components/ui/progress';
+import { Building2, Phone, CreditCard, Landmark, User, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useBusinessAuth } from '@/hooks/useBusinessAuth';
@@ -72,8 +72,7 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({
   const { hasEditAccess } = useBusinessAuth();
   const [loading, setLoading] = useState(false);
   const [sameAsRegistered, setSameAsRegistered] = useState(customer?.same_as_registered_address || false);
-  const [isAddressOpen, setIsAddressOpen] = useState(false);
-  const [isFinancialOpen, setIsFinancialOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState('basic');
   const canEdit = hasEditAccess('sales') && !readOnly;
 
   const {
@@ -91,6 +90,7 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({
       same_as_registered_address: false,
       credit_limit_days: 30,
       preferred_payment_method: 'Bank Transfer',
+      country: 'India',
     },
   });
 
@@ -107,6 +107,16 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({
     }
   }, [sameAsRegistered, watchedFields, setValue]);
 
+  const getProgressValue = () => {
+    switch (activeTab) {
+      case 'basic': return 25;
+      case 'contact': return 50;
+      case 'business': return 75;
+      case 'banking': return 100;
+      default: return 25;
+    }
+  };
+
   const onFormSubmit = async (data: Customer) => {
     setLoading(true);
     try {
@@ -121,287 +131,328 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({
   };
 
   return (
-    <div className="w-full max-w-[95vw] mx-auto">
-      <form onSubmit={handleSubmit(onFormSubmit)} className="space-y-2 md:space-y-4 max-h-[80vh] overflow-y-auto">
-        {/* Basic Information */}
-        <Card>
-          <CardHeader className="pb-2 md:pb-4">
-            <CardTitle className="text-base md:text-lg">Basic Information</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div className="sm:col-span-2">
-                <Label htmlFor="customer_ref" className="text-sm">Customer ID</Label>
-                <Input
-                  id="customer_ref"
-                  {...register('customer_ref')}
-                  placeholder="Auto-generated"
-                  disabled={true}
-                  className="bg-muted h-9 text-sm"
-                />
-                <p className="text-xs text-muted-foreground">
-                  Format: First 4 letters + number
-                </p>
-              </div>
-              <div className="sm:col-span-2">
-                <Label htmlFor="name" className="text-sm">Customer Name / Company Name *</Label>
-                <Input
-                  id="name"
-                  {...register('name', { required: 'Customer name is required' })}
-                  className={`h-9 text-sm ${errors.name ? 'border-destructive' : ''}`}
-                  disabled={!canEdit}
-                />
-                {errors.name && (
-                  <p className="text-xs text-destructive mt-1">{errors.name.message}</p>
-                )}
-              </div>
-              <div>
-                <Label htmlFor="customer_type" className="text-sm">Customer Type</Label>
-                <Select
-                  defaultValue={customer?.customer_type || 'business'}
-                  onValueChange={(value) => setValue('customer_type', value)}
-                  disabled={!canEdit}
-                >
-                  <SelectTrigger className="h-9">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="individual">Individual</SelectItem>
-                    <SelectItem value="business">Business</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label htmlFor="is_active" className="text-sm">Status</Label>
-                <Select
-                  defaultValue={customer?.is_active ? 'Active' : 'Inactive'}
-                  onValueChange={(value) => setValue('is_active', value === 'Active')}
-                  disabled={!canEdit}
-                >
-                  <SelectTrigger className="h-9">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Active">Active</SelectItem>
-                    <SelectItem value="Inactive">Inactive</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+    <div className="w-full max-w-4xl mx-auto">
+      <Card className="border-0 shadow-lg">
+        <CardHeader className="pb-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="flex items-center gap-2 text-xl font-semibold">
+                <User className="h-5 w-5" />
+                {customer ? 'Edit Customer' : 'New Customer'}
+              </CardTitle>
+              <p className="text-sm text-muted-foreground mt-1">
+                {customer ? 'Update customer information' : 'Add a new customer to your database'}
+              </p>
             </div>
-        </CardContent>
-      </Card>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onCancel}
+              className="h-8 w-8 p-0"
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
+          
+          <div className="flex items-center gap-3 mt-4">
+            <span className="text-sm font-medium">Progress</span>
+            <Progress value={getProgressValue()} className="flex-1" />
+            <span className="text-sm text-muted-foreground">{getProgressValue()}%</span>
+          </div>
+        </CardHeader>
 
-        {/* Contact Information */}
-        <Card>
-          <CardHeader className="pb-2 md:pb-4">
-            <CardTitle className="text-base md:text-lg flex items-center gap-2">
-              <span className="text-green-600">✓</span> Contact Information
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div className="sm:col-span-2">
-                <Label htmlFor="contact_person" className="text-sm">Primary Contact Person Name</Label>
-                <Input
-                  id="contact_person"
-                  {...register('contact_person')}
-                  disabled={!canEdit}
-                  className="h-9 text-sm"
-                />
-              </div>
-              <div>
-                <Label htmlFor="phone" className="text-sm">Phone / Mobile</Label>
-                <Input
-                  id="phone"
-                  type="tel"
-                  {...register('phone')}
-                  disabled={!canEdit}
-                  className="h-9 text-sm"
-                />
-              </div>
-              <div>
-                <Label htmlFor="email" className="text-sm">Email Address</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  {...register('email')}
-                  disabled={!canEdit}
-                  className="h-9 text-sm"
-                />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        <CardContent>
+          <form onSubmit={handleSubmit(onFormSubmit)}>
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+              <TabsList className="grid w-full grid-cols-4">
+                <TabsTrigger value="basic" className="flex items-center gap-2">
+                  <Building2 className="h-4 w-4" />
+                  Basic
+                </TabsTrigger>
+                <TabsTrigger value="contact" className="flex items-center gap-2">
+                  <Phone className="h-4 w-4" />
+                  Contact
+                </TabsTrigger>
+                <TabsTrigger value="business" className="flex items-center gap-2">
+                  <CreditCard className="h-4 w-4" />
+                  Business
+                </TabsTrigger>
+                <TabsTrigger value="banking" className="flex items-center gap-2">
+                  <Landmark className="h-4 w-4" />
+                  Banking
+                </TabsTrigger>
+              </TabsList>
 
-        {/* Address Details - Collapsible */}
-        <Collapsible open={isAddressOpen} onOpenChange={setIsAddressOpen}>
-          <Card>
-            <CollapsibleTrigger asChild>
-              <Button variant="ghost" className="w-full justify-between p-0">
-                <CardHeader className="pb-2 md:pb-4 flex-1">
-                  <CardTitle className="text-base md:text-lg flex items-center gap-2">
-                    <span className="text-green-600">✓</span> Address Details
-                    {isAddressOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                  </CardTitle>
-                </CardHeader>
-              </Button>
-            </CollapsibleTrigger>
-            <CollapsibleContent>
-              <CardContent className="space-y-4 pt-0">
-                {/* Billing Address */}
-                <div>
-                  <h4 className="font-medium mb-2 text-sm">Billing Address</h4>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div className="sm:col-span-2">
-                      <Label htmlFor="address_line1" className="text-sm">Address Line 1</Label>
-                      <Input
-                        id="address_line1"
-                        {...register('address_line1')}
-                        disabled={!canEdit}
-                        className="h-9 text-sm"
-                      />
-                    </div>
-                    <div className="sm:col-span-2">
-                      <Label htmlFor="address_line2" className="text-sm">Address Line 2</Label>
-                      <Input
-                        id="address_line2"
-                        {...register('address_line2')}
-                        disabled={!canEdit}
-                        className="h-9 text-sm"
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="city" className="text-sm">City</Label>
-                      <Input
-                        id="city"
-                        {...register('city')}
-                        disabled={!canEdit}
-                        className="h-9 text-sm"
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="state" className="text-sm">State</Label>
-                      <Input
-                        id="state"
-                        {...register('state')}
-                        disabled={!canEdit}
-                        className="h-9 text-sm"
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="pin_code" className="text-sm">Postal Code</Label>
-                      <Input
-                        id="pin_code"
-                        {...register('pin_code')}
-                        disabled={!canEdit}
-                        className="h-9 text-sm"
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="country" className="text-sm">Country</Label>
-                      <Input
-                        id="country"
-                        {...register('country')}
-                        defaultValue="India"
-                        disabled={!canEdit}
-                        className="h-9 text-sm"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Shipping Address */}
-                <div>
-                  <div className="flex items-center space-x-2 mb-2">
-                    <Switch
-                      id="same_as_registered"
-                      checked={sameAsRegistered}
-                      onCheckedChange={setSameAsRegistered}
+              {/* Basic Information Tab */}
+              <TabsContent value="basic" className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="md:col-span-2">
+                    <Label htmlFor="name" className="text-sm font-medium">
+                      Customer Name / Company Name <span className="text-destructive">*</span>
+                    </Label>
+                    <Input
+                      id="name"
+                      {...register('name', { required: 'Customer name is required' })}
+                      placeholder="Enter legal/trade name"
+                      className={`mt-1 ${errors.name ? 'border-destructive' : ''}`}
                       disabled={!canEdit}
-                      className="data-[state=checked]:bg-primary"
                     />
-                    <Label htmlFor="same_as_registered" className="text-sm cursor-pointer">Same as billing address</Label>
+                    {errors.name && (
+                      <p className="text-xs text-destructive mt-1">{errors.name.message}</p>
+                    )}
+                    <p className="text-xs text-muted-foreground mt-1">Legal or trade name as registered</p>
                   </div>
-                  
-                  {!sameAsRegistered && (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      <div className="sm:col-span-2">
-                        <Label htmlFor="shipping_address_line1" className="text-sm">Shipping Address Line 1</Label>
+
+                  <div>
+                    <Label htmlFor="customer_type" className="text-sm font-medium">Customer Type</Label>
+                    <Select
+                      defaultValue={customer?.customer_type || 'business'}
+                      onValueChange={(value) => setValue('customer_type', value)}
+                      disabled={!canEdit}
+                    >
+                      <SelectTrigger className="mt-1">
+                        <SelectValue placeholder="Select type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="individual">Individual</SelectItem>
+                        <SelectItem value="business">Business</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div>
+                    <Label htmlFor="customer_ref" className="text-sm font-medium">Customer ID</Label>
+                    <Input
+                      id="customer_ref"
+                      {...register('customer_ref')}
+                      placeholder="Auto-generated"
+                      disabled={true}
+                      className="mt-1 bg-muted"
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Auto-generated: First 4 letters + DDMMYYYY
+                    </p>
+                  </div>
+
+                  <div className="md:col-span-2">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-sm font-medium">Active Status</Label>
+                      <Switch
+                        checked={watch('is_active') ?? true}
+                        onCheckedChange={(checked) => setValue('is_active', checked)}
+                        disabled={!canEdit}
+                      />
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Enable to allow transactions with this customer
+                    </p>
+                  </div>
+                </div>
+              </TabsContent>
+
+              {/* Contact Information Tab */}
+              <TabsContent value="contact" className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="md:col-span-2">
+                    <Label htmlFor="contact_person" className="text-sm font-medium">Contact Person</Label>
+                    <Input
+                      id="contact_person"
+                      {...register('contact_person')}
+                      placeholder="Primary contact name"
+                      className="mt-1"
+                      disabled={!canEdit}
+                    />
+                  </div>
+
+                  <div>
+                    <Label htmlFor="phone" className="text-sm font-medium">Phone / Mobile</Label>
+                    <Input
+                      id="phone"
+                      type="tel"
+                      {...register('phone')}
+                      placeholder="Enter phone number"
+                      className="mt-1"
+                      disabled={!canEdit}
+                    />
+                  </div>
+
+                  <div>
+                    <Label htmlFor="email" className="text-sm font-medium">Email Address</Label>
+                    <Input
+                      id="email"
+                      type="email"
+                      {...register('email')}
+                      placeholder="Enter email address"
+                      className="mt-1"
+                      disabled={!canEdit}
+                    />
+                  </div>
+
+                  <div className="md:col-span-2">
+                    <Label htmlFor="website" className="text-sm font-medium">Website</Label>
+                    <Input
+                      id="website"
+                      {...register('website')}
+                      placeholder="https://example.com"
+                      className="mt-1"
+                      disabled={!canEdit}
+                    />
+                  </div>
+
+                  {/* Address Section */}
+                  <div className="md:col-span-2 space-y-4">
+                    <h4 className="font-medium text-sm">Billing Address</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="md:col-span-2">
+                        <Label htmlFor="address_line1" className="text-sm">Address Line 1</Label>
                         <Input
-                          id="shipping_address_line1"
-                          {...register('shipping_address_line1')}
+                          id="address_line1"
+                          {...register('address_line1')}
+                          placeholder="Enter address"
+                          className="mt-1"
                           disabled={!canEdit}
-                          className="h-9 text-sm"
+                        />
+                      </div>
+                      <div className="md:col-span-2">
+                        <Label htmlFor="address_line2" className="text-sm">Address Line 2</Label>
+                        <Input
+                          id="address_line2"
+                          {...register('address_line2')}
+                          placeholder="Apartment, suite, etc."
+                          className="mt-1"
+                          disabled={!canEdit}
                         />
                       </div>
                       <div>
-                        <Label htmlFor="shipping_city" className="text-sm">City</Label>
+                        <Label htmlFor="city" className="text-sm">City</Label>
                         <Input
-                          id="shipping_city"
-                          {...register('shipping_city')}
+                          id="city"
+                          {...register('city')}
+                          placeholder="Enter city"
+                          className="mt-1"
                           disabled={!canEdit}
-                          className="h-9 text-sm"
                         />
                       </div>
                       <div>
-                        <Label htmlFor="shipping_state" className="text-sm">State</Label>
+                        <Label htmlFor="state" className="text-sm">State</Label>
                         <Input
-                          id="shipping_state"
-                          {...register('shipping_state')}
+                          id="state"
+                          {...register('state')}
+                          placeholder="Enter state"
+                          className="mt-1"
                           disabled={!canEdit}
-                          className="h-9 text-sm"
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="pin_code" className="text-sm">Postal Code</Label>
+                        <Input
+                          id="pin_code"
+                          {...register('pin_code')}
+                          placeholder="Enter postal code"
+                          className="mt-1"
+                          disabled={!canEdit}
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="country" className="text-sm">Country</Label>
+                        <Input
+                          id="country"
+                          {...register('country')}
+                          defaultValue="India"
+                          className="mt-1"
+                          disabled={!canEdit}
                         />
                       </div>
                     </div>
-                  )}
-                </div>
-              </CardContent>
-            </CollapsibleContent>
-          </Card>
-        </Collapsible>
 
-        {/* Financial & Tax Details - Collapsible */}
-        <Collapsible open={isFinancialOpen} onOpenChange={setIsFinancialOpen}>
-          <Card>
-            <CollapsibleTrigger asChild>
-              <Button variant="ghost" className="w-full justify-between p-0">
-                <CardHeader className="pb-2 md:pb-4 flex-1">
-                  <CardTitle className="text-base md:text-lg flex items-center gap-2">
-                    <span className="text-green-600">✓</span> Financial & Tax Details
-                    {isFinancialOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                  </CardTitle>
-                </CardHeader>
-              </Button>
-            </CollapsibleTrigger>
-            <CollapsibleContent>
-              <CardContent className="space-y-4 pt-0">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {/* Same as billing address toggle */}
+                    <div className="flex items-center space-x-2">
+                      <Switch
+                        id="same_as_registered"
+                        checked={sameAsRegistered}
+                        onCheckedChange={setSameAsRegistered}
+                        disabled={!canEdit}
+                      />
+                      <Label htmlFor="same_as_registered" className="text-sm">
+                        Same as billing address
+                      </Label>
+                    </div>
+
+                    {/* Shipping Address */}
+                    {!sameAsRegistered && (
+                      <div className="space-y-4">
+                        <h4 className="font-medium text-sm">Shipping Address</h4>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div className="md:col-span-2">
+                            <Label htmlFor="shipping_address_line1" className="text-sm">Shipping Address Line 1</Label>
+                            <Input
+                              id="shipping_address_line1"
+                              {...register('shipping_address_line1')}
+                              placeholder="Enter shipping address"
+                              className="mt-1"
+                              disabled={!canEdit}
+                            />
+                          </div>
+                          <div>
+                            <Label htmlFor="shipping_city" className="text-sm">City</Label>
+                            <Input
+                              id="shipping_city"
+                              {...register('shipping_city')}
+                              placeholder="Enter city"
+                              className="mt-1"
+                              disabled={!canEdit}
+                            />
+                          </div>
+                          <div>
+                            <Label htmlFor="shipping_state" className="text-sm">State</Label>
+                            <Input
+                              id="shipping_state"
+                              {...register('shipping_state')}
+                              placeholder="Enter state"
+                              className="mt-1"
+                              disabled={!canEdit}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </TabsContent>
+
+              {/* Business Information Tab */}
+              <TabsContent value="business" className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
-                    <Label htmlFor="gstin" className="text-sm">GSTIN</Label>
+                    <Label htmlFor="gstin" className="text-sm font-medium">GSTIN</Label>
                     <Input
                       id="gstin"
                       {...register('gstin')}
+                      placeholder="Enter GSTIN"
+                      className="mt-1"
                       disabled={!canEdit}
-                      className="h-9 text-sm"
                     />
                   </div>
+
                   <div>
-                    <Label htmlFor="pan_number" className="text-sm">PAN Number</Label>
+                    <Label htmlFor="pan_number" className="text-sm font-medium">PAN Number</Label>
                     <Input
                       id="pan_number"
                       {...register('pan_number')}
+                      placeholder="Enter PAN number"
+                      className="mt-1"
                       disabled={!canEdit}
-                      className="h-9 text-sm"
                     />
                   </div>
+
                   <div>
-                    <Label htmlFor="payment_terms" className="text-sm">Payment Terms</Label>
+                    <Label htmlFor="payment_terms" className="text-sm font-medium">Payment Terms</Label>
                     <Select
                       defaultValue={customer?.payment_terms || ''}
                       onValueChange={(value) => setValue('payment_terms', value)}
                       disabled={!canEdit}
                     >
-                      <SelectTrigger className="h-9">
+                      <SelectTrigger className="mt-1">
                         <SelectValue placeholder="Select terms" />
                       </SelectTrigger>
                       <SelectContent>
@@ -412,25 +463,27 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({
                       </SelectContent>
                     </Select>
                   </div>
+
                   <div>
-                    <Label htmlFor="credit_limit_days" className="text-sm">Credit Days</Label>
+                    <Label htmlFor="credit_limit_days" className="text-sm font-medium">Credit Days</Label>
                     <Input
                       id="credit_limit_days"
                       type="number"
                       {...register('credit_limit_days', { valueAsNumber: true })}
                       placeholder="30"
+                      className="mt-1"
                       disabled={!canEdit}
-                      className="h-9 text-sm"
                     />
                   </div>
+
                   <div>
-                    <Label htmlFor="preferred_payment_method" className="text-sm">Payment Method</Label>
+                    <Label htmlFor="preferred_payment_method" className="text-sm font-medium">Payment Method</Label>
                     <Select
                       defaultValue={customer?.preferred_payment_method || 'Bank Transfer'}
                       onValueChange={(value) => setValue('preferred_payment_method', value)}
                       disabled={!canEdit}
                     >
-                      <SelectTrigger className="h-9">
+                      <SelectTrigger className="mt-1">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -440,89 +493,123 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({
                       </SelectContent>
                     </Select>
                   </div>
+
                   <div>
-                    <Label htmlFor="credit_limit" className="text-sm">Credit Limit</Label>
+                    <Label htmlFor="credit_limit" className="text-sm font-medium">Credit Limit</Label>
                     <Input
                       id="credit_limit"
                       type="number"
                       step="0.01"
                       {...register('credit_limit', { valueAsNumber: true })}
+                      placeholder="0.00"
+                      className="mt-1"
                       disabled={!canEdit}
-                      className="h-9 text-sm"
                     />
                   </div>
                 </div>
+              </TabsContent>
 
-                {/* Bank Details */}
-                <div className="mt-4">
-                  <h4 className="font-medium mb-2 text-sm">Bank Details (optional)</h4>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div>
-                      <Label htmlFor="bank_name" className="text-sm">Bank Name</Label>
-                      <Input
-                        id="bank_name"
-                        {...register('bank_name')}
-                        disabled={!canEdit}
-                        className="h-9 text-sm"
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="account_number" className="text-sm">Account No</Label>
-                      <Input
-                        id="account_number"
-                        {...register('account_number')}
-                        disabled={!canEdit}
-                        className="h-9 text-sm"
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="ifsc_code" className="text-sm">IFSC Code</Label>
-                      <Input
-                        id="ifsc_code"
-                        {...register('ifsc_code')}
-                        disabled={!canEdit}
-                        className="h-9 text-sm"
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="upi_id" className="text-sm">UPI ID</Label>
-                      <Input
-                        id="upi_id"
-                        {...register('upi_id')}
-                        placeholder="example@upi"
-                        disabled={!canEdit}
-                        className="h-9 text-sm"
-                      />
-                    </div>
+              {/* Banking Information Tab */}
+              <TabsContent value="banking" className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <Label htmlFor="bank_name" className="text-sm font-medium">Bank Name</Label>
+                    <Input
+                      id="bank_name"
+                      {...register('bank_name')}
+                      placeholder="Enter bank name"
+                      className="mt-1"
+                      disabled={!canEdit}
+                    />
+                  </div>
+
+                  <div>
+                    <Label htmlFor="branch_name" className="text-sm font-medium">Branch Name</Label>
+                    <Input
+                      id="branch_name"
+                      {...register('branch_name')}
+                      placeholder="Enter branch name"
+                      className="mt-1"
+                      disabled={!canEdit}
+                    />
+                  </div>
+
+                  <div>
+                    <Label htmlFor="account_number" className="text-sm font-medium">Account Number</Label>
+                    <Input
+                      id="account_number"
+                      {...register('account_number')}
+                      placeholder="Enter account number"
+                      className="mt-1"
+                      disabled={!canEdit}
+                    />
+                  </div>
+
+                  <div>
+                    <Label htmlFor="account_type" className="text-sm font-medium">Account Type</Label>
+                    <Select
+                      defaultValue={customer?.account_type || ''}
+                      onValueChange={(value) => setValue('account_type', value)}
+                      disabled={!canEdit}
+                    >
+                      <SelectTrigger className="mt-1">
+                        <SelectValue placeholder="Select account type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Savings">Savings</SelectItem>
+                        <SelectItem value="Current">Current</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div>
+                    <Label htmlFor="ifsc_code" className="text-sm font-medium">IFSC Code</Label>
+                    <Input
+                      id="ifsc_code"
+                      {...register('ifsc_code')}
+                      placeholder="Enter IFSC code"
+                      className="mt-1"
+                      disabled={!canEdit}
+                    />
+                  </div>
+
+                  <div>
+                    <Label htmlFor="upi_id" className="text-sm font-medium">UPI ID</Label>
+                    <Input
+                      id="upi_id"
+                      {...register('upi_id')}
+                      placeholder="example@upi"
+                      className="mt-1"
+                      disabled={!canEdit}
+                    />
                   </div>
                 </div>
-              </CardContent>
-            </CollapsibleContent>
-          </Card>
-        </Collapsible>
+              </TabsContent>
+            </Tabs>
 
-        {/* Form Actions */}
-        <div className="flex flex-col sm:flex-row justify-end space-y-2 sm:space-y-0 sm:space-x-3 pt-4 border-t sticky bottom-0 bg-background">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={onCancel}
-            disabled={loading}
-            className="w-full sm:w-auto h-9 text-sm"
-          >
-            Cancel
-          </Button>
-          {canEdit && (
-            <Button 
-              type="submit" 
-              disabled={loading}
-              className="w-full sm:w-auto h-9 text-sm font-medium"
-            >
-              {loading ? 'Saving...' : (customer ? 'Update' : 'Create')}
-            </Button>
-          )}
-        </div>
-    </form>
-  </div>
+            {/* Form Actions */}
+            <div className="flex justify-end space-x-3 pt-6 border-t mt-8">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={onCancel}
+                disabled={loading}
+              >
+                Cancel
+              </Button>
+              {canEdit && (
+                <Button 
+                  type="submit" 
+                  disabled={loading}
+                  className="min-w-[120px]"
+                >
+                  {loading ? 'Saving...' : (customer ? 'Update Customer' : 'Create Customer')}
+                </Button>
+              )}
+            </div>
+          </form>
+        </CardContent>
+      </Card>
+    </div>
   );
 };
