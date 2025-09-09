@@ -82,7 +82,7 @@ function PurchaseModuleContent() {
   // Stats state
   const [stats, setStats] = useState({
     openPOs: { count: 0, value: 0 },
-    recentGRNs: { count: 0, value: 0 },
+    openDebitNotes: { count: 0, value: 0, details: [] as any[] },
     overduePOs: { count: 0, value: 0, details: [] as any[] }
   });
   
@@ -242,21 +242,25 @@ function PurchaseModuleContent() {
         value: openPOs?.reduce((sum, po) => sum + (po.total_amount || 0), 0) || 0
       };
 
-      // Fetch recent GRN stats (last 15 days)
-      const fifteenDaysAgo = new Date();
-      fifteenDaysAgo.setDate(fifteenDaysAgo.getDate() - 15);
-      
-      const { data: recentGRNs, error: grnError } = await supabase
-        .from('grn_header')
-        .select('total_amount')
+      // Fetch open debit notes
+      const { data: openDebitNotes, error: debitNoteError } = await supabase
+        .from('debit_notes')
+        .select(`
+          supplier_name,
+          total_amount,
+          debit_note_number
+        `)
         .eq('company_id', profile.company_id)
-        .gte('created_at', fifteenDaysAgo.toISOString());
+        .eq('status', 'draft')
+        .order('total_amount', { ascending: false })
+        .limit(5);
 
-      if (grnError) throw grnError;
+      if (debitNoteError) throw debitNoteError;
 
-      const recentGRNStats = {
-        count: recentGRNs?.length || 0,
-        value: recentGRNs?.reduce((sum, grn) => sum + (grn.total_amount || 0), 0) || 0
+      const openDebitNoteStats = {
+        count: openDebitNotes?.length || 0,
+        value: openDebitNotes?.reduce((sum, dn) => sum + (dn.total_amount || 0), 0) || 0,
+        details: openDebitNotes || []
       };
 
       // Fetch overdue POs
@@ -285,7 +289,7 @@ function PurchaseModuleContent() {
 
       setStats({
         openPOs: openPOStats,
-        recentGRNs: recentGRNStats,
+        openDebitNotes: openDebitNoteStats,
         overduePOs: overduePOStats
       });
 
@@ -627,13 +631,35 @@ function PurchaseModuleContent() {
           />
         </div>
         
-        <StatsCard
-          title="Recent GRNs (15 days)"
-          value={stats.recentGRNs.count}
-          subtitle={`₹${stats.recentGRNs.value.toLocaleString()}`}
-          icon={Package}
-          variant="secondary"
-        />
+        <Card className="card-interactive shadow-card hover:shadow-elevated transition-all duration-300 bg-gradient-to-br from-secondary/5 to-secondary/10 border-secondary/20">
+          <CardContent className="p-6">
+            <div className="flex items-start justify-between mb-4">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Open Debit Notes</p>
+              </div>
+              <div className="p-3 rounded-xl bg-background/50 text-secondary">
+                <Package className="h-6 w-6" />
+              </div>
+            </div>
+            
+            {stats.openDebitNotes.details.length > 0 ? (
+              <div className="space-y-2">
+                {stats.openDebitNotes.details.map((dn: any, index: number) => (
+                  <div key={index} className="flex justify-between items-center py-2 border-b border-border/50 last:border-0">
+                    <span className="text-sm font-medium text-foreground">
+                      {dn.supplier_name || 'Unknown'}
+                    </span>
+                    <span className="text-sm font-semibold text-foreground">
+                      ₹{(dn.total_amount || 0).toLocaleString()}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">No open debit notes</p>
+            )}
+          </CardContent>
+        </Card>
         
         <Card className="card-interactive shadow-card hover:shadow-elevated transition-all duration-300 bg-gradient-to-br from-secondary/5 to-secondary/10 border-secondary/20">
           <CardContent className="p-6">
