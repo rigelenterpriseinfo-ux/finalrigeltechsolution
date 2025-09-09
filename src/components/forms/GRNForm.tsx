@@ -75,6 +75,7 @@ export function GRNForm({ grn, onSubmit, onCancel, readOnly = false, mode }: GRN
   const [bins, setBins] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedPO, setSelectedPO] = useState<any>(null);
+  const [activeTab, setActiveTab] = useState('grn-info');
 
   const form = useForm<z.infer<typeof grnFormSchema>>({
     resolver: zodResolver(grnFormSchema),
@@ -514,654 +515,818 @@ export function GRNForm({ grn, onSubmit, onCancel, readOnly = false, mode }: GRN
   };
 
   const summary = calculateSummary();
+  
+  // Calculate totals for display
+  const items = form.watch('items') || [];
+  const total = items.reduce((sum, item) => sum + (item.line_total || 0), 0);
 
   return (
-    <Form {...form}>
-      <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
-        {/* GRN Reference Number - Top Section */}
-        <Card className="bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-950 dark:to-pink-950 border-purple-200">
-          <CardContent className="pt-6">
-            <FormField
-              control={form.control}
-              name="grn_reference_no"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="text-purple-700 dark:text-purple-300 font-semibold">GRN Reference No.</FormLabel>
-                  <FormControl>
-                    <Input 
-                      {...field} 
-                      disabled 
-                      placeholder="Auto-generated after creation"
-                      className="bg-purple-100/50 dark:bg-purple-900/30 border-purple-200 text-purple-800 dark:text-purple-200 font-medium text-center"
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </CardContent>
-        </Card>
-
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Purchase Order Selection */}
-          <FormField
-            control={form.control}
-            name="purchase_order_id"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Purchase Order *</FormLabel>
-                <Select
-                  value={field.value}
-                  onValueChange={(value) => {
-                    field.onChange(value);
-                    handlePOSelection(value);
-                  }}
-                  disabled={readOnly || mode === 'edit'}
-                >
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select purchase order" />
-                    </SelectTrigger>
-                  </FormControl>
-                   <SelectContent>
-                     {purchaseOrders.filter(po => po.id && po.id.trim() !== '').map((po) => (
-                       <SelectItem key={po.id} value={po.id}>
-                         {po.po_number || 'N/A'} - {po.supplier?.name || 'Unknown Supplier'} (₹{po.total_amount?.toLocaleString() || '0'})
-                       </SelectItem>
-                     ))}
-                   </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          {/* Status Selection - Only "Accepted" and "Received" */}
-          <FormField
-            control={form.control}
-            name="status"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Status *</FormLabel>
-                <Select
-                  value={field.value}
-                  onValueChange={(value) => {
-                    field.onChange(value);
-                    handleStatusChange(value);
-                  }}
-                  disabled={readOnly}
-                >
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select status" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    <SelectItem value="accepted">Accepted</SelectItem>
-                    <SelectItem value="received">Received</SelectItem>
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          {/* Supplier Name (Auto-filled, read-only) */}
-          <FormField
-            control={form.control}
-            name="supplier_name"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Supplier Name</FormLabel>
-                <FormControl>
-                  <Input {...field} disabled />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          {/* GRN Date */}
-          <FormField
-            control={form.control}
-            name="grn_date"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>GRN Date *</FormLabel>
-                <FormControl>
-                  <Input
-                    type="date"
-                    {...field}
-                    disabled={readOnly}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          {/* Supplier Invoice Number */}
-          <FormField
-            control={form.control}
-            name="supplier_invoice_number"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Supplier Invoice Number</FormLabel>
-                <FormControl>
-                  <Input {...field} disabled={readOnly} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          {/* Supplier Invoice Date */}
-          <FormField
-            control={form.control}
-            name="supplier_invoice_date"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Supplier Invoice Date</FormLabel>
-                <FormControl>
-                  <Input
-                    type="date"
-                    {...field}
-                    disabled={readOnly}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        </div>
-
-        {/* Consolidated Warehouse & Bin Selection */}
-        <Card className="bg-gradient-to-r from-blue-50 to-cyan-50 dark:from-blue-950 dark:to-cyan-950 border-blue-200">
-          <CardHeader>
-            <CardTitle className="text-blue-700 dark:text-blue-300 text-lg">Default Warehouse & Bin</CardTitle>
-            <p className="text-sm text-blue-600 dark:text-blue-400">Select default warehouse and bin for all items (can be overridden per item if needed)</p>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="default_warehouse_id"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Default Warehouse *</FormLabel>
-                    <Select
-                      value={field.value}
-                      onValueChange={(value) => {
-                        field.onChange(value);
-                        form.setValue('default_bin_id', '');
-                        applyDefaultWarehouseBin();
-                      }}
-                      disabled={readOnly}
-                    >
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select warehouse" />
-                        </SelectTrigger>
-                      </FormControl>
-                       <SelectContent>
-                         {warehouses.filter(warehouse => warehouse.id && warehouse.id.trim() !== '').map((warehouse) => (
-                           <SelectItem key={warehouse.id} value={warehouse.id}>
-                             {warehouse.name || 'Unknown'} ({warehouse.warehouse_code || 'N/A'})
-                           </SelectItem>
-                         ))}
-                       </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="default_bin_id"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Default Bin *</FormLabel>
-                    <Select
-                      value={field.value}
-                      onValueChange={(value) => {
-                        field.onChange(value);
-                        applyDefaultWarehouseBin();
-                      }}
-                      disabled={readOnly || !form.watch('default_warehouse_id')}
-                    >
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select bin" />
-                        </SelectTrigger>
-                      </FormControl>
-                       <SelectContent>
-                         {bins
-                           .filter(bin => {
-                             const selectedWarehouse = warehouses.find(w => w.id === form.watch('default_warehouse_id'));
-                             return bin.warehouse_name === selectedWarehouse?.name && bin.id && bin.id.trim() !== '';
-                           })
-                           .map((bin) => (
-                             <SelectItem key={bin.id} value={bin.id}>
-                               {bin.bin_name || 'Unknown Bin'} ({bin.wh_bin_code || 'N/A'})
-                             </SelectItem>
-                           ))
-                         }
-                       </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Remarks */}
-        <FormField
-          control={form.control}
-          name="remarks"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Remarks</FormLabel>
-              <FormControl>
-                <Textarea {...field} disabled={readOnly} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
+    <div className="h-[calc(100vh-120px)] flex flex-col bg-background">
+      {/* Compact Header */}
+      <div className="flex justify-between items-center mb-3 px-4 py-3 border-b bg-card/50 backdrop-blur-sm">
+        <div>
+          <h1 className="text-xl font-bold text-foreground">
+            {mode === 'create' ? 'New GRN' : 
+             mode === 'edit' ? 'Edit GRN' : 'GRN Details'}
+          </h1>
+          {grn?.grn_reference_no && (
+            <p className="text-sm text-muted-foreground">GRN: {grn.grn_reference_no}</p>
           )}
-        />
+        </div>
+        <div className="flex items-center gap-3">
+          <Badge variant={readOnly ? "secondary" : "default"} className="text-xs px-2">
+            {readOnly ? 'View Only' : (mode === 'edit' ? 'Edit' : 'Create')}
+          </Badge>
+          {items.length > 0 && (
+            <div className="text-right text-sm bg-primary/10 px-3 py-2 rounded-lg border">
+              <div className="font-bold text-primary text-lg">₹{total.toFixed(2)}</div>
+              <div className="text-xs text-muted-foreground">{items.length} items</div>
+            </div>
+          )}
+        </div>
+      </div>
 
-        {/* Items Section */}
-        <Card className="shadow-sm">
-          <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950 dark:to-indigo-950">
-            <CardTitle className="text-lg font-semibold text-primary flex items-center gap-2">
-              <div className="h-2 w-2 bg-primary rounded-full"></div>
-              Product Items
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-6">
-            {form.watch('items')?.length > 0 ? (
-              <div className="space-y-6">
-                {/* Main Items Table */}
-                <div className="overflow-x-auto rounded-lg border border-border">
-                  <table className="w-full border-collapse">
-                    <thead>
-                      <tr className="bg-gradient-to-r from-muted/50 to-muted/30">
-                        <th className="border-r border-border p-4 text-left text-sm font-semibold text-foreground">Product Details</th>
-                        <th className="border-r border-border p-4 text-center text-sm font-semibold text-foreground">Quantities</th>
-                        <th className="border-r border-border p-4 text-center text-sm font-semibold text-foreground">Unit Price</th>
-                        <th className="p-4 text-center text-sm font-semibold text-foreground">Line Total</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {form.watch('items').map((item: any, index: number) => {
-                        const selectedBin = bins.find(b => b.id === item.bin_id);
-                        const selectedWarehouse = warehouses.find(w => w.name === selectedBin?.warehouse_name);
-                        
-                        return (
-                          <tr key={index} className="hover:bg-muted/30 transition-colors border-b border-border">
-                            {/* Product Details */}
-                            <td className="border-r border-border p-4">
-                              <div className="space-y-3">
-                                <div>
-                                  <label className="text-xs font-medium text-muted-foreground mb-1 block">Product Name</label>
-                                  <Input
-                                    value={item.product_name || ''}
-                                    disabled
-                                    className="bg-muted/30 text-sm font-medium"
-                                  />
-                                </div>
-                                <div>
-                                  <label className="text-xs font-medium text-muted-foreground mb-1 block">SKU</label>
-                                  <Input
-                                    value={item.product_sku || ''}
-                                    disabled
-                                    className="bg-muted/30 text-sm"
-                                  />
-                                </div>
-                              </div>
-                            </td>
-                            
-                            {/* Quantities */}
-                            <td className="border-r border-border p-4">
-                              <div className="grid grid-cols-2 gap-3">
-                                <div>
-                                  <label className="text-xs font-medium text-muted-foreground mb-1 block">Ordered Qty</label>
-                                  <Input
-                                    type="number"
-                                    value={item.ordered_quantity || 0}
-                                    disabled
-                                    className="bg-muted/30 text-sm text-center"
-                                  />
-                                </div>
-                                <div>
-                                  <label className="text-xs font-medium text-muted-foreground mb-1 block">Received Qty</label>
-                                  <Input
-                                    type="number"
-                                    min="0"
-                                    max={item.ordered_quantity}
-                                    value={item.received_quantity || 0}
-                                    onChange={(e) => {
-                                      const newValue = Math.min(
-                                        parseFloat(e.target.value) || 0, 
-                                        item.ordered_quantity
-                                      );
-                                      form.setValue(`items.${index}.received_quantity`, newValue);
-                                      
-                                      // Auto-update accepted quantity if status is "accepted"
-                                      if (form.getValues('status') === 'accepted') {
-                                        form.setValue(`items.${index}.accepted_quantity`, newValue);
-                                        form.setValue(`items.${index}.rejected_quantity`, 0);
-                                      }
-                                      
-                                      validateQuantities(index);
-                                      calculateItemTotals(index);
-                                    }}
-                                    disabled={readOnly}
-                                    className="text-sm text-center border-blue-200 focus:border-blue-400"
-                                  />
-                                </div>
-                                <div>
-                                  <label className="text-xs font-medium text-green-600 mb-1 block">Accepted Qty *</label>
-                                  <Input
-                                    type="number"
-                                    min="0"
-                                    value={item.accepted_quantity || 0}
-                                    onChange={(e) => {
-                                      const newValue = parseFloat(e.target.value) || 0;
-                                      const maxAccepted = (item.received_quantity || 0) - (item.rejected_quantity || 0);
-                                      const finalValue = Math.min(newValue, maxAccepted);
-                                      form.setValue(`items.${index}.accepted_quantity`, finalValue);
-                                      validateQuantities(index);
-                                      calculateItemTotals(index);
-                                    }}
-                                    disabled={readOnly}
-                                    className="text-sm text-center border-green-200 focus:border-green-400 bg-green-50/50"
-                                  />
-                                </div>
-                                <div>
-                                  <label className="text-xs font-medium text-red-600 mb-1 block">Rejected Qty *</label>
-                                  <Input
-                                    type="number"
-                                    min="0"
-                                    value={item.rejected_quantity || 0}
-                                    onChange={(e) => {
-                                      const newValue = parseFloat(e.target.value) || 0;
-                                      const maxRejected = (item.received_quantity || 0) - (item.accepted_quantity || 0);
-                                      const finalValue = Math.min(newValue, maxRejected);
-                                      form.setValue(`items.${index}.rejected_quantity`, finalValue);
-                                      validateQuantities(index);
-                                    }}
-                                    disabled={readOnly}
-                                    className="text-sm text-center border-red-200 focus:border-red-400 bg-red-50/50"
-                                  />
-                                </div>
-                              </div>
-                              <div className="mt-2 text-xs text-muted-foreground text-center">
-                                Pending: {(item.ordered_quantity || 0) - (item.received_quantity || 0)}
-                              </div>
-                            </td>
-                            
-                            {/* Unit Price */}
-                            <td className="border-r border-border p-4">
-                              <div>
-                                <label className="text-xs font-medium text-muted-foreground mb-1 block">Unit Price *</label>
-                                <Input
-                                  type="number"
-                                  step="0.01"
-                                  min="0.01"
-                                  value={item.unit_price || 0}
-                                  onChange={(e) => {
-                                    const newPrice = parseFloat(e.target.value) || 0;
-                                    form.setValue(`items.${index}.unit_price`, newPrice);
-                                    calculateItemTotals(index);
-                                  }}
-                                  disabled={readOnly}
-                                  className="text-sm text-center font-medium border-blue-200 focus:border-blue-400"
+      <Form {...form}>
+        <form onSubmit={form.handleSubmit(handleSubmit)} className="flex-1 flex flex-col">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col px-4">
+            <TabsList className="grid w-full grid-cols-4 mb-4 bg-muted/30 h-12">
+              <TabsTrigger value="grn-info" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground flex items-center gap-2">
+                <FileText className="h-4 w-4" />
+                GRN Info
+              </TabsTrigger>
+              <TabsTrigger value="items" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground flex items-center gap-2">
+                <Package className="h-4 w-4" />
+                Items ({items.length})
+              </TabsTrigger>
+              <TabsTrigger value="warehouse" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground flex items-center gap-2">
+                <Warehouse className="h-4 w-4" />
+                Warehouse
+              </TabsTrigger>
+              <TabsTrigger value="summary" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground flex items-center gap-2">
+                <ClipboardCheck className="h-4 w-4" />
+                Summary
+              </TabsTrigger>
+            </TabsList>
+
+            <div className="flex-1 overflow-hidden">
+              {/* GRN Info Tab */}
+              <TabsContent value="grn-info" className="flex-1 overflow-auto space-y-4 m-0">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                  {/* GRN Reference Card */}
+                  <Card className="shadow-sm border-border/50 lg:col-span-2">
+                    <CardContent className="pt-6">
+                      <div className="bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-950 dark:to-pink-950 border border-purple-200 rounded-lg p-4">
+                        <FormField
+                          control={form.control}
+                          name="grn_reference_no"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel className="text-purple-700 dark:text-purple-300 font-semibold flex items-center gap-2">
+                                <FileText className="h-4 w-4" />
+                                GRN Reference Number
+                              </FormLabel>
+                              <FormControl>
+                                <Input 
+                                  {...field} 
+                                  disabled 
+                                  placeholder="Auto-generated on save"
+                                  className="bg-purple-100/50 dark:bg-purple-900/30 border-purple-200 text-purple-800 dark:text-purple-200 font-medium text-center"
                                 />
-                              </div>
-                            </td>
-                            
-                            
-                            {/* Line Total */}
-                            <td className="p-4">
-                              <div>
-                                <label className="text-xs font-medium text-muted-foreground mb-1 block">Line Total</label>
-                                <Input
-                                  type="number"
-                                  value={item.line_total?.toFixed(2) || '0.00'}
-                                  disabled
-                                  className="bg-primary/10 text-sm text-center font-bold text-primary"
-                                />
-                              </div>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* Purchase Order Details */}
+                  <Card className="shadow-sm border-border/50">
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-base font-semibold flex items-center gap-2">
+                        <ShoppingCart className="h-4 w-4 text-primary" />
+                        Purchase Order Details
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <FormField
+                        control={form.control}
+                        name="purchase_order_id"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Purchase Order</FormLabel>
+                            <Select
+                              value={field.value}
+                              onValueChange={(value) => {
+                                field.onChange(value);
+                                handlePOSelection(value);
+                              }}
+                              disabled={readOnly || mode === 'edit'}
+                            >
+                              <FormControl>
+                                <SelectTrigger className="h-9">
+                                  <SelectValue placeholder="Select purchase order" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                {purchaseOrders.filter(po => po.id && po.id.trim() !== '').map((po) => (
+                                  <SelectItem key={po.id} value={po.id}>
+                                    <div className="flex flex-col">
+                                      <span className="font-medium text-sm">{po.po_number || 'N/A'}</span>
+                                      <span className="text-xs text-muted-foreground">
+                                        {po.supplier?.name || 'Unknown Supplier'} | ₹{po.total_amount?.toLocaleString() || '0'}
+                                      </span>
+                                    </div>
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name="supplier_name"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Supplier Name</FormLabel>
+                            <FormControl>
+                              <Input {...field} disabled className="h-9 bg-muted/30" />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name="status"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Status</FormLabel>
+                            <Select
+                              value={field.value}
+                              onValueChange={(value) => {
+                                field.onChange(value);
+                                handleStatusChange(value);
+                              }}
+                              disabled={readOnly}
+                            >
+                              <FormControl>
+                                <SelectTrigger className="h-9">
+                                  <SelectValue placeholder="Select status" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                <SelectItem value="accepted">
+                                  <div className="flex items-center gap-2">
+                                    <CheckCircle2 className="h-4 w-4 text-green-500" />
+                                    Accepted
+                                  </div>
+                                </SelectItem>
+                                <SelectItem value="received">
+                                  <div className="flex items-center gap-2">
+                                    <Package className="h-4 w-4 text-blue-500" />
+                                    Received
+                                  </div>
+                                </SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </CardContent>
+                  </Card>
+
+                  {/* Dates & Invoice Details */}
+                  <Card className="shadow-sm border-border/50">
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-base font-semibold flex items-center gap-2">
+                        <CalendarIcon className="h-4 w-4 text-primary" />
+                        Dates & Invoice Details
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <FormField
+                        control={form.control}
+                        name="grn_date"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">GRN Date</FormLabel>
+                            <FormControl>
+                              <Input
+                                type="date"
+                                {...field}
+                                disabled={readOnly}
+                                className="h-9"
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name="supplier_invoice_number"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Supplier Invoice Number</FormLabel>
+                            <FormControl>
+                              <Input {...field} disabled={readOnly} className="h-9" />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name="supplier_invoice_date"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Supplier Invoice Date</FormLabel>
+                            <FormControl>
+                              <Input
+                                type="date"
+                                {...field}
+                                disabled={readOnly}
+                                className="h-9"
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </CardContent>
+                  </Card>
                 </div>
 
-                {/* GST Section - Moved to Bottom */}
-                <Card className="border-dashed border-2 border-orange-200 bg-orange-50/50 dark:bg-orange-950/20">
+                {/* Remarks */}
+                <Card className="shadow-sm border-border/50">
                   <CardHeader className="pb-3">
-                    <CardTitle className="text-base font-semibold text-orange-700 dark:text-orange-400 flex items-center gap-2">
-                      <div className="h-2 w-2 bg-orange-500 rounded-full"></div>
-                      GST Details
+                    <CardTitle className="text-base font-semibold flex items-center gap-2">
+                      <Info className="h-4 w-4 text-primary" />
+                      Additional Information
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="overflow-x-auto">
-                      <table className="w-full border-collapse border border-orange-200">
-                        <thead>
-                          <tr className="bg-orange-100 dark:bg-orange-900/30">
-                            <th className="border border-orange-200 p-3 text-left text-sm font-medium">Product</th>
-                            <th className="border border-orange-200 p-3 text-center text-sm font-medium">CGST %</th>
-                            <th className="border border-orange-200 p-3 text-center text-sm font-medium">CGST Amount</th>
-                            <th className="border border-orange-200 p-3 text-center text-sm font-medium">SGST %</th>
-                            <th className="border border-orange-200 p-3 text-center text-sm font-medium">SGST Amount</th>
-                            <th className="border border-orange-200 p-3 text-center text-sm font-medium">IGST %</th>
-                            <th className="border border-orange-200 p-3 text-center text-sm font-medium">IGST Amount</th>
-                            <th className="border border-orange-200 p-3 text-center text-sm font-medium">Total Tax</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {form.watch('items').map((item: any, index: number) => (
-                            <tr key={index} className="hover:bg-orange-50 dark:hover:bg-orange-950/20">
-                              <td className="border border-orange-200 p-2">
-                                <div className="text-sm font-medium">{item.product_name}</div>
-                                <div className="text-xs text-muted-foreground">{item.product_sku}</div>
-                              </td>
-                              
-                              <td className="border border-orange-200 p-2">
-                              <Input
-                                type="number"
-                                step="0.01"
-                                min="0"
-                                max="100"
-                                value={item.cgst_rate || 0}
-                                onChange={(e) => {
-                                  const rate = parseFloat(e.target.value) || 0;
-                                  form.setValue(`items.${index}.cgst_rate`, rate);
-                                  // Clear IGST if CGST is being set
-                                  if (rate > 0) {
-                                    form.setValue(`items.${index}.igst_rate`, 0);
-                                  }
-                                  calculateItemTotals(index);
+                    <FormField
+                      control={form.control}
+                      name="remarks"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Remarks</FormLabel>
+                          <FormControl>
+                            <Textarea {...field} disabled={readOnly} className="min-h-[80px]" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
+              {/* Items Tab */}
+              <TabsContent value="items" className="flex-1 overflow-auto m-0">
+                <Card className="shadow-sm border-border/50">
+                  <CardHeader className="pb-3">
+                    <div className="flex justify-between items-center">
+                      <CardTitle className="text-base font-semibold flex items-center gap-2">
+                        <Package className="h-4 w-4 text-primary" />
+                        Receipt Items
+                      </CardTitle>
+                      <Badge variant="secondary" className="text-xs">
+                        {items.length} Items
+                      </Badge>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="p-0">
+                    {items.length > 0 ? (
+                      <div className="space-y-6 p-6">
+                        {/* Main Items Table */}
+                        <div className="overflow-x-auto rounded-lg border border-border">
+                          <Table>
+                            <TableHeader className="bg-muted/50">
+                              <TableRow>
+                                <TableHead className="font-semibold">Product Details</TableHead>
+                                <TableHead className="text-center font-semibold">Quantities</TableHead>
+                                <TableHead className="text-center font-semibold">Unit Price</TableHead>
+                                <TableHead className="text-center font-semibold">GST Details</TableHead>
+                                <TableHead className="text-right font-semibold">Line Total</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {items.map((item: any, index: number) => (
+                                <TableRow key={index} className="hover:bg-muted/30 transition-colors">
+                                  {/* Product Details */}
+                                  <TableCell className="p-4">
+                                    <div className="space-y-2">
+                                      <div className="font-medium text-sm">{item.product_name || 'Unknown Product'}</div>
+                                      <div className="text-xs text-muted-foreground">SKU: {item.product_sku || 'N/A'}</div>
+                                      <div className="text-xs text-muted-foreground">UOM: {item.unit_of_measure || 'PCS'}</div>
+                                    </div>
+                                  </TableCell>
+                                  
+                                  {/* Quantities */}
+                                  <TableCell className="p-4">
+                                    <div className="grid grid-cols-2 gap-2 min-w-[200px]">
+                                      <div>
+                                        <label className="text-xs font-medium text-muted-foreground mb-1 block">Ordered</label>
+                                        <Input
+                                          type="number"
+                                          value={item.ordered_quantity || 0}
+                                          disabled
+                                          className="bg-muted/30 text-xs text-center h-8"
+                                        />
+                                      </div>
+                                      <div>
+                                        <label className="text-xs font-medium text-blue-600 mb-1 block">Received</label>
+                                        <Input
+                                          type="number"
+                                          min="0"
+                                          max={item.ordered_quantity}
+                                          value={item.received_quantity || 0}
+                                          onChange={(e) => {
+                                            const newValue = Math.min(
+                                              parseFloat(e.target.value) || 0, 
+                                              item.ordered_quantity
+                                            );
+                                            form.setValue(`items.${index}.received_quantity`, newValue);
+                                            if (form.getValues('status') === 'accepted') {
+                                              form.setValue(`items.${index}.accepted_quantity`, newValue);
+                                              form.setValue(`items.${index}.rejected_quantity`, 0);
+                                            }
+                                            validateQuantities(index);
+                                            calculateItemTotals(index);
+                                          }}
+                                          disabled={readOnly}
+                                          className="text-xs text-center h-8 border-blue-200 focus:border-blue-400"
+                                        />
+                                      </div>
+                                      <div>
+                                        <label className="text-xs font-medium text-green-600 mb-1 block">Accepted</label>
+                                        <Input
+                                          type="number"
+                                          min="0"
+                                          value={item.accepted_quantity || 0}
+                                          onChange={(e) => {
+                                            const newValue = parseFloat(e.target.value) || 0;
+                                            const maxAccepted = (item.received_quantity || 0) - (item.rejected_quantity || 0);
+                                            const finalValue = Math.min(newValue, maxAccepted);
+                                            form.setValue(`items.${index}.accepted_quantity`, finalValue);
+                                            validateQuantities(index);
+                                            calculateItemTotals(index);
+                                          }}
+                                          disabled={readOnly}
+                                          className="text-xs text-center h-8 border-green-200 focus:border-green-400 bg-green-50/50"
+                                        />
+                                      </div>
+                                      <div>
+                                        <label className="text-xs font-medium text-red-600 mb-1 block">Rejected</label>
+                                        <Input
+                                          type="number"
+                                          min="0"
+                                          value={item.rejected_quantity || 0}
+                                          onChange={(e) => {
+                                            const newValue = parseFloat(e.target.value) || 0;
+                                            const maxRejected = (item.received_quantity || 0) - (item.accepted_quantity || 0);
+                                            const finalValue = Math.min(newValue, maxRejected);
+                                            form.setValue(`items.${index}.rejected_quantity`, finalValue);
+                                            validateQuantities(index);
+                                          }}
+                                          disabled={readOnly}
+                                          className="text-xs text-center h-8 border-red-200 focus:border-red-400 bg-red-50/50"
+                                        />
+                                      </div>
+                                    </div>
+                                    <div className="mt-2 text-xs text-muted-foreground text-center">
+                                      Pending: {(item.ordered_quantity || 0) - (item.received_quantity || 0)}
+                                    </div>
+                                  </TableCell>
+                                  
+                                  {/* Unit Price */}
+                                  <TableCell className="p-4">
+                                    <div className="min-w-[100px]">
+                                      <label className="text-xs font-medium text-muted-foreground mb-1 block">Unit Price</label>
+                                      <Input
+                                        type="number"
+                                        step="0.01"
+                                        min="0.01"
+                                        value={item.unit_price || 0}
+                                        onChange={(e) => {
+                                          const newPrice = parseFloat(e.target.value) || 0;
+                                          form.setValue(`items.${index}.unit_price`, newPrice);
+                                          calculateItemTotals(index);
+                                        }}
+                                        disabled={readOnly}
+                                        className="text-xs text-center h-8 font-medium border-blue-200 focus:border-blue-400"
+                                      />
+                                    </div>
+                                  </TableCell>
+
+                                  {/* GST Details */}
+                                  <TableCell className="p-4">
+                                    <div className="grid grid-cols-3 gap-2 min-w-[180px]">
+                                      <div>
+                                        <label className="text-xs font-medium text-muted-foreground mb-1 block">CGST%</label>
+                                        <Input
+                                          type="number"
+                                          step="0.01"
+                                          min="0"
+                                          max="100"
+                                          value={item.cgst_rate || 0}
+                                          onChange={(e) => {
+                                            const rate = parseFloat(e.target.value) || 0;
+                                            form.setValue(`items.${index}.cgst_rate`, rate);
+                                            if (rate > 0) {
+                                              form.setValue(`items.${index}.igst_rate`, 0);
+                                            }
+                                            calculateItemTotals(index);
+                                          }}
+                                          disabled={readOnly || (item.igst_rate > 0)}
+                                          className="text-xs text-center h-8 border-orange-200 focus:border-orange-400"
+                                          placeholder={item.igst_rate > 0 ? "N/A" : "0.00"}
+                                        />
+                                      </div>
+                                      <div>
+                                        <label className="text-xs font-medium text-muted-foreground mb-1 block">SGST%</label>
+                                        <Input
+                                          type="number"
+                                          step="0.01"
+                                          min="0"
+                                          max="100"
+                                          value={item.sgst_rate || 0}
+                                          onChange={(e) => {
+                                            const rate = parseFloat(e.target.value) || 0;
+                                            form.setValue(`items.${index}.sgst_rate`, rate);
+                                            if (rate > 0) {
+                                              form.setValue(`items.${index}.igst_rate`, 0);
+                                            }
+                                            calculateItemTotals(index);
+                                          }}
+                                          disabled={readOnly || (item.igst_rate > 0)}
+                                          className="text-xs text-center h-8 border-orange-200 focus:border-orange-400"
+                                          placeholder={item.igst_rate > 0 ? "N/A" : "0.00"}
+                                        />
+                                      </div>
+                                      <div>
+                                        <label className="text-xs font-medium text-muted-foreground mb-1 block">IGST%</label>
+                                        <Input
+                                          type="number"
+                                          step="0.01"
+                                          min="0"
+                                          max="100"
+                                          value={item.igst_rate || 0}
+                                          onChange={(e) => {
+                                            const rate = parseFloat(e.target.value) || 0;
+                                            form.setValue(`items.${index}.igst_rate`, rate);
+                                            if (rate > 0) {
+                                              form.setValue(`items.${index}.cgst_rate`, 0);
+                                              form.setValue(`items.${index}.sgst_rate`, 0);
+                                            }
+                                            calculateItemTotals(index);
+                                          }}
+                                          disabled={readOnly || ((item.cgst_rate > 0) || (item.sgst_rate > 0))}
+                                          className="text-xs text-center h-8 border-orange-200 focus:border-orange-400"
+                                          placeholder={((item.cgst_rate > 0) || (item.sgst_rate > 0)) ? "N/A" : "0.00"}
+                                        />
+                                      </div>
+                                    </div>
+                                    <div className="mt-2 text-xs text-center text-muted-foreground">
+                                      Tax: ₹{((item.cgst_amount || 0) + (item.sgst_amount || 0) + (item.igst_amount || 0)).toFixed(2)}
+                                    </div>
+                                  </TableCell>
+                                  
+                                  {/* Line Total */}
+                                  <TableCell className="p-4">
+                                    <div className="min-w-[100px]">
+                                      <label className="text-xs font-medium text-muted-foreground mb-1 block">Line Total</label>
+                                      <Input
+                                        type="number"
+                                        value={item.line_total?.toFixed(2) || '0.00'}
+                                        disabled
+                                        className="bg-primary/10 text-xs text-center h-8 font-bold text-primary"
+                                      />
+                                    </div>
+                                  </TableCell>
+                                </TableRow>
+                              ))}
+                            </TableBody>
+                          </Table>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="text-center py-12 text-muted-foreground">
+                        <div className="text-4xl mb-4">📦</div>
+                        <p className="text-lg font-medium mb-2">No Purchase Order Selected</p>
+                        <p className="text-sm">Please select a Purchase Order in the GRN Info tab to load items for processing</p>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
+              {/* Warehouse Tab */}
+              <TabsContent value="warehouse" className="flex-1 overflow-auto space-y-4 m-0">
+                <Card className="shadow-sm border-border/50">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-base font-semibold flex items-center gap-2">
+                      <Warehouse className="h-4 w-4 text-primary" />
+                      Warehouse & Bin Assignment
+                    </CardTitle>
+                    <p className="text-sm text-muted-foreground">Configure default warehouse and bin locations for all items</p>
+                  </CardHeader>
+                  <CardContent className="space-y-6">
+                    {/* Default Warehouse & Bin Selection */}
+                    <div className="bg-gradient-to-r from-blue-50 to-cyan-50 dark:from-blue-950 dark:to-cyan-950 border border-blue-200 rounded-lg p-6">
+                      <h3 className="text-lg font-semibold text-blue-700 dark:text-blue-300 mb-4 flex items-center gap-2">
+                        <MapPin className="h-5 w-5" />
+                        Default Location Settings
+                      </h3>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <FormField
+                          control={form.control}
+                          name="default_warehouse_id"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Default Warehouse</FormLabel>
+                              <Select
+                                value={field.value}
+                                onValueChange={(value) => {
+                                  field.onChange(value);
+                                  form.setValue('default_bin_id', '');
+                                  applyDefaultWarehouseBin();
                                 }}
-                                disabled={readOnly || (item.igst_rate > 0)}
-                                className="text-sm text-center border-orange-200 focus:border-orange-400"
-                                placeholder={item.igst_rate > 0 ? "Disabled (IGST active)" : "0.00"}
-                              />
-                              </td>
-                              
-                              <td className="border border-orange-200 p-2">
-                                <Input
-                                  type="number"
-                                  value={item.cgst_amount?.toFixed(2) || '0.00'}
-                                  disabled
-                                  className="text-sm text-center bg-muted/30 font-medium"
-                                />
-                              </td>
-                              
-                              <td className="border border-orange-200 p-2">
-                              <Input
-                                type="number"
-                                step="0.01"
-                                min="0"
-                                max="100"
-                                value={item.sgst_rate || 0}
-                                onChange={(e) => {
-                                  const rate = parseFloat(e.target.value) || 0;
-                                  form.setValue(`items.${index}.sgst_rate`, rate);
-                                  // Clear IGST if SGST is being set
-                                  if (rate > 0) {
-                                    form.setValue(`items.${index}.igst_rate`, 0);
-                                  }
-                                  calculateItemTotals(index);
+                                disabled={readOnly}
+                              >
+                                <FormControl>
+                                  <SelectTrigger className="h-9">
+                                    <SelectValue placeholder="Select warehouse" />
+                                  </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                  {warehouses.filter(warehouse => warehouse.id && warehouse.id.trim() !== '').map((warehouse) => (
+                                    <SelectItem key={warehouse.id} value={warehouse.id}>
+                                      <div className="flex flex-col">
+                                        <span className="font-medium text-sm">{warehouse.name || 'Unknown'}</span>
+                                        <span className="text-xs text-muted-foreground">Code: {warehouse.warehouse_code || 'N/A'}</span>
+                                      </div>
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+
+                        <FormField
+                          control={form.control}
+                          name="default_bin_id"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Default Bin</FormLabel>
+                              <Select
+                                value={field.value}
+                                onValueChange={(value) => {
+                                  field.onChange(value);
+                                  applyDefaultWarehouseBin();
                                 }}
-                                disabled={readOnly || (item.igst_rate > 0)}
-                                className="text-sm text-center border-orange-200 focus:border-orange-400"
-                                placeholder={item.igst_rate > 0 ? "Disabled (IGST active)" : "0.00"}
-                              />
-                              </td>
-                              
-                              <td className="border border-orange-200 p-2">
-                                <Input
-                                  type="number"
-                                  value={item.sgst_amount?.toFixed(2) || '0.00'}
-                                  disabled
-                                  className="text-sm text-center bg-muted/30 font-medium"
-                                />
-                              </td>
-                              
-                              <td className="border border-orange-200 p-2">
-                              <Input
-                                type="number"
-                                step="0.01"
-                                min="0"
-                                max="100"
-                                value={item.igst_rate || 0}
-                                onChange={(e) => {
-                                  const rate = parseFloat(e.target.value) || 0;
-                                  form.setValue(`items.${index}.igst_rate`, rate);
-                                  // Clear CGST/SGST if IGST is being set
-                                  if (rate > 0) {
-                                    form.setValue(`items.${index}.cgst_rate`, 0);
-                                    form.setValue(`items.${index}.sgst_rate`, 0);
+                                disabled={readOnly || !form.watch('default_warehouse_id')}
+                              >
+                                <FormControl>
+                                  <SelectTrigger className="h-9">
+                                    <SelectValue placeholder="Select bin" />
+                                  </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                  {bins
+                                    .filter(bin => {
+                                      const selectedWarehouse = warehouses.find(w => w.id === form.watch('default_warehouse_id'));
+                                      return bin.warehouse_name === selectedWarehouse?.name && bin.id && bin.id.trim() !== '';
+                                    })
+                                    .map((bin) => (
+                                      <SelectItem key={bin.id} value={bin.id}>
+                                        <div className="flex flex-col">
+                                          <span className="font-medium text-sm">{bin.bin_name || 'Unknown Bin'}</span>
+                                          <span className="text-xs text-muted-foreground">Code: {bin.wh_bin_code || 'N/A'}</span>
+                                        </div>
+                                      </SelectItem>
+                                    ))
                                   }
-                                  calculateItemTotals(index);
-                                }}
-                                disabled={readOnly || ((item.cgst_rate > 0) || (item.sgst_rate > 0))}
-                                className="text-sm text-center border-orange-200 focus:border-orange-400"
-                                placeholder={((item.cgst_rate > 0) || (item.sgst_rate > 0)) ? "Disabled (CGST/SGST active)" : "0.00"}
-                              />
-                              </td>
+                                </SelectContent>
+                              </Select>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+                      {!readOnly && (
+                        <div className="mt-4 p-4 bg-blue-100 dark:bg-blue-900/30 rounded-lg border border-blue-200">
+                          <div className="flex items-start gap-2">
+                            <Info className="h-4 w-4 text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" />
+                            <div>
+                              <p className="text-sm font-medium text-blue-700 dark:text-blue-300">Auto-Assignment</p>
+                              <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
+                                When you select a warehouse and bin above, it will automatically be applied to all items in this GRN. 
+                                You can still override the location for individual items if needed.
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Current Assignments (if items exist) */}
+                    {items.length > 0 && (
+                      <Card className="border-dashed border-2 border-muted-foreground/20">
+                        <CardHeader className="pb-3">
+                          <CardTitle className="text-base font-semibold flex items-center gap-2">
+                            <CheckCircle2 className="h-4 w-4 text-green-600" />
+                            Current Item Assignments
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="space-y-3">
+                            {items.map((item: any, index: number) => {
+                              const assignedBin = bins.find(b => b.id === item.bin_id);
+                              const assignedWarehouse = warehouses.find(w => w.name === assignedBin?.warehouse_name);
                               
-                              <td className="border border-orange-200 p-2">
-                                <Input
-                                  type="number"
-                                  value={item.igst_amount?.toFixed(2) || '0.00'}
-                                  disabled
-                                  className="text-sm text-center bg-muted/30 font-medium"
-                                />
-                              </td>
-                              
-                              <td className="border border-orange-200 p-2">
-                                <Input
-                                  type="number"
-                                  value={((item.cgst_amount || 0) + (item.sgst_amount || 0) + (item.igst_amount || 0)).toFixed(2)}
-                                  disabled
-                                  className="text-sm text-center bg-orange-100 dark:bg-orange-900/30 font-bold text-orange-700 dark:text-orange-400"
-                                />
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
+                              return (
+                                <div key={index} className="flex items-center justify-between p-3 bg-muted/30 rounded-lg">
+                                  <div className="flex-1">
+                                    <div className="font-medium text-sm">{item.product_name || 'Unknown Product'}</div>
+                                    <div className="text-xs text-muted-foreground">SKU: {item.product_sku || 'N/A'}</div>
+                                  </div>
+                                  <div className="text-right">
+                                    <div className="text-sm font-medium">
+                                      {assignedWarehouse?.name || 'No Warehouse'} / {assignedBin?.bin_name || 'No Bin'}
+                                    </div>
+                                    <div className="text-xs text-muted-foreground">
+                                      {assignedWarehouse?.warehouse_code || 'N/A'} / {assignedBin?.wh_bin_code || 'N/A'}
+                                    </div>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    )}
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
+              {/* Summary Tab */}
+              <TabsContent value="summary" className="flex-1 overflow-auto space-y-4 m-0">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                  {/* Summary Cards */}
+                  <Card className="shadow-sm border-border/50">
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-base font-semibold flex items-center gap-2">
+                        <Calculator className="h-4 w-4 text-primary" />
+                        Quantity Summary
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="bg-blue-50 dark:bg-blue-950 p-4 rounded-lg text-center">
+                          <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+                            {summary.totalOrdered.toLocaleString()}
+                          </div>
+                          <div className="text-sm text-muted-foreground">Total Ordered</div>
+                        </div>
+                        <div className="bg-green-50 dark:bg-green-950 p-4 rounded-lg text-center">
+                          <div className="text-2xl font-bold text-green-600 dark:text-green-400">
+                            {summary.totalReceived.toLocaleString()}
+                          </div>
+                          <div className="text-sm text-muted-foreground">Total Received</div>
+                        </div>
+                        <div className="bg-emerald-50 dark:bg-emerald-950 p-4 rounded-lg text-center">
+                          <div className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
+                            {summary.totalAccepted.toLocaleString()}
+                          </div>
+                          <div className="text-sm text-muted-foreground">Total Accepted</div>
+                        </div>
+                        <div className="bg-red-50 dark:bg-red-950 p-4 rounded-lg text-center">
+                          <div className="text-2xl font-bold text-red-600 dark:text-red-400">
+                            {summary.totalRejected.toLocaleString()}
+                          </div>
+                          <div className="text-sm text-muted-foreground">Total Rejected</div>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* Financial Summary */}
+                  <Card className="shadow-sm border-border/50">
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-base font-semibold flex items-center gap-2">
+                        <Calculator className="h-4 w-4 text-primary" />
+                        Financial Summary
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-4">
+                        <div className="bg-purple-50 dark:bg-purple-950 p-4 rounded-lg text-center">
+                          <div className="text-3xl font-bold text-purple-600 dark:text-purple-400">
+                            ₹{summary.totalAmount.toLocaleString()}
+                          </div>
+                          <div className="text-sm text-muted-foreground">Total GRN Amount</div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-3 text-sm">
+                          <div className="flex justify-between p-2 bg-muted/30 rounded">
+                            <span>Subtotal:</span>
+                            <span className="font-medium">₹{(summary.totalAmount - items.reduce((sum, item) => sum + ((item.cgst_amount || 0) + (item.sgst_amount || 0) + (item.igst_amount || 0)), 0)).toFixed(2)}</span>
+                          </div>
+                          <div className="flex justify-between p-2 bg-muted/30 rounded">
+                            <span>Total Tax:</span>
+                            <span className="font-medium">₹{items.reduce((sum, item) => sum + ((item.cgst_amount || 0) + (item.sgst_amount || 0) + (item.igst_amount || 0)), 0).toFixed(2)}</span>
+                          </div>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                {/* Final Status & Actions */}
+                <Card className="shadow-sm border-border/50">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-base font-semibold flex items-center gap-2">
+                      <ClipboardCheck className="h-4 w-4 text-primary" />
+                      Final Review
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between p-4 bg-muted/30 rounded-lg">
+                        <div>
+                          <div className="font-medium">GRN Status</div>
+                          <div className="text-sm text-muted-foreground">Current processing status</div>
+                        </div>
+                        <Badge variant={form.watch('status') === 'accepted' ? 'default' : 'secondary'}>
+                          {form.watch('status') === 'accepted' ? (
+                            <>
+                              <CheckCircle2 className="h-4 w-4 mr-1" />
+                              Accepted
+                            </>
+                          ) : (
+                            <>
+                              <Package className="h-4 w-4 mr-1" />
+                              Received
+                            </>
+                          )}
+                        </Badge>
+                      </div>
+
+                      {!readOnly && (
+                        <div className="p-4 bg-green-50 dark:bg-green-950/30 rounded-lg border border-green-200">
+                          <div className="flex items-start gap-2">
+                            <CheckCircle2 className="h-4 w-4 text-green-600 dark:text-green-400 mt-0.5 flex-shrink-0" />
+                            <div>
+                              <p className="text-sm font-medium text-green-700 dark:text-green-300">Ready to Submit</p>
+                              <p className="text-xs text-green-600 dark:text-green-400 mt-1">
+                                Review all the details above and click "Create GRN" to process this goods receipt note.
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </CardContent>
                 </Card>
-              </div>
-            ) : (
-              <div className="text-center py-12 text-muted-foreground">
-                <div className="text-4xl mb-4">📦</div>
-                <p className="text-lg font-medium mb-2">No Purchase Order Selected</p>
-                <p className="text-sm">Please select a Purchase Order above to load items for GRN processing</p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+              </TabsContent>
+            </div>
+          </Tabs>
 
-        {/* Summary Section */}
-        {form.watch('items')?.length > 0 && (
-          <Card>
-            <CardHeader>
-              <CardTitle>GRN Summary</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-2 lg:grid-cols-6 gap-4">
-                <div className="bg-blue-50 dark:bg-blue-950 p-4 rounded-lg">
-                  <div className="text-sm text-muted-foreground">Total Ordered</div>
-                  <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
-                    {summary.totalOrdered.toLocaleString()}
-                  </div>
-                </div>
-                <div className="bg-green-50 dark:bg-green-950 p-4 rounded-lg">
-                  <div className="text-sm text-muted-foreground">Total Received</div>
-                  <div className="text-2xl font-bold text-green-600 dark:text-green-400">
-                    {summary.totalReceived.toLocaleString()}
-                  </div>
-                </div>
-                <div className="bg-emerald-50 dark:bg-emerald-950 p-4 rounded-lg">
-                  <div className="text-sm text-muted-foreground">Total Accepted</div>
-                  <div className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
-                    {summary.totalAccepted.toLocaleString()}
-                  </div>
-                </div>
-                <div className="bg-red-50 dark:bg-red-950 p-4 rounded-lg">
-                  <div className="text-sm text-muted-foreground">Total Rejected</div>
-                  <div className="text-2xl font-bold text-red-600 dark:text-red-400">
-                    {summary.totalRejected.toLocaleString()}
-                  </div>
-                </div>
-                <div className="bg-yellow-50 dark:bg-yellow-950 p-4 rounded-lg">
-                  <div className="text-sm text-muted-foreground">Total Pending</div>
-                  <div className="text-2xl font-bold text-yellow-600 dark:text-yellow-400">
-                    {summary.totalPending.toLocaleString()}
-                  </div>
-                </div>
-                <div className="bg-purple-50 dark:bg-purple-950 p-4 rounded-lg">
-                  <div className="text-sm text-muted-foreground">GRN Amount</div>
-                  <div className="text-2xl font-bold text-purple-600 dark:text-purple-400">
-                    ₹{summary.totalAmount.toLocaleString()}
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Action Buttons */}
-        <div className="flex justify-end space-x-4">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={onCancel}
-          >
-            {readOnly ? 'Close' : 'Cancel'}
-          </Button>
-          {!readOnly && (
+          {/* Action Buttons */}
+          <div className="flex justify-end space-x-4 px-4 pb-4">
             <Button
-              type="submit"
-              disabled={loading}
+              type="button"
+              variant="outline"
+              onClick={onCancel}
             >
-              {loading ? 'Saving...' : mode === 'create' ? 'Create GRN' : 'Update GRN'}
+              {readOnly ? 'Close' : 'Cancel'}
             </Button>
-          )}
-        </div>
-      </form>
-    </Form>
+            {!readOnly && (
+              <Button
+                type="submit"
+                disabled={loading}
+              >
+                {loading ? 'Saving...' : mode === 'create' ? 'Create GRN' : 'Update GRN'}
+              </Button>
+            )}
+          </div>
+        </form>
+      </Form>
+    </div>
+  );
+}
   );
 }
