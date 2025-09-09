@@ -23,6 +23,7 @@ import { InventoryTransferForm } from '@/components/forms/InventoryTransferForm'
 import { InventoryAdjustmentTable } from '@/components/tables/InventoryAdjustmentTable';
 import { InventoryTransactionTable } from '@/components/tables/InventoryTransactionTable';
 import { CurrentStockTable } from '@/components/tables/CurrentStockTable';
+import { EnhancedCurrentStockSystem } from '@/components/inventory/EnhancedCurrentStockSystem';
 import { BOMModule } from '@/components/modules/BOMModule';
 import { ProductViewDialog } from '@/components/dialogs/ProductViewDialog';
 import { EditProductDialog } from '@/components/dialogs/EditProductDialog';
@@ -1386,14 +1387,14 @@ export function InventoryModule() {
             <CardHeader>
               <CardTitle className="flex items-center space-x-2">
                 <Package className="w-5 h-5" />
-                <span>Current Stock Levels (SOH)</span>
+                <span>Enhanced Stock Management System</span>
               </CardTitle>
               <CardDescription>
-                Real-time stock on hand calculated from all inventory transactions
+                Advanced inventory tracking with allocation management and comprehensive analytics
               </CardDescription>
             </CardHeader>
-            <CardContent>
-              <CurrentStockTable refreshTrigger={adjustmentRefreshTrigger} />
+            <CardContent className="p-0">
+              <EnhancedCurrentStockSystem />
             </CardContent>
           </Card>
         </TabsContent>
