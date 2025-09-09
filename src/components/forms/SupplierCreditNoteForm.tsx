@@ -92,16 +92,53 @@ export function SupplierCreditNoteForm({ supplierCreditNote, onSubmit, onCancel,
 
   const fetchDebitNotes = async () => {
     try {
-      const { data, error } = await supabase
+      // First, get all debit notes with confirmed or draft status
+      const { data: debitNotesData, error: debitNotesError } = await supabase
         .from('debit_notes')
         .select('*')
         .in('status', ['confirmed', 'draft'])
         .order('created_at', { ascending: false });
       
-      if (error) throw error;
-      setDebitNotes(data || []);
+      if (debitNotesError) throw debitNotesError;
+      
+      if (!debitNotesData || debitNotesData.length === 0) {
+        setDebitNotes([]);
+        return;
+      }
+
+      // Get all credit note items for these debit notes to check settlement status
+      const debitNoteIds = debitNotesData.map(dn => dn.id);
+      const { data: creditNoteItems, error: creditError } = await supabase
+        .from('supplier_credit_notes')
+        .select(`
+          debit_note_id,
+          total_amount
+        `)
+        .in('debit_note_id', debitNoteIds);
+      
+      if (creditError) {
+        console.error('Error fetching credit notes:', creditError);
+        // If credit note fetch fails, show all debit notes (conservative approach)
+        setDebitNotes(debitNotesData);
+        return;
+      }
+
+      // Calculate settlement status for each debit note
+      const unsettledDebitNotes = debitNotesData.filter(debitNote => {
+        // Find all credit notes for this debit note
+        const relatedCreditNotes = creditNoteItems?.filter(cn => cn.debit_note_id === debitNote.id) || [];
+        
+        // Calculate total credit note amount
+        const totalCreditAmount = relatedCreditNotes.reduce((sum, cn) => sum + (cn.total_amount || 0), 0);
+        
+        // Only include debit notes that are not fully settled
+        return totalCreditAmount < debitNote.total_amount;
+      });
+      
+      setDebitNotes(unsettledDebitNotes);
     } catch (error) {
       console.error('Error fetching debit notes:', error);
+      setDebitNotes([]);
     }
   };
 
