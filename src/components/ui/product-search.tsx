@@ -23,6 +23,7 @@ interface Product {
   sku: string;
   cost_price: number;
   unit_price: number;
+  gst_percentage?: number;
 }
 
 interface ProductSearchProps {
@@ -54,7 +55,7 @@ export function ProductSearch({ value, onSelect, placeholder = "Search products.
     try {
       const { data, error } = await supabase
         .from('products')
-        .select('id, name, sku, cost_price, unit_price')
+        .select('id, name, sku, cost_price, unit_price, gst_percentage')
         .eq('is_active', true)
         .order('name');
       

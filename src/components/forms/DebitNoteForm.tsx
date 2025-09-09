@@ -551,7 +551,10 @@ export function DebitNoteForm({ debitNote, onSubmit, onCancel, mode }: DebitNote
                                handleItemChange(index, 'product_name', product.name);
                                handleItemChange(index, 'product_sku', product.sku);
                                handleItemChange(index, 'unit_price', product.cost_price || 0);
-                               // GST rates will remain as entered or default to 0
+                               const gst = product.gst_percentage ?? 0;
+                               handleItemChange(index, 'cgst_rate', gst ? gst / 2 : 0);
+                               handleItemChange(index, 'sgst_rate', gst ? gst / 2 : 0);
+                               handleItemChange(index, 'igst_rate', 0);
                              }}
                              placeholder="Select product"
                            />
