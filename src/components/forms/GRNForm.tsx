@@ -875,12 +875,14 @@ export function GRNForm({ grn, onSubmit, onCancel, readOnly = false, mode }: GRN
                             <TableHeader>
                               <TableRow className="bg-muted/50 border-b">
                                 <TableHead className="text-left font-semibold text-foreground border-r">Product</TableHead>
-                                <TableHead className="text-center font-semibold text-foreground border-r w-20">Ord Qty</TableHead>
+                                <TableHead className="text-center font-semibold text-foreground border-r w-24">Ord Qty</TableHead>
                                 <TableHead className="text-center font-semibold text-foreground border-r w-20">Pending Qty</TableHead>
                                 <TableHead className="text-center font-semibold text-foreground border-r w-20">Rec Qty</TableHead>
                                 <TableHead className="text-center font-semibold text-foreground border-r w-20">Acc Qty</TableHead>
                                 <TableHead className="text-center font-semibold text-foreground border-r w-20">Rej Qty</TableHead>
                                 <TableHead className="text-center font-semibold text-foreground border-r w-24">Unit Price</TableHead>
+                                <TableHead className="text-center font-semibold text-foreground border-r w-20">Disc%</TableHead>
+                                <TableHead className="text-center font-semibold text-foreground border-r w-24">Disc Value</TableHead>
                                 {shouldShowCGSTSGST && (
                                   <>
                                     <TableHead className="text-center font-semibold text-foreground border-r w-20">CGST%</TableHead>
@@ -913,7 +915,7 @@ export function GRNForm({ grn, onSubmit, onCancel, readOnly = false, mode }: GRN
                                       type="number"
                                       value={item.ordered_quantity || 0}
                                       disabled
-                                      className="bg-muted/30 text-xs text-center h-8 w-16 border-0"
+                                      className="bg-muted/30 text-xs text-center h-8 w-20 border-0"
                                     />
                                   </TableCell>
 
@@ -1005,6 +1007,45 @@ export function GRNForm({ grn, onSubmit, onCancel, readOnly = false, mode }: GRN
                                       }}
                                       disabled={readOnly}
                                       className="text-xs text-center h-8 w-20 font-medium"
+                                    />
+                                  </TableCell>
+
+                                  {/* Disc% */}
+                                  <TableCell className="border-r p-3 text-center">
+                                    <Input
+                                      type="number"
+                                      step="0.01"
+                                      min="0"
+                                      max="100"
+                                      value={item.discount_percentage || 0}
+                                      onChange={(e) => {
+                                        const percentage = parseFloat(e.target.value) || 0;
+                                        form.setValue(`items.${index}.discount_percentage`, percentage);
+                                        // Clear discount_amount when percentage is set
+                                        form.setValue(`items.${index}.discount_amount`, 0);
+                                        calculateItemTotals(index);
+                                      }}
+                                      disabled={readOnly}
+                                      className="text-xs text-center h-8 w-16"
+                                    />
+                                  </TableCell>
+
+                                  {/* Disc Value */}
+                                  <TableCell className="border-r p-3 text-center">
+                                    <Input
+                                      type="number"
+                                      step="0.01"
+                                      min="0"
+                                      value={item.discount_amount || 0}
+                                      onChange={(e) => {
+                                        const amount = parseFloat(e.target.value) || 0;
+                                        form.setValue(`items.${index}.discount_amount`, amount);
+                                        // Clear discount_percentage when amount is set
+                                        form.setValue(`items.${index}.discount_percentage`, 0);
+                                        calculateItemTotals(index);
+                                      }}
+                                      disabled={readOnly}
+                                      className="text-xs text-center h-8 w-20"
                                     />
                                   </TableCell>
 
