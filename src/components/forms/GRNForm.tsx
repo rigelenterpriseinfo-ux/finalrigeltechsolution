@@ -49,6 +49,15 @@ const grnFormSchema = z.object({
   // Consolidated warehouse & bin at form level
   default_warehouse_id: z.string().min(1, 'Default warehouse is required'),
   default_bin_id: z.string().min(1, 'Default bin is required'),
+  // Delivery address and place of supply from PO (non-editable)
+  delivery_address_line1: z.string().optional(),
+  delivery_address_line2: z.string().optional(),
+  delivery_city: z.string().optional(),
+  delivery_state: z.string().optional(),
+  delivery_country: z.string().optional(),
+  delivery_postal_code: z.string().optional(),
+  company_place_of_supply: z.string().optional(),
+  same_as_registered_address: z.boolean().optional(),
   items: z.array(z.object({
     product_id: z.string().min(1, 'Product is required'),
     product_name: z.string(),
@@ -110,6 +119,15 @@ export function GRNForm({ grn, onSubmit, onCancel, readOnly = false, mode }: GRN
       status: grn?.status || 'received',
       default_warehouse_id: '',
       default_bin_id: '',
+      // Delivery address fields from PO
+      delivery_address_line1: '',
+      delivery_address_line2: '',
+      delivery_city: '',
+      delivery_state: '',
+      delivery_country: '',
+      delivery_postal_code: '',
+      company_place_of_supply: '',
+      same_as_registered_address: false,
       items: grn?.grn_line_items?.map((item: any) => ({
         product_id: item.product_id,
         product_name: item.product_name,
@@ -252,6 +270,16 @@ export function GRNForm({ grn, onSubmit, onCancel, readOnly = false, mode }: GRN
     // Auto-fill supplier details
     form.setValue('supplier_id', po.supplier_id);
     form.setValue('supplier_name', po.supplier?.name || '');
+    
+    // Auto-fill delivery address and place of supply from PO
+    form.setValue('delivery_address_line1', po.delivery_address_line1 || '');
+    form.setValue('delivery_address_line2', po.delivery_address_line2 || '');
+    form.setValue('delivery_city', po.delivery_city || '');
+    form.setValue('delivery_state', po.delivery_state || '');
+    form.setValue('delivery_country', po.delivery_country || '');
+    form.setValue('delivery_postal_code', po.delivery_postal_code || '');
+    form.setValue('company_place_of_supply', po.company_place_of_supply || '');
+    form.setValue('same_as_registered_address', po.same_as_registered_address || false);
     
     // Auto-fill items from PO with pending quantities
     const items = po.purchase_order_items?.map((item: any) => ({
@@ -810,6 +838,67 @@ export function GRNForm({ grn, onSubmit, onCancel, readOnly = false, mode }: GRN
                           </FormItem>
                         )}
                       />
+                    </CardContent>
+                  </Card>
+
+                  {/* Delivery Address & Place of Supply */}
+                  <Card className="shadow-sm border-border/50 lg:col-span-2">
+                    <CardHeader className="pb-2 pt-3">
+                      <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                        <MapPin className="h-4 w-4 text-primary" />
+                        Delivery Address & Place of Supply
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-3 pt-0">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        {/* Delivery Address */}
+                        <div className="space-y-2">
+                          <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                            Delivery Address
+                          </label>
+                          <div className="bg-muted/30 rounded-md p-3 min-h-[80px]">
+                            {form.watch('same_as_registered_address') ? (
+                              <p className="text-xs text-muted-foreground italic">Same as registered address</p>
+                            ) : (
+                              <div className="text-xs space-y-1">
+                                {form.watch('delivery_address_line1') && (
+                                  <div>{form.watch('delivery_address_line1')}</div>
+                                )}
+                                {form.watch('delivery_address_line2') && (
+                                  <div>{form.watch('delivery_address_line2')}</div>
+                                )}
+                                <div className="flex flex-wrap gap-1">
+                                  {form.watch('delivery_city') && <span>{form.watch('delivery_city')}</span>}
+                                  {form.watch('delivery_state') && <span>, {form.watch('delivery_state')}</span>}
+                                  {form.watch('delivery_postal_code') && <span> - {form.watch('delivery_postal_code')}</span>}
+                                </div>
+                                {form.watch('delivery_country') && (
+                                  <div>{form.watch('delivery_country')}</div>
+                                )}
+                                {!form.watch('delivery_address_line1') && !form.watch('delivery_city') && (
+                                  <p className="text-xs text-muted-foreground italic">No delivery address specified</p>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Place of Supply */}
+                        <div className="space-y-2">
+                          <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                            Place of Supply
+                          </label>
+                          <div className="bg-muted/30 rounded-md p-3 min-h-[80px] flex items-center">
+                            <div className="text-xs">
+                              {form.watch('company_place_of_supply') ? (
+                                <span className="font-medium capitalize">{form.watch('company_place_of_supply')}</span>
+                              ) : (
+                                <span className="text-muted-foreground italic">Not specified</span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
                     </CardContent>
                   </Card>
 
