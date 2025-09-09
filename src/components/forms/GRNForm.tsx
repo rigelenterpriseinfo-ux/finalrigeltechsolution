@@ -610,7 +610,11 @@ export function GRNForm({ grn, onSubmit, onCancel, readOnly = false, mode }: GRN
             <TabsList className="grid w-full grid-cols-2 mb-4 bg-muted/30 h-12">
               <TabsTrigger value="grn-info" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground flex items-center gap-2">
                 <FileText className="h-4 w-4" />
-                GRN Info
+                <span className="truncate">
+                  GRN Info
+                  {form.watch('supplier_name') && ` (${form.watch('supplier_name')})`}
+                  {selectedPO?.po_number && ` (${selectedPO.po_number})`}
+                </span>
               </TabsTrigger>
               <TabsTrigger value="items" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground flex items-center gap-2">
                 <Package className="h-4 w-4" />
