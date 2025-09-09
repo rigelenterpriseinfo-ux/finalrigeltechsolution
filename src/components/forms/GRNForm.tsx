@@ -485,15 +485,54 @@ export function GRNForm({ grn, onSubmit, onCancel, readOnly = false, mode }: GRN
   };
 
   // Validation function for quantities
+  // Calculate pending quantity for an item
+  const calculatePendingQty = (orderedQty: number, receivedQty: number) => {
+    return Math.max(0, orderedQty - receivedQty);
+  };
+
+  // Determine GST type based on Purchase Order items
+  const determineGstType = () => {
+    if (!selectedPO?.purchase_order_items) return 'intra';
+    const hasIGST = selectedPO.purchase_order_items.some((item: any) => (item.igst_rate || 0) > 0);
+    return hasIGST ? 'inter' : 'intra';
+  };
+
+  const gstType = determineGstType();
+  const shouldShowCGSTSGST = gstType === 'intra';
+  const shouldShowIGST = gstType === 'inter';
+
+  // Enhanced validation for received quantity
+  const validateReceivedQuantity = (index: number, newValue: number) => {
+    const items = form.getValues('items');
+    const item = items[index];
+    const pendingQty = calculatePendingQty(item.ordered_quantity, 0);
+    
+    // Validation rules
+    if (newValue < 0) return 0;
+    if (newValue > pendingQty) return pendingQty;
+    
+    return newValue;
+  };
+
   const validateQuantities = (index: number) => {
     const items = form.getValues('items');
     const item = items[index];
     
-    // Received quantity cannot exceed ordered quantity
-    if (item.received_quantity > item.ordered_quantity) {
+    const pendingQty = calculatePendingQty(item.ordered_quantity, 0);
+    
+    // Received quantity cannot exceed pending quantity or be negative
+    if (item.received_quantity < 0) {
       form.setError(`items.${index}.received_quantity`, {
         type: 'manual',
-        message: 'Received quantity cannot exceed ordered quantity'
+        message: 'Received quantity cannot be negative'
+      });
+      return false;
+    }
+    
+    if (item.received_quantity > pendingQty) {
+      form.setError(`items.${index}.received_quantity`, {
+        type: 'manual',
+        message: 'Received quantity cannot exceed pending quantity'
       });
       return false;
     }
@@ -837,13 +876,20 @@ export function GRNForm({ grn, onSubmit, onCancel, readOnly = false, mode }: GRN
                               <TableRow className="bg-muted/50 border-b">
                                 <TableHead className="text-left font-semibold text-foreground border-r">Product</TableHead>
                                 <TableHead className="text-center font-semibold text-foreground border-r w-20">Ord Qty</TableHead>
+                                <TableHead className="text-center font-semibold text-foreground border-r w-20">Pending Qty</TableHead>
                                 <TableHead className="text-center font-semibold text-foreground border-r w-20">Rec Qty</TableHead>
                                 <TableHead className="text-center font-semibold text-foreground border-r w-20">Acc Qty</TableHead>
                                 <TableHead className="text-center font-semibold text-foreground border-r w-20">Rej Qty</TableHead>
                                 <TableHead className="text-center font-semibold text-foreground border-r w-24">Unit Price</TableHead>
-                                <TableHead className="text-center font-semibold text-foreground border-r w-20">CGST%</TableHead>
-                                <TableHead className="text-center font-semibold text-foreground border-r w-20">SGST%</TableHead>
-                                <TableHead className="text-center font-semibold text-foreground border-r w-20">IGST%</TableHead>
+                                {shouldShowCGSTSGST && (
+                                  <>
+                                    <TableHead className="text-center font-semibold text-foreground border-r w-20">CGST%</TableHead>
+                                    <TableHead className="text-center font-semibold text-foreground border-r w-20">SGST%</TableHead>
+                                  </>
+                                )}
+                                {shouldShowIGST && (
+                                  <TableHead className="text-center font-semibold text-foreground border-r w-20">IGST%</TableHead>
+                                )}
                                 <TableHead className="text-center font-semibold text-foreground border-r w-24">GST Value</TableHead>
                                 <TableHead className="text-right font-semibold text-foreground w-28">Line Total</TableHead>
                               </TableRow>
@@ -871,18 +917,25 @@ export function GRNForm({ grn, onSubmit, onCancel, readOnly = false, mode }: GRN
                                     />
                                   </TableCell>
 
+                                  {/* Pending Qty */}
+                                  <TableCell className="border-r p-3 text-center">
+                                    <div className="text-xs text-center h-8 w-16 bg-orange-50 border border-orange-200 rounded px-2 py-1 font-medium text-orange-700 flex items-center justify-center">
+                                      {calculatePendingQty(item.ordered_quantity || 0, item.received_quantity || 0)}
+                                    </div>
+                                  </TableCell>
+
                                   {/* Received Qty */}
                                   <TableCell className="border-r p-3 text-center">
                                     <Input
                                       type="number"
                                       min="0"
-                                      max={item.ordered_quantity}
+                                      max={calculatePendingQty(item.ordered_quantity || 0, 0)}
                                       value={item.received_quantity || 0}
                                       onChange={(e) => {
-                                        const newValue = Math.min(
-                                          parseFloat(e.target.value) || 0, 
-                                          item.ordered_quantity
-                                        );
+                                        const inputValue = parseFloat(e.target.value) || 0;
+                                        const pendingQty = calculatePendingQty(item.ordered_quantity || 0, 0);
+                                        const newValue = validateReceivedQuantity(index, inputValue);
+                                        
                                         form.setValue(`items.${index}.received_quantity`, newValue);
                                         if (form.getValues('status') === 'accepted') {
                                           form.setValue(`items.${index}.accepted_quantity`, newValue);
@@ -892,7 +945,12 @@ export function GRNForm({ grn, onSubmit, onCancel, readOnly = false, mode }: GRN
                                         calculateItemTotals(index);
                                       }}
                                       disabled={readOnly}
-                                      className="text-xs text-center h-8 w-16 border-blue-200 focus:border-blue-400"
+                                      className={cn(
+                                        "text-xs text-center h-8 w-16",
+                                        (item.received_quantity || 0) > calculatePendingQty(item.ordered_quantity || 0, 0) 
+                                          ? "border-red-300 bg-red-50" 
+                                          : "border-blue-200 focus:border-blue-400"
+                                      )}
                                     />
                                   </TableCell>
 
@@ -950,72 +1008,68 @@ export function GRNForm({ grn, onSubmit, onCancel, readOnly = false, mode }: GRN
                                     />
                                   </TableCell>
 
-                                  {/* CGST% */}
-                                  <TableCell className="border-r p-3 text-center">
-                                    <Input
-                                      type="number"
-                                      step="0.01"
-                                      min="0"
-                                      max="100"
-                                      value={item.cgst_rate || 0}
-                                      onChange={(e) => {
-                                        const rate = parseFloat(e.target.value) || 0;
-                                        form.setValue(`items.${index}.cgst_rate`, rate);
-                                        if (rate > 0) {
-                                          form.setValue(`items.${index}.igst_rate`, 0);
-                                        }
-                                        calculateItemTotals(index);
-                                      }}
-                                      disabled={readOnly || (item.igst_rate > 0)}
-                                      className="text-xs text-center h-8 w-16"
-                                      placeholder={item.igst_rate > 0 ? "-" : "0"}
-                                    />
-                                  </TableCell>
+                                  {/* Conditional GST Fields */}
+                                  {shouldShowCGSTSGST && (
+                                    <>
+                                      {/* CGST% */}
+                                      <TableCell className="border-r p-3 text-center">
+                                        <Input
+                                          type="number"
+                                          step="0.01"
+                                          min="0"
+                                          max="100"
+                                          value={item.cgst_rate || 0}
+                                          onChange={(e) => {
+                                            const rate = parseFloat(e.target.value) || 0;
+                                            form.setValue(`items.${index}.cgst_rate`, rate);
+                                            calculateItemTotals(index);
+                                          }}
+                                          disabled={readOnly}
+                                          className="text-xs text-center h-8 w-16"
+                                        />
+                                      </TableCell>
 
-                                  {/* SGST% */}
-                                  <TableCell className="border-r p-3 text-center">
-                                    <Input
-                                      type="number"
-                                      step="0.01"
-                                      min="0"
-                                      max="100"
-                                      value={item.sgst_rate || 0}
-                                      onChange={(e) => {
-                                        const rate = parseFloat(e.target.value) || 0;
-                                        form.setValue(`items.${index}.sgst_rate`, rate);
-                                        if (rate > 0) {
-                                          form.setValue(`items.${index}.igst_rate`, 0);
-                                        }
-                                        calculateItemTotals(index);
-                                      }}
-                                      disabled={readOnly || (item.igst_rate > 0)}
-                                      className="text-xs text-center h-8 w-16"
-                                      placeholder={item.igst_rate > 0 ? "-" : "0"}
-                                    />
-                                  </TableCell>
+                                      {/* SGST% */}
+                                      <TableCell className="border-r p-3 text-center">
+                                        <Input
+                                          type="number"
+                                          step="0.01"
+                                          min="0"
+                                          max="100"
+                                          value={item.sgst_rate || 0}
+                                          onChange={(e) => {
+                                            const rate = parseFloat(e.target.value) || 0;
+                                            form.setValue(`items.${index}.sgst_rate`, rate);
+                                            calculateItemTotals(index);
+                                          }}
+                                          disabled={readOnly}
+                                          className="text-xs text-center h-8 w-16"
+                                        />
+                                      </TableCell>
+                                    </>
+                                  )}
 
-                                  {/* IGST% */}
-                                  <TableCell className="border-r p-3 text-center">
-                                    <Input
-                                      type="number"
-                                      step="0.01"
-                                      min="0"
-                                      max="100"
-                                      value={item.igst_rate || 0}
-                                      onChange={(e) => {
-                                        const rate = parseFloat(e.target.value) || 0;
-                                        form.setValue(`items.${index}.igst_rate`, rate);
-                                        if (rate > 0) {
-                                          form.setValue(`items.${index}.cgst_rate`, 0);
-                                          form.setValue(`items.${index}.sgst_rate`, 0);
-                                        }
-                                        calculateItemTotals(index);
-                                      }}
-                                      disabled={readOnly || ((item.cgst_rate > 0) || (item.sgst_rate > 0))}
-                                      className="text-xs text-center h-8 w-16"
-                                      placeholder={((item.cgst_rate > 0) || (item.sgst_rate > 0)) ? "-" : "0"}
-                                    />
-                                  </TableCell>
+                                  {shouldShowIGST && (
+                                    <>
+                                      {/* IGST% */}
+                                      <TableCell className="border-r p-3 text-center">
+                                        <Input
+                                          type="number"
+                                          step="0.01"
+                                          min="0"
+                                          max="100"
+                                          value={item.igst_rate || 0}
+                                          onChange={(e) => {
+                                            const rate = parseFloat(e.target.value) || 0;
+                                            form.setValue(`items.${index}.igst_rate`, rate);
+                                            calculateItemTotals(index);
+                                          }}
+                                          disabled={readOnly}
+                                          className="text-xs text-center h-8 w-16"
+                                        />
+                                      </TableCell>
+                                    </>
+                                  )}
 
                                   {/* GST Value */}
                                   <TableCell className="border-r p-3 text-center">
