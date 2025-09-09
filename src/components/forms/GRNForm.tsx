@@ -64,6 +64,7 @@ const grnFormSchema = z.object({
     product_sku: z.string().optional(),
     unit_of_measure: z.string().optional(),
     ordered_quantity: z.number().min(0),
+    cumulative_received: z.number().min(0).optional(), // Track total received across all GRNs
     received_quantity: z.number().min(0, 'Received quantity is required'),
     accepted_quantity: z.number().min(0, 'Accepted quantity is required'),
     rejected_quantity: z.number().min(0, 'Rejected quantity is required'),
@@ -261,7 +262,7 @@ export function GRNForm({ grn, onSubmit, onCancel, readOnly = false, mode }: GRN
     }
   };
 
-  const handlePOSelection = (poId: string) => {
+  const handlePOSelection = async (poId: string) => {
     const po = purchaseOrders.find(p => p.id === poId);
     if (!po) return;
 
@@ -281,31 +282,55 @@ export function GRNForm({ grn, onSubmit, onCancel, readOnly = false, mode }: GRN
     form.setValue('company_place_of_supply', po.company_place_of_supply || '');
     form.setValue('same_as_registered_address', po.same_as_registered_address || false);
     
-    // Auto-fill items from PO with pending quantities
-    const items = po.purchase_order_items?.map((item: any) => ({
-      product_id: item.product_id,
-      product_name: item.product?.name || item.item_description || 'Unknown Product',
-      product_sku: item.product?.sku || item.item_code || '',
-      unit_of_measure: item.unit_of_measure || '',
-      ordered_quantity: item.quantity,
-      received_quantity: item.pending_quantity, // Set to pending quantity initially
-      accepted_quantity: 0, // Will be set based on status
-      rejected_quantity: 0,
-      unit_price: item.unit_price,
-      discount_percentage: item.discount_percentage || 0,
-      discount_amount: item.discount_amount || 0,
-      warehouse_id: form.getValues('default_warehouse_id') || '',
-      bin_id: form.getValues('default_bin_id') || '',
-      hsn_sac_code: item.hsn_sac_code || '',
-      cgst_rate: item.cgst_rate || 0,
-      cgst_amount: 0,
-      sgst_rate: item.sgst_rate || 0,
-      sgst_amount: 0,
-      igst_rate: item.igst_rate || 0,
-      igst_amount: 0,
-      total_tax_amount: 0,
-      line_total: 0,
-    })) || [];
+    // Get cumulative received quantities for each product
+    const cumulativeReceived = new Map();
+    try {
+      for (const item of po.purchase_order_items || []) {
+        const { data, error } = await supabase
+          .rpc('get_cumulative_received_quantity', {
+            p_purchase_order_id: poId,
+            p_product_id: item.product_id
+          });
+        
+        if (!error) {
+          cumulativeReceived.set(item.product_id, data || 0);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching cumulative received quantities:', error);
+    }
+    
+    // Auto-fill items from PO with accurate pending quantities
+    const items = po.purchase_order_items?.map((item: any) => {
+      const totalReceived = cumulativeReceived.get(item.product_id) || 0;
+      const actualPendingQty = Math.max(0, item.quantity - totalReceived);
+      
+      return {
+        product_id: item.product_id,
+        product_name: item.product?.name || item.item_description || 'Unknown Product',
+        product_sku: item.product?.sku || item.item_code || '',
+        unit_of_measure: item.unit_of_measure || '',
+        ordered_quantity: item.quantity,
+        cumulative_received: totalReceived, // Track total received so far
+        received_quantity: Math.min(actualPendingQty, actualPendingQty), // Set to available pending initially
+        accepted_quantity: 0, // Will be set based on status
+        rejected_quantity: 0,
+        unit_price: item.unit_price,
+        discount_percentage: item.discount_percentage || 0,
+        discount_amount: item.discount_amount || 0,
+        warehouse_id: form.getValues('default_warehouse_id') || '',
+        bin_id: form.getValues('default_bin_id') || '',
+        hsn_sac_code: item.hsn_sac_code || '',
+        cgst_rate: item.cgst_rate || 0,
+        cgst_amount: 0,
+        sgst_rate: item.sgst_rate || 0,
+        sgst_amount: 0,
+        igst_rate: item.igst_rate || 0,
+        igst_amount: 0,
+        total_tax_amount: 0,
+        line_total: 0,
+      };
+    }) || [];
     
     form.setValue('items', items);
     
@@ -513,9 +538,9 @@ export function GRNForm({ grn, onSubmit, onCancel, readOnly = false, mode }: GRN
   };
 
   // Validation function for quantities
-  // Calculate pending quantity for an item
-  const calculatePendingQty = (orderedQty: number, receivedQty: number) => {
-    return Math.max(0, orderedQty - receivedQty);
+  // Calculate pending quantity for an item (using cumulative received)
+  const calculatePendingQty = (orderedQty: number, cumulativeReceived: number) => {
+    return Math.max(0, orderedQty - cumulativeReceived);
   };
 
   // Determine GST type based on Purchase Order items
@@ -533,7 +558,8 @@ export function GRNForm({ grn, onSubmit, onCancel, readOnly = false, mode }: GRN
   const validateReceivedQuantity = (index: number, newValue: number) => {
     const items = form.getValues('items');
     const item = items[index];
-    const pendingQty = calculatePendingQty(item.ordered_quantity, 0);
+    const cumulativeReceived = item.cumulative_received || 0;
+    const pendingQty = calculatePendingQty(item.ordered_quantity, cumulativeReceived);
     
     // Validation rules
     if (newValue < 0) return 0;
@@ -546,7 +572,8 @@ export function GRNForm({ grn, onSubmit, onCancel, readOnly = false, mode }: GRN
     const items = form.getValues('items');
     const item = items[index];
     
-    const pendingQty = calculatePendingQty(item.ordered_quantity, 0);
+    const cumulativeReceived = item.cumulative_received || 0;
+    const pendingQty = calculatePendingQty(item.ordered_quantity, cumulativeReceived);
     
     // Received quantity cannot exceed pending quantity or be negative
     if (item.received_quantity < 0) {
@@ -560,7 +587,7 @@ export function GRNForm({ grn, onSubmit, onCancel, readOnly = false, mode }: GRN
     if (item.received_quantity > pendingQty) {
       form.setError(`items.${index}.received_quantity`, {
         type: 'manual',
-        message: 'Received quantity cannot exceed pending quantity'
+        message: `Cannot exceed pending quantity (${pendingQty})`
       });
       return false;
     }
@@ -1035,6 +1062,7 @@ export function GRNForm({ grn, onSubmit, onCancel, readOnly = false, mode }: GRN
                               <TableRow className="bg-muted/50 border-b">
                                 <TableHead className="text-left font-semibold text-foreground border-r text-xs">Product</TableHead>
                                 <TableHead className="text-center font-semibold text-foreground border-r w-20 text-xs">Ord Qty</TableHead>
+                                <TableHead className="text-center font-semibold text-foreground border-r w-18 text-xs">Total Rec</TableHead>
                                 <TableHead className="text-center font-semibold text-foreground border-r w-18 text-xs">Pending</TableHead>
                                 <TableHead className="text-center font-semibold text-foreground border-r w-18 text-xs">Rec Qty</TableHead>
                                 <TableHead className="text-center font-semibold text-foreground border-r w-18 text-xs">Acc Qty</TableHead>
@@ -1078,41 +1106,48 @@ export function GRNForm({ grn, onSubmit, onCancel, readOnly = false, mode }: GRN
                                     />
                                   </TableCell>
 
+                                  {/* Total Received So Far */}
+                                  <TableCell className="border-r p-2 text-center">
+                                    <div className="text-xs text-center h-7 w-14 bg-blue-50 border border-blue-200 rounded px-1 py-1 font-medium text-blue-700 flex items-center justify-center">
+                                      {item.cumulative_received || 0}
+                                    </div>
+                                  </TableCell>
+
                                   {/* Pending Qty */}
                                   <TableCell className="border-r p-2 text-center">
                                     <div className="text-xs text-center h-7 w-14 bg-orange-50 border border-orange-200 rounded px-1 py-1 font-medium text-orange-700 flex items-center justify-center">
-                                      {calculatePendingQty(item.ordered_quantity || 0, item.received_quantity || 0)}
+                                      {calculatePendingQty(item.ordered_quantity || 0, item.cumulative_received || 0)}
                                     </div>
                                   </TableCell>
 
                                   {/* Received Qty */}
                                   <TableCell className="border-r p-2 text-center">
-                                    <Input
-                                      type="number"
-                                      min="0"
-                                      max={calculatePendingQty(item.ordered_quantity || 0, 0)}
-                                      value={item.received_quantity || 0}
-                                      onChange={(e) => {
-                                        const inputValue = parseFloat(e.target.value) || 0;
-                                        const pendingQty = calculatePendingQty(item.ordered_quantity || 0, 0);
-                                        const newValue = validateReceivedQuantity(index, inputValue);
-                                        
-                                        form.setValue(`items.${index}.received_quantity`, newValue);
-                                        if (form.getValues('status') === 'received') {
-                                          form.setValue(`items.${index}.accepted_quantity`, newValue);
-                                          form.setValue(`items.${index}.rejected_quantity`, 0);
-                                        }
-                                        validateQuantities(index);
-                                        calculateItemTotals(index);
-                                      }}
-                                      disabled={readOnly}
-                                      className={cn(
-                                        "text-xs text-center h-7 w-14",
-                                        (item.received_quantity || 0) > calculatePendingQty(item.ordered_quantity || 0, 0) 
-                                          ? "border-red-300 bg-red-50" 
-                                          : "border-blue-200 focus:border-blue-400"
-                                      )}
-                                    />
+                                     <Input
+                                       type="number"
+                                       min="0"
+                                       max={calculatePendingQty(item.ordered_quantity || 0, item.cumulative_received || 0)}
+                                       value={item.received_quantity || 0}
+                                       onChange={(e) => {
+                                         const inputValue = parseFloat(e.target.value) || 0;
+                                         const pendingQty = calculatePendingQty(item.ordered_quantity || 0, item.cumulative_received || 0);
+                                         const newValue = validateReceivedQuantity(index, inputValue);
+                                         
+                                         form.setValue(`items.${index}.received_quantity`, newValue);
+                                         if (form.getValues('status') === 'received') {
+                                           form.setValue(`items.${index}.accepted_quantity`, newValue);
+                                           form.setValue(`items.${index}.rejected_quantity`, 0);
+                                         }
+                                         validateQuantities(index);
+                                         calculateItemTotals(index);
+                                       }}
+                                       disabled={readOnly}
+                                       className={cn(
+                                         "text-xs text-center h-7 w-14",
+                                         (item.received_quantity || 0) > calculatePendingQty(item.ordered_quantity || 0, item.cumulative_received || 0) 
+                                           ? "border-red-300 bg-red-50" 
+                                           : "border-blue-200 focus:border-blue-400"
+                                       )}
+                                     />
                                   </TableCell>
 
                                   {/* Accepted Qty */}

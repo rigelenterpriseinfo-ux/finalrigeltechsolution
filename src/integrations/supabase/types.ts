@@ -3648,6 +3648,10 @@ export type Database = {
           total_value: number
         }[]
       }
+      get_cumulative_received_quantity: {
+        Args: { p_product_id: string; p_purchase_order_id: string }
+        Returns: number
+      }
       get_current_company_context: {
         Args: Record<PropertyKey, never>
         Returns: string
@@ -3809,6 +3813,10 @@ export type Database = {
           p_warehouse_id: string
         }
         Returns: string
+      }
+      update_purchase_order_quantities_from_grn: {
+        Args: { p_grn_id: string }
+        Returns: Json
       }
       user_company_id: {
         Args: Record<PropertyKey, never>

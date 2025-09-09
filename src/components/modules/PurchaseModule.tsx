@@ -1121,16 +1121,28 @@ function PurchaseModuleContent() {
                     await supabase.from('grn_header').delete().eq('id', grn.id);
                     throw itemsError;
                   }
-                }
+                  }
 
-                toast({
-                  title: "Success",
-                  description: "GRN created successfully",
-                });
+                  // Process the GRN to update purchase order quantities if status is accepted/received
+                  if (data.status && ['accepted', 'partially_received', 'received'].includes(data.status)) {
+                    const { error: processError } = await supabase
+                      .rpc('update_purchase_order_quantities_from_grn', {
+                        p_grn_id: grn.id
+                      });
+                    
+                    if (processError) {
+                      console.error('Error processing GRN quantities:', processError);
+                    }
+                  }
 
-                setShowAddGRNDialog(false);
-                setRefreshGRNTrigger(prev => prev + 1);
-                fetchPurchaseOrders();
+                  toast({
+                    title: "Success",
+                    description: "GRN created successfully",
+                  });
+
+                  setShowAddGRNDialog(false);
+                  setRefreshGRNTrigger(prev => prev + 1);
+                  fetchPurchaseOrders();
               } catch (error) {
                 console.error('Error creating GRN:', error);
                 toast({
