@@ -9,7 +9,7 @@ interface SearchableComboboxProps {
   onSelect: (value: string) => void;
   placeholder: string;
   searchPlaceholder: string;
-  options: { id: string; name: string; subtitle?: string }[];
+  options: { id: string; name: string; subtitle?: string; keywords?: string[] }[];
   disabled?: boolean;
   loading?: boolean;
   emptyMessage?: string;
@@ -33,17 +33,24 @@ export function SearchableCombobox({
 
   React.useEffect(() => {
     if (open) {
-      // Ensure typing works immediately when opening the dropdown
+      // Reset and focus input on open
+      setSearchValue("");
       setTimeout(() => inputRef.current?.focus(), 0);
     }
   }, [open]);
 
+  const normalize = (str?: string) => (str || "").toLowerCase().normalize('NFKD').replace(/\p{Diacritic}/gu, '').trim();
+
   const filteredOptions = React.useMemo(() => {
-    if (!searchValue) return options;
-    return options.filter(option =>
-      option.name.toLowerCase().includes(searchValue.toLowerCase()) ||
-      option.subtitle?.toLowerCase().includes(searchValue.toLowerCase())
-    );
+    const q = normalize(searchValue);
+    if (!q) return options;
+    return options.filter(option => {
+      const name = normalize(option.name);
+      const subtitle = normalize(option.subtitle);
+      const keywords = (option.keywords || []).map(normalize).join(' ');
+      const haystack = `${name} ${subtitle} ${keywords}`;
+      return haystack.includes(q);
+    });
   }, [options, searchValue]);
 
   const selectedOption = options.find(option => option.id === value);
