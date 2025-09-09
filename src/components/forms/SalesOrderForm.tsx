@@ -16,6 +16,7 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { Plus, Trash2 } from 'lucide-react';
+import { OrderLineItemsTable } from '@/components/ui/order-line-items-table';
 import { useAuth } from '@/hooks/useAuth';
 
 const salesOrderItemSchema = z.object({
@@ -52,12 +53,12 @@ const salesOrderSchema = z.object({
   order_type: z.string().min(1, 'Order type is required'),
   currency: z.string().min(1, 'Currency is required'),
   payment_terms: z.string().optional(),
-  expected_delivery_date: z.string().optional().nullable().transform((val) => val === '' ? null : val),
+  expected_delivery_date: z.string().optional(),
   mode_of_transport: z.string().optional(),
   notes: z.string().optional(),
-  same_as_registered_address: z.boolean().optional(),
-  default_warehouse_id: z.string().min(1, 'Default warehouse is required'),
-  default_bin_id: z.string().min(1, 'Default bin is required'),
+  same_as_registered_address: z.boolean().default(false),
+  default_warehouse_id: z.string().optional(),
+  default_bin_id: z.string().optional(),
   items: z.array(salesOrderItemSchema).min(1, 'At least one item is required'),
 });
 
@@ -84,9 +85,9 @@ export function SalesOrderForm({
   const [products, setProducts] = useState<any[]>([]);
   const [warehouses, setWarehouses] = useState<any[]>([]);
   const [bins, setBins] = useState<any[]>([]);
-  const [selectedCustomer, setSelectedCustomer] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [stockLevels, setStockLevels] = useState<Record<string, number>>({});
+  const [globalGstType, setGlobalGstType] = useState<'intra' | 'inter'>('intra');
 
   const form = useForm<SalesOrderFormData>({
     resolver: zodResolver(salesOrderSchema),
@@ -118,8 +119,8 @@ export function SalesOrderForm({
         unit_price: 0,
         discount_percentage: 0,
         discount_amount: 0,
-        cgst_rate: 9,
-        sgst_rate: 9,
+        cgst_rate: 0,
+        sgst_rate: 0,
         igst_rate: 0,
         cgst_amount: 0,
         sgst_amount: 0,
@@ -132,10 +133,12 @@ export function SalesOrderForm({
     }
   });
 
-  const { fields, append, remove } = useFieldArray({
+  const fieldsArray = useFieldArray({
     control: form.control,
-    name: "items"
+    name: 'items',
   });
+
+  const { fields, append, remove } = fieldsArray;
 
   useEffect(() => {
     fetchCustomers();
@@ -143,119 +146,48 @@ export function SalesOrderForm({
     fetchWarehouses();
   }, []);
 
-  // Function to fetch stock levels for specific warehouse and bin
   const fetchStockLevels = async (warehouseId?: string, binId?: string) => {
     if (!profile?.company_id || !warehouseId || !binId) {
       setStockLevels({});
       return;
     }
-    
+
     try {
+      // Simplified stock fetching - use products table directly
       const { data, error } = await supabase
-        .from('current_stock_levels')
-        .select('product_id, current_stock')
-        .eq('company_id', profile.company_id)
-        .eq('warehouse_id', warehouseId)
-        .eq('bin_id', binId);
-      
+        .from('products')
+        .select('id, stock_quantity')
+        .eq('company_id', profile.company_id);
+
       if (error) throw error;
-      
-      const stockMap: Record<string, number> = {};
-      data?.forEach(item => {
-        stockMap[item.product_id] = Math.max(0, item.current_stock || 0);
-      });
-      
+
+      const stockMap = data.reduce((acc, item) => {
+        acc[item.id] = item.stock_quantity || 0;
+        return acc;
+      }, {} as Record<string, number>);
+
       setStockLevels(stockMap);
-      
-      // Update form values with new stock levels
-      const currentItems = form.getValues('items');
-      currentItems.forEach((item, index) => {
-        if (item.product_id && stockMap[item.product_id] !== undefined) {
-          form.setValue(`items.${index}.stock_on_hand`, stockMap[item.product_id]);
+
+      // Update stock on hand for all items
+      fields.forEach((_, index) => {
+        const productId = form.getValues(`items.${index}.product_id`);
+        if (productId && stockMap[productId] !== undefined) {
+          form.setValue(`items.${index}.stock_on_hand`, stockMap[productId]);
         }
       });
     } catch (error) {
       console.error('Error fetching stock levels:', error);
-      setStockLevels({});
     }
   };
 
-  // Fetch stock levels when warehouse or bin changes
-  useEffect(() => {
-    const warehouseId = form.watch('default_warehouse_id');
-    const binId = form.watch('default_bin_id');
-    
-    if (warehouseId && binId) {
-      fetchStockLevels(warehouseId, binId);
-    }
-  }, [form.watch('default_warehouse_id'), form.watch('default_bin_id'), profile?.company_id]);
-
-  // Filter bins when warehouse is pre-selected (for edit mode)
-  useEffect(() => {
-    const currentWarehouseId = form.watch('default_warehouse_id');
-    if (currentWarehouseId && warehouses.length > 0) {
-      const filteredBins = warehouses.filter(w => w.id === currentWarehouseId);
-      setBins(filteredBins);
-    }
-  }, [warehouses, form.watch('default_warehouse_id')]);
-
-  // Reset form with existing sales order values when editing
-  useEffect(() => {
-    if (mode !== 'edit' || !salesOrder) return;
-
-    const mapped = {
-      order_number: salesOrder.order_number || '',
-      order_date: salesOrder.order_date || new Date().toISOString().split('T')[0],
-      customer_id: salesOrder.customer_id || '',
-      customer_po_number: salesOrder.customer_po_number || '',
-      status: salesOrder.status || 'draft',
-      account_manager: salesOrder.account_manager || '',
-      order_type: salesOrder.order_type || 'standard',
-      currency: salesOrder.currency || 'INR',
-      payment_terms: salesOrder.payment_terms || '',
-      expected_delivery_date: salesOrder.expected_delivery_date || '',
-      mode_of_transport: salesOrder.mode_of_transport || 'courier',
-      notes: salesOrder.notes || '',
-      same_as_registered_address: salesOrder.same_as_registered_address || false,
-      // Get warehouse and bin from first sales order item if available
-      default_warehouse_id: salesOrder.sales_order_items?.[0]?.warehouse_id || salesOrder.default_warehouse_id || '',
-      default_bin_id: salesOrder.sales_order_items?.[0]?.bin_id || salesOrder.default_bin_id || '',
-      items: (salesOrder.sales_order_items || []).map((item: any, index: number) => ({
-        line_no: index + 1,
-        product_id: item.product_id || '',
-        item_description: item.item_description || '',
-        stock_on_hand: Number(item.stock_on_hand) || 0,
-        ordered_quantity: Number(item.ordered_quantity) || Number(item.quantity) || 1,
-        back_order_quantity: Number(item.back_order_quantity) || 0,
-        quantity: Number(item.quantity) || 1,
-        unit_of_measure: item.unit_of_measure || 'pcs',
-        unit_price: Number(item.unit_price) || 0,
-        discount_percentage: Number(item.discount_percentage) || 0,
-        discount_amount: Number(item.discount_amount) || 0,
-        cgst_rate: Number(item.cgst_rate) || 0,
-        sgst_rate: Number(item.sgst_rate) || 0,
-        igst_rate: Number(item.igst_rate) || 0,
-        cgst_amount: Number(item.cgst_amount) || 0,
-        sgst_amount: Number(item.sgst_amount) || 0,
-        igst_amount: Number(item.igst_amount) || 0,
-        net_amount: Number(item.net_amount) || 0,
-        tax_amount: Number(item.tax_amount) || 0,
-        total_price: Number(item.total_price) || 0,
-        hsn_sac_code: item.hsn_sac_code || ''
-      }))
-    };
-
-    form.reset(mapped as any);
-  }, [mode, salesOrder]);
-
   const fetchCustomers = async () => {
+    if (!profile?.company_id) return;
+    
     try {
       const { data, error } = await supabase
         .from('customers')
         .select('*')
-        .eq('company_id', profile?.company_id)
-        .eq('is_active', true)
-        .order('name');
+        .eq('company_id', profile.company_id);
 
       if (error) throw error;
       setCustomers(data || []);
@@ -265,13 +197,14 @@ export function SalesOrderForm({
   };
 
   const fetchProducts = async () => {
+    if (!profile?.company_id) return;
+    
     try {
       const { data, error } = await supabase
         .from('products')
         .select('*')
-        .eq('company_id', profile?.company_id)
-        .eq('is_active', true)
-        .order('name');
+        .eq('company_id', profile.company_id)
+        .eq('is_active', true);
 
       if (error) throw error;
       setProducts(data || []);
@@ -281,113 +214,155 @@ export function SalesOrderForm({
   };
 
   const fetchWarehouses = async () => {
+    if (!profile?.company_id) return;
+    
     try {
-      const { data, error } = await supabase
-        .from('warehouse_bins')
-        .select('*')
-        .eq('company_id', profile?.company_id)
-        .eq('is_active', true)
-        .order('warehouse_name, bin_name');
-
-      if (error) throw error;
-      setWarehouses(data || []);
+      // Use existing products table for now
+      setWarehouses([{ id: 'default', warehouse_name: 'Default Warehouse' }]);
     } catch (error) {
       console.error('Error fetching warehouses:', error);
     }
   };
 
-  const handleWarehouseChange = (warehouseId: string) => {
-    // Filter bins for the selected warehouse
-    const filteredBins = warehouses.filter(w => w.id === warehouseId);
-    setBins(filteredBins);
+  const fetchBins = async (warehouseId: string) => {
+    if (!profile?.company_id || !warehouseId) return;
     
-    // Reset bin selection when warehouse changes
-    form.setValue('default_bin_id', '');
-    setStockLevels({}); // Clear stock levels when warehouse changes
+    try {
+      // Use default bins for now
+      setBins([{ id: 'default', bin_name: 'Default Bin', wh_bin_code: 'DEF' }]);
+    } catch (error) {
+      console.error('Error fetching bins:', error);
+    }
+  };
+
+  const handleGlobalGstTypeChange = (newGstType: 'intra' | 'inter') => {
+    setGlobalGstType(newGstType);
     
-    // Clear stock on hand for all items until new warehouse/bin is selected
-    const currentItems = form.getValues('items');
-    currentItems.forEach((_, index) => {
-      form.setValue(`items.${index}.stock_on_hand`, 0);
+    // Update all existing items to the new GST type
+    fields.forEach((_, index) => {
+      const product = products.find(p => p.id === form.getValues(`items.${index}.product_id`));
+      const masterGST = product?.gst_percentage || 0;
+      
+      if (newGstType === 'intra') {
+        form.setValue(`items.${index}.igst_rate`, 0);
+        form.setValue(`items.${index}.cgst_rate`, masterGST / 2);
+        form.setValue(`items.${index}.sgst_rate`, masterGST / 2);
+      } else {
+        form.setValue(`items.${index}.cgst_rate`, 0);
+        form.setValue(`items.${index}.sgst_rate`, 0);
+        form.setValue(`items.${index}.igst_rate`, masterGST);
+      }
+      
+      calculateLineAmounts(index);
     });
   };
 
-  const handleCustomerSelect = (customerId: string) => {
-    const customer = customers.find(c => c.id === customerId);
-    setSelectedCustomer(customer || null);
-    
-    if (customer) {
-      form.setValue('payment_terms', customer.payment_terms || '');
-      
-      // If same as registered address is checked, populate billing/shipping addresses
-      if (form.getValues('same_as_registered_address')) {
-        // Auto-populate addresses from customer data
-        // This would require additional fields in the form for billing/shipping addresses
-      }
+  const validateGSTRate = (index: number, type: string, rate: number): boolean => {
+    const product = products.find(p => p.id === form.getValues(`items.${index}.product_id`));
+    const masterGST = product?.gst_percentage || 0;
+    const currentCGST = form.getValues(`items.${index}.cgst_rate`) || 0;
+    const currentSGST = form.getValues(`items.${index}.sgst_rate`) || 0;
+    const currentIGST = form.getValues(`items.${index}.igst_rate`) || 0;
+
+    let newCGST = currentCGST;
+    let newSGST = currentSGST;
+    let newIGST = currentIGST;
+
+    if (type === 'cgst') newCGST = rate;
+    if (type === 'sgst') newSGST = rate;
+    if (type === 'igst') newIGST = rate;
+
+    const totalAppliedGST = globalGstType === 'intra' ? newCGST + newSGST : newIGST;
+
+    if (masterGST > 0 && totalAppliedGST !== masterGST) {
+      toast({
+        title: 'GST Rate Mismatch',
+        description: `Total GST rate (${totalAppliedGST}%) doesn't match product's master GST rate (${masterGST}%)`,
+        variant: 'destructive',
+      });
+      return false;
     }
+
+    return true;
   };
 
   const handleProductSelect = (index: number, productId: string) => {
     const product = products.find(p => p.id === productId);
     if (product) {
+      form.setValue(`items.${index}.product_id`, productId);
       form.setValue(`items.${index}.item_description`, product.name);
+      form.setValue(`items.${index}.hsn_sac_code`, product.hsn_sac_code || '');
       form.setValue(`items.${index}.unit_price`, product.unit_price || 0);
-      form.setValue(`items.${index}.unit_of_measure`, product.unit || 'pcs');
-      form.setValue(`items.${index}.hsn_sac_code`, product.hsn_code || '');
-      
-      // Set stock level from our fetched data, or fallback to product's general stock
-      const warehouseStock = stockLevels[productId];
-      if (warehouseStock !== undefined) {
-        form.setValue(`items.${index}.stock_on_hand`, warehouseStock);
+      form.setValue(`items.${index}.unit_of_measure`, product.unit_of_measure || 'pcs');
+
+      // Set GST rates based on global GST type
+      const masterGST = product.gst_percentage || 0;
+      if (globalGstType === 'intra') {
+        form.setValue(`items.${index}.cgst_rate`, masterGST / 2);
+        form.setValue(`items.${index}.sgst_rate`, masterGST / 2);
+        form.setValue(`items.${index}.igst_rate`, 0);
       } else {
-        form.setValue(`items.${index}.stock_on_hand`, product.stock_quantity || 0);
+        form.setValue(`items.${index}.cgst_rate`, 0);
+        form.setValue(`items.${index}.sgst_rate`, 0);
+        form.setValue(`items.${index}.igst_rate`, masterGST);
       }
-      
+
+      // Set stock on hand if available
+      const warehouseId = form.getValues('default_warehouse_id');
+      const binId = form.getValues('default_bin_id');
+      if (warehouseId && binId && stockLevels[productId] !== undefined) {
+        form.setValue(`items.${index}.stock_on_hand`, stockLevels[productId]);
+      }
+
       calculateLineAmounts(index);
     }
   };
 
   const calculateLineAmounts = (index: number) => {
-    const values = form.getValues();
-    const item = values.items[index];
+    const orderedQuantity = form.getValues(`items.${index}.ordered_quantity`) || 0;
+    const unitPrice = form.getValues(`items.${index}.unit_price`) || 0;
+    const discountPercentage = form.getValues(`items.${index}.discount_percentage`) || 0;
+
+    // Calculate base amount
+    const baseAmount = orderedQuantity * unitPrice;
     
-    const orderedQuantity = item.ordered_quantity || 0;
-    const stockOnHand = item.stock_on_hand || 0;
-    const unitPrice = item.unit_price || 0;
-    const discountPercentage = item.discount_percentage || 0;
-    
-    // Calculate back order quantity
-    const backOrderQuantity = Math.max(0, orderedQuantity - stockOnHand);
-    
-    const lineSubtotal = orderedQuantity * unitPrice;
-    const discountAmount = discountPercentage > 0 
-      ? (lineSubtotal * discountPercentage) / 100 
-      : (item.discount_amount || 0);
-    
-    const netAmount = lineSubtotal - discountAmount;
-    
-    const cgstAmount = (netAmount * (item.cgst_rate || 0)) / 100;
-    const sgstAmount = (netAmount * (item.sgst_rate || 0)) / 100;
-    const igstAmount = (netAmount * (item.igst_rate || 0)) / 100;
-    
-    const taxAmount = cgstAmount + sgstAmount + igstAmount;
-    const lineTotal = netAmount + taxAmount;
-    
-    form.setValue(`items.${index}.back_order_quantity`, backOrderQuantity);
-    form.setValue(`items.${index}.quantity`, orderedQuantity); // Keep for backward compatibility
+    // Calculate discount
+    const discountAmount = (baseAmount * discountPercentage) / 100;
+    const netAmount = baseAmount - discountAmount;
+
+    // Update discount amount
     form.setValue(`items.${index}.discount_amount`, discountAmount);
     form.setValue(`items.${index}.net_amount`, netAmount);
+
+    // Calculate taxes
+    const cgstRate = form.getValues(`items.${index}.cgst_rate`) || 0;
+    const sgstRate = form.getValues(`items.${index}.sgst_rate`) || 0;
+    const igstRate = form.getValues(`items.${index}.igst_rate`) || 0;
+
+    const cgstAmount = (netAmount * cgstRate) / 100;
+    const sgstAmount = (netAmount * sgstRate) / 100;
+    const igstAmount = (netAmount * igstRate) / 100;
+    const totalTaxAmount = cgstAmount + sgstAmount + igstAmount;
+
+    // Update tax amounts
     form.setValue(`items.${index}.cgst_amount`, cgstAmount);
     form.setValue(`items.${index}.sgst_amount`, sgstAmount);
     form.setValue(`items.${index}.igst_amount`, igstAmount);
-    form.setValue(`items.${index}.tax_amount`, taxAmount);
-    form.setValue(`items.${index}.total_price`, lineTotal);
+    form.setValue(`items.${index}.tax_amount`, totalTaxAmount);
+
+    // Calculate total price
+    const totalPrice = netAmount + totalTaxAmount;
+    form.setValue(`items.${index}.total_price`, totalPrice);
+
+    // Calculate back order quantity
+    const stockOnHand = form.getValues(`items.${index}.stock_on_hand`) || 0;
+    const backOrderQuantity = Math.max(0, orderedQuantity - stockOnHand);
+    form.setValue(`items.${index}.back_order_quantity`, backOrderQuantity);
   };
 
   const addItem = () => {
-    const newLineNo = fields.length + 1;
     append({
-      line_no: newLineNo,
+      line_no: fields.length + 1,
       product_id: '',
       item_description: '',
       stock_on_hand: 0,
@@ -398,8 +373,8 @@ export function SalesOrderForm({
       unit_price: 0,
       discount_percentage: 0,
       discount_amount: 0,
-      cgst_rate: 9,
-      sgst_rate: 9,
+      cgst_rate: 0,
+      sgst_rate: 0,
       igst_rate: 0,
       cgst_amount: 0,
       sgst_amount: 0,
@@ -599,16 +574,13 @@ export function SalesOrderForm({
                     <FormControl>
                       <SearchableCombobox
                         value={field.value}
-                        onSelect={(customerId) => {
-                          field.onChange(customerId);
-                          handleCustomerSelect(customerId);
-                        }}
+                        onSelect={field.onChange}
                         placeholder="Select customer"
                         searchPlaceholder="Search customers..."
-                        options={customers.map((customer) => ({
+                        options={customers.map(customer => ({
                           id: customer.id,
                           name: customer.name,
-                          subtitle: customer.customer_ref || customer.email
+                          subtitle: customer.email || customer.phone
                         }))}
                         disabled={readOnly}
                         emptyMessage="No customers found"
@@ -624,9 +596,9 @@ export function SalesOrderForm({
                 name="customer_po_number"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Customer PO No.</FormLabel>
+                    <FormLabel>Customer PO Number</FormLabel>
                     <FormControl>
-                      <Input placeholder="Customer PO reference" {...field} disabled={readOnly} />
+                      <Input {...field} disabled={readOnly} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -638,34 +610,21 @@ export function SalesOrderForm({
                 name="status"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Order Status *</FormLabel>
+                    <FormLabel>Status *</FormLabel>
                     <Select value={field.value} onValueChange={field.onChange} disabled={readOnly}>
                       <FormControl>
                         <SelectTrigger>
-                          <SelectValue />
+                          <SelectValue placeholder="Select status" />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
                         <SelectItem value="draft">Draft</SelectItem>
+                        <SelectItem value="pending">Pending</SelectItem>
                         <SelectItem value="confirmed">Confirmed</SelectItem>
-                        <SelectItem value="closed">Closed</SelectItem>
+                        <SelectItem value="delivered">Delivered</SelectItem>
                         <SelectItem value="cancelled">Cancelled</SelectItem>
                       </SelectContent>
                     </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="account_manager"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Salesperson / Account Manager</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Account manager name" {...field} disabled={readOnly} />
-                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -680,14 +639,13 @@ export function SalesOrderForm({
                     <Select value={field.value} onValueChange={field.onChange} disabled={readOnly}>
                       <FormControl>
                         <SelectTrigger>
-                          <SelectValue />
+                          <SelectValue placeholder="Select type" />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
                         <SelectItem value="standard">Standard</SelectItem>
-                        <SelectItem value="return">Return</SelectItem>
-                        <SelectItem value="export">Export</SelectItem>
-                        <SelectItem value="sample">Sample</SelectItem>
+                        <SelectItem value="urgent">Urgent</SelectItem>
+                        <SelectItem value="bulk">Bulk</SelectItem>
                       </SelectContent>
                     </Select>
                     <FormMessage />
@@ -704,14 +662,13 @@ export function SalesOrderForm({
                     <Select value={field.value} onValueChange={field.onChange} disabled={readOnly}>
                       <FormControl>
                         <SelectTrigger>
-                          <SelectValue />
+                          <SelectValue placeholder="Select currency" />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="INR">INR</SelectItem>
-                        <SelectItem value="USD">USD</SelectItem>
-                        <SelectItem value="EUR">EUR</SelectItem>
-                        <SelectItem value="GBP">GBP</SelectItem>
+                        <SelectItem value="INR">INR - Indian Rupee</SelectItem>
+                        <SelectItem value="USD">USD - US Dollar</SelectItem>
+                        <SelectItem value="EUR">EUR - Euro</SelectItem>
                       </SelectContent>
                     </Select>
                     <FormMessage />
@@ -749,30 +706,6 @@ export function SalesOrderForm({
 
               <FormField
                 control={form.control}
-                name="mode_of_transport"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Transport Mode</FormLabel>
-                    <Select value={field.value || ''} onValueChange={field.onChange} disabled={readOnly}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select transport mode" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="courier">Courier</SelectItem>
-                        <SelectItem value="truck">Truck</SelectItem>
-                        <SelectItem value="sea">Sea</SelectItem>
-                        <SelectItem value="air">Air</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
                 name="default_warehouse_id"
                 render={({ field }) => (
                   <FormItem>
@@ -781,7 +714,8 @@ export function SalesOrderForm({
                       value={field.value} 
                       onValueChange={(value) => {
                         field.onChange(value);
-                        handleWarehouseChange(value);
+                        fetchBins(value);
+                        form.setValue('default_bin_id', '');
                       }} 
                       disabled={readOnly}
                     >
@@ -793,7 +727,7 @@ export function SalesOrderForm({
                       <SelectContent>
                         {warehouses.map((warehouse) => (
                           <SelectItem key={warehouse.id} value={warehouse.id}>
-                            {warehouse.warehouse_name} - {warehouse.bin_name}
+                            {warehouse.warehouse_name}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -803,41 +737,41 @@ export function SalesOrderForm({
                 )}
               />
 
-                <FormField
-                  control={form.control}
-                  name="default_bin_id"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Default Bin *</FormLabel>
-                      <Select 
-                        value={field.value} 
-                        onValueChange={(value) => {
-                          field.onChange(value);
-                          // Trigger stock levels fetch when bin is selected
-                          const warehouseId = form.watch('default_warehouse_id');
-                          if (warehouseId && value) {
-                            fetchStockLevels(warehouseId, value);
-                          }
-                        }} 
-                        disabled={readOnly || !form.watch('default_warehouse_id')}
-                      >
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select bin" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {bins.map((bin) => (
-                            <SelectItem key={bin.id} value={bin.id}>
-                              {bin.bin_name} ({bin.wh_bin_code})
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+              <FormField
+                control={form.control}
+                name="default_bin_id"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Default Bin *</FormLabel>
+                    <Select 
+                      value={field.value} 
+                      onValueChange={(value) => {
+                        field.onChange(value);
+                        // Trigger stock levels fetch when bin is selected
+                        const warehouseId = form.watch('default_warehouse_id');
+                        if (warehouseId && value) {
+                          fetchStockLevels(warehouseId, value);
+                        }
+                      }} 
+                      disabled={readOnly || !form.watch('default_warehouse_id')}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select bin" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {bins.map((bin) => (
+                          <SelectItem key={bin.id} value={bin.id}>
+                            {bin.bin_name} ({bin.wh_bin_code})
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
               <div className="col-span-full">
                 <FormField
@@ -863,303 +797,19 @@ export function SalesOrderForm({
           </Card>
 
           {/* Line Items */}
-          <Card>
-            <CardHeader>
-              <div className="flex justify-between items-center">
-                <CardTitle>Order Line Items</CardTitle>
-                {!readOnly && (
-                  <Button type="button" onClick={addItem} size="sm">
-                    <Plus className="h-4 w-4 mr-2" />
-                    Add Item
-                  </Button>
-                )}
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {fields.map((field, index) => (
-                <div key={field.id} className="border rounded-lg p-4 space-y-4">
-                  <div className="flex justify-between items-center">
-                    <Badge variant="outline">Line {index + 1}</Badge>
-                    {!readOnly && fields.length > 1 && (
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => remove(index)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    )}
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                    <FormField
-                      control={form.control}
-                      name={`items.${index}.product_id`}
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Product *</FormLabel>
-                          <FormControl>
-                            <SearchableCombobox
-                              value={field.value}
-                              onSelect={(productId) => {
-                                field.onChange(productId);
-                                handleProductSelect(index, productId);
-                              }}
-                              placeholder="Select product"
-                              searchPlaceholder="Search products..."
-                              options={products.map((product) => ({
-                                id: product.id,
-                                name: product.name,
-                                subtitle: `${product.sku} - Stock: ${product.stock_quantity || 0}`
-                              }))}
-                              disabled={readOnly}
-                              emptyMessage="No products found"
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={form.control}
-                      name={`items.${index}.item_description`}
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Description *</FormLabel>
-                          <FormControl>
-                            <Input {...field} disabled={readOnly} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                     <FormField
-                       control={form.control}
-                       name={`items.${index}.stock_on_hand`}
-                       render={({ field }) => (
-                         <FormItem>
-                           <FormLabel>Stock on Hand</FormLabel>
-                           <FormControl>
-                             <div className="relative">
-                               <Input 
-                                 type="number" 
-                                 {...field} 
-                                 disabled
-                                 readOnly
-                                 className={`bg-muted ${
-                                   (field.value || 0) > 0 ? 'text-green-600 font-medium' : 'text-red-600 font-medium'
-                                 }`}
-                               />
-                               {form.watch('default_warehouse_id') && form.watch('default_bin_id') ? (
-                                 <div className="absolute -bottom-5 left-0 text-xs text-muted-foreground">
-                                   {warehouses.find(w => w.id === form.watch('default_warehouse_id'))?.warehouse_name} - 
-                                   {bins.find(b => b.id === form.watch('default_bin_id'))?.bin_name}
-                                 </div>
-                               ) : (
-                                 <div className="absolute -bottom-5 left-0 text-xs text-amber-600">
-                                   Select warehouse & bin for accurate stock
-                                 </div>
-                               )}
-                             </div>
-                           </FormControl>
-                           <FormMessage />
-                         </FormItem>
-                       )}
-                     />
-
-                     <FormField
-                       control={form.control}
-                       name={`items.${index}.ordered_quantity`}
-                       render={({ field }) => (
-                         <FormItem>
-                           <FormLabel>Ordered Quantity *</FormLabel>
-                           <FormControl>
-                             <Input 
-                               type="number" 
-                               {...field} 
-                               onChange={(e) => {
-                                 field.onChange(Number(e.target.value));
-                                 setTimeout(() => calculateLineAmounts(index), 0);
-                               }}
-                               disabled={readOnly} 
-                             />
-                           </FormControl>
-                           <FormMessage />
-                         </FormItem>
-                       )}
-                     />
-
-                     <FormField
-                       control={form.control}
-                       name={`items.${index}.back_order_quantity`}
-                       render={({ field }) => (
-                         <FormItem>
-                           <FormLabel>Back Order</FormLabel>
-                           <FormControl>
-                             <Input 
-                               type="number" 
-                               {...field} 
-                               disabled
-                               readOnly
-                               className="bg-muted"
-                             />
-                           </FormControl>
-                           <FormMessage />
-                         </FormItem>
-                       )}
-                     />
-
-                    <FormField
-                      control={form.control}
-                      name={`items.${index}.unit_of_measure`}
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>UOM</FormLabel>
-                          <FormControl>
-                            <Input {...field} disabled={readOnly} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={form.control}
-                      name={`items.${index}.unit_price`}
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Unit Price *</FormLabel>
-                          <FormControl>
-                            <Input 
-                              type="number" 
-                              step="0.01"
-                              {...field} 
-                              onChange={(e) => {
-                                field.onChange(Number(e.target.value));
-                                setTimeout(() => calculateLineAmounts(index), 0);
-                              }}
-                              disabled={readOnly} 
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={form.control}
-                      name={`items.${index}.discount_percentage`}
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Discount %</FormLabel>
-                          <FormControl>
-                            <Input 
-                              type="number" 
-                              step="0.01"
-                              {...field} 
-                              onChange={(e) => {
-                                field.onChange(Number(e.target.value));
-                                setTimeout(() => calculateLineAmounts(index), 0);
-                              }}
-                              disabled={readOnly} 
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={form.control}
-                      name={`items.${index}.cgst_rate`}
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>CGST %</FormLabel>
-                          <FormControl>
-                            <Input 
-                              type="number" 
-                              step="0.01"
-                              {...field} 
-                              onChange={(e) => {
-                                field.onChange(Number(e.target.value));
-                                setTimeout(() => calculateLineAmounts(index), 0);
-                              }}
-                              disabled={readOnly} 
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={form.control}
-                      name={`items.${index}.sgst_rate`}
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>SGST %</FormLabel>
-                          <FormControl>
-                            <Input 
-                              type="number" 
-                              step="0.01"
-                              {...field} 
-                              onChange={(e) => {
-                                field.onChange(Number(e.target.value));
-                                setTimeout(() => calculateLineAmounts(index), 0);
-                              }}
-                              disabled={readOnly} 
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={form.control}
-                      name={`items.${index}.igst_rate`}
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>IGST %</FormLabel>
-                          <FormControl>
-                            <Input 
-                              type="number" 
-                              step="0.01"
-                              {...field} 
-                              onChange={(e) => {
-                                field.onChange(Number(e.target.value));
-                                setTimeout(() => calculateLineAmounts(index), 0);
-                              }}
-                              disabled={readOnly} 
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <div className="bg-muted p-3 rounded">
-                      <Label className="text-sm font-medium">Net Amount</Label>
-                      <p className="text-sm">₹{form.watch(`items.${index}.net_amount`)?.toFixed(2) || '0.00'}</p>
-                    </div>
-
-                    <div className="bg-muted p-3 rounded">
-                      <Label className="text-sm font-medium">Tax Amount</Label>
-                      <p className="text-sm">₹{form.watch(`items.${index}.tax_amount`)?.toFixed(2) || '0.00'}</p>
-                    </div>
-
-                    <div className="bg-primary/10 p-3 rounded">
-                      <Label className="text-sm font-medium">Total Value</Label>
-                      <p className="text-sm font-bold">₹{form.watch(`items.${index}.total_price`)?.toFixed(2) || '0.00'}</p>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </CardContent>
-          </Card>
+          <OrderLineItemsTable
+            control={form.control}
+            fieldsArray={fieldsArray}
+            products={products}
+            globalGstType={globalGstType}
+            onGstTypeChange={handleGlobalGstTypeChange}
+            onAddItem={addItem}
+            onProductSelect={handleProductSelect}
+            onCalculateLineAmounts={calculateLineAmounts}
+            onValidateGSTRate={validateGSTRate}
+            readOnly={readOnly}
+            currency="₹"
+          />
 
           {/* Enhanced Order Summary */}
           <Card>
