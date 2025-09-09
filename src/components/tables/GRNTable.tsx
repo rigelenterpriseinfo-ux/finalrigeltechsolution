@@ -26,6 +26,9 @@ interface GRN {
   total_rejected_quantity: number;
   total_amount: number;
   purchase_order_id: string;
+  purchase_orders?: {
+    po_number: string;
+  };
   created_at: string;
 }
 
@@ -83,7 +86,8 @@ export function GRNTable({ refreshTrigger, onView, onEdit, onDelete }: GRNTableP
         .from('grn_header')
         .select(`
           *,
-          grn_line_items(*)
+          grn_line_items(*),
+          purchase_orders(po_number)
         `)
         .eq('company_id', profile?.company_id)
         .order('grn_date', { ascending: false })
@@ -185,7 +189,8 @@ export function GRNTable({ refreshTrigger, onView, onEdit, onDelete }: GRNTableP
         .from('grn_header')
         .select(`
           *,
-          grn_line_items(*)
+          grn_line_items(*),
+          purchase_orders(po_number)
         `)
         .eq('id', grn.id)
         .single();
@@ -206,7 +211,7 @@ export function GRNTable({ refreshTrigger, onView, onEdit, onDelete }: GRNTableP
         [''],
         ['GRN Number:', grnDetail.grn_number],
         ['GRN Date:', format(new Date(grnDetail.grn_date), 'dd/MM/yyyy')],
-        ['PO Number:', `PO-${grnDetail.purchase_order_id.slice(-6)}`],
+        ['PO Number:', grnDetail.purchase_orders?.po_number || 'N/A'],
         ['Supplier:', grnDetail.supplier_name],
         ['Supplier Invoice:', grnDetail.supplier_invoice_number || 'N/A'],
         ['Status:', grnDetail.status],
@@ -308,7 +313,8 @@ export function GRNTable({ refreshTrigger, onView, onEdit, onDelete }: GRNTableP
         .from('grn_header')
         .select(`
           *,
-          grn_line_items(*)
+          grn_line_items(*),
+          purchase_orders(po_number)
         `)
         .eq('id', grn.id)
         .single();
@@ -345,7 +351,7 @@ export function GRNTable({ refreshTrigger, onView, onEdit, onDelete }: GRNTableP
       pdf.text(`GRN Number: ${grnDetail.grn_number}`, 20, yPosition);
       pdf.text(`GRN Date: ${format(new Date(grnDetail.grn_date), 'dd/MM/yyyy')}`, 120, yPosition);
       yPosition += 7;
-      pdf.text(`PO Number: PO-${grnDetail.purchase_order_id.slice(-6)}`, 20, yPosition);
+      pdf.text(`PO Number: ${grnDetail.purchase_orders?.po_number || 'N/A'}`, 20, yPosition);
       pdf.text(`Status: ${grnDetail.status}`, 120, yPosition);
       yPosition += 7;
       pdf.text(`Supplier: ${grnDetail.supplier_name}`, 20, yPosition);
@@ -614,7 +620,7 @@ export function GRNTable({ refreshTrigger, onView, onEdit, onDelete }: GRNTableP
                       <TableCell>
                         <div className="inline-flex items-center px-3 py-1.5 rounded-md bg-gradient-to-r from-blue-50 to-blue-100 border border-blue-200 hover:from-blue-100 hover:to-blue-150 transition-all duration-200 max-w-fit">
                           <span className="text-sm font-semibold text-blue-800 whitespace-nowrap">
-                            PO-{grn.purchase_order_id}
+                            {grn.purchase_orders?.po_number || 'N/A'}
                           </span>
                         </div>
                       </TableCell>
