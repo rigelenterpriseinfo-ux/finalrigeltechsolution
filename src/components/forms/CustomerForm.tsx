@@ -139,51 +139,51 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({
                   Format: First 4 letters of customer name + unique number (starting from 1001)
                 </p>
               </div>
-            <div>
-              <Label htmlFor="name">Customer Name / Company Name *</Label>
-              <Input
-                id="name"
-                {...register('name', { required: 'Customer name is required' })}
-                className={`min-h-[48px] text-base ${errors.name ? 'border-destructive' : ''}`}
-                disabled={!canEdit}
-              />
-              {errors.name && (
-                <p className="text-sm text-destructive mt-1">{errors.name.message}</p>
-              )}
+              <div>
+                <Label htmlFor="name">Customer Name / Company Name *</Label>
+                <Input
+                  id="name"
+                  {...register('name', { required: 'Customer name is required' })}
+                  className={`min-h-[48px] text-base ${errors.name ? 'border-destructive' : ''}`}
+                  disabled={!canEdit}
+                />
+                {errors.name && (
+                  <p className="text-sm text-destructive mt-1">{errors.name.message}</p>
+                )}
+              </div>
+              <div>
+                <Label htmlFor="customer_type">Customer Type</Label>
+                <Select
+                  defaultValue={customer?.customer_type || 'business'}
+                  onValueChange={(value) => setValue('customer_type', value)}
+                  disabled={!canEdit}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="individual">Individual</SelectItem>
+                    <SelectItem value="business">Business</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label htmlFor="is_active">Status</Label>
+                <Select
+                  defaultValue={customer?.is_active ? 'Active' : 'Inactive'}
+                  onValueChange={(value) => setValue('is_active', value === 'Active')}
+                  disabled={!canEdit}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Active">Active</SelectItem>
+                    <SelectItem value="Inactive">Inactive</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
-            <div>
-              <Label htmlFor="customer_type">Customer Type</Label>
-              <Select
-                defaultValue={customer?.customer_type || 'business'}
-                onValueChange={(value) => setValue('customer_type', value)}
-                disabled={!canEdit}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="individual">Individual</SelectItem>
-                  <SelectItem value="business">Business</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label htmlFor="is_active">Status</Label>
-              <Select
-                defaultValue={customer?.is_active ? 'Active' : 'Inactive'}
-                onValueChange={(value) => setValue('is_active', value === 'Active')}
-                disabled={!canEdit}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Active">Active</SelectItem>
-                  <SelectItem value="Inactive">Inactive</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
         </CardContent>
       </Card>
 
@@ -194,47 +194,47 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid grid-cols-1 gap-4">
-            <div>
-              <Label htmlFor="contact_person">Primary Contact Person Name</Label>
+              <div>
+                <Label htmlFor="contact_person">Primary Contact Person Name</Label>
                 <Input
                   id="contact_person"
                   {...register('contact_person')}
                   disabled={!canEdit}
                   className="min-h-[48px] text-base"
                 />
+              </div>
+              <div>
+                <Label htmlFor="phone">Phone / Mobile</Label>
+                <Input
+                  id="phone"
+                  type="tel"
+                  {...register('phone')}
+                  disabled={!canEdit}
+                  className="min-h-[48px] text-base"
+                />
+              </div>
+              <div>
+                <Label htmlFor="email">Email Address</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  {...register('email')}
+                  disabled={!canEdit}
+                  className="min-h-[48px] text-base"
+                />
+              </div>
+              <div>
+                <Label htmlFor="website">Website (optional)</Label>
+                <Input
+                  id="website"
+                  {...register('website')}
+                  placeholder="https://example.com"
+                  disabled={!canEdit}
+                />
+              </div>
             </div>
-            <div>
-              <Label htmlFor="phone">Phone / Mobile</Label>
-              <Input
-                id="phone"
-                type="tel"
-                {...register('phone')}
-                disabled={!canEdit}
-                className="min-h-[48px] text-base"
-              />
-            </div>
-            <div>
-              <Label htmlFor="email">Email Address</Label>
-              <Input
-                id="email"
-                type="email"
-                {...register('email')}
-                disabled={!canEdit}
-                className="min-h-[48px] text-base"
-              />
-            </div>
-            <div>
-              <Label htmlFor="website">Website (optional)</Label>
-              <Input
-                id="website"
-                {...register('website')}
-                placeholder="https://example.com"
-                disabled={!canEdit}
-              />
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
 
       {/* Address Details */}
       <Card>
@@ -517,14 +517,28 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({
         </CardContent>
       </Card>
 
-      <div className="flex justify-end space-x-2">
-        <Button type="button" variant="outline" onClick={onCancel}>
+      {/* Form Actions */}
+      <div className="flex flex-col sm:flex-row justify-end space-y-3 sm:space-y-0 sm:space-x-4 pt-6 border-t">
+        <Button
+          type="button"
+          variant="outline"
+          onClick={onCancel}
+          disabled={loading}
+          className="w-full sm:w-auto min-h-[48px] text-base"
+        >
           Cancel
         </Button>
-        <Button type="submit" disabled={loading || !canEdit}>
-          {loading ? 'Saving...' : customer ? 'Update Customer' : 'Create Customer'}
-        </Button>
+        {canEdit && (
+          <Button 
+            type="submit" 
+            disabled={loading}
+            className="w-full sm:w-auto min-h-[48px] text-base font-medium"
+          >
+            {loading ? 'Saving...' : (customer ? 'Update Customer' : 'Create Customer')}
+          </Button>
+        )}
       </div>
     </form>
+  </div>
   );
 };
