@@ -612,9 +612,11 @@ export function GRNTable({ refreshTrigger, onView, onEdit, onDelete }: GRNTableP
                       <TableCell className="font-medium text-blue-600">{grn.grn_number}</TableCell>
                       <TableCell>{format(new Date(grn.grn_date), 'dd/MM/yyyy')}</TableCell>
                       <TableCell>
-                        <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
-                          PO-{grn.purchase_order_id.slice(-6)}
-                        </Badge>
+                        <div className="inline-flex items-center px-3 py-1.5 rounded-md bg-gradient-to-r from-blue-50 to-blue-100 border border-blue-200 hover:from-blue-100 hover:to-blue-150 transition-all duration-200 max-w-fit">
+                          <span className="text-sm font-semibold text-blue-800 whitespace-nowrap">
+                            PO-{grn.purchase_order_id}
+                          </span>
+                        </div>
                       </TableCell>
                       <TableCell className="font-medium">{grn.supplier_name}</TableCell>
                       <TableCell className="text-muted-foreground">{grn.supplier_invoice_number || '-'}</TableCell>
