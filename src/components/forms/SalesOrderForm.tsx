@@ -391,9 +391,10 @@ export function SalesOrderForm({
       form.setValue(`items.${index}.quantity`, orderedQuantity);
     }
 
-    // Calculate back order quantity
+    // Calculate back order quantity (Ordered Qty - Ready to Deliver Qty)
     const stockOnHand = form.getValues(`items.${index}.stock_on_hand`) || 0;
-    const backOrderQuantity = Math.max(0, finalQuantity - stockOnHand);
+    const readyToDeliverQuantity = Math.min(finalQuantity, stockOnHand);
+    const backOrderQuantity = Math.max(0, finalQuantity - readyToDeliverQuantity);
     form.setValue(`items.${index}.back_order_quantity`, backOrderQuantity);
   };
 
@@ -458,31 +459,38 @@ export function SalesOrderForm({
       };
 
       // Prepare line items
-      const lineItems = data.items.map((item, index) => ({
-        line_no: index + 1,
-        product_id: item.product_id,
-        item_description: item.item_description,
-        hsn_sac_code: item.hsn_sac_code,
-        stock_on_hand: item.stock_on_hand || 0,
-        ordered_quantity: item.ordered_quantity || item.quantity,
-        back_order_quantity: item.back_order_quantity || 0,
-        quantity: item.ordered_quantity || item.quantity, // For backward compatibility
-        unit_of_measure: item.unit_of_measure,
-        unit_price: item.unit_price,
-        discount_percentage: item.discount_percentage || 0,
-        discount_amount: item.discount_amount || 0,
-        cgst_rate: item.cgst_rate || 0,
-        sgst_rate: item.sgst_rate || 0,
-        igst_rate: item.igst_rate || 0,
-        cgst_amount: item.cgst_amount || 0,
-        sgst_amount: item.sgst_amount || 0,
-        igst_amount: item.igst_amount || 0,
-        net_amount: item.net_amount || 0,
-        tax_percentage: (item.cgst_rate || 0) + (item.sgst_rate || 0) + (item.igst_rate || 0),
-        total_price: item.total_price || 0,
-        warehouse_id: data.default_warehouse_id,
-        bin_id: data.default_bin_id
-      }));
+      const lineItems = data.items.map((item, index) => {
+        const orderedQty = item.ordered_quantity || item.quantity;
+        const stockOnHand = item.stock_on_hand || 0;
+        const readyToDeliverQty = Math.min(orderedQty, stockOnHand);
+        
+        return {
+          line_no: index + 1,
+          product_id: item.product_id,
+          item_description: item.item_description,
+          hsn_sac_code: item.hsn_sac_code,
+          stock_on_hand: stockOnHand,
+          ordered_quantity: orderedQty,
+          ready_to_deliver_quantity: readyToDeliverQty,
+          back_order_quantity: Math.max(0, orderedQty - readyToDeliverQty),
+          quantity: orderedQty, // For backward compatibility
+          unit_of_measure: item.unit_of_measure,
+          unit_price: item.unit_price,
+          discount_percentage: item.discount_percentage || 0,
+          discount_amount: item.discount_amount || 0,
+          cgst_rate: item.cgst_rate || 0,
+          sgst_rate: item.sgst_rate || 0,
+          igst_rate: item.igst_rate || 0,
+          cgst_amount: item.cgst_amount || 0,
+          sgst_amount: item.sgst_amount || 0,
+          igst_amount: item.igst_amount || 0,
+          net_amount: item.net_amount || 0,
+          tax_percentage: (item.cgst_rate || 0) + (item.sgst_rate || 0) + (item.igst_rate || 0),
+          total_price: item.total_price || 0,
+          warehouse_id: data.default_warehouse_id,
+          bin_id: data.default_bin_id
+        };
+      });
 
       const result = await onSubmit({ orderData, lineItems });
       if (result?.order_number) {

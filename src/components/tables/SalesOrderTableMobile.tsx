@@ -31,6 +31,8 @@ interface SalesOrder {
   total_ordered_qty: number;
   total_invoiced_qty: number;
   total_backorder_qty: number;
+  total_ready_to_deliver_qty?: number;
+  ready_to_deliver_value?: number;
   delivery_status: string;
 }
 
@@ -242,10 +244,29 @@ export function SalesOrderTableMobile({
                           <span className="text-muted-foreground text-sm">Invoiced Qty:</span>
                           <span className="text-sm">{order.total_invoiced_qty}</span>
                         </div>
-                        {order.total_backorder_qty > 0 && (
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground text-sm">Ready to Deliver:</span>
+                          <div className="text-sm bg-success/10 text-success px-2 py-1 rounded border border-success/20">
+                            <div className="font-medium">
+                              {order.total_ready_to_deliver_qty || (order.total_ordered_qty - order.total_invoiced_qty)} units
+                            </div>
+                            {order.ready_to_deliver_value && (
+                              <div className="text-xs">
+                                {formatCurrency(order.ready_to_deliver_value, order.currency)}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        {(order.total_ready_to_deliver_qty ? 
+                          (order.total_ordered_qty - order.total_ready_to_deliver_qty) : 
+                          order.total_backorder_qty) > 0 && (
                           <div className="flex justify-between">
                             <span className="text-muted-foreground text-sm">Backorder Qty:</span>
-                            <span className="text-sm text-warning">{order.total_backorder_qty}</span>
+                            <span className="text-sm text-warning">
+                              {order.total_ready_to_deliver_qty ? 
+                                (order.total_ordered_qty - order.total_ready_to_deliver_qty) : 
+                                order.total_backorder_qty}
+                            </span>
                           </div>
                         )}
                       </div>
