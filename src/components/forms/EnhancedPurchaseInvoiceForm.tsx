@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { SearchableCombobox } from '@/components/ui/searchable-combobox';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -405,20 +406,20 @@ export function EnhancedPurchaseInvoiceForm({
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Supplier *</FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select supplier" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {suppliers.map((supplier) => (
-                        <SelectItem key={supplier.id} value={supplier.id}>
-                          {supplier.name} ({supplier.supplier_ref})
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <FormControl>
+                    <SearchableCombobox
+                      value={field.value}
+                      onSelect={field.onChange}
+                      placeholder="Select supplier"
+                      searchPlaceholder="Search suppliers..."
+                      options={suppliers.map((supplier) => ({
+                        id: supplier.id,
+                        name: supplier.name,
+                        subtitle: supplier.supplier_ref || supplier.email
+                      }))}
+                      emptyMessage="No suppliers found"
+                    />
+                  </FormControl>
                   <FormMessage />
                 </FormItem>
               )}

@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { SearchableCombobox } from '@/components/ui/searchable-combobox';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
@@ -912,24 +913,21 @@ export function BOMModule() {
                     />
                   </div>
 
-                  <div>
-                    <Label htmlFor="finishedProduct">Finished Product *</Label>
-                    <Select
-                      value={formData.finishedProductId}
-                      onValueChange={(value) => setFormData(prev => ({ ...prev, finishedProductId: value }))}
-                    >
-                      <SelectTrigger className="mobile-touch-target">
-                        <SelectValue placeholder="Select finished product" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {finishedGoodsProducts.map((product) => (
-                          <SelectItem key={product.id} value={product.id}>
-                            {product.name} ({product.sku})
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
+                   <div>
+                     <Label htmlFor="finishedProduct">Finished Product *</Label>
+                     <SearchableCombobox
+                       value={formData.finishedProductId}
+                       onSelect={(value) => setFormData(prev => ({ ...prev, finishedProductId: value }))}
+                       placeholder="Select finished product"
+                       searchPlaceholder="Search finished products..."
+                       options={finishedGoodsProducts.map((product) => ({
+                         id: product.id,
+                         name: product.name,
+                         subtitle: `${product.sku} - ₹${product.unit_price || 0}`
+                       }))}
+                       emptyMessage="No finished goods products found"
+                     />
+                   </div>
 
                   <div>
                     <Label htmlFor="yieldQuantity">Yield Quantity</Label>
@@ -1058,21 +1056,19 @@ export function BOMModule() {
                     {components.map((component) => (
                       <Card key={component.id} className="p-3">
                         <div className="space-y-3">
-                          <Select
-                            value={component.product_id || ''}
-                            onValueChange={(value) => updateComponent(component.id, { product_id: value })}
-                          >
-                            <SelectTrigger className="h-8">
-                              <SelectValue placeholder="Select component" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {rawMaterialProducts.map((product) => (
-                                <SelectItem key={product.id} value={product.id}>
-                                  {product.name} ({product.sku})
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
+                           <SearchableCombobox
+                             value={component.product_id || ''}
+                             onSelect={(value) => updateComponent(component.id, { product_id: value })}
+                             placeholder="Select component"
+                             searchPlaceholder="Search raw materials..."
+                             options={rawMaterialProducts.map((product) => ({
+                               id: product.id,
+                               name: product.name,
+                               subtitle: `${product.sku} - ₹${product.cost_price || 0}`
+                             }))}
+                             emptyMessage="No raw materials found"
+                             className="h-8"
+                           />
 
                           <div className="grid grid-cols-2 gap-2">
                             <div>

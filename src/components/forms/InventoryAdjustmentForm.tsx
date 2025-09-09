@@ -20,6 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { SearchableCombobox } from '@/components/ui/searchable-combobox';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from '@/hooks/use-toast';
@@ -314,20 +315,20 @@ export const InventoryAdjustmentForm: React.FC<InventoryAdjustmentFormProps> = (
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Warehouse & Bin *</FormLabel>
-                <Select onValueChange={field.onChange} defaultValue={field.value}>
-                  <FormControl>
-                    <SelectTrigger className="mobile-touch-target">
-                      <SelectValue placeholder="Select warehouse & bin" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    {warehouseBins.map((bin) => (
-                      <SelectItem key={bin.id} value={bin.id}>
-                        {bin.warehouse_name} ({bin.warehouse_code}) - {bin.bin_name} ({bin.wh_bin_code})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <FormControl>
+                  <SearchableCombobox
+                    value={field.value}
+                    onSelect={field.onChange}
+                    placeholder="Select warehouse & bin"
+                    searchPlaceholder="Search warehouses..."
+                    options={warehouseBins.map((bin) => ({
+                      id: bin.id,
+                      name: `${bin.warehouse_name} - ${bin.bin_name}`,
+                      subtitle: `${bin.warehouse_code || ''} - ${bin.wh_bin_code || ''}`
+                    }))}
+                    emptyMessage="No warehouses found"
+                  />
+                </FormControl>
                 <FormMessage />
               </FormItem>
             )}

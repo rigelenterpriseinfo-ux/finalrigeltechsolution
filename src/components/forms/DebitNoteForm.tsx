@@ -4,6 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { SearchableCombobox } from "@/components/ui/searchable-combobox";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Trash2, Plus } from "lucide-react";
@@ -419,18 +420,18 @@ export function DebitNoteForm({ debitNote, onSubmit, onCancel, mode }: DebitNote
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
           <Label htmlFor="supplier">Supplier *</Label>
-          <Select value={formData.supplier_id} onValueChange={handleSupplierChange}>
-            <SelectTrigger>
-              <SelectValue placeholder="Select supplier" />
-            </SelectTrigger>
-            <SelectContent>
-              {suppliers.map((supplier: any) => (
-                <SelectItem key={supplier.id} value={supplier.id}>
-                  {supplier.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <SearchableCombobox
+            value={formData.supplier_id}
+            onSelect={handleSupplierChange}
+            placeholder="Select supplier"
+            searchPlaceholder="Search suppliers..."
+            options={suppliers.map((supplier: any) => ({
+              id: supplier.id,
+              name: supplier.name,
+              subtitle: supplier.supplier_ref || supplier.email
+            }))}
+            emptyMessage="No suppliers found"
+          />
         </div>
 
         <div className="space-y-2">

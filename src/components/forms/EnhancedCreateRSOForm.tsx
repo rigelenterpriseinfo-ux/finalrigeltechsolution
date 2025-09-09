@@ -23,6 +23,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { SearchableCombobox } from '@/components/ui/searchable-combobox';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -834,48 +835,21 @@ export function EnhancedCreateRSOForm({ rsoId, onClose, onSave }: EnhancedCreate
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Sales Invoice * (Last 365 days)</FormLabel>
-                    <div className="space-y-2">
-                      <div className="relative">
-                        <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                        <Input
-                          placeholder="Search invoices..."
-                          value={invoiceSearchTerm}
-                          onChange={(e) => setInvoiceSearchTerm(e.target.value)}
-                          className="pl-8"
-                          disabled={!selectedCustomer}
-                        />
-                      </div>
-                      <Select onValueChange={handleInvoiceChange} value={field.value} disabled={!selectedCustomer}>
-                        <FormControl>
-                          <SelectTrigger className="bg-background">
-                            <SelectValue placeholder="Select an invoice" />
-                          </SelectTrigger>
-                        </FormControl>
-                         <SelectContent className="bg-background border z-50 max-h-64">
-                            {!selectedCustomer ? (
-                              <SelectItem value="no-customer-selected" disabled>
-                                <span className="text-muted-foreground">Select a customer first</span>
-                              </SelectItem>
-                            ) : filteredInvoices.length === 0 ? (
-                              <SelectItem value="no-invoices" disabled>
-                                <span className="text-muted-foreground">No finalized invoices found for this customer in the last 365 days</span>
-                              </SelectItem>
-                           ) : (
-                             filteredInvoices.map((invoice) => (
-                               <SelectItem key={invoice.id} value={invoice.id}>
-                                 <div className="flex flex-col">
-                                   <span className="font-medium">{invoice.invoice_number}</span>
-                                   <div className="flex justify-between text-sm text-muted-foreground">
-                                     <span>{new Date(invoice.invoice_date).toLocaleDateString()}</span>
-                                     <span>₹{invoice.total_amount.toLocaleString()}</span>
-                                   </div>
-                                 </div>
-                               </SelectItem>
-                             ))
-                           )}
-                         </SelectContent>
-                      </Select>
-                    </div>
+                    <FormControl>
+                      <SearchableCombobox
+                        value={field.value}
+                        onSelect={handleInvoiceChange}
+                        placeholder="Select an invoice"
+                        searchPlaceholder="Search invoices..."
+                        options={invoices.map((invoice) => ({
+                          id: invoice.id,
+                          name: invoice.invoice_number,
+                          subtitle: `${new Date(invoice.invoice_date).toLocaleDateString()} - ₹${invoice.total_amount.toLocaleString()}`
+                        }))}
+                        disabled={!selectedCustomer}
+                        emptyMessage={!selectedCustomer ? "Select a customer first" : "No finalized invoices found for this customer in the last 365 days"}
+                      />
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}

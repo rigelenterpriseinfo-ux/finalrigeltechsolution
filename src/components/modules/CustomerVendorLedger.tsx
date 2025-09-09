@@ -4,6 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { SearchableCombobox } from '@/components/ui/searchable-combobox';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
@@ -598,19 +599,18 @@ export function CustomerVendorLedger({
           {/* Entity Selection */}
           <div className="space-y-2">
             <Label>{entityType === 'customer' ? 'Customer' : 'Vendor'}</Label>
-            <Select value={selectedEntityId} onValueChange={handleEntityChange}>
-              <SelectTrigger>
-                <SelectValue placeholder={`Select ${entityType}`} />
-              </SelectTrigger>
-              <SelectContent>
-                {(entityType === 'customer' ? customers : suppliers).map((entity) => (
-                  <SelectItem key={entity.id} value={entity.id}>
-                    {entity.name} {(entity as any).customer_ref || (entity as any).supplier_ref ? 
-                      `(${(entity as any).customer_ref || (entity as any).supplier_ref})` : ''}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <SearchableCombobox
+              value={selectedEntityId}
+              onSelect={handleEntityChange}
+              placeholder={`Select ${entityType}`}
+              searchPlaceholder={`Search ${entityType}s...`}
+              options={(entityType === 'customer' ? customers : suppliers).map((entity) => ({
+                id: entity.id,
+                name: entity.name,
+                subtitle: (entity as any).customer_ref || (entity as any).supplier_ref
+              }))}
+              emptyMessage={`No ${entityType}s found`}
+            />
           </div>
         </div>
 

@@ -7,6 +7,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { SearchableCombobox } from '@/components/ui/searchable-combobox';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
@@ -595,27 +596,24 @@ export function SalesOrderForm({
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Customer *</FormLabel>
-                    <Select 
-                      value={field.value} 
-                      onValueChange={(value) => {
-                        field.onChange(value);
-                        handleCustomerSelect(value);
-                      }} 
-                      disabled={readOnly}
-                    >
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select customer" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {customers.map((customer) => (
-                          <SelectItem key={customer.id} value={customer.id}>
-                            {customer.name} ({customer.customer_ref})
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <FormControl>
+                      <SearchableCombobox
+                        value={field.value}
+                        onSelect={(customerId) => {
+                          field.onChange(customerId);
+                          handleCustomerSelect(customerId);
+                        }}
+                        placeholder="Select customer"
+                        searchPlaceholder="Search customers..."
+                        options={customers.map((customer) => ({
+                          id: customer.id,
+                          name: customer.name,
+                          subtitle: customer.customer_ref || customer.email
+                        }))}
+                        disabled={readOnly}
+                        emptyMessage="No customers found"
+                      />
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -901,27 +899,24 @@ export function SalesOrderForm({
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>Product *</FormLabel>
-                          <Select 
-                            value={field.value} 
-                            onValueChange={(value) => {
-                              field.onChange(value);
-                              handleProductSelect(index, value);
-                            }}
-                            disabled={readOnly}
-                          >
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select product" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              {products.map((product) => (
-                                <SelectItem key={product.id} value={product.id}>
-                                  {product.name} ({product.sku})
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
+                          <FormControl>
+                            <SearchableCombobox
+                              value={field.value}
+                              onSelect={(productId) => {
+                                field.onChange(productId);
+                                handleProductSelect(index, productId);
+                              }}
+                              placeholder="Select product"
+                              searchPlaceholder="Search products..."
+                              options={products.map((product) => ({
+                                id: product.id,
+                                name: product.name,
+                                subtitle: `${product.sku} - Stock: ${product.stock_quantity || 0}`
+                              }))}
+                              disabled={readOnly}
+                              emptyMessage="No products found"
+                            />
+                          </FormControl>
                           <FormMessage />
                         </FormItem>
                       )}

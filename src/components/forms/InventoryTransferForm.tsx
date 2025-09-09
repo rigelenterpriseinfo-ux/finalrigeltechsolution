@@ -20,6 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { SearchableCombobox } from '@/components/ui/searchable-combobox';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from '@/hooks/use-toast';
@@ -297,20 +298,20 @@ export const InventoryTransferForm: React.FC<InventoryTransferFormProps> = ({
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Product *</FormLabel>
-                <Select onValueChange={field.onChange} defaultValue={field.value}>
-                  <FormControl>
-                    <SelectTrigger className="mobile-touch-target">
-                      <SelectValue placeholder="Select a product" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    {products.map((product) => (
-                      <SelectItem key={product.id} value={product.id}>
-                        {product.name} ({product.sku})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <FormControl>
+                  <SearchableCombobox
+                    value={field.value}
+                    onSelect={field.onChange}
+                    placeholder="Select product"
+                    searchPlaceholder="Search products..."
+                    options={products.map((product) => ({
+                      id: product.id,
+                      name: product.name,
+                      subtitle: product.sku
+                    }))}
+                    emptyMessage="No products found"
+                  />
+                </FormControl>
                 <FormMessage />
               </FormItem>
             )}
@@ -322,20 +323,20 @@ export const InventoryTransferForm: React.FC<InventoryTransferFormProps> = ({
             render={({ field }) => (
               <FormItem>
                 <FormLabel>From Warehouse & Bin *</FormLabel>
-                <Select onValueChange={field.onChange} defaultValue={field.value}>
-                  <FormControl>
-                    <SelectTrigger className="mobile-touch-target">
-                      <SelectValue placeholder="Select source warehouse & bin" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    {warehouseBins.map((bin) => (
-                      <SelectItem key={bin.id} value={bin.id}>
-                        {bin.warehouse_name} ({bin.warehouse_code}) - {bin.bin_name} ({bin.wh_bin_code})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <FormControl>
+                  <SearchableCombobox
+                    value={field.value}
+                    onSelect={field.onChange}
+                    placeholder="Select source warehouse & bin"
+                    searchPlaceholder="Search warehouses..."
+                    options={warehouseBins.map((bin) => ({
+                      id: bin.id,
+                      name: `${bin.warehouse_name} - ${bin.bin_name}`,
+                      subtitle: `${bin.warehouse_code || ''} - ${bin.wh_bin_code || ''}`
+                    }))}
+                    emptyMessage="No warehouses found"
+                  />
+                </FormControl>
                 <FormMessage />
               </FormItem>
             )}
@@ -347,20 +348,20 @@ export const InventoryTransferForm: React.FC<InventoryTransferFormProps> = ({
             render={({ field }) => (
               <FormItem>
                 <FormLabel>To Warehouse & Bin *</FormLabel>
-                <Select onValueChange={field.onChange} defaultValue={field.value}>
-                  <FormControl>
-                    <SelectTrigger className="mobile-touch-target">
-                      <SelectValue placeholder="Select destination warehouse & bin" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    {availableToWarehouses.map((bin) => (
-                      <SelectItem key={bin.id} value={bin.id}>
-                        {bin.warehouse_name} ({bin.warehouse_code}) - {bin.bin_name} ({bin.wh_bin_code})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <FormControl>
+                  <SearchableCombobox
+                    value={field.value}
+                    onSelect={field.onChange}
+                    placeholder="Select destination warehouse & bin"
+                    searchPlaceholder="Search warehouses..."
+                    options={availableToWarehouses.map((bin) => ({
+                      id: bin.id,
+                      name: `${bin.warehouse_name} - ${bin.bin_name}`,
+                      subtitle: `${bin.warehouse_code || ''} - ${bin.wh_bin_code || ''}`
+                    }))}
+                    emptyMessage="No warehouses found"
+                  />
+                </FormControl>
                 <FormMessage />
               </FormItem>
             )}
