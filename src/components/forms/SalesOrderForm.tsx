@@ -217,8 +217,24 @@ export function SalesOrderForm({
     if (!profile?.company_id) return;
     
     try {
-      // Use existing products table for now
-      setWarehouses([{ id: 'default', warehouse_name: 'Default Warehouse' }]);
+      const { data, error } = await supabase
+        .from('warehouse_bins')
+        .select('id, warehouse_name, warehouse_code')
+        .eq('company_id', profile.company_id)
+        .order('warehouse_name');
+
+      if (error) throw error;
+
+      // Group by warehouse_name to avoid duplicates
+      const uniqueWarehouses = (data || []).reduce((acc: any[], curr: any) => {
+        const exists = acc.find((w) => w.name === curr.warehouse_name);
+        if (!exists) {
+          acc.push({ id: curr.id, name: curr.warehouse_name, warehouse_code: curr.warehouse_code });
+        }
+        return acc;
+      }, [] as any[]);
+
+      setWarehouses(uniqueWarehouses);
     } catch (error) {
       console.error('Error fetching warehouses:', error);
     }
@@ -228,8 +244,22 @@ export function SalesOrderForm({
     if (!profile?.company_id || !warehouseId) return;
     
     try {
-      // Use default bins for now
-      setBins([{ id: 'default', bin_name: 'Default Bin', wh_bin_code: 'DEF' }]);
+      const selectedWarehouse = warehouses.find((w: any) => w.id === warehouseId);
+      const warehouseName = selectedWarehouse?.name;
+      if (!warehouseName) {
+        setBins([]);
+        return;
+      }
+
+      const { data, error } = await supabase
+        .from('warehouse_bins')
+        .select('id, bin_name, wh_bin_code, warehouse_name')
+        .eq('company_id', profile.company_id)
+        .eq('warehouse_name', warehouseName)
+        .order('wh_bin_code');
+
+      if (error) throw error;
+      setBins(data || []);
     } catch (error) {
       console.error('Error fetching bins:', error);
     }
@@ -727,7 +757,7 @@ export function SalesOrderForm({
                       <SelectContent>
                         {warehouses.map((warehouse) => (
                           <SelectItem key={warehouse.id} value={warehouse.id}>
-                            {warehouse.warehouse_name}
+                            {warehouse.name}
                           </SelectItem>
                         ))}
                       </SelectContent>
