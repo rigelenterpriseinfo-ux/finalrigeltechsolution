@@ -667,7 +667,7 @@ export function BOMModule() {
                 placeholder="Search BOMs..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="max-w-sm"
+                className="max-w-sm mobile-touch-target"
               />
             </div>
             {canEdit && (
@@ -884,17 +884,17 @@ export function BOMModule() {
 
       {/* BOM Create/Edit Dialog */}
       <Dialog open={showBOMDialog} onOpenChange={setShowBOMDialog}>
-        <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-6xl max-h-[90vh] sm:max-h-[95vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>
+            <DialogTitle className="text-base sm:text-lg">
               {editingBOM ? 'Edit BOM' : 'Create New BOM'}
             </DialogTitle>
-            <DialogDescription>
+            <DialogDescription className="text-xs sm:text-sm">
               Define the components and costs for manufacturing a finished product with proper warehouse/bin mapping
             </DialogDescription>
           </DialogHeader>
 
-          <div className="grid grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 gap-4 sm:gap-6 xl:grid-cols-3">
             {/* Left Column: BOM Details */}
             <div className="space-y-4">
               <Card>
@@ -918,7 +918,7 @@ export function BOMModule() {
                       value={formData.finishedProductId}
                       onValueChange={(value) => setFormData(prev => ({ ...prev, finishedProductId: value }))}
                     >
-                      <SelectTrigger>
+                      <SelectTrigger className="mobile-touch-target">
                         <SelectValue placeholder="Select finished product" />
                       </SelectTrigger>
                       <SelectContent>
@@ -939,6 +939,7 @@ export function BOMModule() {
                       min="1"
                       value={formData.yieldQuantity}
                       onChange={(e) => setFormData(prev => ({ ...prev, yieldQuantity: parseInt(e.target.value) || 1 }))}
+                      className="mobile-touch-target"
                     />
                   </div>
 
@@ -951,6 +952,7 @@ export function BOMModule() {
                       step="0.01"
                       value={formData.laborCost}
                       onChange={(e) => setFormData(prev => ({ ...prev, laborCost: parseFloat(e.target.value) || 0 }))}
+                      className="mobile-touch-target"
                     />
                   </div>
 
@@ -963,6 +965,7 @@ export function BOMModule() {
                       step="0.01"
                       value={formData.overheadCost}
                       onChange={(e) => setFormData(prev => ({ ...prev, overheadCost: parseFloat(e.target.value) || 0 }))}
+                      className="mobile-touch-target"
                     />
                   </div>
 
@@ -975,7 +978,7 @@ export function BOMModule() {
                         setFormData(prev => ({ ...prev, warehouseId: '', binId: '' }));
                       }}
                     >
-                      <SelectTrigger>
+                      <SelectTrigger className="mobile-touch-target">
                         <SelectValue placeholder="Select warehouse" />
                       </SelectTrigger>
                       <SelectContent>
@@ -995,7 +998,7 @@ export function BOMModule() {
                       onValueChange={(value) => setFormData(prev => ({ ...prev, binId: value, warehouseId: value }))}
                       disabled={!selectedWarehouse}
                     >
-                      <SelectTrigger>
+                      <SelectTrigger className="mobile-touch-target">
                         <SelectValue placeholder="Select bin" />
                       </SelectTrigger>
                       <SelectContent>
@@ -1031,6 +1034,7 @@ export function BOMModule() {
                       onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
                       placeholder="Additional notes..."
                       rows={3}
+                      className="mobile-touch-target"
                     />
                   </div>
                 </CardContent>

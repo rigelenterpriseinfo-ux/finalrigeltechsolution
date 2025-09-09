@@ -275,15 +275,15 @@ export const InventoryAdjustmentForm: React.FC<InventoryAdjustmentFormProps> = (
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 sm:space-y-6">
+        <div className="grid grid-cols-1 gap-4 sm:gap-6 lg:grid-cols-2">
           <FormField
             control={form.control}
             name="product_id"
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Product *</FormLabel>
-                <Select 
+                 <Select 
                   onValueChange={(value) => {
                     field.onChange(value);
                     handleProductChange(value);
@@ -291,7 +291,7 @@ export const InventoryAdjustmentForm: React.FC<InventoryAdjustmentFormProps> = (
                   defaultValue={field.value}
                 >
                   <FormControl>
-                    <SelectTrigger>
+                    <SelectTrigger className="mobile-touch-target">
                       <SelectValue placeholder="Select a product" />
                     </SelectTrigger>
                   </FormControl>
@@ -316,7 +316,7 @@ export const InventoryAdjustmentForm: React.FC<InventoryAdjustmentFormProps> = (
                 <FormLabel>Warehouse & Bin *</FormLabel>
                 <Select onValueChange={field.onChange} defaultValue={field.value}>
                   <FormControl>
-                    <SelectTrigger>
+                    <SelectTrigger className="mobile-touch-target">
                       <SelectValue placeholder="Select warehouse & bin" />
                     </SelectTrigger>
                   </FormControl>
@@ -341,7 +341,7 @@ export const InventoryAdjustmentForm: React.FC<InventoryAdjustmentFormProps> = (
                 <FormLabel>Adjustment Type *</FormLabel>
                 <Select onValueChange={field.onChange} defaultValue={field.value}>
                   <FormControl>
-                    <SelectTrigger>
+                    <SelectTrigger className="mobile-touch-target">
                       <SelectValue placeholder="Select adjustment type" />
                     </SelectTrigger>
                   </FormControl>
@@ -363,7 +363,7 @@ export const InventoryAdjustmentForm: React.FC<InventoryAdjustmentFormProps> = (
                 <FormLabel>Reason *</FormLabel>
                 <Select onValueChange={field.onChange} defaultValue={field.value}>
                   <FormControl>
-                    <SelectTrigger>
+                    <SelectTrigger className="mobile-touch-target">
                       <SelectValue placeholder="Select reason" />
                     </SelectTrigger>
                   </FormControl>
@@ -390,6 +390,7 @@ export const InventoryAdjustmentForm: React.FC<InventoryAdjustmentFormProps> = (
                   <Input 
                     type="number" 
                     min="1" 
+                    className="mobile-touch-target"
                     {...field}
                     onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
                   />
@@ -420,6 +421,7 @@ export const InventoryAdjustmentForm: React.FC<InventoryAdjustmentFormProps> = (
                     type="number" 
                     step="0.01" 
                     min="0"
+                    className="mobile-touch-target"
                     {...field}
                     onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
                   />
@@ -436,22 +438,23 @@ export const InventoryAdjustmentForm: React.FC<InventoryAdjustmentFormProps> = (
           render={({ field }) => (
             <FormItem>
               <FormLabel>Remarks *</FormLabel>
-              <FormControl>
-                 <Textarea
-                   placeholder="Enter remarks for this adjustment..."
-                   {...field}
-                 />
-              </FormControl>
+               <FormControl>
+                  <Textarea
+                    placeholder="Enter remarks for this adjustment..."
+                    className="mobile-touch-target min-h-[80px] sm:min-h-[100px]"
+                    {...field}
+                  />
+               </FormControl>
               <FormMessage />
             </FormItem>
           )}
         />
 
-        <div className="flex justify-end space-x-4">
-          <Button type="button" variant="outline" onClick={onCancel}>
+        <div className="flex flex-col-reverse sm:flex-row gap-3 sm:justify-end sm:space-x-4 pt-4 border-t">
+          <Button type="button" variant="outline" onClick={onCancel} className="mobile-touch-target">
             Cancel
           </Button>
-          <Button type="submit" disabled={loading}>
+          <Button type="submit" disabled={loading} className="mobile-touch-target">
             {loading ? 'Creating...' : 'Create Adjustment'}
           </Button>
         </div>

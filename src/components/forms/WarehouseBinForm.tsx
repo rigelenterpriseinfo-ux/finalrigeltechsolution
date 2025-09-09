@@ -325,19 +325,19 @@ export function WarehouseBinForm({ open, onOpenChange, onSuccess, editingBin }: 
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-7xl max-h-[90vh] overflow-hidden">
+      <DialogContent className="max-w-7xl max-h-[90vh] overflow-hidden sm:max-h-[95vh]">
         <DialogHeader className="pb-2">
-          <DialogTitle className="flex items-center gap-2 text-lg">
-            <Building2 className="h-5 w-5" />
+          <DialogTitle className="flex items-center gap-2 text-base sm:text-lg">
+            <Building2 className="h-4 w-4 sm:h-5 sm:w-5" />
             {editingBin ? 'Edit Warehouse & BIN' : 'Create Warehouse & BIN Location'}
           </DialogTitle>
-          <DialogDescription className="text-sm">
+          <DialogDescription className="text-xs sm:text-sm">
             {editingBin ? 'Update warehouse and bin details' : 'Create warehouse location with bin details to organize inventory'}
           </DialogDescription>
         </DialogHeader>
         
         <form onSubmit={handleSubmit} className="space-y-3 max-h-[calc(90vh-8rem)] overflow-y-auto">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 gap-4 sm:gap-6 xl:grid-cols-3">
             {/* Left Column - Warehouse & BIN Information */}
             <div className="space-y-3">
               <div className="flex items-center gap-2 pb-1 border-b">
@@ -356,7 +356,7 @@ export function WarehouseBinForm({ open, onOpenChange, onSuccess, editingBin }: 
                     placeholder="Main Distribution Center"
                     defaultValue={editingBin?.warehouse_name || ''}
                     onChange={(e) => handleFieldChange('warehouse_name', e.target.value)}
-                    className={`h-8 text-sm ${errors.warehouse_name ? 'border-red-500' : ''}`}
+                    className={`mobile-touch-target text-sm ${errors.warehouse_name ? 'border-red-500' : ''}`}
                     required
                   />
                   {errors.warehouse_name && <p className="text-xs text-red-500 mt-1">{errors.warehouse_name}</p>}
@@ -370,7 +370,7 @@ export function WarehouseBinForm({ open, onOpenChange, onSuccess, editingBin }: 
                     placeholder="WH001"
                     defaultValue={editingBin?.warehouse_code || ''}
                     onChange={(e) => handleFieldChange('warehouse_code', e.target.value)}
-                    className="h-8 text-sm"
+                    className="mobile-touch-target text-sm"
                   />
                 </div>
 
@@ -386,7 +386,7 @@ export function WarehouseBinForm({ open, onOpenChange, onSuccess, editingBin }: 
                     style={{ textTransform: 'uppercase' }}
                     defaultValue={editingBin?.wh_bin_code || ''}
                     onChange={(e) => handleFieldChange('wh_bin_code', e.target.value)}
-                    className={`h-8 text-sm ${errors.wh_bin_code ? 'border-red-500' : ''}`}
+                    className={`mobile-touch-target text-sm ${errors.wh_bin_code ? 'border-red-500' : ''}`}
                     required
                   />
                   {errors.wh_bin_code && (
@@ -404,7 +404,7 @@ export function WarehouseBinForm({ open, onOpenChange, onSuccess, editingBin }: 
                     placeholder="Electronics Section A"
                     defaultValue={editingBin?.bin_name || ''}
                     onChange={(e) => handleFieldChange('bin_name', e.target.value)}
-                    className={`h-8 text-sm ${errors.bin_name ? 'border-red-500' : ''}`}
+                    className={`mobile-touch-target text-sm ${errors.bin_name ? 'border-red-500' : ''}`}
                     required
                   />
                   {errors.bin_name && (
@@ -522,7 +522,7 @@ export function WarehouseBinForm({ open, onOpenChange, onSuccess, editingBin }: 
                     placeholder="John Smith"
                     defaultValue={editingBin?.contact_person_name || ''}
                     onChange={(e) => handleFieldChange('contact_person_name', e.target.value)}
-                    className={`h-8 text-sm ${errors.contact_person_name ? 'border-red-500' : ''}`}
+                    className={`mobile-touch-target text-sm ${errors.contact_person_name ? 'border-red-500' : ''}`}
                   />
                   {errors.contact_person_name && <p className="text-xs text-red-500 mt-1">{errors.contact_person_name}</p>}
                 </div>
@@ -535,7 +535,7 @@ export function WarehouseBinForm({ open, onOpenChange, onSuccess, editingBin }: 
                     placeholder="9876543210"
                     defaultValue={editingBin?.contact_person_phone || ''}
                     onChange={(e) => handleFieldChange('contact_person_phone', e.target.value)}
-                    className={`h-8 text-sm ${errors.contact_person_phone ? 'border-red-500' : ''}`}
+                    className={`mobile-touch-target text-sm ${errors.contact_person_phone ? 'border-red-500' : ''}`}
                   />
                   {errors.contact_person_phone && <p className="text-xs text-red-500 mt-1">{errors.contact_person_phone}</p>}
                 </div>
@@ -549,7 +549,7 @@ export function WarehouseBinForm({ open, onOpenChange, onSuccess, editingBin }: 
                     placeholder="contact@warehouse.com"
                     defaultValue={editingBin?.contact_person_email || ''}
                     onChange={(e) => handleFieldChange('contact_person_email', e.target.value)}
-                    className={`h-8 text-sm ${errors.contact_person_email ? 'border-red-500' : ''}`}
+                    className={`mobile-touch-target text-sm ${errors.contact_person_email ? 'border-red-500' : ''}`}
                   />
                   {errors.contact_person_email && <p className="text-xs text-red-500 mt-1">{errors.contact_person_email}</p>}
                 </div>
@@ -585,19 +585,20 @@ export function WarehouseBinForm({ open, onOpenChange, onSuccess, editingBin }: 
           </div>
 
           {/* Form Actions */}
-          <div className="flex justify-end gap-3 pt-4 border-t mt-6">
+          <div className="flex flex-col-reverse sm:flex-row gap-3 sm:justify-end pt-4 border-t mt-6">
             <Button 
               type="button" 
               variant="outline" 
               onClick={() => onOpenChange(false)}
               disabled={loading}
+              className="mobile-touch-target"
             >
               Cancel
             </Button>
             <Button 
               type="submit" 
               disabled={loading}
-              className="min-w-[100px]"
+              className="mobile-touch-target min-w-[100px]"
             >
               {loading ? 'Saving...' : (editingBin ? 'Update' : 'Create')}
             </Button>

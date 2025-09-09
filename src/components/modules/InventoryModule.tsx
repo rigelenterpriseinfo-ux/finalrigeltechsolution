@@ -639,15 +639,15 @@ export function InventoryModule() {
                     Add Product
                   </Button>
                 </DialogTrigger>
-                <DialogContent className="max-w-6xl max-h-[95vh] overflow-y-auto">
+                <DialogContent className="max-w-6xl max-h-[90vh] sm:max-h-[95vh] overflow-y-auto">
                   <DialogHeader className="pb-3">
-                    <DialogTitle className="text-xl">Add New Product</DialogTitle>
-                    <DialogDescription className="text-sm">
+                    <DialogTitle className="text-base sm:text-xl">Add New Product</DialogTitle>
+                    <DialogDescription className="text-xs sm:text-sm">
                       Enter the product details below
                     </DialogDescription>
                   </DialogHeader>
                   <form onSubmit={handleAddProduct} className="space-y-4 animate-fade-in">
-                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                    <div className="grid grid-cols-1 gap-4 sm:gap-6 xl:grid-cols-3">
                       {/* Column 1: Basic Information */}
                       <div className="space-y-3">
                         <h3 className="text-sm font-semibold text-primary border-b pb-1 flex items-center gap-2">
@@ -655,10 +655,10 @@ export function InventoryModule() {
                           Basic Information
                         </h3>
                         <div className="space-y-2.5">
-                          <div className="grid grid-cols-2 gap-2">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                             <div>
                               <Label htmlFor="name" className="text-xs font-medium text-muted-foreground">Product Name *</Label>
-                              <Input id="name" name="name" required className="mt-0.5 h-8 text-xs transition-all focus:scale-[1.02]" placeholder="Enter product name" />
+                              <Input id="name" name="name" required className="mobile-touch-target text-xs transition-all focus:scale-[1.02]" placeholder="Enter product name" />
                             </div>
                             <div>
                               <Label htmlFor="sku" className="text-xs font-medium text-muted-foreground">SKU *</Label>
@@ -669,7 +669,7 @@ export function InventoryModule() {
                                   required 
                                   value={skuValue}
                                   onChange={(e) => setSkuValue(e.target.value)}
-                                  className={`mt-0.5 h-8 text-xs transition-all focus:scale-[1.02] pr-8 ${
+                                  className={`mobile-touch-target text-xs transition-all focus:scale-[1.02] pr-8 ${
                                     skuValidation.status === 'valid' ? 'border-green-500' :
                                     skuValidation.status === 'duplicate' ? 'border-red-500' :
                                     skuValidation.status === 'inactive_found' ? 'border-yellow-500' : ''
