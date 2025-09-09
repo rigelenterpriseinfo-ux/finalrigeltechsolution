@@ -133,11 +133,15 @@ export function DebitNoteForm({ debitNote, onSubmit, onCancel, mode }: DebitNote
         `)
         .eq('supplier_id', supplierId)
         .not('supplier_invoice_number', 'is', null)
+        .neq('supplier_invoice_number', '')
         .order('created_at', { ascending: false });
       
       if (error) throw error;
       
-      const invoices = data?.map(grn => ({
+      const invoices = data?.filter(grn => 
+        grn.supplier_invoice_number && 
+        grn.supplier_invoice_number.trim() !== ''
+      ).map(grn => ({
         grn_id: grn.id,
         supplier_invoice_number: grn.supplier_invoice_number,
         supplier_invoice_date: grn.supplier_invoice_date,
