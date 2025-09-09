@@ -409,66 +409,71 @@ export function SupplierCreditNoteForm({ supplierCreditNote, onSubmit, onCancel,
 
         {/* Table Header */}
         <div className="bg-muted/30 border-b">
-          <div className="grid grid-cols-13 gap-4 px-4 py-2 text-sm font-medium text-muted-foreground">
-            <div className="col-span-3">Product</div>
-            <div className="col-span-1 text-center">CN Qty</div>
-            <div className="col-span-1 text-center">Pending Qty</div>
-            <div className="col-span-1 text-center">Unit Price</div>
-            <div className="col-span-1 text-center">CGST%</div>
-            <div className="col-span-1 text-center">SGST%</div>
-            <div className="col-span-1 text-center">Disc%</div>
-            <div className="col-span-1 text-center">Disc Value</div>
-            <div className="col-span-1 text-center">GST Value</div>
-            <div className="col-span-1 text-center">Line Total</div>
-            <div className="col-span-1 text-center">Action</div>
+          <div className="grid grid-cols-12 gap-2 px-4 py-2 text-xs font-medium text-muted-foreground">
+            <div className="col-span-2">Product</div>
+            <div className="text-center">Ord Qty</div>
+            <div className="text-center">Total Debit</div>
+            <div className="text-center">Pending</div>
+            <div className="text-center">CN Qty</div>
+            <div className="text-center">Unit Price</div>
+            <div className="text-center">Disc%</div>
+            <div className="text-center">Disc Value</div>
+            <div className="text-center">IGST%</div>
+            <div className="text-center">GST Value</div>
+            <div className="text-center">Line Total</div>
+            <div className="text-center">Action</div>
           </div>
         </div>
 
         {/* Table Body */}
         <div className="divide-y">
           {items.map((item, index) => (
-            <div key={index} className="grid grid-cols-13 gap-4 px-4 py-3 items-center hover:bg-muted/20">
+            <div key={index} className="grid grid-cols-12 gap-2 px-4 py-3 items-center hover:bg-muted/20">
               {/* Product */}
-              <div className="col-span-3">
-                <Input
-                  type="text"
-                  value={item.product_name || ""}
-                  readOnly
-                  className="bg-muted/50 border-0 text-sm h-8"
-                  placeholder="Auto-filled from debit note"
-                />
+              <div className="col-span-2">
+                <div className="text-sm font-medium">{item.product_name || "Auto-filled from debit note"}</div>
+                <div className="text-xs text-muted-foreground">{item.product_sku}</div>
               </div>
 
-              {/* CN Qty */}
-              <div className="col-span-1">
-                <div className="relative">
-                  <Input
-                    type="number"
-                    min="0"
-                    max={item.quantity}
-                    value={item.credit_note_quantity}
-                    onChange={(e) => {
-                      const value = parseInt(e.target.value) || 0;
-                      handleItemChange(index, 'credit_note_quantity', value);
-                    }}
-                    className="text-center text-sm h-8 border-primary/30 focus:border-primary"
-                    placeholder="0"
-                  />
-                  <div className="text-xs text-muted-foreground mt-1 text-center">
-                    Max: {item.quantity}
-                  </div>
+              {/* Ord Qty (Original quantity from debit note) */}
+              <div className="text-center">
+                <div className="text-sm py-2 text-muted-foreground bg-muted/20 rounded">
+                  {item.quantity}
                 </div>
               </div>
 
-              {/* Pending Qty */}
-              <div className="col-span-1">
-                <div className="text-center text-sm py-2 text-muted-foreground bg-muted/30 rounded">
+              {/* Total Debit (Same as original quantity) */}
+              <div className="text-center">
+                <div className="text-sm py-2 text-muted-foreground bg-blue-50 rounded">
+                  {item.quantity}
+                </div>
+              </div>
+
+              {/* Pending */}
+              <div className="text-center">
+                <div className="text-sm py-2 text-orange-600 bg-orange-50 rounded font-medium">
                   {item.pending_quantity}
                 </div>
               </div>
 
+              {/* CN Qty */}
+              <div className="text-center">
+                <Input
+                  type="number"
+                  min="0"
+                  max={item.quantity}
+                  value={item.credit_note_quantity}
+                  onChange={(e) => {
+                    const value = parseInt(e.target.value) || 0;
+                    handleItemChange(index, 'credit_note_quantity', value);
+                  }}
+                  className="text-center text-sm h-8 border-primary/30 focus:border-primary"
+                  placeholder="0"
+                />
+              </div>
+
               {/* Unit Price */}
-              <div className="col-span-1">
+              <div className="text-center">
                 <Input
                   type="number"
                   step="0.01"
@@ -480,36 +485,8 @@ export function SupplierCreditNoteForm({ supplierCreditNote, onSubmit, onCancel,
                 />
               </div>
 
-              {/* CGST% */}
-              <div className="col-span-1">
-                <Input
-                  type="number"
-                  min="0"
-                  max="50"
-                  step="0.01"
-                  value={item.cgst_rate}
-                  onChange={(e) => handleItemChange(index, 'cgst_rate', parseFloat(e.target.value) || 0)}
-                  className="text-center text-sm h-8"
-                  placeholder="0%"
-                />
-              </div>
-
-              {/* SGST% */}
-              <div className="col-span-1">
-                <Input
-                  type="number"
-                  min="0"
-                  max="50"
-                  step="0.01"
-                  value={item.sgst_rate}
-                  onChange={(e) => handleItemChange(index, 'sgst_rate', parseFloat(e.target.value) || 0)}
-                  className="text-center text-sm h-8"
-                  placeholder="0%"
-                />
-              </div>
-
               {/* Disc% */}
-              <div className="col-span-1">
+              <div className="text-center">
                 <Input
                   type="number"
                   min="0"
@@ -518,33 +495,47 @@ export function SupplierCreditNoteForm({ supplierCreditNote, onSubmit, onCancel,
                   value={item.discount_percentage}
                   onChange={(e) => handleItemChange(index, 'discount_percentage', parseFloat(e.target.value) || 0)}
                   className="text-center text-sm h-8"
-                  placeholder="0%"
+                  placeholder="0"
                 />
               </div>
 
               {/* Disc Value */}
-              <div className="col-span-1">
-                <div className="text-center text-sm py-2 text-muted-foreground">
+              <div className="text-center">
+                <div className="text-sm py-2 text-muted-foreground">
                   ₹{(item.discount_amount || 0).toFixed(2)}
                 </div>
               </div>
 
+              {/* IGST% */}
+              <div className="text-center">
+                <Input
+                  type="number"
+                  min="0"
+                  max="50"
+                  step="0.01"
+                  value={item.igst_rate}
+                  onChange={(e) => handleItemChange(index, 'igst_rate', parseFloat(e.target.value) || 0)}
+                  className="text-center text-sm h-8"
+                  placeholder="0"
+                />
+              </div>
+
               {/* GST Value */}
-              <div className="col-span-1">
-                <div className="text-center text-sm py-2 text-muted-foreground">
+              <div className="text-center">
+                <div className="text-sm py-2 text-muted-foreground">
                   ₹{(item.tax_amount || 0).toFixed(2)}
                 </div>
               </div>
 
               {/* Line Total */}
-              <div className="col-span-1">
-                <div className="text-center text-sm py-2 font-medium text-foreground">
+              <div className="text-center">
+                <div className="text-sm py-2 font-medium text-foreground">
                   ₹{(item.line_total || 0).toFixed(2)}
                 </div>
               </div>
 
               {/* Action */}
-              <div className="col-span-1 text-center">
+              <div className="text-center">
                 <Button
                   type="button"
                   variant="ghost"
