@@ -87,6 +87,31 @@ export function PurchaseOrderForm({
   const [activeTab, setActiveTab] = useState('order-info');
   const [globalGstType, setGlobalGstType] = useState<'intra' | 'inter'>('intra');
 
+  // Transform purchase_order_items to the expected form structure
+  const transformPurchaseOrderItems = (purchaseOrderItems: any[] = []) => {
+    return purchaseOrderItems.map(item => ({
+      product_id: item.product_id || '',
+      product_name: item.item_description || '',
+      item_code: item.item_code || '',
+      hsn_sac_code: item.hsn_sac_code || '',
+      quantity: Number(item.quantity) || 0,
+      unit_of_measure: item.unit_of_measure || 'PCS',
+      unit_price: Number(item.unit_price) || 0,
+      discount_percentage: Number(item.discount_percentage) || 0,
+      discount_amount: Number(item.discount_amount) || 0,
+      cgst_rate: Number(item.cgst_rate) || 0,
+      sgst_rate: Number(item.sgst_rate) || 0,
+      igst_rate: Number(item.igst_rate) || 0,
+      cgst_amount: Number(item.cgst_amount) || 0,
+      sgst_amount: Number(item.sgst_amount) || 0,
+      igst_amount: Number(item.igst_amount) || 0,
+      line_subtotal: Number(item.taxable_value) || 0,
+      line_total: Number(item.total_price) || 0,
+      gst_type: (Number(item.igst_rate) > 0) ? 'inter' : 'intra' as 'intra' | 'inter',
+      master_gst_rate: Number(item.gst_rate) || 0,
+    }));
+  };
+
   const form = useForm<PurchaseOrderFormData>({
     resolver: zodResolver(purchaseOrderSchema),
     defaultValues: {
@@ -106,7 +131,7 @@ export function PurchaseOrderForm({
       delivery_postal_code: purchaseOrder?.delivery_postal_code || '',
       status: purchaseOrder?.status || 'draft',
       notes: purchaseOrder?.notes || '',
-      items: purchaseOrder?.items || [],
+      items: transformPurchaseOrderItems(purchaseOrder?.purchase_order_items || []),
     },
   });
 
@@ -120,6 +145,40 @@ export function PurchaseOrderForm({
     fetchProducts();
     fetchCompanyData();
   }, []);
+
+  // Handle purchaseOrder prop changes for edit mode
+  useEffect(() => {
+    if (purchaseOrder && mode === 'edit') {
+      const transformedItems = transformPurchaseOrderItems(purchaseOrder.purchase_order_items || []);
+      
+      // Reset form with new values
+      form.reset({
+        po_number: purchaseOrder.po_number || '',
+        supplier_id: purchaseOrder.supplier_id || '',
+        order_date: purchaseOrder.order_date || new Date().toISOString().split('T')[0],
+        currency: purchaseOrder.currency || 'INR',
+        payment_terms: purchaseOrder.payment_terms || '',
+        expected_date: purchaseOrder.expected_date || '',
+        place_of_supply: purchaseOrder.company_place_of_supply || '',
+        same_as_registered_address: purchaseOrder.same_as_registered_address || false,
+        delivery_address_line1: purchaseOrder.delivery_address_line1 || '',
+        delivery_address_line2: purchaseOrder.delivery_address_line2 || '',
+        delivery_city: purchaseOrder.delivery_city || '',
+        delivery_state: purchaseOrder.delivery_state || '',
+        delivery_country: purchaseOrder.delivery_country || '',
+        delivery_postal_code: purchaseOrder.delivery_postal_code || '',
+        status: purchaseOrder.status || 'draft',
+        notes: purchaseOrder.notes || '',
+        items: transformedItems,
+      });
+
+      // Set global GST type based on first item
+      if (transformedItems.length > 0) {
+        const firstItemGstType = transformedItems[0].gst_type as 'intra' | 'inter';
+        setGlobalGstType(firstItemGstType);
+      }
+    }
+  }, [purchaseOrder, mode, form]);
 
   const fetchSuppliers = async () => {
     try {
