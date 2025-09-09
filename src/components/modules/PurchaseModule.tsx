@@ -81,7 +81,7 @@ function PurchaseModuleContent() {
   
   // Stats state
   const [stats, setStats] = useState({
-    openPOs: { count: 0, value: 0 },
+    openPOs: { count: 0, value: 0, details: [] as any[] },
     openDebitNotes: { count: 0, value: 0, details: [] as any[] },
     overduePOs: { count: 0, value: 0, details: [] as any[] }
   });
@@ -231,15 +231,22 @@ function PurchaseModuleContent() {
       // Fetch open PO stats
       const { data: openPOs, error: openPOError } = await supabase
         .from('purchase_orders')
-        .select('total_amount')
+        .select(`
+          po_number,
+          total_amount,
+          supplier:suppliers(name)
+        `)
         .eq('company_id', profile.company_id)
-        .in('status', ['draft', 'open', 'partially_received']);
+        .in('status', ['draft', 'open', 'partially_received'])
+        .order('total_amount', { ascending: false })
+        .limit(5);
 
       if (openPOError) throw openPOError;
 
       const openPOStats = {
         count: openPOs?.length || 0,
-        value: openPOs?.reduce((sum, po) => sum + (po.total_amount || 0), 0) || 0
+        value: openPOs?.reduce((sum, po) => sum + (po.total_amount || 0), 0) || 0,
+        details: openPOs || []
       };
 
       // Fetch open debit notes
@@ -622,13 +629,35 @@ function PurchaseModuleContent() {
           className="cursor-pointer transition-transform hover:scale-105"
           onClick={() => setActiveTab('purchase-orders')}
         >
-          <StatsCard
-            title="Open Purchase Orders"
-            value={stats.openPOs.count}
-            subtitle={`₹${stats.openPOs.value.toLocaleString()}`}
-            icon={ShoppingCart}
-            variant="primary"
-          />
+          <Card className="card-interactive shadow-card hover:shadow-elevated transition-all duration-300 bg-gradient-to-br from-primary/5 to-primary/10 border-primary/20">
+            <CardContent className="p-6">
+              <div className="flex items-start justify-between mb-4">
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Open Purchase Orders</p>
+                </div>
+                <div className="p-3 rounded-xl bg-background/50 text-primary">
+                  <ShoppingCart className="h-6 w-6" />
+                </div>
+              </div>
+              
+              {stats.openPOs.details.length > 0 ? (
+                <div className="space-y-2">
+                  {stats.openPOs.details.map((po: any, index: number) => (
+                    <div key={index} className="flex justify-between items-center py-2 border-b border-border/50 last:border-0">
+                      <span className="text-sm font-medium text-foreground">
+                        {po.supplier?.name || 'Unknown'}
+                      </span>
+                      <span className="text-sm font-semibold text-foreground">
+                        ₹{(po.total_amount || 0).toLocaleString()}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">No open purchase orders</p>
+              )}
+            </CardContent>
+          </Card>
         </div>
         
         <Card className="card-interactive shadow-card hover:shadow-elevated transition-all duration-300 bg-gradient-to-br from-secondary/5 to-secondary/10 border-secondary/20">
