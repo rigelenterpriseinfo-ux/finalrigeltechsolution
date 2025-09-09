@@ -89,27 +89,40 @@ export function PurchaseOrderForm({
 
   // Transform purchase_order_items to the expected form structure
   const transformPurchaseOrderItems = (purchaseOrderItems: any[] = []) => {
-    return purchaseOrderItems.map(item => ({
-      product_id: item.product_id || '',
-      product_name: item.item_description || '',
-      item_code: item.item_code || '',
-      hsn_sac_code: item.hsn_sac_code || '',
-      quantity: Number(item.quantity) || 0,
-      unit_of_measure: item.unit_of_measure || 'PCS',
-      unit_price: Number(item.unit_price) || 0,
-      discount_percentage: Number(item.discount_percentage) || 0,
-      discount_amount: Number(item.discount_amount) || 0,
-      cgst_rate: Number(item.cgst_rate) || 0,
-      sgst_rate: Number(item.sgst_rate) || 0,
-      igst_rate: Number(item.igst_rate) || 0,
-      cgst_amount: Number(item.cgst_amount) || 0,
-      sgst_amount: Number(item.sgst_amount) || 0,
-      igst_amount: Number(item.igst_amount) || 0,
-      line_subtotal: Number(item.taxable_value) || 0,
-      line_total: Number(item.total_price) || 0,
-      gst_type: (Number(item.igst_rate) > 0) ? 'inter' : 'intra' as 'intra' | 'inter',
-      master_gst_rate: Number(item.gst_rate) || 0,
-    }));
+    console.log('Transforming purchase order items:', purchaseOrderItems);
+    
+    if (!Array.isArray(purchaseOrderItems)) {
+      console.log('purchaseOrderItems is not an array:', typeof purchaseOrderItems);
+      return [];
+    }
+    
+    const transformed = purchaseOrderItems.map(item => {
+      console.log('Processing item:', item);
+      return {
+        product_id: item.product_id || '',
+        product_name: item.item_description || '',
+        item_code: item.item_code || '',
+        hsn_sac_code: item.hsn_sac_code || '',
+        quantity: Number(item.quantity) || 0,
+        unit_of_measure: item.unit_of_measure || 'PCS',
+        unit_price: Number(item.unit_price) || 0,
+        discount_percentage: Number(item.discount_percentage) || 0,
+        discount_amount: Number(item.discount_amount) || 0,
+        cgst_rate: Number(item.cgst_rate) || 0,
+        sgst_rate: Number(item.sgst_rate) || 0,
+        igst_rate: Number(item.igst_rate) || 0,
+        cgst_amount: Number(item.cgst_amount) || 0,
+        sgst_amount: Number(item.sgst_amount) || 0,
+        igst_amount: Number(item.igst_amount) || 0,
+        line_subtotal: Number(item.taxable_value) || 0,
+        line_total: Number(item.total_price) || 0,
+        gst_type: (Number(item.igst_rate) > 0) ? 'inter' : 'intra' as 'intra' | 'inter',
+        master_gst_rate: Number(item.gst_rate) || 0,
+      };
+    });
+    
+    console.log('Transformed items result:', transformed);
+    return transformed;
   };
 
   const form = useForm<PurchaseOrderFormData>({
@@ -148,8 +161,11 @@ export function PurchaseOrderForm({
 
   // Handle purchaseOrder prop changes for edit mode
   useEffect(() => {
+    console.log('PurchaseOrder prop changed:', { purchaseOrder, mode });
     if (purchaseOrder && mode === 'edit') {
+      console.log('Purchase order items:', purchaseOrder.purchase_order_items);
       const transformedItems = transformPurchaseOrderItems(purchaseOrder.purchase_order_items || []);
+      console.log('Transformed items:', transformedItems);
       
       // Reset form with new values
       form.reset({
