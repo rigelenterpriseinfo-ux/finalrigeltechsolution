@@ -635,18 +635,35 @@ function PurchaseModuleContent() {
           variant="secondary"
         />
         
-        <StatsCard
-          title="Overdue Purchase Orders"
-          value={stats.overduePOs.count}
-          subtitle={stats.overduePOs.details.length > 0 
-            ? stats.overduePOs.details.map((po: any) => 
-                `${po.supplier?.name || 'Unknown'}: ₹${(po.total_amount || 0).toLocaleString()}`
-              ).join(' • ')
-            : `₹${stats.overduePOs.value.toLocaleString()}`
-          }
-          icon={AlertCircle}
-          variant="secondary"
-        />
+        <Card className="card-interactive shadow-card hover:shadow-elevated transition-all duration-300 bg-gradient-to-br from-secondary/5 to-secondary/10 border-secondary/20">
+          <CardContent className="p-6">
+            <div className="flex items-start justify-between mb-4">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Overdue Purchase Orders</p>
+              </div>
+              <div className="p-3 rounded-xl bg-background/50 text-secondary">
+                <AlertCircle className="h-6 w-6" />
+              </div>
+            </div>
+            
+            {stats.overduePOs.details.length > 0 ? (
+              <div className="space-y-2">
+                {stats.overduePOs.details.map((po: any, index: number) => (
+                  <div key={index} className="flex justify-between items-center py-2 border-b border-border/50 last:border-0">
+                    <span className="text-sm font-medium text-foreground">
+                      {po.supplier?.name || 'Unknown'}
+                    </span>
+                    <span className="text-sm font-semibold text-foreground">
+                      ₹{(po.total_amount || 0).toLocaleString()}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">No overdue purchase orders</p>
+            )}
+          </CardContent>
+        </Card>
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
