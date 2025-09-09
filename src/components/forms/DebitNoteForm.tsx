@@ -26,7 +26,6 @@ interface DebitNoteItem {
   hsn_sac_code: string;
   quantity: number;
   received_quantity: number; // Original quantity from GRN
-  gst_percentage: number; // Product's GST% from database
   unit_price: number;
   discount_percentage: number;
   discount_amount: number;
@@ -79,7 +78,6 @@ export function DebitNoteForm({ debitNote, onSubmit, onCancel, mode }: DebitNote
       hsn_sac_code: "",
       quantity: 1,
       received_quantity: 0,
-      gst_percentage: 0,
       unit_price: 0,
       discount_percentage: 0,
       discount_amount: 0,
@@ -177,7 +175,6 @@ export function DebitNoteForm({ debitNote, onSubmit, onCancel, mode }: DebitNote
       hsn_sac_code: "",
       quantity: 1,
       received_quantity: 0,
-      gst_percentage: 0,
       unit_price: 0,
       discount_percentage: 0,
       discount_amount: 0,
@@ -234,7 +231,6 @@ export function DebitNoteForm({ debitNote, onSubmit, onCancel, mode }: DebitNote
         hsn_sac_code: lineItem.hsn_sac_code || "",
         quantity: lineItem.accepted_quantity, // Start with received quantity
         received_quantity: lineItem.accepted_quantity,
-        gst_percentage: (lineItem.cgst_rate || 0) + (lineItem.sgst_rate || 0) + (lineItem.igst_rate || 0),
         unit_price: lineItem.unit_price,
         discount_percentage: 0,
         discount_amount: 0,
@@ -340,7 +336,6 @@ export function DebitNoteForm({ debitNote, onSubmit, onCancel, mode }: DebitNote
       hsn_sac_code: "",
       quantity: 1,
       received_quantity: 0,
-      gst_percentage: 0,
       unit_price: 0,
       discount_percentage: 0,
       discount_amount: 0,
@@ -583,12 +578,11 @@ export function DebitNoteForm({ debitNote, onSubmit, onCancel, mode }: DebitNote
           <div className="overflow-x-auto">
             <div className="min-w-full">
               {/* Table Header */}
-              <div className="bg-gray-50 dark:bg-gray-900/50 border-b grid grid-cols-13 gap-4 px-6 py-4 text-sm font-medium text-gray-700 dark:text-gray-300">
+              <div className="bg-gray-50 dark:bg-gray-900/50 border-b grid grid-cols-12 gap-4 px-6 py-4 text-sm font-medium text-gray-700 dark:text-gray-300">
                 <div className="col-span-3">Product</div>
                 {selectedInvoice && <div className="col-span-1 text-center">Received</div>}
                 <div className={selectedInvoice ? "col-span-1 text-center" : "col-span-2 text-center"}>Quantity</div>
                 {selectedInvoice && <div className="col-span-1 text-center">Pending</div>}
-                <div className="col-span-1 text-center">GST%</div>
                 <div className="col-span-1 text-center">Unit Price</div>
                 {globalGstType === 'intra' ? (
                   <>
@@ -606,7 +600,7 @@ export function DebitNoteForm({ debitNote, onSubmit, onCancel, mode }: DebitNote
               {/* Table Rows */}
               <div className="divide-y divide-gray-100 dark:divide-gray-800">
                 {items.map((item, index) => (
-                  <div key={index} className="grid grid-cols-13 gap-4 px-6 py-4 hover:bg-gray-50/50 dark:hover:bg-gray-900/25 transition-colors">
+                  <div key={index} className="grid grid-cols-12 gap-4 px-6 py-4 hover:bg-gray-50/50 dark:hover:bg-gray-900/25 transition-colors">
                     {/* Product Column */}
                     <div className="col-span-3">
                       {!selectedInvoice ? (
@@ -614,23 +608,22 @@ export function DebitNoteForm({ debitNote, onSubmit, onCancel, mode }: DebitNote
                            <ProductSearch
                              value={item.product_id}
                              onSelect={(product) => {
-                                handleItemChange(index, 'product_id', product.id);
-                                handleItemChange(index, 'product_name', product.name);
-                                handleItemChange(index, 'product_sku', product.sku);
-                                handleItemChange(index, 'unit_price', product.cost_price || 0);
-                                const gst = product.gst_percentage ?? 0;
-                                handleItemChange(index, 'gst_percentage', gst);
-                                handleItemChange(index, 'gst_type', globalGstType);
-                                
-                                if (globalGstType === 'intra') {
-                                  handleItemChange(index, 'cgst_rate', gst ? gst / 2 : 0);
-                                  handleItemChange(index, 'sgst_rate', gst ? gst / 2 : 0);
-                                  handleItemChange(index, 'igst_rate', 0);
-                                } else {
-                                  handleItemChange(index, 'cgst_rate', 0);
-                                  handleItemChange(index, 'sgst_rate', 0);
-                                  handleItemChange(index, 'igst_rate', gst);
-                                }
+                               handleItemChange(index, 'product_id', product.id);
+                               handleItemChange(index, 'product_name', product.name);
+                               handleItemChange(index, 'product_sku', product.sku);
+                               handleItemChange(index, 'unit_price', product.cost_price || 0);
+                               const gst = product.gst_percentage ?? 0;
+                               handleItemChange(index, 'gst_type', globalGstType);
+                               
+                               if (globalGstType === 'intra') {
+                                 handleItemChange(index, 'cgst_rate', gst ? gst / 2 : 0);
+                                 handleItemChange(index, 'sgst_rate', gst ? gst / 2 : 0);
+                                 handleItemChange(index, 'igst_rate', 0);
+                               } else {
+                                 handleItemChange(index, 'cgst_rate', 0);
+                                 handleItemChange(index, 'sgst_rate', 0);
+                                 handleItemChange(index, 'igst_rate', gst);
+                               }
                              }}
                              placeholder="Select product"
                            />
@@ -673,37 +666,28 @@ export function DebitNoteForm({ debitNote, onSubmit, onCancel, mode }: DebitNote
                       </div>
                     </div>
 
-                     {/* Pending Quantity (only for selected invoice) */}
-                     {selectedInvoice && (
-                       <div className="col-span-1">
-                         <div className="text-center py-2 px-3 bg-amber-50 dark:bg-amber-950/20 rounded-md border">
-                           <span className="font-medium text-amber-900 dark:text-amber-100">
-                             {Math.max(0, item.received_quantity - item.quantity)}
-                           </span>
-                         </div>
-                       </div>
-                     )}
+                    {/* Pending Quantity (only for selected invoice) */}
+                    {selectedInvoice && (
+                      <div className="col-span-1">
+                        <div className="text-center py-2 px-3 bg-amber-50 dark:bg-amber-950/20 rounded-md border">
+                          <span className="font-medium text-amber-900 dark:text-amber-100">
+                            {Math.max(0, item.received_quantity - item.quantity)}
+                          </span>
+                        </div>
+                      </div>
+                    )}
 
-                     {/* GST % */}
-                     <div className="col-span-1">
-                       <div className="text-center py-2 px-3 bg-blue-50 dark:bg-blue-950/20 rounded-md border">
-                         <span className="font-medium text-blue-900 dark:text-blue-100">
-                           {item.gst_percentage?.toFixed(1) || '0.0'}%
-                         </span>
-                       </div>
-                     </div>
-
-                     {/* Unit Price */}
-                     <div className="col-span-1">
-                       <Input
-                         type="number"
-                         step="0.01"
-                         min="0"
-                         value={item.unit_price}
-                         onChange={(e) => handleItemChange(index, 'unit_price', parseFloat(e.target.value) || 0)}
-                         className="text-center"
-                       />
-                     </div>
+                    {/* Unit Price */}
+                    <div className="col-span-1">
+                      <Input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={item.unit_price}
+                        onChange={(e) => handleItemChange(index, 'unit_price', parseFloat(e.target.value) || 0)}
+                        className="text-center"
+                      />
+                    </div>
 
                     {/* GST Fields - Conditional based on global GST type */}
                     {globalGstType === 'intra' ? (
