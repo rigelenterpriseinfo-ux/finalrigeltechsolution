@@ -554,16 +554,32 @@ export function GRNForm({ grn, onSubmit, onCancel, readOnly = false, mode }: GRN
   const shouldShowCGSTSGST = gstType === 'intra';
   const shouldShowIGST = gstType === 'inter';
 
-  // Enhanced validation for received quantity
+  // Enhanced validation for received quantity with visual feedback
   const validateReceivedQuantity = (index: number, newValue: number) => {
     const items = form.getValues('items');
     const item = items[index];
     const cumulativeReceived = item.cumulative_received || 0;
     const pendingQty = calculatePendingQty(item.ordered_quantity, cumulativeReceived);
     
-    // Validation rules
-    if (newValue < 0) return 0;
-    if (newValue > pendingQty) return pendingQty;
+    // Clear previous errors first
+    form.clearErrors(`items.${index}.received_quantity`);
+    
+    // Validation rules with enhanced feedback
+    if (newValue < 0) {
+      form.setError(`items.${index}.received_quantity`, {
+        type: 'manual',
+        message: 'Quantity cannot be negative'
+      });
+      return 0;
+    }
+    
+    if (newValue > pendingQty) {
+      form.setError(`items.${index}.received_quantity`, {
+        type: 'manual',
+        message: `Cannot exceed pending quantity of ${pendingQty}`
+      });
+      return pendingQty;
+    }
     
     return newValue;
   };
@@ -1120,35 +1136,61 @@ export function GRNForm({ grn, onSubmit, onCancel, readOnly = false, mode }: GRN
                                     </div>
                                   </TableCell>
 
-                                  {/* Received Qty */}
-                                  <TableCell className="border-r p-2 text-center">
-                                     <Input
-                                       type="number"
-                                       min="0"
-                                       max={calculatePendingQty(item.ordered_quantity || 0, item.cumulative_received || 0)}
-                                       value={item.received_quantity || 0}
-                                       onChange={(e) => {
-                                         const inputValue = parseFloat(e.target.value) || 0;
-                                         const pendingQty = calculatePendingQty(item.ordered_quantity || 0, item.cumulative_received || 0);
-                                         const newValue = validateReceivedQuantity(index, inputValue);
-                                         
-                                         form.setValue(`items.${index}.received_quantity`, newValue);
-                                         if (form.getValues('status') === 'received') {
-                                           form.setValue(`items.${index}.accepted_quantity`, newValue);
-                                           form.setValue(`items.${index}.rejected_quantity`, 0);
-                                         }
-                                         validateQuantities(index);
-                                         calculateItemTotals(index);
-                                       }}
-                                       disabled={readOnly}
-                                       className={cn(
-                                         "text-xs text-center h-7 w-14",
-                                         (item.received_quantity || 0) > calculatePendingQty(item.ordered_quantity || 0, item.cumulative_received || 0) 
-                                           ? "border-red-300 bg-red-50" 
-                                           : "border-blue-200 focus:border-blue-400"
+                                   {/* Received Qty */}
+                                   <TableCell className="border-r p-2 text-center relative">
+                                     <div className="space-y-1">
+                                       <Input
+                                         type="number"
+                                         min="0"
+                                         max={calculatePendingQty(item.ordered_quantity || 0, item.cumulative_received || 0)}
+                                         value={item.received_quantity || 0}
+                                         placeholder={`Max: ${calculatePendingQty(item.ordered_quantity || 0, item.cumulative_received || 0)}`}
+                                         onChange={(e) => {
+                                           const inputValue = parseFloat(e.target.value) || 0;
+                                           const pendingQty = calculatePendingQty(item.ordered_quantity || 0, item.cumulative_received || 0);
+                                           const newValue = validateReceivedQuantity(index, inputValue);
+                                           
+                                           form.setValue(`items.${index}.received_quantity`, newValue);
+                                           if (form.getValues('status') === 'received') {
+                                             form.setValue(`items.${index}.accepted_quantity`, newValue);
+                                             form.setValue(`items.${index}.rejected_quantity`, 0);
+                                           }
+                                           validateQuantities(index);
+                                           calculateItemTotals(index);
+                                         }}
+                                         onBlur={(e) => {
+                                           const inputValue = parseFloat(e.target.value) || 0;
+                                           validateReceivedQuantity(index, inputValue);
+                                           validateQuantities(index);
+                                         }}
+                                         disabled={readOnly}
+                                         className={cn(
+                                           "text-xs text-center h-7 w-16 transition-colors",
+                                           form.formState.errors.items?.[index]?.received_quantity
+                                             ? "border-red-500 bg-red-50 focus:border-red-500 focus:ring-red-200" 
+                                             : (item.received_quantity || 0) > 0 
+                                               ? "border-green-400 bg-green-50 focus:border-green-500 focus:ring-green-200"
+                                               : "border-blue-200 focus:border-blue-400 focus:ring-blue-200"
+                                         )}
+                                       />
+                                       {form.formState.errors.items?.[index]?.received_quantity && (
+                                         <div className="absolute z-10 top-8 left-0 right-0 bg-red-100 border border-red-300 rounded px-2 py-1 text-xs text-red-700 shadow-sm animate-in fade-in-0 zoom-in-95">
+                                           <div className="flex items-center gap-1">
+                                             <AlertTriangle className="h-3 w-3" />
+                                             {form.formState.errors.items[index].received_quantity?.message}
+                                           </div>
+                                         </div>
                                        )}
-                                     />
-                                  </TableCell>
+                                       {!form.formState.errors.items?.[index]?.received_quantity && (item.received_quantity || 0) > 0 && (
+                                         <div className="absolute z-10 top-8 left-0 right-0 bg-green-100 border border-green-300 rounded px-2 py-1 text-xs text-green-700 shadow-sm">
+                                           <div className="flex items-center gap-1">
+                                             <CheckCircle2 className="h-3 w-3" />
+                                             Valid quantity
+                                           </div>
+                                         </div>
+                                       )}
+                                     </div>
+                                   </TableCell>
 
                                   {/* Accepted Qty */}
                                   <TableCell className="border-r p-2 text-center">
