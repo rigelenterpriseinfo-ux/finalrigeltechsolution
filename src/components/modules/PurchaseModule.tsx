@@ -44,6 +44,8 @@ interface PurchaseOrder {
   order_date: string;
   expected_date?: string;
   total_amount: number;
+  received_amount: number;
+  pending_amount: number;
   currency: string;
   supplier: {
     name: string;
@@ -147,7 +149,10 @@ function PurchaseModuleContent() {
         .select(`
           *,
           supplier:suppliers(name),
-          purchase_order_items:purchase_order_items(*)
+          purchase_order_items:purchase_order_items(
+            *,
+            product:products(name, cost_price)
+          )
         `)
         .eq('company_id', profile?.company_id)
         .order('order_date', { ascending: false })
@@ -159,7 +164,28 @@ function PurchaseModuleContent() {
       }
       console.log('Purchase orders fetched:', data?.length, 'records');
       console.log('First PO data:', data?.[0]);
-      setPurchaseOrders(data || []);
+      
+      // Calculate received and pending amounts for each PO
+      const enhancedPOs = data?.map(po => {
+        let received_amount = 0;
+        
+        if (po.purchase_order_items && po.purchase_order_items.length > 0) {
+          received_amount = po.purchase_order_items.reduce((sum: number, item: any) => {
+            const itemReceivedAmount = (item.received_quantity || 0) * (item.unit_price || 0);
+            return sum + itemReceivedAmount;
+          }, 0);
+        }
+        
+        const pending_amount = (po.total_amount || 0) - received_amount;
+        
+        return {
+          ...po,
+          received_amount,
+          pending_amount
+        };
+      }) || [];
+      
+      setPurchaseOrders(enhancedPOs);
     } catch (error) {
       console.error('Error fetching purchase orders:', error);
     } finally {

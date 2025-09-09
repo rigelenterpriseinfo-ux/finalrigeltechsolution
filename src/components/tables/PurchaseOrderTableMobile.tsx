@@ -23,6 +23,8 @@ interface PurchaseOrder {
   order_date: string;
   expected_date?: string;
   total_amount: number;
+  received_amount: number;
+  pending_amount: number;
   currency: string;
   supplier: {
     name: string;
@@ -207,6 +209,17 @@ export function PurchaseOrderTableMobile({
                         <div className="flex items-center gap-1 font-medium">
                           <DollarSign className="h-3 w-3" />
                           <span>{formatCurrency(order.total_amount, order.currency)}</span>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-4 text-sm mt-2">
+                        <div className="flex items-center gap-1 text-green-600 font-medium">
+                          <span className="text-xs">Received:</span>
+                          <span>{formatCurrency(order.received_amount, order.currency)}</span>
+                        </div>
+                        <div className="flex items-center gap-1 text-orange-600 font-medium">
+                          <span className="text-xs">Pending:</span>
+                          <span>{formatCurrency(order.pending_amount, order.currency)}</span>
                         </div>
                       </div>
                     </CardHeader>

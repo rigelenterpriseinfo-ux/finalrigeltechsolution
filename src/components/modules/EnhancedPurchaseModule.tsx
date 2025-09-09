@@ -59,6 +59,8 @@ interface PurchaseOrder {
   order_date: string;
   expected_date?: string;
   total_amount: number;
+  received_amount: number;
+  pending_amount: number;
   currency: string;
   supplier: {
     name: string;

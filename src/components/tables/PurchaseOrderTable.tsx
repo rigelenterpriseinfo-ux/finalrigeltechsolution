@@ -34,6 +34,8 @@ interface PurchaseOrder {
   order_date: string;
   expected_date?: string;
   total_amount: number;
+  received_amount: number;
+  pending_amount: number;
   currency: string;
   supplier: {
     name: string;
@@ -50,7 +52,7 @@ interface PurchaseOrderTableProps {
   loading?: boolean;
 }
 
-type SortField = 'po_number' | 'supplier_name' | 'order_date' | 'expected_date' | 'total_amount' | 'status';
+type SortField = 'po_number' | 'supplier_name' | 'order_date' | 'expected_date' | 'total_amount' | 'received_amount' | 'pending_amount' | 'status';
 type SortDirection = 'asc' | 'desc';
 
 export function PurchaseOrderTable({
@@ -136,6 +138,14 @@ export function PurchaseOrderTable({
       case 'total_amount':
         aValue = a.total_amount;
         bValue = b.total_amount;
+        break;
+      case 'received_amount':
+        aValue = a.received_amount;
+        bValue = b.received_amount;
+        break;
+      case 'pending_amount':
+        aValue = a.pending_amount;
+        bValue = b.pending_amount;
         break;
       case 'status':
         aValue = a.status;
@@ -555,6 +565,24 @@ export function PurchaseOrderTable({
                 </TableHead>
                 <TableHead 
                   className="font-semibold text-gray-700 cursor-pointer hover:bg-gray-100 transition-colors"
+                  onClick={() => handleSort('received_amount')}
+                >
+                  <div className="flex items-center gap-2">
+                    Received Amount
+                    {getSortIcon('received_amount')}
+                  </div>
+                </TableHead>
+                <TableHead 
+                  className="font-semibold text-gray-700 cursor-pointer hover:bg-gray-100 transition-colors"
+                  onClick={() => handleSort('pending_amount')}
+                >
+                  <div className="flex items-center gap-2">
+                    Pending Amount
+                    {getSortIcon('pending_amount')}
+                  </div>
+                </TableHead>
+                <TableHead 
+                  className="font-semibold text-gray-700 cursor-pointer hover:bg-gray-100 transition-colors"
                   onClick={() => handleSort('status')}
                 >
                   <div className="flex items-center gap-2">
@@ -568,7 +596,7 @@ export function PurchaseOrderTable({
             <TableBody>
               {currentOrders.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
                     {searchTerm ? 'No purchase orders found matching your search.' : 'No purchase orders found.'}
                   </TableCell>
                 </TableRow>
@@ -592,6 +620,12 @@ export function PurchaseOrderTable({
                     </TableCell>
                     <TableCell className="font-semibold">
                       {order.currency} {order.total_amount.toLocaleString()}
+                    </TableCell>
+                    <TableCell className="font-semibold text-green-600">
+                      {order.currency} {order.received_amount.toLocaleString()}
+                    </TableCell>
+                    <TableCell className="font-semibold text-orange-600">
+                      {order.currency} {order.pending_amount.toLocaleString()}
                     </TableCell>
                     <TableCell>
                       <Badge 
