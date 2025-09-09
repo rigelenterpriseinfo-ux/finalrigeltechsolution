@@ -167,7 +167,7 @@ export function PaymentsModule() {
           supplier:supplier_id(payment_terms)
         `)
         .eq('company_id', profile.company_id)
-        .in('status', ['accepted', 'received', 'partially_received'])
+        .in('status', ['received', 'partially_received'])
         .order('grn_date', { ascending: false });
 
       if (grnError) {
@@ -399,7 +399,7 @@ export function PaymentsModule() {
           payments(amount, payment_status)
         `)
         .eq('company_id', profile.company_id)
-        .in('status', ['accepted', 'received', 'partially_received']);
+        .in('status', ['received', 'partially_received']);
 
       if (error) throw error;
 

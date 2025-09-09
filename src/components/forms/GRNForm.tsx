@@ -45,7 +45,7 @@ const grnFormSchema = z.object({
   supplier_invoice_number: z.string().optional(),
   supplier_invoice_date: z.string().optional(),
   remarks: z.string().optional(),
-  status: z.enum(['draft', 'received', 'accepted']),
+  status: z.enum(['draft', 'received']),
   // Consolidated warehouse & bin at form level
   default_warehouse_id: z.string().min(1, 'Default warehouse is required'),
   default_bin_id: z.string().min(1, 'Default bin is required'),
@@ -107,7 +107,7 @@ export function GRNForm({ grn, onSubmit, onCancel, readOnly = false, mode }: GRN
       supplier_invoice_number: grn?.supplier_invoice_number || '',
       supplier_invoice_date: grn?.supplier_invoice_date ? new Date(grn.supplier_invoice_date).toISOString().split('T')[0] : null,
       remarks: grn?.remarks || '',
-      status: grn?.status || 'accepted',
+      status: grn?.status || 'received',
       default_warehouse_id: '',
       default_bin_id: '',
       items: grn?.grn_line_items?.map((item: any) => ({
@@ -306,8 +306,8 @@ export function GRNForm({ grn, onSubmit, onCancel, readOnly = false, mode }: GRN
     const currentItems = form.getValues('items');
     
     const updatedItems = currentItems.map((item, index) => {
-      if (status === 'accepted' || status === 'received') {
-        // For "Accepted/Received" status, set accepted_quantity = received_quantity (full receipt)
+      if (status === 'received') {
+        // For "Received" status, set accepted_quantity = received_quantity (full receipt)
         const updated = {
           ...item,
           accepted_quantity: item.received_quantity,
@@ -328,7 +328,7 @@ export function GRNForm({ grn, onSubmit, onCancel, readOnly = false, mode }: GRN
     });
     
     form.setValue('items', updatedItems);
-    form.setValue('status', (status === 'received' ? 'accepted' : status) as any);
+    form.setValue('status', status as any);
     
     // Calculate totals for all items after status change
     updatedItems.forEach((_, index) => {
@@ -735,12 +735,6 @@ export function GRNForm({ grn, onSubmit, onCancel, readOnly = false, mode }: GRN
                                 </SelectTrigger>
                               </FormControl>
                               <SelectContent>
-                                <SelectItem value="accepted">
-                                  <div className="flex items-center gap-2">
-                                    <CheckCircle2 className="h-4 w-4 text-green-500" />
-                                    Accepted
-                                  </div>
-                                </SelectItem>
                                 <SelectItem value="received">
                                   <div className="flex items-center gap-2">
                                     <Package className="h-4 w-4 text-blue-500" />
@@ -1016,7 +1010,7 @@ export function GRNForm({ grn, onSubmit, onCancel, readOnly = false, mode }: GRN
                                         const newValue = validateReceivedQuantity(index, inputValue);
                                         
                                         form.setValue(`items.${index}.received_quantity`, newValue);
-                                        if (form.getValues('status') === 'accepted') {
+                                        if (form.getValues('status') === 'received') {
                                           form.setValue(`items.${index}.accepted_quantity`, newValue);
                                           form.setValue(`items.${index}.rejected_quantity`, 0);
                                         }
@@ -1261,8 +1255,8 @@ export function GRNForm({ grn, onSubmit, onCancel, readOnly = false, mode }: GRN
                                 </div>
                                 <div className="flex justify-between text-xs">
                                   <span>Status:</span>
-                                  <Badge variant={form.watch('status') === 'accepted' ? 'default' : 'secondary'} className="h-4 text-xs">
-                                    {form.watch('status') === 'accepted' ? 'Accepted' : 'Received'}
+                                  <Badge variant={form.watch('status') === 'received' ? 'default' : 'secondary'} className="h-4 text-xs">
+                                    {form.watch('status') === 'received' ? 'Received' : 'Draft'}
                                   </Badge>
                                 </div>
                                 <div className="flex justify-between text-xs">

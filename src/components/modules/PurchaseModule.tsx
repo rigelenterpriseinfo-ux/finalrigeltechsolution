@@ -1068,7 +1068,7 @@ function PurchaseModuleContent() {
                     supplier_invoice_number: data.supplier_invoice_number,
                     supplier_invoice_date: data.supplier_invoice_date || null,
                     remarks: data.remarks,
-                    status: data.status === 'received' ? 'accepted' : data.status,
+                    status: data.status,
                     total_ordered_quantity: totals.totalOrderedQty,
                     total_received_quantity: totals.totalReceivedQty,
                     total_accepted_quantity: totals.totalAcceptedQty,
