@@ -90,6 +90,9 @@ export const EnhancedSupplierTable: React.FC<EnhancedSupplierTableProps> = ({
     newThisMonth: 0
   });
   
+  // Transaction protection state
+  const [suppliersWithTransactions, setSuppliersWithTransactions] = useState<Set<string>>(new Set());
+  
   const itemsPerPage = 10;
   const canEdit = hasEditAccess('purchase');
 
@@ -125,6 +128,51 @@ export const EnhancedSupplierTable: React.FC<EnhancedSupplierTableProps> = ({
     
     setSupplierStats({ total, active, newThisMonth });
   }, [suppliers]);
+
+  // Check for supplier transactions
+  useEffect(() => {
+    const checkSupplierTransactions = async () => {
+      if (!profile?.company_id || suppliers.length === 0) return;
+      
+      const supplierIds = suppliers.map(s => s.id);
+      const suppliersWithTxns = new Set<string>();
+      
+      try {
+        // Check for purchase orders
+        const { data: poData } = await supabase
+          .from('purchase_orders')
+          .select('supplier_id')
+          .eq('company_id', profile.company_id)
+          .in('supplier_id', supplierIds);
+        
+        poData?.forEach(po => suppliersWithTxns.add(po.supplier_id));
+        
+        // Check for GRNs
+        const { data: grnData } = await supabase
+          .from('grn_header')
+          .select('supplier_id')
+          .eq('company_id', profile.company_id)
+          .in('supplier_id', supplierIds);
+        
+        grnData?.forEach(grn => suppliersWithTxns.add(grn.supplier_id));
+        
+        // Check for debit notes
+        const { data: dnData } = await supabase
+          .from('debit_notes')
+          .select('supplier_id')
+          .eq('company_id', profile.company_id)
+          .in('supplier_id', supplierIds);
+        
+        dnData?.forEach(dn => suppliersWithTxns.add(dn.supplier_id));
+        
+        setSuppliersWithTransactions(suppliersWithTxns);
+      } catch (error) {
+        console.error('Error checking supplier transactions:', error);
+      }
+    };
+    
+    checkSupplierTransactions();
+  }, [suppliers, profile?.company_id]);
 
   // Filter suppliers
   const filteredSuppliers = suppliers.filter(supplier => {
@@ -493,15 +541,16 @@ export const EnhancedSupplierTable: React.FC<EnhancedSupplierTableProps> = ({
                             </Button>
                           )}
                           {canEdit && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => onDelete(supplier.id)}
-                              className="h-8 w-8 p-0 hover:bg-red-100 hover:text-red-600 dark:hover:bg-red-900/20 dark:hover:text-red-400"
-                              title="Delete supplier"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => onDelete(supplier.id)}
+                          disabled={suppliersWithTransactions.has(supplier.id)}
+                          className="h-8 w-8 p-0 hover:bg-red-100 hover:text-red-600 dark:hover:bg-red-900/20 dark:hover:text-red-400 disabled:opacity-50 disabled:cursor-not-allowed"
+                          title={suppliersWithTransactions.has(supplier.id) ? "Cannot delete supplier with existing transactions" : "Delete supplier"}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
                           )}
                         </div>
                       </TableCell>

@@ -63,6 +63,9 @@ export function SupplierCreditNoteTable({
   
   const canEdit = hasEditAccess('purchase');
 
+  // Transaction protection state
+  const [creditNotesWithTransactions, setCreditNotesWithTransactions] = useState<Set<string>>(new Set());
+
   // Fetch company data
   useEffect(() => {
     const fetchCompanyData = async () => {
@@ -84,6 +87,41 @@ export function SupplierCreditNoteTable({
 
     fetchCompanyData();
   }, [profile?.company_id]);
+
+  // Check for supplier credit note transactions
+  useEffect(() => {
+    const checkCreditNoteTransactions = async () => {
+      if (!profile?.company_id || supplierCreditNotes.length === 0) return;
+      
+      const creditNoteIds = supplierCreditNotes.map(cn => cn.id);
+      const creditNotesWithTxns = new Set<string>();
+      
+      try {
+        // Check for payments
+        const { data: paymentData } = await supabase
+          .from('payments')
+          .select('reference_number')
+          .eq('company_id', profile.company_id)
+          .eq('payment_type', 'supplier_credit_note')
+          .in('reference_number', supplierCreditNotes.map(cn => cn.supplier_credit_note_number));
+        
+        if (paymentData && paymentData.length > 0) {
+          const paymentRefs = new Set(paymentData.map(p => p.reference_number));
+          supplierCreditNotes.forEach(cn => {
+            if (paymentRefs.has(cn.supplier_credit_note_number)) {
+              creditNotesWithTxns.add(cn.id);
+            }
+          });
+        }
+        
+        setCreditNotesWithTransactions(creditNotesWithTxns);
+      } catch (error) {
+        console.error('Error checking supplier credit note transactions:', error);
+      }
+    };
+    
+    checkCreditNoteTransactions();
+  }, [supplierCreditNotes, profile?.company_id]);
 
   // Filter credit notes
   const filteredCreditNotes = supplierCreditNotes.filter(creditNote => {
@@ -485,8 +523,19 @@ export function SupplierCreditNoteTable({
                           variant="ghost"
                           size="sm"
                           onClick={() => onDelete(creditNote)}
-                          disabled={!canEdit}
-                          className="text-destructive hover:text-destructive"
+                          disabled={!canEdit || creditNotesWithTransactions.has(creditNote.id)}
+                          className={`${
+                            creditNotesWithTransactions.has(creditNote.id)
+                              ? 'text-gray-400 hover:text-gray-400 cursor-not-allowed opacity-50'
+                              : 'text-destructive hover:text-destructive'
+                          }`}
+                          title={
+                            creditNotesWithTransactions.has(creditNote.id)
+                              ? "Cannot delete credit note with existing transactions"
+                              : !canEdit
+                              ? "No permission to delete"
+                              : "Delete credit note"
+                          }
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>

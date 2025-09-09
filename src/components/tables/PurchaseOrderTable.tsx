@@ -71,6 +71,9 @@ export function PurchaseOrderTable({
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
   const [companyData, setCompanyData] = useState<any>(null);
   
+  // Transaction protection state
+  const [posWithTransactions, setPOsWithTransactions] = useState<Set<string>>(new Set());
+  
   const itemsPerPage = 5;
 
   // Mobile view
@@ -107,6 +110,53 @@ export function PurchaseOrderTable({
 
     fetchCompanyData();
   }, [profile?.company_id]);
+
+  // Check for PO transactions
+  useEffect(() => {
+    const checkPOTransactions = async () => {
+      if (!profile?.company_id || purchaseOrders.length === 0) return;
+      
+      const poIds = purchaseOrders.map(po => po.id);
+      const posWithTxns = new Set<string>();
+      
+      try {
+        // Check for GRNs
+        const { data: grnData } = await supabase
+          .from('grn_header')
+          .select('purchase_order_id')
+          .eq('company_id', profile.company_id)
+          .in('purchase_order_id', poIds);
+        
+        grnData?.forEach(grn => posWithTxns.add(grn.purchase_order_id));
+        
+        // Check for payments
+        const { data: paymentData } = await supabase
+          .from('payments')
+          .select('purchase_order_id')
+          .eq('company_id', profile.company_id)
+          .in('purchase_order_id', poIds)
+          .not('purchase_order_id', 'is', null);
+        
+        paymentData?.forEach(payment => posWithTxns.add(payment.purchase_order_id));
+        
+        // Check for inventory transactions
+        const { data: invData } = await supabase
+          .from('inventory_transactions')
+          .select('reference_id')
+          .eq('company_id', profile.company_id)
+          .in('reference_id', poIds)
+          .eq('transaction_type', 'purchase_receipt');
+        
+        invData?.forEach(inv => posWithTxns.add(inv.reference_id));
+        
+        setPOsWithTransactions(posWithTxns);
+      } catch (error) {
+        console.error('Error checking PO transactions:', error);
+      }
+    };
+    
+    checkPOTransactions();
+  }, [purchaseOrders, profile?.company_id]);
 
   // Filter and sort data
   const filteredOrders = purchaseOrders.filter(order =>
@@ -664,14 +714,16 @@ export function PurchaseOrderTable({
                           variant="outline"
                           size="sm"
                           onClick={() => onDelete(order.id)}
-                          disabled={order.status === 'closed' || order.status === 'partially_received'}
+                          disabled={order.status === 'closed' || order.status === 'partially_received' || posWithTransactions.has(order.id)}
                           className={`h-8 w-8 p-0 transition-all duration-200 ${
-                            order.status === 'closed' || order.status === 'partially_received'
+                            order.status === 'closed' || order.status === 'partially_received' || posWithTransactions.has(order.id)
                               ? 'border-gray-200 bg-gray-50 text-gray-400 cursor-not-allowed' 
                               : 'border-red-200 bg-red-50 hover:bg-red-100 hover:border-red-300 text-red-700'
                           }`}
                           title={
-                            order.status === 'closed' || order.status === 'partially_received'
+                            posWithTransactions.has(order.id)
+                              ? 'Cannot delete purchase order with existing transactions'
+                              : order.status === 'closed' || order.status === 'partially_received'
                               ? 'Cannot delete purchase order with this status' 
                               : 'Delete Purchase Order'
                           }

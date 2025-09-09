@@ -53,12 +53,53 @@ export function GRNTable({ refreshTrigger, onView, onEdit, onDelete }: GRNTableP
   const [company, setCompany] = useState<any>(null);
   const itemsPerPage = 5;
 
+  // Transaction protection state
+  const [grnsWithTransactions, setGRNsWithTransactions] = useState<Set<string>>(new Set());
+
   useEffect(() => {
     if (profile?.company_id) {
       fetchGRNs();
       fetchCompanyData();
     }
   }, [profile?.company_id, refreshTrigger]);
+
+  // Check for GRN transactions
+  useEffect(() => {
+    const checkGRNTransactions = async () => {
+      if (!profile?.company_id || grns.length === 0) return;
+      
+      const grnIds = grns.map(grn => grn.id);
+      const grnsWithTxns = new Set<string>();
+      
+      try {
+        // Check for inventory transactions
+        const { data: invData } = await supabase
+          .from('inventory_transactions')
+          .select('reference_id')
+          .eq('company_id', profile.company_id)
+          .in('reference_id', grnIds)
+          .eq('transaction_type', 'purchase_receipt');
+        
+        invData?.forEach(inv => grnsWithTxns.add(inv.reference_id));
+        
+        // Check for payments
+        const { data: paymentData } = await supabase
+          .from('payments')
+          .select('grn_id')
+          .eq('company_id', profile.company_id)
+          .in('grn_id', grnIds)
+          .not('grn_id', 'is', null);
+        
+        paymentData?.forEach(payment => grnsWithTxns.add(payment.grn_id));
+        
+        setGRNsWithTransactions(grnsWithTxns);
+      } catch (error) {
+        console.error('Error checking GRN transactions:', error);
+      }
+    };
+    
+    checkGRNTransactions();
+  }, [grns, profile?.company_id]);
 
   useEffect(() => {
     filterAndSortGRNs();
@@ -639,15 +680,52 @@ export function GRNTable({ refreshTrigger, onView, onEdit, onDelete }: GRNTableP
                            >
                              <Eye className="h-3.5 w-3.5" />
                            </Button>
-                           <Button
-                             variant="outline"
-                             size="sm"
-                             onClick={() => exportToExcel(grn)}
-                             className="h-8 w-8 p-0 border-green-200 bg-green-50 hover:bg-green-100 hover:border-green-300 text-green-700 transition-all duration-200"
-                             title="Export to Excel Spreadsheet"
-                           >
-                             <FileSpreadsheet className="h-3.5 w-3.5" />
-                           </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => onEdit(grn)}
+                              disabled={grnsWithTransactions.has(grn.id)}
+                              className={`h-8 w-8 p-0 transition-all duration-200 ${
+                                grnsWithTransactions.has(grn.id)
+                                  ? 'border-gray-200 bg-gray-50 text-gray-400 cursor-not-allowed'
+                                  : 'border-emerald-200 bg-emerald-50 hover:bg-emerald-100 hover:border-emerald-300 text-emerald-700'
+                              }`}
+                              title={grnsWithTransactions.has(grn.id) ? 'Cannot edit GRN with existing transactions' : 'Edit GRN'}
+                            >
+                              <Edit className="h-3.5 w-3.5" />
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => onDelete(grn.id)}
+                              disabled={grnsWithTransactions.has(grn.id)}
+                              className={`h-8 w-8 p-0 transition-all duration-200 ${
+                                grnsWithTransactions.has(grn.id)
+                                  ? 'border-gray-200 bg-gray-50 text-gray-400 cursor-not-allowed'
+                                  : 'border-red-200 bg-red-50 hover:bg-red-100 hover:border-red-300 text-red-700'
+                              }`}
+                              title={grnsWithTransactions.has(grn.id) ? 'Cannot delete GRN with existing transactions' : 'Delete GRN'}
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => exportToExcel(grn)}
+                              className="h-8 w-8 p-0 border-green-200 bg-green-50 hover:bg-green-100 hover:border-green-300 text-green-700 transition-all duration-200"
+                              title="Export to Excel Spreadsheet"
+                            >
+                              <FileSpreadsheet className="h-3.5 w-3.5" />
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => exportToPDF(grn)}
+                              className="h-8 w-8 p-0 border-purple-200 bg-purple-50 hover:bg-purple-100 hover:border-purple-300 text-purple-700 transition-all duration-200"
+                              title="Export to PDF Document"
+                            >
+                              <Download className="h-3.5 w-3.5" />
+                            </Button>
                            <Button
                              variant="outline"
                              size="sm"

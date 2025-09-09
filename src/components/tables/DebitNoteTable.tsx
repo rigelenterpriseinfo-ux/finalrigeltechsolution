@@ -56,6 +56,9 @@ export function DebitNoteTable({ refreshTrigger, onView, onEdit, onDelete, onFil
   const [company, setCompany] = useState<any>(null);
   const itemsPerPage = 5;
 
+  // Transaction protection state
+  const [debitNotesWithTransactions, setDebitNotesWithTransactions] = useState<Set<string>>(new Set());
+
   useEffect(() => {
     if (profile?.company_id) {
       fetchDebitNotes();
@@ -73,6 +76,51 @@ export function DebitNoteTable({ refreshTrigger, onView, onEdit, onDelete, onFil
       onFiltersChange({ searchTerm, statusFilter });
     }
   }, [searchTerm, statusFilter, onFiltersChange]);
+
+  // Check for debit note transactions
+  useEffect(() => {
+    const checkDebitNoteTransactions = async () => {
+      if (!profile?.company_id || debitNotes.length === 0) return;
+      
+      const debitNoteIds = debitNotes.map(dn => dn.id);
+      const debitNotesWithTxns = new Set<string>();
+      
+      try {
+        // Check for supplier credit notes
+        const { data: creditNoteData } = await supabase
+          .from('supplier_credit_notes')
+          .select('debit_note_id')
+          .eq('company_id', profile.company_id)
+          .in('debit_note_id', debitNoteIds)
+          .not('debit_note_id', 'is', null);
+        
+        creditNoteData?.forEach(cn => debitNotesWithTxns.add(cn.debit_note_id));
+        
+        // Check for payments
+        const { data: paymentData } = await supabase
+          .from('payments')
+          .select('reference_number')
+          .eq('company_id', profile.company_id)
+          .eq('payment_type', 'debit_note')
+          .in('reference_number', debitNotes.map(dn => dn.debit_note_number));
+        
+        if (paymentData && paymentData.length > 0) {
+          const paymentRefs = new Set(paymentData.map(p => p.reference_number));
+          debitNotes.forEach(dn => {
+            if (paymentRefs.has(dn.debit_note_number)) {
+              debitNotesWithTxns.add(dn.id);
+            }
+          });
+        }
+        
+        setDebitNotesWithTransactions(debitNotesWithTxns);
+      } catch (error) {
+        console.error('Error checking debit note transactions:', error);
+      }
+    };
+    
+    checkDebitNoteTransactions();
+  }, [debitNotes, profile?.company_id]);
 
   const fetchCompanyData = async () => {
     try {
@@ -699,14 +747,16 @@ export function DebitNoteTable({ refreshTrigger, onView, onEdit, onDelete, onFil
                             variant="ghost"
                             size="icon"
                             onClick={() => onDelete(debitNote.id)}
-                            disabled={debitNote.settlement_status === 'settled' || debitNote.settlement_status === 'partially_settled'}
+                            disabled={debitNote.settlement_status === 'settled' || debitNote.settlement_status === 'partially_settled' || debitNotesWithTransactions.has(debitNote.id)}
                             className={`text-red-600 hover:text-red-700 hover:bg-red-50 ${
-                              debitNote.settlement_status === 'settled' || debitNote.settlement_status === 'partially_settled'
+                              debitNote.settlement_status === 'settled' || debitNote.settlement_status === 'partially_settled' || debitNotesWithTransactions.has(debitNote.id)
                                 ? 'opacity-50 cursor-not-allowed' 
                                 : ''
                             }`}
                             title={
-                              debitNote.settlement_status === 'settled' 
+                              debitNotesWithTransactions.has(debitNote.id)
+                                ? "Cannot delete debit note with existing transactions"
+                                : debitNote.settlement_status === 'settled' 
                                 ? "Cannot delete settled debit note"
                                 : debitNote.settlement_status === 'partially_settled'
                                 ? "Cannot delete partially settled debit note"
