@@ -39,6 +39,7 @@ interface DebitNoteItem {
   line_subtotal: number;
   line_total: number;
   unit_of_measure: string;
+  gst_type: 'intra' | 'inter';
 }
 
 interface SupplierInvoice {
@@ -56,6 +57,7 @@ export function DebitNoteForm({ debitNote, onSubmit, onCancel, mode }: DebitNote
   const [supplierInvoices, setSupplierInvoices] = useState<SupplierInvoice[]>([]);
   const [selectedInvoice, setSelectedInvoice] = useState<SupplierInvoice | null>(null);
   const [loading, setLoading] = useState(false);
+  const [globalGstType, setGlobalGstType] = useState<'intra' | 'inter'>('intra');
 
   const [formData, setFormData] = useState({
     supplier_id: debitNote?.supplier_id || "",
@@ -88,7 +90,8 @@ export function DebitNoteForm({ debitNote, onSubmit, onCancel, mode }: DebitNote
       tax_amount: 0,
       line_subtotal: 0,
       line_total: 0,
-      unit_of_measure: "pcs"
+      unit_of_measure: "pcs",
+      gst_type: 'intra'
     }]
   );
 
@@ -184,7 +187,8 @@ export function DebitNoteForm({ debitNote, onSubmit, onCancel, mode }: DebitNote
       tax_amount: 0,
       line_subtotal: 0,
       line_total: 0,
-      unit_of_measure: "pcs"
+      unit_of_measure: "pcs",
+      gst_type: globalGstType
     }]);
   };
 
@@ -239,7 +243,8 @@ export function DebitNoteForm({ debitNote, onSubmit, onCancel, mode }: DebitNote
         tax_amount: 0,
         line_subtotal: 0,
         line_total: 0,
-        unit_of_measure: lineItem.unit_of_measure || "pcs"
+        unit_of_measure: lineItem.unit_of_measure || "pcs",
+        gst_type: 'intra' as const
       })) || [];
 
       // Calculate totals for each item
@@ -280,7 +285,8 @@ export function DebitNoteForm({ debitNote, onSubmit, onCancel, mode }: DebitNote
       igst_amount: igstAmount,
       tax_amount: totalTax,
       line_subtotal: taxableAmount,
-      line_total: lineTotal
+      line_total: lineTotal,
+      gst_type: item.gst_type || 'intra'
     };
   };
 
@@ -295,8 +301,35 @@ export function DebitNoteForm({ debitNote, onSubmit, onCancel, mode }: DebitNote
     setItems(newItems);
   };
 
+  const handleGlobalGstTypeChange = (newGstType: 'intra' | 'inter') => {
+    setGlobalGstType(newGstType);
+    
+    // Update all existing items to the new GST type
+    setItems(prev => prev.map(item => {
+      const masterGST = (item.cgst_rate + item.sgst_rate + item.igst_rate) || 0;
+      const updatedItem = {
+        ...item,
+        gst_type: newGstType
+      };
+      
+      if (newGstType === 'intra') {
+        // Intra-state: Clear IGST, set CGST+SGST
+        updatedItem.igst_rate = 0;
+        updatedItem.cgst_rate = masterGST / 2;
+        updatedItem.sgst_rate = masterGST / 2;
+      } else {
+        // Inter-state: Clear CGST+SGST, set IGST
+        updatedItem.cgst_rate = 0;
+        updatedItem.sgst_rate = 0;
+        updatedItem.igst_rate = masterGST;
+      }
+      
+      return updatedItem;
+    }));
+  };
+
   const addItem = () => {
-    setItems([...items, {
+    setItems(prev => [...prev, {
       product_id: "",
       product_name: "",
       product_sku: "",
@@ -315,7 +348,8 @@ export function DebitNoteForm({ debitNote, onSubmit, onCancel, mode }: DebitNote
       tax_amount: 0,
       line_subtotal: 0,
       line_total: 0,
-      unit_of_measure: "pcs"
+      unit_of_measure: "pcs",
+      gst_type: globalGstType
     }]);
   };
 
@@ -506,16 +540,38 @@ export function DebitNoteForm({ debitNote, onSubmit, onCancel, mode }: DebitNote
                 <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
                 Debit Note Items
               </h3>
-              {!selectedInvoice && (
-                <Button 
-                  type="button" 
-                  onClick={addItem} 
-                  className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 shadow-sm"
-                >
-                  <Plus className="h-4 w-4" />
-                  Add Item
-                </Button>
-              )}
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="button"
+                    variant={globalGstType === 'intra' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => handleGlobalGstTypeChange('intra')}
+                    className="h-8 text-xs"
+                  >
+                    Intra-State (CGST+SGST)
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={globalGstType === 'inter' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => handleGlobalGstTypeChange('inter')}
+                    className="h-8 text-xs"
+                  >
+                    Inter-State (IGST)
+                  </Button>
+                </div>
+                {!selectedInvoice && (
+                  <Button 
+                    type="button" 
+                    onClick={addItem} 
+                    className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 shadow-sm"
+                  >
+                    <Plus className="h-4 w-4" />
+                    Add Item
+                  </Button>
+                )}
+              </div>
             </div>
           </div>
 
@@ -528,9 +584,14 @@ export function DebitNoteForm({ debitNote, onSubmit, onCancel, mode }: DebitNote
                 <div className={selectedInvoice ? "col-span-1 text-center" : "col-span-2 text-center"}>Quantity</div>
                 {selectedInvoice && <div className="col-span-1 text-center">Pending</div>}
                 <div className="col-span-1 text-center">Unit Price</div>
-                <div className="col-span-1 text-center">CGST%</div>
-                <div className="col-span-1 text-center">SGST%</div>
-                <div className="col-span-1 text-center">IGST%</div>
+                {globalGstType === 'intra' ? (
+                  <>
+                    <div className="col-span-1 text-center">CGST%</div>
+                    <div className="col-span-1 text-center">SGST%</div>
+                  </>
+                ) : (
+                  <div className="col-span-2 text-center">IGST%</div>
+                )}
                 <div className="col-span-1 text-center">Disc%</div>
                 <div className="col-span-1 text-center">Line Total</div>
                 <div className="col-span-1 text-center">Action</div>
@@ -552,9 +613,17 @@ export function DebitNoteForm({ debitNote, onSubmit, onCancel, mode }: DebitNote
                                handleItemChange(index, 'product_sku', product.sku);
                                handleItemChange(index, 'unit_price', product.cost_price || 0);
                                const gst = product.gst_percentage ?? 0;
-                               handleItemChange(index, 'cgst_rate', gst ? gst / 2 : 0);
-                               handleItemChange(index, 'sgst_rate', gst ? gst / 2 : 0);
-                               handleItemChange(index, 'igst_rate', 0);
+                               handleItemChange(index, 'gst_type', globalGstType);
+                               
+                               if (globalGstType === 'intra') {
+                                 handleItemChange(index, 'cgst_rate', gst ? gst / 2 : 0);
+                                 handleItemChange(index, 'sgst_rate', gst ? gst / 2 : 0);
+                                 handleItemChange(index, 'igst_rate', 0);
+                               } else {
+                                 handleItemChange(index, 'cgst_rate', 0);
+                                 handleItemChange(index, 'sgst_rate', 0);
+                                 handleItemChange(index, 'igst_rate', gst);
+                               }
                              }}
                              placeholder="Select product"
                            />
@@ -620,44 +689,48 @@ export function DebitNoteForm({ debitNote, onSubmit, onCancel, mode }: DebitNote
                       />
                     </div>
 
-                    {/* CGST % */}
-                    <div className="col-span-1">
-                      <Input
-                        type="number"
-                        min="0"
-                        max="50"
-                        step="0.01"
-                        value={item.cgst_rate}
-                        onChange={(e) => handleItemChange(index, 'cgst_rate', parseFloat(e.target.value) || 0)}
-                        className="text-center"
-                      />
-                    </div>
+                    {/* GST Fields - Conditional based on global GST type */}
+                    {globalGstType === 'intra' ? (
+                      <>
+                        {/* CGST % */}
+                        <div className="col-span-1">
+                          <Input
+                            type="number"
+                            min="0"
+                            max="50"
+                            step="0.01"
+                            value={item.cgst_rate}
+                            onChange={(e) => handleItemChange(index, 'cgst_rate', parseFloat(e.target.value) || 0)}
+                            className="text-center"
+                          />
+                        </div>
 
-                    {/* SGST % */}
-                    <div className="col-span-1">
-                      <Input
-                        type="number"
-                        min="0"
-                        max="50"
-                        step="0.01"
-                        value={item.sgst_rate}
-                        onChange={(e) => handleItemChange(index, 'sgst_rate', parseFloat(e.target.value) || 0)}
-                        className="text-center"
-                      />
-                    </div>
-
-                    {/* IGST % */}
-                    <div className="col-span-1">
-                      <Input
-                        type="number"
-                        min="0"
-                        max="50"
-                        step="0.01"
-                        value={item.igst_rate}
-                        onChange={(e) => handleItemChange(index, 'igst_rate', parseFloat(e.target.value) || 0)}
-                        className="text-center"
-                      />
-                    </div>
+                        {/* SGST % */}
+                        <div className="col-span-1">
+                          <Input
+                            type="number"
+                            min="0"
+                            max="50"
+                            step="0.01"
+                            value={item.sgst_rate}
+                            onChange={(e) => handleItemChange(index, 'sgst_rate', parseFloat(e.target.value) || 0)}
+                            className="text-center"
+                          />
+                        </div>
+                      </>
+                    ) : (
+                      <div className="col-span-2">
+                        <Input
+                          type="number"
+                          min="0"
+                          max="50"
+                          step="0.01"
+                          value={item.igst_rate}
+                          onChange={(e) => handleItemChange(index, 'igst_rate', parseFloat(e.target.value) || 0)}
+                          className="text-center"
+                        />
+                      </div>
+                    )}
 
                     {/* Discount % */}
                     <div className="col-span-1">
