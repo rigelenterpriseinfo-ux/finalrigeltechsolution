@@ -66,6 +66,7 @@ export function InventoryModule() {
   const canEdit = hasEditAccess('inventory');
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
+  const [productsWithTransactions, setProductsWithTransactions] = useState<Set<string>>(new Set());
   const [searchTerm, setSearchTerm] = useState('');
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
@@ -229,6 +230,23 @@ export function InventoryModule() {
     }
   };
 
+  // Check for products with transactions
+  const checkProductsWithTransactions = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('inventory_transactions')
+        .select('product_id')
+        .eq('company_id', profile?.company_id);
+
+      if (error) throw error;
+      
+      const productIdsWithTransactions = new Set(data?.map(t => t.product_id) || []);
+      setProductsWithTransactions(productIdsWithTransactions);
+    } catch (error) {
+      console.error('Error checking product transactions:', error);
+    }
+  };
+
   // Calculate warehouse bin statistics
   const calculateWarehouseBinStats = () => {
     const binStats = warehouseBins.map(bin => {
@@ -269,7 +287,10 @@ export function InventoryModule() {
   useEffect(() => {
     fetchProducts();
     fetchWarehouseBins();
-  }, []);
+    if (profile?.company_id) {
+      checkProductsWithTransactions();
+    }
+  }, [profile?.company_id]);
 
   useEffect(() => {
     if (warehouseBins.length > 0 && products.length > 0) {
@@ -1236,36 +1257,39 @@ export function InventoryModule() {
                                  >
                                    <Edit className="w-4 h-4" />
                                  </Button>
-                                 <AlertDialog>
-                                   <AlertDialogTrigger asChild>
-                                     <Button
-                                       variant="outline"
-                                       size="sm"
-                                       title="Delete Product"
-                                       className="hover:bg-red-50 hover:text-red-600"
-                                     >
-                                       <Trash2 className="w-4 h-4" />
-                                     </Button>
-                                   </AlertDialogTrigger>
-                                   <AlertDialogContent>
-                                     <AlertDialogHeader>
-                                       <AlertDialogTitle>Delete Product</AlertDialogTitle>
-                                       <AlertDialogDescription>
-                                         Are you sure you want to delete "{product.name}" (SKU: {product.sku})? 
-                                         This will mark the product as inactive and it will no longer appear in active lists.
-                                       </AlertDialogDescription>
-                                     </AlertDialogHeader>
-                                     <AlertDialogFooter>
-                                       <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                       <AlertDialogAction 
-                                         onClick={() => handleDeleteProduct(product.id)}
-                                         className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                                       >
-                                         Delete Product
-                                       </AlertDialogAction>
-                                     </AlertDialogFooter>
-                                   </AlertDialogContent>
-                                 </AlertDialog>
+                                  <AlertDialog>
+                                    <AlertDialogTrigger asChild>
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        title={productsWithTransactions.has(product.id) ? "Cannot delete product with transactions" : "Delete Product"}
+                                        className={`${productsWithTransactions.has(product.id) 
+                                          ? "opacity-50 cursor-not-allowed" 
+                                          : "hover:bg-red-50 hover:text-red-600"}`}
+                                        disabled={productsWithTransactions.has(product.id)}
+                                      >
+                                        <Trash2 className="w-4 h-4" />
+                                      </Button>
+                                    </AlertDialogTrigger>
+                                    <AlertDialogContent>
+                                      <AlertDialogHeader>
+                                        <AlertDialogTitle>Delete Product</AlertDialogTitle>
+                                        <AlertDialogDescription>
+                                          Are you sure you want to delete "{product.name}" (SKU: {product.sku})? 
+                                          This will mark the product as inactive and it will no longer appear in active lists.
+                                        </AlertDialogDescription>
+                                      </AlertDialogHeader>
+                                      <AlertDialogFooter>
+                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                        <AlertDialogAction 
+                                          onClick={() => handleDeleteProduct(product.id)}
+                                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                        >
+                                          Delete Product
+                                        </AlertDialogAction>
+                                      </AlertDialogFooter>
+                                    </AlertDialogContent>
+                                  </AlertDialog>
                               </div>
                             </TableCell>
                          )}
