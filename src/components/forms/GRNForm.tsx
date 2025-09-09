@@ -818,220 +818,219 @@ export function GRNForm({ grn, onSubmit, onCancel, readOnly = false, mode }: GRN
                     <div className="flex justify-between items-center">
                       <CardTitle className="text-base font-semibold flex items-center gap-2">
                         <Package className="h-4 w-4 text-primary" />
-                        Receipt Items
+                        GRN Items
                       </CardTitle>
-                      <Badge variant="secondary" className="text-xs">
-                        {items.length} Items
-                      </Badge>
+                      <div className="flex items-center gap-3">
+                        <Badge variant="secondary" className="text-xs">
+                          {items.length} Items
+                        </Badge>
+                      </div>
                     </div>
                   </CardHeader>
                   <CardContent className="p-0">
                     {items.length > 0 ? (
-                      <div className="space-y-6 p-6">
-                        {/* Main Items Table */}
-                        <div className="overflow-x-auto rounded-lg border border-border">
+                      <div className="space-y-6">
+                        {/* Items Table */}
+                        <div className="overflow-x-auto">
                           <Table>
-                            <TableHeader className="bg-muted/50">
-                              <TableRow>
-                                <TableHead className="font-semibold">Product Details</TableHead>
-                                <TableHead className="text-center font-semibold">Quantities</TableHead>
-                                <TableHead className="text-center font-semibold">Unit Price</TableHead>
-                                <TableHead className="text-center font-semibold">GST Details</TableHead>
-                                <TableHead className="text-right font-semibold">Line Total</TableHead>
+                            <TableHeader>
+                              <TableRow className="bg-muted/50 border-b">
+                                <TableHead className="text-left font-semibold text-foreground border-r">Product</TableHead>
+                                <TableHead className="text-center font-semibold text-foreground border-r w-20">Ord Qty</TableHead>
+                                <TableHead className="text-center font-semibold text-foreground border-r w-20">Rec Qty</TableHead>
+                                <TableHead className="text-center font-semibold text-foreground border-r w-20">Acc Qty</TableHead>
+                                <TableHead className="text-center font-semibold text-foreground border-r w-20">Rej Qty</TableHead>
+                                <TableHead className="text-center font-semibold text-foreground border-r w-24">Unit Price</TableHead>
+                                <TableHead className="text-center font-semibold text-foreground border-r w-20">CGST%</TableHead>
+                                <TableHead className="text-center font-semibold text-foreground border-r w-20">SGST%</TableHead>
+                                <TableHead className="text-center font-semibold text-foreground border-r w-20">IGST%</TableHead>
+                                <TableHead className="text-center font-semibold text-foreground border-r w-24">GST Value</TableHead>
+                                <TableHead className="text-right font-semibold text-foreground w-28">Line Total</TableHead>
                               </TableRow>
                             </TableHeader>
                             <TableBody>
                               {items.map((item: any, index: number) => (
-                                <TableRow key={index} className="hover:bg-muted/30 transition-colors">
-                                  {/* Product Details */}
-                                  <TableCell className="p-4">
-                                    <div className="space-y-2">
+                                <TableRow key={index} className="hover:bg-muted/30 transition-colors border-b">
+                                  {/* Product */}
+                                  <TableCell className="border-r p-3">
+                                    <div className="space-y-1">
                                       <div className="font-medium text-sm">{item.product_name || 'Unknown Product'}</div>
-                                      <div className="text-xs text-muted-foreground">SKU: {item.product_sku || 'N/A'}</div>
-                                      <div className="text-xs text-muted-foreground">UOM: {item.unit_of_measure || 'PCS'}</div>
+                                      <div className="text-xs text-muted-foreground">
+                                        {item.product_sku || 'N/A'} | {item.unit_of_measure || 'PCS'}
+                                      </div>
                                     </div>
                                   </TableCell>
                                   
-                                  {/* Quantities */}
-                                  <TableCell className="p-4">
-                                    <div className="grid grid-cols-2 gap-2 min-w-[200px]">
-                                      <div>
-                                        <label className="text-xs font-medium text-muted-foreground mb-1 block">Ordered</label>
-                                        <Input
-                                          type="number"
-                                          value={item.ordered_quantity || 0}
-                                          disabled
-                                          className="bg-muted/30 text-xs text-center h-8"
-                                        />
-                                      </div>
-                                      <div>
-                                        <label className="text-xs font-medium text-blue-600 mb-1 block">Received</label>
-                                        <Input
-                                          type="number"
-                                          min="0"
-                                          max={item.ordered_quantity}
-                                          value={item.received_quantity || 0}
-                                          onChange={(e) => {
-                                            const newValue = Math.min(
-                                              parseFloat(e.target.value) || 0, 
-                                              item.ordered_quantity
-                                            );
-                                            form.setValue(`items.${index}.received_quantity`, newValue);
-                                            if (form.getValues('status') === 'accepted') {
-                                              form.setValue(`items.${index}.accepted_quantity`, newValue);
-                                              form.setValue(`items.${index}.rejected_quantity`, 0);
-                                            }
-                                            validateQuantities(index);
-                                            calculateItemTotals(index);
-                                          }}
-                                          disabled={readOnly}
-                                          className="text-xs text-center h-8 border-blue-200 focus:border-blue-400"
-                                        />
-                                      </div>
-                                      <div>
-                                        <label className="text-xs font-medium text-green-600 mb-1 block">Accepted</label>
-                                        <Input
-                                          type="number"
-                                          min="0"
-                                          value={item.accepted_quantity || 0}
-                                          onChange={(e) => {
-                                            const newValue = parseFloat(e.target.value) || 0;
-                                            const maxAccepted = (item.received_quantity || 0) - (item.rejected_quantity || 0);
-                                            const finalValue = Math.min(newValue, maxAccepted);
-                                            form.setValue(`items.${index}.accepted_quantity`, finalValue);
-                                            validateQuantities(index);
-                                            calculateItemTotals(index);
-                                          }}
-                                          disabled={readOnly}
-                                          className="text-xs text-center h-8 border-green-200 focus:border-green-400 bg-green-50/50"
-                                        />
-                                      </div>
-                                      <div>
-                                        <label className="text-xs font-medium text-red-600 mb-1 block">Rejected</label>
-                                        <Input
-                                          type="number"
-                                          min="0"
-                                          value={item.rejected_quantity || 0}
-                                          onChange={(e) => {
-                                            const newValue = parseFloat(e.target.value) || 0;
-                                            const maxRejected = (item.received_quantity || 0) - (item.accepted_quantity || 0);
-                                            const finalValue = Math.min(newValue, maxRejected);
-                                            form.setValue(`items.${index}.rejected_quantity`, finalValue);
-                                            validateQuantities(index);
-                                          }}
-                                          disabled={readOnly}
-                                          className="text-xs text-center h-8 border-red-200 focus:border-red-400 bg-red-50/50"
-                                        />
-                                      </div>
-                                    </div>
-                                    <div className="mt-2 text-xs text-muted-foreground text-center">
-                                      Pending: {(item.ordered_quantity || 0) - (item.received_quantity || 0)}
-                                    </div>
-                                  </TableCell>
-                                  
-                                  {/* Unit Price */}
-                                  <TableCell className="p-4">
-                                    <div className="min-w-[100px]">
-                                      <label className="text-xs font-medium text-muted-foreground mb-1 block">Unit Price</label>
-                                      <Input
-                                        type="number"
-                                        step="0.01"
-                                        min="0.01"
-                                        value={item.unit_price || 0}
-                                        onChange={(e) => {
-                                          const newPrice = parseFloat(e.target.value) || 0;
-                                          form.setValue(`items.${index}.unit_price`, newPrice);
-                                          calculateItemTotals(index);
-                                        }}
-                                        disabled={readOnly}
-                                        className="text-xs text-center h-8 font-medium border-blue-200 focus:border-blue-400"
-                                      />
-                                    </div>
+                                  {/* Ordered Qty */}
+                                  <TableCell className="border-r p-3 text-center">
+                                    <Input
+                                      type="number"
+                                      value={item.ordered_quantity || 0}
+                                      disabled
+                                      className="bg-muted/30 text-xs text-center h-8 w-16 border-0"
+                                    />
                                   </TableCell>
 
-                                  {/* GST Details */}
-                                  <TableCell className="p-4">
-                                    <div className="grid grid-cols-3 gap-2 min-w-[180px]">
-                                      <div>
-                                        <label className="text-xs font-medium text-muted-foreground mb-1 block">CGST%</label>
-                                        <Input
-                                          type="number"
-                                          step="0.01"
-                                          min="0"
-                                          max="100"
-                                          value={item.cgst_rate || 0}
-                                          onChange={(e) => {
-                                            const rate = parseFloat(e.target.value) || 0;
-                                            form.setValue(`items.${index}.cgst_rate`, rate);
-                                            if (rate > 0) {
-                                              form.setValue(`items.${index}.igst_rate`, 0);
-                                            }
-                                            calculateItemTotals(index);
-                                          }}
-                                          disabled={readOnly || (item.igst_rate > 0)}
-                                          className="text-xs text-center h-8 border-orange-200 focus:border-orange-400"
-                                          placeholder={item.igst_rate > 0 ? "N/A" : "0.00"}
-                                        />
-                                      </div>
-                                      <div>
-                                        <label className="text-xs font-medium text-muted-foreground mb-1 block">SGST%</label>
-                                        <Input
-                                          type="number"
-                                          step="0.01"
-                                          min="0"
-                                          max="100"
-                                          value={item.sgst_rate || 0}
-                                          onChange={(e) => {
-                                            const rate = parseFloat(e.target.value) || 0;
-                                            form.setValue(`items.${index}.sgst_rate`, rate);
-                                            if (rate > 0) {
-                                              form.setValue(`items.${index}.igst_rate`, 0);
-                                            }
-                                            calculateItemTotals(index);
-                                          }}
-                                          disabled={readOnly || (item.igst_rate > 0)}
-                                          className="text-xs text-center h-8 border-orange-200 focus:border-orange-400"
-                                          placeholder={item.igst_rate > 0 ? "N/A" : "0.00"}
-                                        />
-                                      </div>
-                                      <div>
-                                        <label className="text-xs font-medium text-muted-foreground mb-1 block">IGST%</label>
-                                        <Input
-                                          type="number"
-                                          step="0.01"
-                                          min="0"
-                                          max="100"
-                                          value={item.igst_rate || 0}
-                                          onChange={(e) => {
-                                            const rate = parseFloat(e.target.value) || 0;
-                                            form.setValue(`items.${index}.igst_rate`, rate);
-                                            if (rate > 0) {
-                                              form.setValue(`items.${index}.cgst_rate`, 0);
-                                              form.setValue(`items.${index}.sgst_rate`, 0);
-                                            }
-                                            calculateItemTotals(index);
-                                          }}
-                                          disabled={readOnly || ((item.cgst_rate > 0) || (item.sgst_rate > 0))}
-                                          className="text-xs text-center h-8 border-orange-200 focus:border-orange-400"
-                                          placeholder={((item.cgst_rate > 0) || (item.sgst_rate > 0)) ? "N/A" : "0.00"}
-                                        />
-                                      </div>
-                                    </div>
-                                    <div className="mt-2 text-xs text-center text-muted-foreground">
-                                      Tax: ₹{((item.cgst_amount || 0) + (item.sgst_amount || 0) + (item.igst_amount || 0)).toFixed(2)}
+                                  {/* Received Qty */}
+                                  <TableCell className="border-r p-3 text-center">
+                                    <Input
+                                      type="number"
+                                      min="0"
+                                      max={item.ordered_quantity}
+                                      value={item.received_quantity || 0}
+                                      onChange={(e) => {
+                                        const newValue = Math.min(
+                                          parseFloat(e.target.value) || 0, 
+                                          item.ordered_quantity
+                                        );
+                                        form.setValue(`items.${index}.received_quantity`, newValue);
+                                        if (form.getValues('status') === 'accepted') {
+                                          form.setValue(`items.${index}.accepted_quantity`, newValue);
+                                          form.setValue(`items.${index}.rejected_quantity`, 0);
+                                        }
+                                        validateQuantities(index);
+                                        calculateItemTotals(index);
+                                      }}
+                                      disabled={readOnly}
+                                      className="text-xs text-center h-8 w-16 border-blue-200 focus:border-blue-400"
+                                    />
+                                  </TableCell>
+
+                                  {/* Accepted Qty */}
+                                  <TableCell className="border-r p-3 text-center">
+                                    <Input
+                                      type="number"
+                                      min="0"
+                                      value={item.accepted_quantity || 0}
+                                      onChange={(e) => {
+                                        const newValue = parseFloat(e.target.value) || 0;
+                                        const maxAccepted = (item.received_quantity || 0) - (item.rejected_quantity || 0);
+                                        const finalValue = Math.min(newValue, maxAccepted);
+                                        form.setValue(`items.${index}.accepted_quantity`, finalValue);
+                                        validateQuantities(index);
+                                        calculateItemTotals(index);
+                                      }}
+                                      disabled={readOnly}
+                                      className="text-xs text-center h-8 w-16 border-green-200 focus:border-green-400 bg-green-50"
+                                    />
+                                  </TableCell>
+
+                                  {/* Rejected Qty */}
+                                  <TableCell className="border-r p-3 text-center">
+                                    <Input
+                                      type="number"
+                                      min="0"
+                                      value={item.rejected_quantity || 0}
+                                      onChange={(e) => {
+                                        const newValue = parseFloat(e.target.value) || 0;
+                                        const maxRejected = (item.received_quantity || 0) - (item.accepted_quantity || 0);
+                                        const finalValue = Math.min(newValue, maxRejected);
+                                        form.setValue(`items.${index}.rejected_quantity`, finalValue);
+                                        validateQuantities(index);
+                                      }}
+                                      disabled={readOnly}
+                                      className="text-xs text-center h-8 w-16 border-red-200 focus:border-red-400 bg-red-50"
+                                    />
+                                  </TableCell>
+
+                                  {/* Unit Price */}
+                                  <TableCell className="border-r p-3 text-center">
+                                    <Input
+                                      type="number"
+                                      step="0.01"
+                                      min="0.01"
+                                      value={item.unit_price || 0}
+                                      onChange={(e) => {
+                                        const newPrice = parseFloat(e.target.value) || 0;
+                                        form.setValue(`items.${index}.unit_price`, newPrice);
+                                        calculateItemTotals(index);
+                                      }}
+                                      disabled={readOnly}
+                                      className="text-xs text-center h-8 w-20 font-medium"
+                                    />
+                                  </TableCell>
+
+                                  {/* CGST% */}
+                                  <TableCell className="border-r p-3 text-center">
+                                    <Input
+                                      type="number"
+                                      step="0.01"
+                                      min="0"
+                                      max="100"
+                                      value={item.cgst_rate || 0}
+                                      onChange={(e) => {
+                                        const rate = parseFloat(e.target.value) || 0;
+                                        form.setValue(`items.${index}.cgst_rate`, rate);
+                                        if (rate > 0) {
+                                          form.setValue(`items.${index}.igst_rate`, 0);
+                                        }
+                                        calculateItemTotals(index);
+                                      }}
+                                      disabled={readOnly || (item.igst_rate > 0)}
+                                      className="text-xs text-center h-8 w-16"
+                                      placeholder={item.igst_rate > 0 ? "-" : "0"}
+                                    />
+                                  </TableCell>
+
+                                  {/* SGST% */}
+                                  <TableCell className="border-r p-3 text-center">
+                                    <Input
+                                      type="number"
+                                      step="0.01"
+                                      min="0"
+                                      max="100"
+                                      value={item.sgst_rate || 0}
+                                      onChange={(e) => {
+                                        const rate = parseFloat(e.target.value) || 0;
+                                        form.setValue(`items.${index}.sgst_rate`, rate);
+                                        if (rate > 0) {
+                                          form.setValue(`items.${index}.igst_rate`, 0);
+                                        }
+                                        calculateItemTotals(index);
+                                      }}
+                                      disabled={readOnly || (item.igst_rate > 0)}
+                                      className="text-xs text-center h-8 w-16"
+                                      placeholder={item.igst_rate > 0 ? "-" : "0"}
+                                    />
+                                  </TableCell>
+
+                                  {/* IGST% */}
+                                  <TableCell className="border-r p-3 text-center">
+                                    <Input
+                                      type="number"
+                                      step="0.01"
+                                      min="0"
+                                      max="100"
+                                      value={item.igst_rate || 0}
+                                      onChange={(e) => {
+                                        const rate = parseFloat(e.target.value) || 0;
+                                        form.setValue(`items.${index}.igst_rate`, rate);
+                                        if (rate > 0) {
+                                          form.setValue(`items.${index}.cgst_rate`, 0);
+                                          form.setValue(`items.${index}.sgst_rate`, 0);
+                                        }
+                                        calculateItemTotals(index);
+                                      }}
+                                      disabled={readOnly || ((item.cgst_rate > 0) || (item.sgst_rate > 0))}
+                                      className="text-xs text-center h-8 w-16"
+                                      placeholder={((item.cgst_rate > 0) || (item.sgst_rate > 0)) ? "-" : "0"}
+                                    />
+                                  </TableCell>
+
+                                  {/* GST Value */}
+                                  <TableCell className="border-r p-3 text-center">
+                                    <div className="text-xs font-medium">
+                                      ₹{((item.cgst_amount || 0) + (item.sgst_amount || 0) + (item.igst_amount || 0)).toFixed(2)}
                                     </div>
                                   </TableCell>
                                   
                                   {/* Line Total */}
-                                  <TableCell className="p-4">
-                                    <div className="min-w-[100px]">
-                                      <label className="text-xs font-medium text-muted-foreground mb-1 block">Line Total</label>
-                                      <Input
-                                        type="number"
-                                        value={item.line_total?.toFixed(2) || '0.00'}
-                                        disabled
-                                        className="bg-primary/10 text-xs text-center h-8 font-bold text-primary"
-                                      />
+                                  <TableCell className="p-3 text-right">
+                                    <div className="text-sm font-bold text-primary">
+                                      ₹{(item.line_total || 0).toFixed(2)}
+                                    </div>
+                                    <div className="text-xs text-muted-foreground">
+                                      Tax: ₹{((item.cgst_amount || 0) + (item.sgst_amount || 0) + (item.igst_amount || 0)).toFixed(2)}
                                     </div>
                                   </TableCell>
                                 </TableRow>
@@ -1039,11 +1038,78 @@ export function GRNForm({ grn, onSubmit, onCancel, readOnly = false, mode }: GRN
                             </TableBody>
                           </Table>
                         </div>
+
+                        {/* Summary Cards */}
+                        <div className="px-6 pb-6">
+                          <div className="grid grid-cols-2 gap-6">
+                            {/* Item Summary */}
+                            <Card className="border-dashed border-2 border-blue-200 bg-blue-50/50 dark:bg-blue-950/20">
+                              <CardHeader className="pb-3">
+                                <CardTitle className="text-sm font-semibold text-blue-700 dark:text-blue-400 flex items-center gap-2">
+                                  <Package className="h-4 w-4" />
+                                  Item Summary
+                                </CardTitle>
+                              </CardHeader>
+                              <CardContent className="space-y-3">
+                                <div className="flex justify-between text-sm">
+                                  <span>Items Count:</span>
+                                  <span className="font-medium">{items.length}</span>
+                                </div>
+                                <div className="flex justify-between text-sm">
+                                  <span>Total Ordered:</span>
+                                  <span className="font-medium">{summary.totalOrdered.toLocaleString()}</span>
+                                </div>
+                                <div className="flex justify-between text-sm">
+                                  <span>Total Received:</span>
+                                  <span className="font-medium text-blue-600">{summary.totalReceived.toLocaleString()}</span>
+                                </div>
+                                <div className="flex justify-between text-sm">
+                                  <span>Total Accepted:</span>
+                                  <span className="font-medium text-green-600">{summary.totalAccepted.toLocaleString()}</span>
+                                </div>
+                                <div className="flex justify-between text-sm">
+                                  <span>Total Rejected:</span>
+                                  <span className="font-medium text-red-600">{summary.totalRejected.toLocaleString()}</span>
+                                </div>
+                              </CardContent>
+                            </Card>
+
+                            {/* Order Details */}
+                            <Card className="border-dashed border-2 border-green-200 bg-green-50/50 dark:bg-green-950/20">
+                              <CardHeader className="pb-3">
+                                <CardTitle className="text-sm font-semibold text-green-700 dark:text-green-400 flex items-center gap-2">
+                                  <Calculator className="h-4 w-4" />
+                                  Order Details
+                                </CardTitle>
+                              </CardHeader>
+                              <CardContent className="space-y-3">
+                                <div className="flex justify-between text-sm">
+                                  <span>Currency:</span>
+                                  <span className="font-medium">INR</span>
+                                </div>
+                                <div className="flex justify-between text-sm">
+                                  <span>Status:</span>
+                                  <Badge variant={form.watch('status') === 'accepted' ? 'default' : 'secondary'} className="h-5">
+                                    {form.watch('status') === 'accepted' ? 'Accepted' : 'Received'}
+                                  </Badge>
+                                </div>
+                                <div className="flex justify-between text-sm">
+                                  <span>GRN Date:</span>
+                                  <span className="font-medium">{form.watch('grn_date') || 'Not set'}</span>
+                                </div>
+                                <div className="flex justify-between text-sm border-t pt-2">
+                                  <span className="font-semibold">Total Amount:</span>
+                                  <span className="font-bold text-lg text-primary">₹{summary.totalAmount.toLocaleString()}</span>
+                                </div>
+                              </CardContent>
+                            </Card>
+                          </div>
+                        </div>
                       </div>
                     ) : (
-                      <div className="text-center py-12 text-muted-foreground">
-                        <div className="text-4xl mb-4">📦</div>
-                        <p className="text-lg font-medium mb-2">No Purchase Order Selected</p>
+                      <div className="text-center py-16 text-muted-foreground">
+                        <div className="text-6xl mb-4">📦</div>
+                        <p className="text-xl font-medium mb-2">No Purchase Order Selected</p>
                         <p className="text-sm">Please select a Purchase Order in the GRN Info tab to load items for processing</p>
                       </div>
                     )}
