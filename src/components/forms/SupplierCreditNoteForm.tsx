@@ -409,9 +409,10 @@ export function SupplierCreditNoteForm({ supplierCreditNote, onSubmit, onCancel,
 
         {/* Table Header */}
         <div className="bg-muted/30 border-b">
-          <div className="grid grid-cols-12 gap-4 px-4 py-2 text-sm font-medium text-muted-foreground">
+          <div className="grid grid-cols-13 gap-4 px-4 py-2 text-sm font-medium text-muted-foreground">
             <div className="col-span-3">Product</div>
-            <div className="col-span-1 text-center">Qty</div>
+            <div className="col-span-1 text-center">CN Qty</div>
+            <div className="col-span-1 text-center">Pending Qty</div>
             <div className="col-span-1 text-center">Unit Price</div>
             <div className="col-span-1 text-center">CGST%</div>
             <div className="col-span-1 text-center">SGST%</div>
@@ -426,7 +427,7 @@ export function SupplierCreditNoteForm({ supplierCreditNote, onSubmit, onCancel,
         {/* Table Body */}
         <div className="divide-y">
           {items.map((item, index) => (
-            <div key={index} className="grid grid-cols-12 gap-4 px-4 py-3 items-center hover:bg-muted/20">
+            <div key={index} className="grid grid-cols-13 gap-4 px-4 py-3 items-center hover:bg-muted/20">
               {/* Product */}
               <div className="col-span-3">
                 <Input
@@ -438,7 +439,7 @@ export function SupplierCreditNoteForm({ supplierCreditNote, onSubmit, onCancel,
                 />
               </div>
 
-              {/* Quantity */}
+              {/* CN Qty */}
               <div className="col-span-1">
                 <div className="relative">
                   <Input
@@ -456,6 +457,13 @@ export function SupplierCreditNoteForm({ supplierCreditNote, onSubmit, onCancel,
                   <div className="text-xs text-muted-foreground mt-1 text-center">
                     Max: {item.quantity}
                   </div>
+                </div>
+              </div>
+
+              {/* Pending Qty */}
+              <div className="col-span-1">
+                <div className="text-center text-sm py-2 text-muted-foreground bg-muted/30 rounded">
+                  {item.pending_quantity}
                 </div>
               </div>
 
