@@ -7,6 +7,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { SearchableCombobox } from '@/components/ui/searchable-combobox';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
@@ -566,26 +567,27 @@ export function PurchaseOrderForm({
                           )}
                         />
 
-                        <FormField
+                          <FormField
                           control={form.control}
                           name="supplier_id"
                           render={({ field }) => (
                             <FormItem>
                               <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Supplier</FormLabel>
-                              <Select value={field.value} onValueChange={field.onChange} disabled={readOnly}>
-                                <FormControl>
-                                  <SelectTrigger className="h-9">
-                                    <SelectValue placeholder="Select supplier" />
-                                  </SelectTrigger>
-                                </FormControl>
-                                <SelectContent>
-                                  {suppliers.map((supplier) => (
-                                    <SelectItem key={supplier.id} value={supplier.id}>
-                                      {supplier.name}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
+                              <FormControl>
+                                <SearchableCombobox
+                                  value={field.value}
+                                  onSelect={field.onChange}
+                                  placeholder="Select supplier"
+                                  searchPlaceholder="Search suppliers..."
+                                  options={suppliers.map(supplier => ({
+                                    id: supplier.id,
+                                    name: supplier.name,
+                                    subtitle: supplier.supplier_code ? `Code: ${supplier.supplier_code}` : undefined
+                                  }))}
+                                  disabled={readOnly}
+                                  loading={loading}
+                                />
+                              </FormControl>
                               <FormMessage />
                             </FormItem>
                           )}

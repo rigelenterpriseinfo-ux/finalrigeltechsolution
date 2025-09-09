@@ -14,6 +14,7 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { SearchableCombobox } from '@/components/ui/searchable-combobox';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -157,114 +158,6 @@ interface Warehouse {
   location?: string;
 }
 
-interface SearchableComboboxProps {
-  value?: string;
-  onSelect: (value: string) => void;
-  placeholder: string;
-  searchPlaceholder: string;
-  options: { id: string; name: string; subtitle?: string }[];
-  disabled?: boolean;
-  loading?: boolean;
-  emptyMessage?: string;
-  className?: string;
-}
-
-function SearchableCombobox({
-  value,
-  onSelect,
-  placeholder,
-  searchPlaceholder,
-  options,
-  disabled = false,
-  loading = false,
-  emptyMessage = "No options available",
-  className = ""
-}: SearchableComboboxProps) {
-  const [open, setOpen] = useState(false);
-  const [searchValue, setSearchValue] = useState("");
-
-  const filteredOptions = useMemo(() => {
-    if (!searchValue) return options;
-    return options.filter(option =>
-      option.name.toLowerCase().includes(searchValue.toLowerCase()) ||
-      option.subtitle?.toLowerCase().includes(searchValue.toLowerCase())
-    );
-  }, [options, searchValue]);
-
-  const selectedOption = options.find(option => option.id === value);
-
-  const getDisplayText = () => {
-    if (selectedOption) return selectedOption.name;
-    if (loading) return "Loading...";
-    return placeholder;
-  };
-
-  const isButtonDisabled = disabled || loading;
-
-  return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <Button
-          variant="outline"
-          role="combobox"
-          aria-expanded={open}
-          className={`w-full justify-between ${className}`}
-          disabled={isButtonDisabled}
-        >
-          {getDisplayText()}
-          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent 
-        className="z-[9999] w-[var(--radix-popover-trigger-width)] min-w-[20rem] p-0 bg-white shadow-lg border rounded-md"
-        align="start"
-        sideOffset={4}
-      >
-        <Command className="bg-white">
-          <CommandInput 
-            placeholder={searchPlaceholder}
-            value={searchValue}
-            onValueChange={setSearchValue}
-          />
-          <CommandList>
-            {loading ? (
-              <div className="py-6 text-center text-sm text-muted-foreground">
-                Loading options...
-              </div>
-            ) : options.length === 0 ? (
-              <CommandEmpty>{emptyMessage}</CommandEmpty>
-            ) : filteredOptions.length === 0 ? (
-              <CommandEmpty>No results found.</CommandEmpty>
-            ) : (
-              <CommandGroup>
-                {filteredOptions.map((option) => (
-                  <CommandItem
-                    key={option.id}
-                    value={option.id}
-                    onSelect={() => {
-                      console.debug('Selected option:', option);
-                      onSelect(option.id);
-                      setOpen(false);
-                      setSearchValue("");
-                    }}
-                    className="cursor-pointer hover:bg-accent hover:text-accent-foreground"
-                  >
-                    <div className="flex flex-col">
-                      <span>{option.name}</span>
-                      {option.subtitle && (
-                        <span className="text-sm text-muted-foreground">{option.subtitle}</span>
-                      )}
-                    </div>
-                  </CommandItem>
-                ))}
-              </CommandGroup>
-            )}
-          </CommandList>
-        </Command>
-      </PopoverContent>
-    </Popover>
-  );
-}
 
 export function ReturnsModule() {
   return (
