@@ -350,12 +350,12 @@ export function SupplierCreditNoteForm({ supplierCreditNote, onSubmit, onCancel,
   const totals = calculateTotals();
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
-      <div className="grid grid-cols-2 gap-4">
+    <form onSubmit={handleSubmit} className="w-full space-y-4 md:space-y-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
         <div className="space-y-2">
-          <Label htmlFor="debit_note">Debit Note *</Label>
+          <Label htmlFor="debit_note" className="text-sm font-medium">Debit Note *</Label>
           <Select value={formData.debit_note_id} onValueChange={handleDebitNoteChange}>
-            <SelectTrigger>
+            <SelectTrigger className="h-11 md:h-10 text-base md:text-sm">
               <SelectValue placeholder="Select debit note" />
             </SelectTrigger>
             <SelectContent>
@@ -369,9 +369,10 @@ export function SupplierCreditNoteForm({ supplierCreditNote, onSubmit, onCancel,
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="supplier_credit_note_number">Credit Note Number *</Label>
+          <Label htmlFor="supplier_credit_note_number" className="text-sm font-medium">Credit Note Number *</Label>
           <Input
             id="supplier_credit_note_number"
+            className="h-11 md:h-10 text-base md:text-sm"
             value={formData.supplier_credit_note_number}
             onChange={(e) => setFormData(prev => ({ ...prev, supplier_credit_note_number: e.target.value }))}
             placeholder="Supplier's credit note number"
@@ -621,11 +622,20 @@ export function SupplierCreditNoteForm({ supplierCreditNote, onSubmit, onCancel,
         />
       </div>
 
-      <div className="flex justify-end space-x-2">
-        <Button type="button" variant="outline" onClick={onCancel}>
+      <div className="flex flex-col sm:flex-row justify-end gap-3 sm:gap-2">
+        <Button 
+          type="button" 
+          variant="outline" 
+          onClick={onCancel}
+          className="h-11 md:h-10 text-base md:text-sm"
+        >
           Cancel
         </Button>
-        <Button type="submit" disabled={loading}>
+        <Button 
+          type="submit" 
+          disabled={loading}
+          className="h-11 md:h-10 text-base md:text-sm"
+        >
           {loading ? "Saving..." : mode === "add" ? "Create Credit Note" : "Update Credit Note"}
         </Button>
       </div>

@@ -1449,6 +1449,7 @@ export function GRNForm({ grn, onSubmit, onCancel, readOnly = false, mode }: GRN
               type="button"
               variant="outline"
               onClick={onCancel}
+              className="h-11 md:h-10 text-base md:text-sm"
             >
               {readOnly ? 'Close' : 'Cancel'}
             </Button>
@@ -1456,6 +1457,7 @@ export function GRNForm({ grn, onSubmit, onCancel, readOnly = false, mode }: GRN
               <Button
                 type="submit"
                 disabled={loading}
+                className="h-11 md:h-10 text-base md:text-sm"
               >
                 {loading ? 'Saving...' : mode === 'create' ? 'Create GRN' : 'Update GRN'}
               </Button>

@@ -1332,12 +1332,12 @@ export function PurchaseOrderForm({
                 {fields.length} items • ₹{total.toFixed(2)}
               </div>
             </div>
-            <div className="flex gap-3">
-              <Button type="button" variant="outline" onClick={onCancel}>
+            <div className="flex flex-col sm:flex-row gap-3">
+              <Button type="button" variant="outline" onClick={onCancel} className="h-11 md:h-10 text-base md:text-sm">
                 Cancel
               </Button>
               {!readOnly && activeTab === 'items' && (
-                <Button type="submit" disabled={loading} className="min-w-[120px]">
+                <Button type="submit" disabled={loading} className="min-w-[120px] h-11 md:h-10 text-base md:text-sm">
                   {loading ? 'Saving...' : (mode === 'edit' ? 'Update Order' : 'Create Order')}
                 </Button>
               )}

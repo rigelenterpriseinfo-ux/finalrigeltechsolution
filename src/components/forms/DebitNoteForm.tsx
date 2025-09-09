@@ -454,10 +454,10 @@ export function DebitNoteForm({ debitNote, onSubmit, onCancel, mode }: DebitNote
   const totals = calculateTotals();
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
-      <div className="grid grid-cols-2 gap-4">
+    <form onSubmit={handleSubmit} className="w-full space-y-4 md:space-y-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
         <div className="space-y-2">
-          <Label htmlFor="supplier">Supplier *</Label>
+          <Label htmlFor="supplier" className="text-sm font-medium">Supplier *</Label>
           <SearchableCombobox
             value={formData.supplier_id}
             onSelect={handleSupplierChange}
@@ -473,13 +473,13 @@ export function DebitNoteForm({ debitNote, onSubmit, onCancel, mode }: DebitNote
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="supplier_invoice">Supplier Invoice *</Label>
+          <Label htmlFor="supplier_invoice" className="text-sm font-medium">Supplier Invoice *</Label>
           <Select 
             value={formData.supplier_invoice_number} 
             onValueChange={handleSupplierInvoiceChange}
             disabled={!formData.supplier_id}
           >
-            <SelectTrigger>
+            <SelectTrigger className="h-11 md:h-10 text-base md:text-sm">
               <SelectValue placeholder={!formData.supplier_id ? "Select supplier first" : "Select supplier invoice"} />
             </SelectTrigger>
             <SelectContent>
@@ -493,10 +493,11 @@ export function DebitNoteForm({ debitNote, onSubmit, onCancel, mode }: DebitNote
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="debit_note_date">Debit Note Date</Label>
+          <Label htmlFor="debit_note_date" className="text-sm font-medium">Debit Note Date</Label>
           <Input
             id="debit_note_date"
             type="date"
+            className="h-11 md:h-10 text-base md:text-sm"
             value={formData.debit_note_date}
             onChange={(e) => setFormData(prev => ({ ...prev, debit_note_date: e.target.value }))}
           />
@@ -813,11 +814,20 @@ export function DebitNoteForm({ debitNote, onSubmit, onCancel, mode }: DebitNote
         />
       </div>
 
-      <div className="flex justify-end space-x-2">
-        <Button type="button" variant="outline" onClick={onCancel}>
+      <div className="flex flex-col sm:flex-row justify-end gap-3 sm:gap-2">
+        <Button 
+          type="button" 
+          variant="outline" 
+          onClick={onCancel}
+          className="h-11 md:h-10 text-base md:text-sm"
+        >
           Cancel
         </Button>
-        <Button type="submit" disabled={loading}>
+        <Button 
+          type="submit" 
+          disabled={loading}
+          className="h-11 md:h-10 text-base md:text-sm"
+        >
           {loading ? "Saving..." : mode === "add" ? "Create Debit Note" : "Update Debit Note"}
         </Button>
       </div>

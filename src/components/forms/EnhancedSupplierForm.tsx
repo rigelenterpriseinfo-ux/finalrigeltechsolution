@@ -221,19 +221,19 @@ export const EnhancedSupplierForm: React.FC<EnhancedSupplierFormProps> = ({
   };
 
   return (
-    <div className="max-w-4xl mx-auto p-4 space-y-4">
+    <div className="w-full max-w-[95vw] md:max-w-4xl lg:max-w-6xl mx-auto p-3 md:p-4 space-y-3 md:space-y-4">
       {/* Header with Progress */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between md:gap-4">
         <div>
-          <h1 className="text-xl font-bold flex items-center gap-2">
-            <Building2 className="h-5 w-5" />
+          <h1 className="text-lg md:text-xl font-bold flex items-center gap-2">
+            <Building2 className="h-4 w-4 md:h-5 md:w-5" />
             {supplier ? 'Edit Supplier' : 'New Supplier'}
           </h1>
-          <p className="text-sm text-muted-foreground mt-1">
+          <p className="text-xs md:text-sm text-muted-foreground mt-1">
             {supplier ? 'Update supplier information' : 'Add a new supplier to your database'}
           </p>
         </div>
-        <div className="flex items-center gap-4">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4">
           <div className="flex items-center gap-2">
             <span className="text-xs text-muted-foreground">Progress</span>
             <Progress value={completionProgress} className="w-16 h-2" />
@@ -285,60 +285,64 @@ export const EnhancedSupplierForm: React.FC<EnhancedSupplierFormProps> = ({
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onFormSubmit)} className="space-y-4">
           <Tabs defaultValue="basic" className="w-full">
-            <TabsList className="grid w-full grid-cols-4 h-auto p-1">
+            <TabsList className="grid w-full grid-cols-4 h-auto p-1 bg-muted">
               <TabsTrigger 
                 value="basic" 
-                className={`flex items-center gap-2 py-2 px-3 ${getTabErrors.basic ? 'text-destructive border-destructive' : ''}`}
+                className={`flex flex-col sm:flex-row items-center gap-1 sm:gap-2 py-2 px-2 sm:px-3 min-h-[44px] text-xs ${getTabErrors.basic ? 'text-destructive border-destructive' : ''}`}
               >
                 <div className="flex items-center gap-1">
                   <User className="h-3 w-3" />
                   {getTabErrors.basic && <AlertCircle className="h-3 w-3" />}
                 </div>
-                <span className="hidden sm:inline text-xs">Basic</span>
+                <span className="hidden sm:inline">Basic</span>
+                <span className="sm:hidden text-[10px]">Basic</span>
               </TabsTrigger>
               <TabsTrigger 
                 value="contact" 
-                className={`flex items-center gap-2 py-2 px-3 ${getTabErrors.contact ? 'text-destructive border-destructive' : ''}`}
+                className={`flex flex-col sm:flex-row items-center gap-1 sm:gap-2 py-2 px-2 sm:px-3 min-h-[44px] text-xs ${getTabErrors.contact ? 'text-destructive border-destructive' : ''}`}
               >
                 <div className="flex items-center gap-1">
                   <Phone className="h-3 w-3" />
                   {getTabErrors.contact && <AlertCircle className="h-3 w-3" />}
                 </div>
-                <span className="hidden sm:inline text-xs">Contact</span>
+                <span className="hidden sm:inline">Contact</span>
+                <span className="sm:hidden text-[10px]">Contact</span>
               </TabsTrigger>
               <TabsTrigger 
                 value="business" 
-                className={`flex items-center gap-2 py-2 px-3 ${getTabErrors.business ? 'text-destructive border-destructive' : ''}`}
+                className={`flex flex-col sm:flex-row items-center gap-1 sm:gap-2 py-2 px-2 sm:px-3 min-h-[44px] text-xs ${getTabErrors.business ? 'text-destructive border-destructive' : ''}`}
               >
                 <div className="flex items-center gap-1">
                   <FileText className="h-3 w-3" />
                   {getTabErrors.business && <AlertCircle className="h-3 w-3" />}
                 </div>
-                <span className="hidden sm:inline text-xs">Business</span>
+                <span className="hidden sm:inline">Business</span>
+                <span className="sm:hidden text-[10px]">Business</span>
               </TabsTrigger>
               <TabsTrigger 
                 value="banking" 
-                className={`flex items-center gap-2 py-2 px-3 ${getTabErrors.banking ? 'text-destructive border-destructive' : ''}`}
+                className={`flex flex-col sm:flex-row items-center gap-1 sm:gap-2 py-2 px-2 sm:px-3 min-h-[44px] text-xs ${getTabErrors.banking ? 'text-destructive border-destructive' : ''}`}
               >
                 <div className="flex items-center gap-1">
                   <Landmark className="h-3 w-3" />
                   {getTabErrors.banking && <AlertCircle className="h-3 w-3" />}
                 </div>
-                <span className="hidden sm:inline text-xs">Banking</span>
+                <span className="hidden sm:inline">Banking</span>
+                <span className="sm:hidden text-[10px]">Banking</span>
               </TabsTrigger>
             </TabsList>
 
             {/* Basic Information Tab */}
-            <TabsContent value="basic" className="space-y-4">
+            <TabsContent value="basic" className="space-y-3 md:space-y-4">
               <Card className="border-border/50">
-                <CardHeader className="pb-4">
-                  <CardTitle className="flex items-center gap-2 text-lg">
+                <CardHeader className="pb-3 md:pb-4">
+                  <CardTitle className="flex items-center gap-2 text-base md:text-lg">
                     <Building2 className="h-4 w-4" />
                     Basic Information
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <CardContent className="space-y-3 md:space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
                     <FormField
                       control={form.control}
                       name="name"
@@ -353,7 +357,7 @@ export const EnhancedSupplierForm: React.FC<EnhancedSupplierFormProps> = ({
                             <Input
                               {...field}
                               placeholder="Enter legal/trade name"
-                              className="h-10"
+                              className="h-11 md:h-10 text-base md:text-sm"
                               disabled={!canEdit}
                             />
                           </FormControl>
@@ -377,7 +381,7 @@ export const EnhancedSupplierForm: React.FC<EnhancedSupplierFormProps> = ({
                             disabled={!canEdit}
                           >
                             <FormControl>
-                              <SelectTrigger className="h-10">
+                              <SelectTrigger className="h-11 md:h-10 text-base md:text-sm">
                                 <SelectValue placeholder="Select type" />
                               </SelectTrigger>
                             </FormControl>
@@ -407,7 +411,7 @@ export const EnhancedSupplierForm: React.FC<EnhancedSupplierFormProps> = ({
                             <Input
                               {...field}
                               placeholder="Primary contact name"
-                              className="h-10"
+                              className="h-11 md:h-10 text-base md:text-sm"
                               disabled={!canEdit}
                             />
                           </FormControl>

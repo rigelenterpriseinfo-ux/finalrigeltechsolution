@@ -953,9 +953,9 @@ function PurchaseModuleContent() {
 
       {/* Add Debit Note Dialog */}
       <Dialog open={showAddDebitNoteDialog} onOpenChange={setShowAddDebitNoteDialog}>
-        <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="w-full max-w-[95vw] md:max-w-4xl lg:max-w-6xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Create Debit Note</DialogTitle>
+            <DialogTitle className="text-lg md:text-xl">Create Debit Note</DialogTitle>
           </DialogHeader>
           <DebitNoteForm
             onSubmit={async (data) => {
@@ -1008,9 +1008,9 @@ function PurchaseModuleContent() {
 
       {/* Edit Debit Note Dialog */}
       <Dialog open={showEditDebitNoteDialog} onOpenChange={setShowEditDebitNoteDialog}>
-        <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="w-full max-w-[95vw] md:max-w-4xl lg:max-w-6xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Edit Debit Note</DialogTitle>
+            <DialogTitle className="text-lg md:text-xl">Edit Debit Note</DialogTitle>
           </DialogHeader>
           <DebitNoteForm
             debitNote={selectedDebitNote}
@@ -1060,9 +1060,9 @@ function PurchaseModuleContent() {
 
       {/* Add Supplier Credit Note Dialog */}
       <Dialog open={showAddSupplierCreditNoteDialog} onOpenChange={setShowAddSupplierCreditNoteDialog}>
-        <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="w-full max-w-[95vw] md:max-w-4xl lg:max-w-6xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Add Supplier Credit Note</DialogTitle>
+            <DialogTitle className="text-lg md:text-xl">Add Supplier Credit Note</DialogTitle>
           </DialogHeader>
           <SupplierCreditNoteForm
             onSubmit={async (data) => {
@@ -1149,9 +1149,9 @@ function PurchaseModuleContent() {
 
       {/* Add Purchase Order Dialog */}
       <Dialog open={showAddPODialog} onOpenChange={setShowAddPODialog}>
-        <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="w-full max-w-[95vw] md:max-w-4xl lg:max-w-6xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Create Purchase Order</DialogTitle>
+            <DialogTitle className="text-lg md:text-xl">Create Purchase Order</DialogTitle>
           </DialogHeader>
           <PurchaseOrderForm
             onSubmit={handleAddPurchaseOrder}
@@ -1162,9 +1162,9 @@ function PurchaseModuleContent() {
 
       {/* Edit Purchase Order Dialog */}
       <Dialog open={showEditPODialog} onOpenChange={setShowEditPODialog}>
-        <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="w-full max-w-[95vw] md:max-w-4xl lg:max-w-6xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Edit Purchase Order</DialogTitle>
+            <DialogTitle className="text-lg md:text-xl">Edit Purchase Order</DialogTitle>
           </DialogHeader>
           <PurchaseOrderForm
             purchaseOrder={selectedPO}
@@ -1180,9 +1180,9 @@ function PurchaseModuleContent() {
 
       {/* Add GRN Dialog */}
       <Dialog open={showAddGRNDialog} onOpenChange={setShowAddGRNDialog}>
-        <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="w-full max-w-[95vw] md:max-w-4xl lg:max-w-6xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Create GRN</DialogTitle>
+            <DialogTitle className="text-lg md:text-xl">Create GRN</DialogTitle>
           </DialogHeader>
           <GRNForm
             onSubmit={async (data) => {
@@ -1313,9 +1313,9 @@ function PurchaseModuleContent() {
 
       {/* Edit GRN Dialog */}
       <Dialog open={showEditGRNDialog} onOpenChange={setShowEditGRNDialog}>
-        <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="w-full max-w-[95vw] md:max-w-4xl lg:max-w-6xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Edit GRN</DialogTitle>
+            <DialogTitle className="text-lg md:text-xl">Edit GRN</DialogTitle>
           </DialogHeader>
           <GRNForm
             grn={selectedGRN}
@@ -1356,9 +1356,9 @@ function PurchaseModuleContent() {
 
       {/* View GRN Dialog */}
       <Dialog open={showViewGRNDialog} onOpenChange={setShowViewGRNDialog}>
-        <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="w-full max-w-[95vw] md:max-w-4xl lg:max-w-6xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>GRN Details</DialogTitle>
+            <DialogTitle className="text-lg md:text-xl">GRN Details</DialogTitle>
           </DialogHeader>
           <GRNForm
             grn={selectedGRN}
