@@ -630,8 +630,17 @@ export function PurchaseOrderTable({
                           variant="outline"
                           size="sm"
                           onClick={() => onDelete(order.id)}
-                          className="h-8 w-8 p-0 border-red-200 bg-red-50 hover:bg-red-100 hover:border-red-300 text-red-700 transition-all duration-200"
-                          title="Delete Purchase Order"
+                          disabled={order.status === 'closed' || order.status === 'partially_received'}
+                          className={`h-8 w-8 p-0 transition-all duration-200 ${
+                            order.status === 'closed' || order.status === 'partially_received'
+                              ? 'border-gray-200 bg-gray-50 text-gray-400 cursor-not-allowed' 
+                              : 'border-red-200 bg-red-50 hover:bg-red-100 hover:border-red-300 text-red-700'
+                          }`}
+                          title={
+                            order.status === 'closed' || order.status === 'partially_received'
+                              ? 'Cannot delete purchase order with this status' 
+                              : 'Delete Purchase Order'
+                          }
                         >
                           <Trash2 className="h-3.5 w-3.5" />
                         </Button>

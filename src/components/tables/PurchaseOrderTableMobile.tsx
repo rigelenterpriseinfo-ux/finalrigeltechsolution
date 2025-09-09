@@ -271,6 +271,17 @@ export function PurchaseOrderTableMobile({
                               onDelete(order.id);
                             }
                           }}
+                          disabled={order.status === 'closed' || order.status === 'partially_received'}
+                          className={
+                            order.status === 'closed' || order.status === 'partially_received'
+                              ? 'opacity-50 cursor-not-allowed' 
+                              : ''
+                          }
+                          title={
+                            order.status === 'closed' || order.status === 'partially_received'
+                              ? 'Cannot delete purchase order with this status'
+                              : 'Delete purchase order'
+                          }
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
