@@ -606,9 +606,9 @@ export function GRNForm({ grn, onSubmit, onCancel, readOnly = false, mode }: GRN
 
       <Form {...form}>
         <form onSubmit={form.handleSubmit(handleSubmit)} className="flex-1 flex flex-col">
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col px-4">
-            <TabsList className="grid w-full grid-cols-2 mb-4 bg-muted/30 h-12">
-              <TabsTrigger value="grn-info" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground flex items-center gap-2">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col px-2">
+            <TabsList className="grid w-full grid-cols-2 mb-2 bg-muted/30 h-10">
+              <TabsTrigger value="grn-info" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground flex items-center gap-2 text-sm">
                 <FileText className="h-4 w-4" />
                 <span className="truncate">
                   GRN Info
@@ -616,7 +616,7 @@ export function GRNForm({ grn, onSubmit, onCancel, readOnly = false, mode }: GRN
                   {selectedPO?.po_number && ` (${selectedPO.po_number})`}
                 </span>
               </TabsTrigger>
-              <TabsTrigger value="items" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground flex items-center gap-2">
+              <TabsTrigger value="items" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground flex items-center gap-2 text-sm">
                 <Package className="h-4 w-4" />
                 Items ({items.length})
               </TabsTrigger>
@@ -624,18 +624,18 @@ export function GRNForm({ grn, onSubmit, onCancel, readOnly = false, mode }: GRN
 
             <div className="flex-1 overflow-hidden">
               {/* GRN Info Tab */}
-              <TabsContent value="grn-info" className="flex-1 overflow-auto space-y-4 m-0">
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              <TabsContent value="grn-info" className="flex-1 overflow-auto space-y-3 m-0">
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
                   {/* GRN Reference Card */}
-                  <Card className="shadow-sm border-border/50 lg:col-span-2">
-                    <CardContent className="pt-6">
-                      <div className="bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-950 dark:to-pink-950 border border-purple-200 rounded-lg p-4">
+                  <Card className="shadow-sm border-border/50 lg:col-span-3">
+                    <CardContent className="pt-3 pb-3">
+                      <div className="bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-950 dark:to-pink-950 border border-purple-200 rounded-lg p-3">
                         <FormField
                           control={form.control}
                           name="grn_reference_no"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel className="text-purple-700 dark:text-purple-300 font-semibold flex items-center gap-2">
+                              <FormLabel className="text-purple-700 dark:text-purple-300 font-semibold flex items-center gap-2 text-sm">
                                 <FileText className="h-4 w-4" />
                                 GRN Reference Number
                               </FormLabel>
@@ -644,7 +644,7 @@ export function GRNForm({ grn, onSubmit, onCancel, readOnly = false, mode }: GRN
                                   {...field} 
                                   disabled 
                                   placeholder="Auto-generated on save"
-                                  className="bg-purple-100/50 dark:bg-purple-900/30 border-purple-200 text-purple-800 dark:text-purple-200 font-medium text-center"
+                                  className="bg-purple-100/50 dark:bg-purple-900/30 border-purple-200 text-purple-800 dark:text-purple-200 font-medium text-center h-8"
                                 />
                               </FormControl>
                               <FormMessage />
@@ -657,13 +657,13 @@ export function GRNForm({ grn, onSubmit, onCancel, readOnly = false, mode }: GRN
 
                   {/* Purchase Order Details */}
                   <Card className="shadow-sm border-border/50">
-                    <CardHeader className="pb-3">
-                      <CardTitle className="text-base font-semibold flex items-center gap-2">
+                    <CardHeader className="pb-2 pt-3">
+                      <CardTitle className="text-sm font-semibold flex items-center gap-2">
                         <ShoppingCart className="h-4 w-4 text-primary" />
                         Purchase Order Details
                       </CardTitle>
                     </CardHeader>
-                    <CardContent className="space-y-4">
+                    <CardContent className="space-y-3 pt-0">
                       <FormField
                         control={form.control}
                         name="purchase_order_id"
@@ -679,7 +679,7 @@ export function GRNForm({ grn, onSubmit, onCancel, readOnly = false, mode }: GRN
                               disabled={readOnly || mode === 'edit'}
                             >
                               <FormControl>
-                                <SelectTrigger className="h-9">
+                                <SelectTrigger className="h-8">
                                   <SelectValue placeholder="Select purchase order" />
                                 </SelectTrigger>
                               </FormControl>
@@ -708,7 +708,7 @@ export function GRNForm({ grn, onSubmit, onCancel, readOnly = false, mode }: GRN
                           <FormItem>
                             <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Supplier Name</FormLabel>
                             <FormControl>
-                              <Input {...field} disabled className="h-9 bg-muted/30" />
+                              <Input {...field} disabled className="h-8 bg-muted/30" />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -730,7 +730,7 @@ export function GRNForm({ grn, onSubmit, onCancel, readOnly = false, mode }: GRN
                               disabled={readOnly}
                             >
                               <FormControl>
-                                <SelectTrigger className="h-9">
+                                <SelectTrigger className="h-8">
                                   <SelectValue placeholder="Select status" />
                                 </SelectTrigger>
                               </FormControl>
@@ -758,13 +758,13 @@ export function GRNForm({ grn, onSubmit, onCancel, readOnly = false, mode }: GRN
 
                   {/* Dates & Invoice Details */}
                   <Card className="shadow-sm border-border/50">
-                    <CardHeader className="pb-3">
-                      <CardTitle className="text-base font-semibold flex items-center gap-2">
+                    <CardHeader className="pb-2 pt-3">
+                      <CardTitle className="text-sm font-semibold flex items-center gap-2">
                         <CalendarIcon className="h-4 w-4 text-primary" />
                         Dates & Invoice Details
                       </CardTitle>
                     </CardHeader>
-                    <CardContent className="space-y-4">
+                    <CardContent className="space-y-3 pt-0">
                       <FormField
                         control={form.control}
                         name="grn_date"
@@ -776,7 +776,7 @@ export function GRNForm({ grn, onSubmit, onCancel, readOnly = false, mode }: GRN
                                 type="date"
                                 {...field}
                                 disabled={readOnly}
-                                className="h-9"
+                                className="h-8"
                               />
                             </FormControl>
                             <FormMessage />
@@ -791,7 +791,7 @@ export function GRNForm({ grn, onSubmit, onCancel, readOnly = false, mode }: GRN
                           <FormItem>
                             <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Supplier Invoice Number</FormLabel>
                             <FormControl>
-                              <Input {...field} disabled={readOnly} className="h-9" />
+                              <Input {...field} disabled={readOnly} className="h-8" />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -809,7 +809,7 @@ export function GRNForm({ grn, onSubmit, onCancel, readOnly = false, mode }: GRN
                                 type="date"
                                 {...field}
                                 disabled={readOnly}
-                                className="h-9"
+                                className="h-8"
                               />
                             </FormControl>
                             <FormMessage />
@@ -818,40 +818,40 @@ export function GRNForm({ grn, onSubmit, onCancel, readOnly = false, mode }: GRN
                       />
                     </CardContent>
                   </Card>
-                </div>
 
-                {/* Remarks */}
-                <Card className="shadow-sm border-border/50">
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-base font-semibold flex items-center gap-2">
-                      <Info className="h-4 w-4 text-primary" />
-                      Additional Information
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <FormField
-                      control={form.control}
-                      name="remarks"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Remarks</FormLabel>
-                          <FormControl>
-                            <Textarea {...field} disabled={readOnly} className="min-h-[80px]" />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </CardContent>
-                </Card>
-              </TabsContent>
+                  {/* Remarks */}
+                  <Card className="shadow-sm border-border/50">
+                    <CardHeader className="pb-2 pt-3">
+                      <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                        <Info className="h-4 w-4 text-primary" />
+                        Additional Information
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="pt-0">
+                      <FormField
+                        control={form.control}
+                        name="remarks"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Remarks</FormLabel>
+                            <FormControl>
+                              <Textarea {...field} disabled={readOnly} className="min-h-[60px]" />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                     </CardContent>
+                   </Card>
+                 </div>
+               </TabsContent>
 
               {/* Items Tab */}
               <TabsContent value="items" className="flex-1 overflow-auto m-0">
                 <Card className="shadow-sm border-border/50">
-                  <CardHeader className="pb-3">
+                  <CardHeader className="pb-2 pt-3">
                     <div className="flex justify-between items-center">
-                      <CardTitle className="text-base font-semibold flex items-center gap-2">
+                      <CardTitle className="text-sm font-semibold flex items-center gap-2">
                         <Package className="h-4 w-4 text-primary" />
                         GRN Items
                       </CardTitle>
@@ -864,18 +864,18 @@ export function GRNForm({ grn, onSubmit, onCancel, readOnly = false, mode }: GRN
                   </CardHeader>
                   <CardContent className="p-0">
                     {items.length > 0 ? (
-                      <div className="space-y-6">
+                      <div className="space-y-4">
                         {/* Default Warehouse & Bin Selection */}
-                        <div className="bg-green-100 dark:bg-green-900/20 p-4 border-b">
-                          <div className="grid grid-cols-2 gap-4">
+                        <div className="bg-green-100 dark:bg-green-900/20 p-3 border-b">
+                          <div className="grid grid-cols-2 gap-3">
                             {/* Default Warehouse */}
-                            <div className="space-y-2">
+                            <div className="space-y-1">
                               <FormField
                                 control={form.control}
                                 name="default_warehouse_id"
                                 render={({ field }) => (
                                   <FormItem>
-                                    <FormLabel className="text-sm font-medium text-green-800 dark:text-green-200">
+                                    <FormLabel className="text-xs font-medium text-green-800 dark:text-green-200">
                                       DEFAULT WAREHOUSE
                                     </FormLabel>
                                     <Select
@@ -887,7 +887,7 @@ export function GRNForm({ grn, onSubmit, onCancel, readOnly = false, mode }: GRN
                                       disabled={readOnly}
                                     >
                                       <FormControl>
-                                        <SelectTrigger className="bg-white dark:bg-gray-800 border-green-300 focus:border-green-500 z-50">
+                                        <SelectTrigger className="bg-white dark:bg-gray-800 border-green-300 focus:border-green-500 z-50 h-8">
                                           <SelectValue placeholder="Select warehouse" />
                                         </SelectTrigger>
                                       </FormControl>
@@ -906,13 +906,13 @@ export function GRNForm({ grn, onSubmit, onCancel, readOnly = false, mode }: GRN
                             </div>
 
                             {/* Default Bin */}
-                            <div className="space-y-2">
+                            <div className="space-y-1">
                               <FormField
                                 control={form.control}
                                 name="default_bin_id"
                                 render={({ field }) => (
                                   <FormItem>
-                                    <FormLabel className="text-sm font-medium text-green-800 dark:text-green-200">
+                                    <FormLabel className="text-xs font-medium text-green-800 dark:text-green-200">
                                       DEFAULT BIN
                                     </FormLabel>
                                     <Select
@@ -924,7 +924,7 @@ export function GRNForm({ grn, onSubmit, onCancel, readOnly = false, mode }: GRN
                                       disabled={readOnly}
                                     >
                                       <FormControl>
-                                        <SelectTrigger className="bg-white dark:bg-gray-800 border-green-300 focus:border-green-500 z-50">
+                                        <SelectTrigger className="bg-white dark:bg-gray-800 border-green-300 focus:border-green-500 z-50 h-8">
                                           <SelectValue placeholder="Select bin" />
                                         </SelectTrigger>
                                       </FormControl>
