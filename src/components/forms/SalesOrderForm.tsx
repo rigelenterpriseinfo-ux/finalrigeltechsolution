@@ -146,6 +146,15 @@ export function SalesOrderForm({
     fetchWarehouses();
   }, []);
 
+  // Effect to fetch bins when salesOrder changes (edit mode) or warehouse is initially set
+  useEffect(() => {
+    const currentWarehouseId = form.watch('default_warehouse_id');
+    if (currentWarehouseId && salesOrder) {
+      // Fetch bins for the current warehouse when editing
+      fetchBins(currentWarehouseId);
+    }
+  }, [salesOrder, warehouses]); // Run when salesOrder changes or warehouses are loaded
+
   const fetchStockLevels = async (warehouseId?: string, binId?: string) => {
     if (!profile?.company_id || !warehouseId || !binId) {
       setStockLevels({});
@@ -758,9 +767,13 @@ export function SalesOrderForm({
                     <Select 
                       value={field.value} 
                       onValueChange={(value) => {
+                        const previousValue = field.value;
                         field.onChange(value);
                         fetchBins(value);
-                        form.setValue('default_bin_id', '');
+                        // Only clear bin_id if warehouse actually changed (not initial load)
+                        if (previousValue && previousValue !== value) {
+                          form.setValue('default_bin_id', '');
+                        }
                       }} 
                       disabled={readOnly}
                     >
