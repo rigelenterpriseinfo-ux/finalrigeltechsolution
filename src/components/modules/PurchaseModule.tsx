@@ -171,7 +171,12 @@ function PurchaseModuleContent() {
         
         if (po.purchase_order_items && po.purchase_order_items.length > 0) {
           received_amount = po.purchase_order_items.reduce((sum: number, item: any) => {
-            const itemReceivedAmount = (item.received_quantity || 0) * (item.unit_price || 0);
+            const orderedQty = item.quantity || 0;
+            const receivedQty = item.received_quantity || 0;
+            const totalItemAmount = item.total_price || 0;
+            
+            // Calculate received amount proportionally including taxes
+            const itemReceivedAmount = orderedQty > 0 ? (receivedQty / orderedQty) * totalItemAmount : 0;
             return sum + itemReceivedAmount;
           }, 0);
         }
