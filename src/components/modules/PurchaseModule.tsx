@@ -421,14 +421,37 @@ function PurchaseModuleContent() {
       console.log('Purchase order created:', po);
 
       if (items && items.length > 0) {
+        console.log('Mapping items for database:', items);
+        const mappedItems = items.map((item: any) => ({
+          purchase_order_id: po.id,
+          product_id: item.product_id || null,
+          item_description: item.product_name || item.item_description || '',
+          item_code: item.item_code || null,
+          hsn_sac_code: item.hsn_sac_code || null,
+          quantity: item.quantity || 0,
+          unit_of_measure: item.unit_of_measure || 'PCS',
+          unit_price: item.unit_price || 0,
+          discount_percentage: item.discount_percentage || null,
+          discount_amount: item.discount_amount || null,
+          taxable_value: item.line_subtotal || 0,
+          gst_rate: item.master_gst_rate || item.gst_rate || null,
+          is_taxable: true,
+          cgst_rate: item.cgst_rate || null,
+          cgst_amount: item.cgst_amount || null,
+          sgst_rate: item.sgst_rate || null,
+          sgst_amount: item.sgst_amount || null,
+          igst_rate: item.igst_rate || null,
+          igst_amount: item.igst_amount || null,
+          total_price: item.line_total || 0,
+          pending_quantity: item.quantity || 0,
+          received_quantity: 0,
+          remarks: item.remarks || null,
+        }));
+        
+        console.log('Mapped items for database:', mappedItems);
         const { error: itemsError } = await supabase
           .from('purchase_order_items')
-          .insert(
-            items.map((item: any) => ({
-              ...item,
-              purchase_order_id: po.id,
-            }))
-          );
+          .insert(mappedItems);
 
         if (itemsError) {
           console.error('Purchase order items creation error:', itemsError);
@@ -475,14 +498,35 @@ function PurchaseModuleContent() {
 
         if (deleteError) throw deleteError;
 
+        const mappedItems = items.map((item: any) => ({
+          purchase_order_id: selectedPO.id,
+          product_id: item.product_id || null,
+          item_description: item.product_name || item.item_description || '',
+          item_code: item.item_code || null,
+          hsn_sac_code: item.hsn_sac_code || null,
+          quantity: item.quantity || 0,
+          unit_of_measure: item.unit_of_measure || 'PCS',
+          unit_price: item.unit_price || 0,
+          discount_percentage: item.discount_percentage || null,
+          discount_amount: item.discount_amount || null,
+          taxable_value: item.line_subtotal || 0,
+          gst_rate: item.master_gst_rate || item.gst_rate || null,
+          is_taxable: true,
+          cgst_rate: item.cgst_rate || null,
+          cgst_amount: item.cgst_amount || null,
+          sgst_rate: item.sgst_rate || null,
+          sgst_amount: item.sgst_amount || null,
+          igst_rate: item.igst_rate || null,
+          igst_amount: item.igst_amount || null,
+          total_price: item.line_total || 0,
+          pending_quantity: item.quantity || 0,
+          received_quantity: 0,
+          remarks: item.remarks || null,
+        }));
+        
         const { error: itemsError } = await supabase
           .from('purchase_order_items')
-          .insert(
-            items.map((item: any) => ({
-              ...item,
-              purchase_order_id: selectedPO.id,
-            }))
-          );
+          .insert(mappedItems);
 
         if (itemsError) throw itemsError;
       }
