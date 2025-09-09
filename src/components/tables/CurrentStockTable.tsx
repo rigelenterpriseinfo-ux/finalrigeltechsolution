@@ -39,7 +39,7 @@ interface CurrentStock {
   total_value: number;
   // Aging fields
   weighted_avg_age_days?: number;
-  aging_status?: 'Fresh' | 'Good' | 'Aging' | 'Slow' | 'Dead';
+  aging_status?: string;
   aging_0_30_qty?: number;
   aging_0_30_value?: number;
   aging_31_90_qty?: number;
@@ -99,77 +99,81 @@ export const CurrentStockTable = ({ refreshTrigger }: CurrentStockTableProps) =>
   const [stockLevels, setStockLevels] = useState<CurrentStock[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [showLowStockOnly, setShowLowStockOnly] = useState(false);
   const [agingFilter, setAgingFilter] = useState<string>('all');
-  const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
-  const [inventoryStats, setInventoryStats] = useState({
-    totalSKUs: 0,
-    totalQuantity: 0,
-    totalValue: 0
-  });
-  const [agingSummary, setAgingSummary] = useState<AgingSummary | null>(null);
-  const [warehouseBinAging, setWarehouseBinAging] = useState<WarehouseBinAging[]>([]);
-  const [topLowStockItems, setTopLowStockItems] = useState<{name: string, qty: number}[]>([]);
-  const [sortConfig, setSortConfig] = useState<{
-    key: string;
-    direction: 'asc' | 'desc';
-  } | null>(null);
+  const [showLowStockOnly, setShowLowStockOnly] = useState(false);
+  const [sortConfig, setSortConfig] = useState<{key: string; direction: 'asc' | 'desc'} | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(25);
+  const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
   const [showViewDialog, setShowViewDialog] = useState(false);
   const [viewingStock, setViewingStock] = useState<CurrentStock | null>(null);
-  const itemsPerPage = 5;
+
+  // Summary states
+  const [inventoryStats, setInventoryStats] = useState<any>({});
+  const [agingSummary, setAgingSummary] = useState<AgingSummary | null>(null);
+  const [warehouseBinAging, setWarehouseBinAging] = useState<WarehouseBinAging[]>([]);
+  const [lowStockItems, setLowStockItems] = useState(0);
+  const [topLowStockItems, setTopLowStockItems] = useState<Array<{name: string; qty: number}>>([]);
 
   useEffect(() => {
-    fetchCurrentStock();
-    fetchInventoryStats();
-    fetchAgingSummary();
-    fetchWarehouseBinAging();
+    if (company?.id) {
+      fetchCurrentStock();
+      fetchInventoryStats();
+      fetchAgingSummary();
+      fetchWarehouseBinAging();
+    }
   }, [company?.id, refreshTrigger]);
 
   const fetchCurrentStock = async () => {
-    if (!company?.id) return;
-    
-    setLoading(true);
     try {
-      // First try the current_stock_with_aging view
-      const { data, error } = await supabase
+      setLoading(true);
+      console.log('Fetching current stock levels...');
+      
+      const { data: stockData, error } = await supabase
         .from('current_stock_with_aging')
         .select(`
           *,
-          products!inner(name, sku, min_stock_level, unit_price, cost_price),
-          warehouse_bins!fk_inventory_transactions_warehouse_id(warehouse_name, bin_name)
+          products!inner(
+            name,
+            sku,
+            min_stock_level,
+            unit_price,
+            cost_price
+          ),
+          warehouses!inner(name),
+          bins!inner(name)
         `)
-        .eq('company_id', company.id)
-        .order('current_stock', { ascending: true });
+        .eq('company_id', company?.id)
+        .order('current_stock', { ascending: false });
 
       if (error) {
-        console.warn('Current stock levels view failed, falling back to inventory transactions:', error);
-        // Fallback: Calculate stock levels from inventory_transactions
-        await fetchStockFromTransactions();
-        return;
+        console.error('Error fetching current stock:', error);
+        throw error;
       }
 
-      const formattedStock: CurrentStock[] = data?.map((stock: any) => {
-        const unitPrice = stock.products.unit_price || stock.products.cost_price || 0;
-        const totalValue = (stock.current_stock || 0) * unitPrice;
+      console.log('Stock data retrieved:', stockData?.length || 0, 'records');
+
+      // Process and format the data with aging information
+      const formattedStock: CurrentStock[] = (stockData || []).map(stock => {
+        const totalValue = stock.current_stock * (stock.products?.unit_price || 0);
         
         return {
           company_id: stock.company_id,
           product_id: stock.product_id,
           warehouse_id: stock.warehouse_id,
           bin_id: stock.bin_id,
-          current_stock: stock.current_stock,
+          current_stock: stock.current_stock || 0,
           last_transaction_date: stock.last_transaction_date,
-          transaction_count: stock.transaction_count,
-          product_name: stock.products.name,
-          product_sku: stock.products.sku,
-          min_stock_level: stock.products.min_stock_level || 0,
-          warehouse_name: stock.warehouse_bins?.warehouse_name || 'N/A',
-          bin_name: stock.warehouse_bins?.bin_name || 'N/A',
-          unit_price: unitPrice,
-          cost_price: stock.products.cost_price || 0,
+          transaction_count: stock.transaction_count || 0,
+          product_name: stock.products?.name || 'Unknown Product',
+          product_sku: stock.products?.sku || 'N/A',
+          min_stock_level: stock.products?.min_stock_level || 0,
+          warehouse_name: stock.warehouses?.name || 'Unknown Warehouse',
+          bin_name: stock.bins?.name || 'Unknown Bin',
+          unit_price: stock.products?.unit_price || 0,
+          cost_price: stock.products?.cost_price || 0,
           total_value: totalValue,
-          // Map aging fields
+          // Aging fields
           weighted_avg_age_days: stock.weighted_avg_age_days,
           aging_status: stock.aging_status,
           aging_0_30_qty: stock.aging_0_30_qty,
@@ -181,16 +185,16 @@ export const CurrentStockTable = ({ refreshTrigger }: CurrentStockTableProps) =>
           aging_181_365_qty: stock.aging_181_365_qty,
           aging_181_365_value: stock.aging_181_365_value,
           aging_365_plus_qty: stock.aging_365_plus_qty,
-          aging_365_plus_value: stock.aging_365_plus_value
+          aging_365_plus_value: stock.aging_365_plus_value,
         };
-      }) || [];
+      });
 
       setStockLevels(formattedStock);
       
       // Get top 5 low stock items
       const lowStockItems = formattedStock
         .filter(stock => stock.current_stock > 0 && stock.current_stock <= stock.min_stock_level)
-        .sort((a, b) => a.current_stock - b.current_stock)
+        .sort((a, b) => (a.current_stock / Math.max(a.min_stock_level, 1)) - (b.current_stock / Math.max(b.min_stock_level, 1)))
         .slice(0, 5)
         .map(stock => ({
           name: stock.product_name,
@@ -198,8 +202,11 @@ export const CurrentStockTable = ({ refreshTrigger }: CurrentStockTableProps) =>
         }));
       
       setTopLowStockItems(lowStockItems);
+      setLowStockItems(lowStockItems.length);
+      
+      console.log('Current stock processed successfully');
     } catch (error) {
-      console.error('Error fetching current stock:', error);
+      console.error('Error in fetchCurrentStock:', error);
       toast({
         title: "Error",
         description: "Failed to fetch current stock levels",
@@ -210,127 +217,86 @@ export const CurrentStockTable = ({ refreshTrigger }: CurrentStockTableProps) =>
     }
   };
 
-  const fetchStockFromTransactions = async () => {
-    try {
-      // Get all inventory transactions and calculate current stock
-      const { data: transactions, error: transError } = await supabase
-        .from('inventory_transactions')
-        .select(`
-          product_id,
-          warehouse_id,
-          bin_id,
-          quantity_change,
-          transaction_date,
-          products!inner(name, sku, min_stock_level, unit_price, cost_price),
-          warehouse_bins!inner(warehouse_name, bin_name)
-        `)
-        .eq('company_id', company.id)
-        .order('transaction_date', { ascending: false });
-
-      if (transError) throw transError;
-
-      // Calculate current stock by product, warehouse, and bin
-      const stockMap = new Map<string, any>();
-      
-      transactions?.forEach((trans: any) => {
-        const key = `${trans.product_id}-${trans.warehouse_id}-${trans.bin_id}`;
-        
-        if (!stockMap.has(key)) {
-          const unitPrice = trans.products.unit_price || trans.products.cost_price || 0;
-          stockMap.set(key, {
-            company_id: company.id,
-            product_id: trans.product_id,
-            warehouse_id: trans.warehouse_id,
-            bin_id: trans.bin_id,
-            current_stock: 0,
-            last_transaction_date: trans.transaction_date,
-            transaction_count: 0,
-            product_name: trans.products.name,
-            product_sku: trans.products.sku,
-            min_stock_level: trans.products.min_stock_level || 0,
-            warehouse_name: trans.warehouse_bins.warehouse_name || 'N/A',
-            bin_name: trans.warehouse_bins.bin_name || 'N/A',
-            unit_price: unitPrice,
-            cost_price: trans.products.cost_price || 0,
-            total_value: 0
-          });
-        }
-        
-        const stock = stockMap.get(key);
-        stock.current_stock += trans.quantity_change || 0;
-        stock.transaction_count += 1;
-        stock.total_value = stock.current_stock * stock.unit_price;
-        
-        // Update last transaction date if this is more recent
-        if (new Date(trans.transaction_date) > new Date(stock.last_transaction_date)) {
-          stock.last_transaction_date = trans.transaction_date;
-        }
-      });
-
-      const formattedStock = Array.from(stockMap.values())
-        .sort((a, b) => a.current_stock - b.current_stock);
-
-      setStockLevels(formattedStock);
-      
-      // Get top 5 low stock items
-      const lowStockItems = formattedStock
-        .filter(stock => stock.current_stock > 0 && stock.current_stock <= stock.min_stock_level)
-        .sort((a, b) => a.current_stock - b.current_stock)
-        .slice(0, 5)
-        .map(stock => ({
-          name: stock.product_name,
-          qty: stock.current_stock
-        }));
-      
-      setTopLowStockItems(lowStockItems);
-      
-    } catch (error) {
-      console.error('Fallback stock calculation failed:', error);
-      toast({
-        title: "Error",
-        description: "Failed to calculate stock levels from transactions",
-        variant: "destructive",
-      });
-    }
-  };
-
   const fetchInventoryStats = async () => {
-    if (!company?.id) return;
-    
     try {
       const { data, error } = await supabase
-        .from('inventory_transactions')
-        .select('product_id, quantity_change, total_value')
-        .eq('company_id', company.id);
+        .from('current_stock_levels')
+        .select('current_stock, transaction_count')
+        .eq('company_id', company?.id);
 
       if (error) throw error;
 
-      const uniqueProducts = new Set(data?.map(t => t.product_id) || []);
-      const totalQuantity = data?.reduce((sum, t) => sum + Math.abs(t.quantity_change || 0), 0) || 0;
-      const totalValue = data?.reduce((sum, t) => sum + Math.abs(t.total_value || 0), 0) || 0;
+      const stats = data?.reduce((acc: any, item) => {
+        acc.totalItems = (acc.totalItems || 0) + 1;
+        acc.totalStock = (acc.totalStock || 0) + item.current_stock;
+        acc.totalTransactions = (acc.totalTransactions || 0) + item.transaction_count;
+        return acc;
+      }, {});
 
-      setInventoryStats({
-        totalSKUs: uniqueProducts.size,
-        totalQuantity,
-        totalValue
-      });
+      setInventoryStats(stats || {});
     } catch (error) {
       console.error('Error fetching inventory stats:', error);
     }
   };
 
   const fetchAgingSummary = async () => {
-    if (!company?.id) return;
-    
     try {
-      const { data, error } = await supabase.rpc('get_company_aging_summary', {
-        p_company_id: company.id
-      });
+      const { data, error } = await supabase
+        .from('current_stock_with_aging')
+        .select(`
+          current_stock,
+          aging_0_30_qty, aging_0_30_value,
+          aging_31_90_qty, aging_31_90_value,
+          aging_91_180_qty, aging_91_180_value,
+          aging_181_365_qty, aging_181_365_value,
+          aging_365_plus_qty, aging_365_plus_value,
+          aging_status,
+          products!inner(unit_price)
+        `)
+        .eq('company_id', company?.id);
 
       if (error) throw error;
 
       if (data && data.length > 0) {
-        setAgingSummary(data[0]);
+        const summary = data.reduce((acc, item) => {
+          const totalValue = item.current_stock * (item.products?.unit_price || 0);
+          
+          return {
+            total_skus: acc.total_skus + 1,
+            total_qty: acc.total_qty + item.current_stock,
+            total_value: acc.total_value + totalValue,
+            aging_0_30_qty: acc.aging_0_30_qty + (item.aging_0_30_qty || 0),
+            aging_0_30_value: acc.aging_0_30_value + (item.aging_0_30_value || 0),
+            aging_31_90_qty: acc.aging_31_90_qty + (item.aging_31_90_qty || 0),
+            aging_31_90_value: acc.aging_31_90_value + (item.aging_31_90_value || 0),
+            aging_91_180_qty: acc.aging_91_180_qty + (item.aging_91_180_qty || 0),
+            aging_91_180_value: acc.aging_91_180_value + (item.aging_91_180_value || 0),
+            aging_181_365_qty: acc.aging_181_365_qty + (item.aging_181_365_qty || 0),
+            aging_181_365_value: acc.aging_181_365_value + (item.aging_181_365_value || 0),
+            aging_365_plus_qty: acc.aging_365_plus_qty + (item.aging_365_plus_qty || 0),
+            aging_365_plus_value: acc.aging_365_plus_value + (item.aging_365_plus_value || 0),
+            dead_stock_skus: item.aging_status === 'Dead' ? acc.dead_stock_skus + 1 : acc.dead_stock_skus,
+            dead_stock_value: item.aging_status === 'Dead' ? acc.dead_stock_value + totalValue : acc.dead_stock_value,
+          };
+        }, {
+          total_skus: 0,
+          total_qty: 0,
+          total_value: 0,
+          aging_0_30_qty: 0,
+          aging_0_30_value: 0,
+          aging_31_90_qty: 0,
+          aging_31_90_value: 0,
+          aging_91_180_qty: 0,
+          aging_91_180_value: 0,
+          aging_181_365_qty: 0,
+          aging_181_365_value: 0,
+          aging_365_plus_qty: 0,
+          aging_365_plus_value: 0,
+          dead_stock_skus: 0,
+          dead_stock_value: 0,
+        });
+
+        setAgingSummary(summary);
       }
     } catch (error) {
       console.error('Error fetching aging summary:', error);
@@ -338,53 +304,90 @@ export const CurrentStockTable = ({ refreshTrigger }: CurrentStockTableProps) =>
   };
 
   const fetchWarehouseBinAging = async () => {
-    if (!company?.id) return;
-    
     try {
-      const { data, error } = await supabase.rpc('get_warehouse_bin_aging_summary', {
-        p_company_id: company.id
-      });
+      const { data, error } = await supabase
+        .from('current_stock_with_aging')
+        .select(`
+          warehouse_id, bin_id,
+          aging_0_30_value, aging_31_90_value, aging_91_180_value,
+          aging_181_365_value, aging_365_plus_value,
+          current_stock,
+          warehouses!inner(name),
+          bins!inner(name),
+          products!inner(unit_price)
+        `)
+        .eq('company_id', company?.id);
 
       if (error) throw error;
 
-      setWarehouseBinAging(data || []);
+      const warehouseBinMap = new Map();
+      
+      data?.forEach(item => {
+        const key = `${item.warehouse_id}-${item.bin_id}`;
+        const totalValue = item.current_stock * (item.products?.unit_price || 0);
+        
+        if (!warehouseBinMap.has(key)) {
+          warehouseBinMap.set(key, {
+            warehouse_name: item.warehouses?.name || 'Unknown',
+            bin_name: item.bins?.name || 'Unknown',
+            location_display: `${item.warehouses?.name || 'Unknown'} - ${item.bins?.name || 'Unknown'}`,
+            aging_0_30_value: 0,
+            aging_31_90_value: 0,
+            aging_91_180_value: 0,
+            aging_181_365_value: 0,
+            aging_365_plus_value: 0,
+            total_value: 0,
+            total_qty: 0,
+          });
+        }
+
+        const existing = warehouseBinMap.get(key);
+        warehouseBinMap.set(key, {
+          ...existing,
+          aging_0_30_value: existing.aging_0_30_value + (item.aging_0_30_value || 0),
+          aging_31_90_value: existing.aging_31_90_value + (item.aging_31_90_value || 0),
+          aging_91_180_value: existing.aging_91_180_value + (item.aging_91_180_value || 0),
+          aging_181_365_value: existing.aging_181_365_value + (item.aging_181_365_value || 0),
+          aging_365_plus_value: existing.aging_365_plus_value + (item.aging_365_plus_value || 0),
+          total_value: existing.total_value + totalValue,
+          total_qty: existing.total_qty + item.current_stock,
+        });
+      });
+
+      setWarehouseBinAging(Array.from(warehouseBinMap.values()));
     } catch (error) {
       console.error('Error fetching warehouse bin aging:', error);
     }
   };
 
-  const getAgingBadge = (agingStatus: string, avgAge: number) => {
-    switch (agingStatus) {
-      case 'Fresh':
-        return <Badge variant="default" className="bg-green-500 text-white">Fresh ({avgAge}d)</Badge>;
-      case 'Good':
-        return <Badge variant="secondary">Good ({avgAge}d)</Badge>;
-      case 'Aging':
-        return <Badge variant="outline" className="border-yellow-500 text-yellow-600">Aging ({avgAge}d)</Badge>;
-      case 'Slow':
-        return <Badge variant="outline" className="border-orange-500 text-orange-600">Slow ({avgAge}d)</Badge>;
-      case 'Dead':
-        return <Badge variant="destructive">Dead ({avgAge}d)</Badge>;
-      default:
-        return <Badge variant="secondary">N/A</Badge>;
-    }
-  };
-
-  // Format compact currency values
   const formatCompactCurrency = (value: number) => {
     if (value === 0) return '₹0';
-    if (value >= 10000000) { // 1 crore
-      return `₹${(value / 10000000).toFixed(1)}Cr`;
-    } else if (value >= 100000) { // 1 lakh
-      return `₹${(value / 100000).toFixed(1)}L`;
-    } else if (value >= 1000) { // 1 thousand
-      return `₹${(value / 1000).toFixed(1)}K`;
-    }
+    if (value >= 10000000) return `₹${(value / 10000000).toFixed(1)}Cr`;
+    if (value >= 100000) return `₹${(value / 100000).toFixed(1)}L`;
+    if (value >= 1000) return `₹${(value / 1000).toFixed(1)}K`;
     return `₹${value.toFixed(0)}`;
   };
 
+  const getAgingBadge = (status: string, avgDays: number) => {
+    const variants = {
+      'Fresh': { variant: 'default' as const, color: 'text-green-600', bg: 'bg-green-50 border-green-200' },
+      'Good': { variant: 'secondary' as const, color: 'text-blue-600', bg: 'bg-blue-50 border-blue-200' },
+      'Aging': { variant: 'outline' as const, color: 'text-yellow-600', bg: 'bg-yellow-50 border-yellow-200' },
+      'Slow': { variant: 'outline' as const, color: 'text-orange-600', bg: 'bg-orange-50 border-orange-200' },
+      'Dead': { variant: 'destructive' as const, color: 'text-red-600', bg: 'bg-red-50 border-red-200' },
+    };
+
+    const config = variants[status as keyof typeof variants] || variants['Good'];
+    
+    return (
+      <div className={`text-xs px-2 py-1 rounded-md border ${config.bg} ${config.color} font-medium`}>
+        {status} ({avgDays}d)
+      </div>
+    );
+  };
+
   const getStockLevelBadge = (currentStock: number, minStock: number) => {
-    if (currentStock <= 0) {
+    if (currentStock === 0) {
       return <Badge variant="destructive">Out of Stock</Badge>;
     } else if (currentStock <= minStock) {
       return <Badge variant="outline" className="border-orange-500 text-orange-600">Low Stock</Badge>;
@@ -393,7 +396,6 @@ export const CurrentStockTable = ({ refreshTrigger }: CurrentStockTableProps) =>
     }
   };
 
-  // Handle sorting
   const handleSort = (key: string) => {
     let direction: 'asc' | 'desc' = 'asc';
     if (sortConfig && sortConfig.key === key && sortConfig.direction === 'asc') {
@@ -528,7 +530,7 @@ export const CurrentStockTable = ({ refreshTrigger }: CurrentStockTableProps) =>
     }
 
     return filtered;
-  }, [stockLevels, searchTerm, showLowStockOnly, sortConfig]);
+  }, [stockLevels, searchTerm, showLowStockOnly, agingFilter, sortConfig]);
 
   // Pagination
   const totalPages = Math.ceil(filteredAndSortedStock.length / itemsPerPage);
@@ -598,88 +600,155 @@ export const CurrentStockTable = ({ refreshTrigger }: CurrentStockTableProps) =>
       }
       
       const warehouse = warehouseMap.get(warehouseName)!;
-      
-      // Update warehouse totals
       warehouse.totalSKUs += 1;
-      warehouse.totalQty += stock.current_stock || 0;
-      warehouse.totalValue += (stock.current_stock || 0) * 10; // Assuming avg cost of 10 per unit
+      warehouse.totalQty += stock.current_stock;
+      warehouse.totalValue += stock.total_value;
       
-      // Update bin data
       if (!warehouse.bins.has(binName)) {
         warehouse.bins.set(binName, { skus: 0, qty: 0, value: 0 });
       }
       
       const bin = warehouse.bins.get(binName)!;
       bin.skus += 1;
-      bin.qty += stock.current_stock || 0;
-      bin.value += (stock.current_stock || 0) * 10;
+      bin.qty += stock.current_stock;
+      bin.value += stock.total_value;
     });
 
-    return warehouseMap;
+    return Array.from(warehouseMap.entries()).map(([name, data]) => ({
+      name,
+      ...data,
+      bins: Array.from(data.bins.entries()).map(([binName, binData]) => ({
+        name: binName,
+        ...binData
+      }))
+    }));
   }, [stockLevels]);
 
-  const totalProducts = stockLevels.length;
-  const totalQuantity = stockLevels.reduce((sum, stock) => sum + (stock.current_stock || 0), 0);
-  const totalValue = stockLevels.reduce((sum, stock) => sum + ((stock.current_stock || 0) * 10), 0);
-  const lowStockItems = stockLevels.filter(stock => stock.current_stock <= stock.min_stock_level && stock.current_stock > 0).length;
-  const outOfStockItems = stockLevels.filter(stock => stock.current_stock <= 0).length;
-
   if (loading) {
-    return <div className="flex justify-center items-center p-8">Loading current stock levels...</div>;
+    return (
+      <div className="space-y-4">
+        <div className="animate-pulse">
+          <div className="h-4 bg-muted rounded w-1/4 mb-2"></div>
+          <div className="h-32 bg-muted rounded"></div>
+        </div>
+      </div>
+    );
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="p-4 border rounded-lg bg-gradient-to-br from-primary/5 to-primary/10 border-primary/20">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2">
-              <Package className="h-5 w-5 text-primary" />
-              <span className="text-sm font-medium text-muted-foreground">Total Inventory</span>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="p-4 border rounded-lg">
+          <div className="flex items-center gap-2">
+            <Package className="h-5 w-5 text-blue-500" />
+            <div>
+              <p className="text-sm text-muted-foreground">Total SKUs</p>
+              <p className="text-2xl font-bold text-blue-600">{inventoryStats.totalItems || 0}</p>
             </div>
-          </div>
-          
-          {/* Overall Totals */}
-          <div className="mb-4 p-3 bg-background/50 rounded-lg">
-            <div className="flex justify-between items-center text-sm">
-              <span className="font-semibold">SKUs: {totalProducts}</span>
-              <span className="font-semibold">Qty: {totalQuantity.toLocaleString()}</span>
-              <span className="font-semibold">Value: ₹{totalValue.toLocaleString()}</span>
-            </div>
-          </div>
-
-          {/* Location Breakdown - Flattened View */}
-          <div className="space-y-1">
-            {Array.from(warehouseBinData.entries()).map(([warehouseName, warehouse]) => 
-              Array.from(warehouse.bins.entries()).map(([binName, bin]) => (
-                <div key={`${warehouseName}-${binName}`} className="flex items-center justify-between py-1 px-2 hover:bg-secondary/20 rounded text-xs">
-                  <div className="flex items-center gap-2 flex-1 min-w-0">
-                    <span className="text-muted-foreground">🏢</span>
-                    <span className="font-medium truncate">{warehouseName} - {binName}</span>
-                  </div>
-                  <div className="flex items-center gap-3 text-right">
-                    <span className="w-8">{bin.skus}</span>
-                    <span className="w-12">{bin.qty}</span>
-                    <span className="w-16">₹{bin.value.toLocaleString()}</span>
-                  </div>
-                </div>
-              ))
-            ).flat()}
           </div>
         </div>
+        
+        <div className="p-4 border rounded-lg">
+          <div className="flex items-center gap-2">
+            <Package className="h-5 w-5 text-green-500" />
+            <div>
+              <p className="text-sm text-muted-foreground">Total Stock Quantity</p>
+              <p className="text-2xl font-bold text-green-600">{inventoryStats.totalStock?.toLocaleString() || 0}</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="p-4 border rounded-lg">
+          <div className="flex items-center gap-2">
+            <Package className="h-5 w-5 text-purple-500" />
+            <div>
+              <p className="text-sm text-muted-foreground">Total Value</p>
+              <p className="text-2xl font-bold text-purple-600">
+                {agingSummary ? formatCompactCurrency(agingSummary.total_value) : '₹0'}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="p-4 border rounded-lg">
+          <div className="flex items-center gap-2">
+            <Package className="h-5 w-5 text-gray-500" />
+            <div>
+              <p className="text-sm text-muted-foreground">Warehouse-Bin Locations</p>
+              <p className="text-2xl font-bold text-gray-600">
+                {warehouseBinData.reduce((total, wh) => total + wh.bins.length, 0)}
+              </p>
+              <div className="text-xs text-muted-foreground mt-1">
+                {warehouseBinData.map((wh, idx) => (
+                  <div key={wh.name} className="truncate">
+                    {wh.name}: {wh.bins.map(b => b.name).join(', ')}
+                  </div>
+                )).flat()}
+              </div>
+            </div>
+          </div>
+        </div>
+        
         <div className="p-4 border rounded-lg bg-gradient-to-br from-amber-50 to-orange-50">
           <div className="flex items-center gap-2 mb-3">
             <AlertTriangle className="h-5 w-5 text-amber-600" />
-            <div>
-              <p className="text-sm text-muted-foreground">Stock Analysis</p>
-              <p className="text-lg font-bold text-amber-700">{lowStockItems} Low Stock • {agingSummary?.dead_stock_skus || 0} Dead Stock</p>
+            <div className="flex-1">
+              <p className="text-sm text-muted-foreground">Stock Analysis - {searchTerm ? 'Filtered Results' : 'All Items'}</p>
+              <p className="text-lg font-bold text-amber-700">
+                {filteredAndSortedStock.filter(s => s.current_stock > 0 && s.current_stock <= s.min_stock_level).length} Low Stock • 
+                {filteredAndSortedStock.filter(s => s.aging_status === 'Dead').length} Dead Stock
+              </p>
             </div>
           </div>
           
+          {/* Real-time Stock Details for Filtered Items */}
+          {filteredAndSortedStock.length > 0 && (
+            <div className="mt-4 space-y-2 max-h-64 overflow-y-auto">
+              <p className="text-sm font-medium text-amber-700 border-b pb-1">
+                Showing {filteredAndSortedStock.length} item{filteredAndSortedStock.length !== 1 ? 's' : ''}
+                {searchTerm && ` matching "${searchTerm}"`}
+              </p>
+              {filteredAndSortedStock.slice(0, 10).map((stock, index) => (
+                <div key={`${stock.product_id}-${stock.warehouse_id}-${stock.bin_id}`} 
+                     className="flex justify-between items-start p-2 bg-white/70 rounded border border-amber-200">
+                  <div className="flex-1">
+                    <div className="font-medium text-gray-900 text-sm truncate">
+                      {stock.product_name}
+                    </div>
+                    <div className="text-xs text-gray-600 flex items-center gap-1">
+                      <Package className="h-3 w-3" />
+                      {stock.warehouse_name} - {stock.bin_name}
+                    </div>
+                  </div>
+                  <div className="text-right text-xs space-y-1 min-w-[120px]">
+                    <div className="flex justify-between gap-4">
+                      <span className="text-muted-foreground">Current:</span>
+                      <span className="font-mono font-medium">{stock.current_stock}</span>
+                    </div>
+                    <div className="flex justify-between gap-4">
+                      <span className="text-muted-foreground">Available:</span>
+                      <span className="font-mono font-medium text-green-700">
+                        {Math.max(0, stock.current_stock)} {/* Available to bill = current stock for now */}
+                      </span>
+                    </div>
+                    {stock.current_stock <= stock.min_stock_level && stock.current_stock > 0 && (
+                      <div className="text-xs text-orange-600 font-medium">⚠ Low Stock</div>
+                    )}
+                  </div>
+                </div>
+              ))}
+              {filteredAndSortedStock.length > 10 && (
+                <div className="text-xs text-center text-muted-foreground py-1 border-t">
+                  ... and {filteredAndSortedStock.length - 10} more items
+                </div>
+              )}
+            </div>
+          )}
+          
           {/* Aging Analysis by Category */}
           {agingSummary && (
-            <div className="space-y-3">
+            <div className="space-y-3 mt-4">
               <div className="grid grid-cols-5 gap-2 text-xs">
                 <div className="text-center p-2 bg-green-100 rounded-lg border border-green-200">
                   <div className="font-semibold text-green-700">Fresh</div>
@@ -751,6 +820,7 @@ export const CurrentStockTable = ({ refreshTrigger }: CurrentStockTableProps) =>
             </div>
           )}
         </div>
+        
         <div className="p-4 border rounded-lg">
           <div className="flex items-center gap-2">
             <AlertTriangle className="h-5 w-5 text-orange-500" />
@@ -781,26 +851,26 @@ export const CurrentStockTable = ({ refreshTrigger }: CurrentStockTableProps) =>
             placeholder="Search by product name, SKU, warehouse, bin location..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10 bg-background/50 border-border/50 focus:bg-background"
+            className="pl-10"
           />
         </div>
         
-        <div className="flex gap-2 items-center">
+        <div className="flex flex-wrap gap-2">
           <Select value={agingFilter} onValueChange={setAgingFilter}>
-            <SelectTrigger className="w-48 bg-background/50 border-border/50">
-              <Filter className="h-4 w-4 mr-2" />
-              <SelectValue placeholder="Filter by aging" />
+            <SelectTrigger className="w-[140px]">
+              <Filter className="w-4 h-4 mr-2" />
+              <SelectValue placeholder="Aging Filter" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All Aging</SelectItem>
-              <SelectItem value="fresh">Fresh (0-30 days)</SelectItem>
-              <SelectItem value="good">Good (31-90 days)</SelectItem>
-              <SelectItem value="aging">Aging (91-180 days)</SelectItem>
-              <SelectItem value="slow">Slow (181-365 days)</SelectItem>
-              <SelectItem value="dead">Dead (365+ days)</SelectItem>
+              <SelectItem value="all">All Ages</SelectItem>
+              <SelectItem value="fresh">Fresh (0-30d)</SelectItem>
+              <SelectItem value="good">Good (31-90d)</SelectItem>
+              <SelectItem value="aging">Aging (91-180d)</SelectItem>
+              <SelectItem value="slow">Slow (181-365d)</SelectItem>
+              <SelectItem value="dead">Dead (365d+)</SelectItem>
             </SelectContent>
           </Select>
-          
+
           <Button
             variant={showLowStockOnly ? "default" : "outline"}
             onClick={() => setShowLowStockOnly(!showLowStockOnly)}
@@ -810,68 +880,75 @@ export const CurrentStockTable = ({ refreshTrigger }: CurrentStockTableProps) =>
             {showLowStockOnly ? 'Show All' : 'Low Stock Only'}
           </Button>
           
-          <Button
+          <Button 
             onClick={handleExportToExcel}
             variant="outline"
-            className="flex items-center gap-2 bg-green-50 hover:bg-green-100 text-green-700 border-green-200"
+            className="flex items-center gap-2"
           >
-            <FileSpreadsheet className="h-4 w-4" />
-            Export
+            <FileSpreadsheet className="w-4 h-4" />
+            Export to Excel
           </Button>
         </div>
       </div>
 
       {/* Stock Table */}
       {filteredAndSortedStock.length === 0 ? (
-        <div className="text-center py-8 text-muted-foreground">
-          {searchTerm || showLowStockOnly ? 'No stock levels match your filters.' : 'No stock data found.'}
+        <div className="text-center py-8">
+          <Package className="mx-auto h-12 w-12 text-muted-foreground" />
+          <h3 className="mt-2 text-sm font-semibold text-muted-foreground">No stock found</h3>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {searchTerm ? 'No stock matches your search criteria.' : 'No stock levels available.'}
+          </p>
         </div>
       ) : (
         <>
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="cursor-pointer" onClick={() => handleSort('product_name')}>
-                  <div className="flex items-center space-x-2">
-                    <span>Product</span>
+                <TableHead 
+                  className="cursor-pointer hover:bg-muted/50"
+                  onClick={() => handleSort('product_name')}
+                >
+                  <div className="flex items-center gap-2">
+                    Product Name
                     {getSortIcon('product_name')}
                   </div>
                 </TableHead>
+                <TableHead>SKU</TableHead>
                 <TableHead>Location</TableHead>
-                <TableHead className="text-right cursor-pointer" onClick={() => handleSort('current_stock')}>
-                  <div className="flex items-center justify-end space-x-2">
-                    <span>Current Stock</span>
+                <TableHead 
+                  className="text-right cursor-pointer hover:bg-muted/50"
+                  onClick={() => handleSort('current_stock')}
+                >
+                  <div className="flex items-center justify-end gap-2">
+                    Current Stock
                     {getSortIcon('current_stock')}
                   </div>
                 </TableHead>
-                <TableHead className="text-right cursor-pointer" onClick={() => handleSort('unit_price')}>
-                  <div className="flex items-center justify-end space-x-2">
-                    <span>Unit Price</span>
+                <TableHead 
+                  className="text-right cursor-pointer hover:bg-muted/50"
+                  onClick={() => handleSort('unit_price')}
+                >
+                  <div className="flex items-center justify-end gap-2">
+                    Unit Price
                     {getSortIcon('unit_price')}
                   </div>
                 </TableHead>
-                <TableHead className="text-right cursor-pointer" onClick={() => handleSort('total_value')}>
-                  <div className="flex items-center justify-end space-x-2">
-                    <span>Total Value</span>
+                <TableHead 
+                  className="text-right cursor-pointer hover:bg-muted/50"
+                  onClick={() => handleSort('total_value')}
+                >
+                  <div className="flex items-center justify-end gap-2">
+                    Total Value
                     {getSortIcon('total_value')}
                   </div>
                 </TableHead>
-                <TableHead className="text-right cursor-pointer" onClick={() => handleSort('min_stock_level')}>
-                  <div className="flex items-center justify-end space-x-2">
-                    <span>Min Stock</span>
-                    {getSortIcon('min_stock_level')}
-                  </div>
-                </TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Aging</TableHead>
-                <TableHead className="cursor-pointer" onClick={() => handleSort('last_transaction_date')}>
-                  <div className="flex items-center space-x-2">
-                    <span>Last Transaction</span>
-                    {getSortIcon('last_transaction_date')}
-                  </div>
-                </TableHead>
-                <TableHead className="text-center">Txns</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
+                <TableHead className="text-right">Min Stock</TableHead>
+                <TableHead>Stock Level</TableHead>
+                <TableHead>Aging Status</TableHead>
+                <TableHead>Last Transaction</TableHead>
+                <TableHead className="text-center">Transactions</TableHead>
+                <TableHead className="text-center">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -881,20 +958,24 @@ export const CurrentStockTable = ({ refreshTrigger }: CurrentStockTableProps) =>
                 
                 return (
                   <>
-                    <TableRow key={stockKey} className="hover:bg-muted/30 transition-colors">
-                      <TableCell>
-                        <div>
-                          <div className="font-medium text-foreground">{stock.product_name}</div>
-                          <div className="text-sm text-muted-foreground">{stock.product_sku}</div>
+                    <TableRow key={stockKey} className="hover:bg-muted/50">
+                      <TableCell className="font-medium">
+                        <div className="max-w-xs">
+                          <div className="truncate">{stock.product_name}</div>
                         </div>
                       </TableCell>
                       <TableCell>
-                        <div>
+                        <code className="text-xs bg-muted px-1 py-0.5 rounded">
+                          {stock.product_sku}
+                        </code>
+                      </TableCell>
+                      <TableCell>
+                        <div className="text-sm">
                           <div className="font-medium">{stock.warehouse_name}</div>
-                          <div className="text-sm text-muted-foreground">{stock.bin_name}</div>
+                          <div className="text-muted-foreground text-xs">{stock.bin_name}</div>
                         </div>
                       </TableCell>
-                      <TableCell className="text-right font-mono text-lg font-semibold text-foreground">
+                      <TableCell className="text-right font-mono font-semibold text-sm">
                         {stock.current_stock}
                       </TableCell>
                       <TableCell className="text-right font-mono text-sm">
