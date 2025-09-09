@@ -869,6 +869,87 @@ export function GRNForm({ grn, onSubmit, onCancel, readOnly = false, mode }: GRN
                   <CardContent className="p-0">
                     {items.length > 0 ? (
                       <div className="space-y-6">
+                        {/* Default Warehouse & Bin Selection */}
+                        <div className="bg-green-100 dark:bg-green-900/20 p-4 border-b">
+                          <div className="grid grid-cols-2 gap-4">
+                            {/* Default Warehouse */}
+                            <div className="space-y-2">
+                              <FormField
+                                control={form.control}
+                                name="default_warehouse_id"
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel className="text-sm font-medium text-green-800 dark:text-green-200">
+                                      DEFAULT WAREHOUSE
+                                    </FormLabel>
+                                    <Select
+                                      onValueChange={(value) => {
+                                        field.onChange(value);
+                                        applyDefaultWarehouseBin();
+                                      }}
+                                      value={field.value}
+                                      disabled={readOnly}
+                                    >
+                                      <FormControl>
+                                        <SelectTrigger className="bg-white dark:bg-gray-800 border-green-300 focus:border-green-500 z-50">
+                                          <SelectValue placeholder="Select warehouse" />
+                                        </SelectTrigger>
+                                      </FormControl>
+                                      <SelectContent className="bg-white dark:bg-gray-800 border border-green-300 shadow-lg z-50">
+                                        {warehouses.map((warehouse) => (
+                                          <SelectItem key={warehouse.id} value={warehouse.id}>
+                                            {warehouse.name} ({warehouse.warehouse_code || 'N/A'})
+                                          </SelectItem>
+                                        ))}
+                                      </SelectContent>
+                                    </Select>
+                                    <FormMessage />
+                                  </FormItem>
+                                )}
+                              />
+                            </div>
+
+                            {/* Default Bin */}
+                            <div className="space-y-2">
+                              <FormField
+                                control={form.control}
+                                name="default_bin_id"
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel className="text-sm font-medium text-green-800 dark:text-green-200">
+                                      DEFAULT BIN
+                                    </FormLabel>
+                                    <Select
+                                      onValueChange={(value) => {
+                                        field.onChange(value);
+                                        applyDefaultWarehouseBin();
+                                      }}
+                                      value={field.value}
+                                      disabled={readOnly}
+                                    >
+                                      <FormControl>
+                                        <SelectTrigger className="bg-white dark:bg-gray-800 border-green-300 focus:border-green-500 z-50">
+                                          <SelectValue placeholder="Select bin" />
+                                        </SelectTrigger>
+                                      </FormControl>
+                                      <SelectContent className="bg-white dark:bg-gray-800 border border-green-300 shadow-lg z-50">
+                                        {bins
+                                          .filter(bin => !form.getValues('default_warehouse_id') || bin.warehouse_name === warehouses.find(w => w.id === form.getValues('default_warehouse_id'))?.name)
+                                          .map((bin) => (
+                                            <SelectItem key={bin.id} value={bin.id}>
+                                              {bin.wh_bin_code} - {bin.warehouse_name}
+                                            </SelectItem>
+                                          ))}
+                                      </SelectContent>
+                                    </Select>
+                                    <FormMessage />
+                                  </FormItem>
+                                )}
+                              />
+                            </div>
+                          </div>
+                        </div>
+
                         {/* Items Table */}
                         <div className="overflow-x-auto">
                           <Table>
