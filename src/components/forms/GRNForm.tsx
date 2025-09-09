@@ -607,9 +607,9 @@ export function GRNForm({ grn, onSubmit, onCancel, readOnly = false, mode }: GRN
   const total = items.reduce((sum, item) => sum + (item.line_total || 0), 0);
 
   return (
-    <div className="h-[calc(100vh-120px)] flex flex-col bg-background">
-      {/* Compact Header */}
-      <div className="flex justify-between items-center mb-3 px-4 py-3 border-b bg-card/50 backdrop-blur-sm">
+      <div className="h-[calc(100vh-100px)] flex flex-col bg-background">
+        {/* Compact Header */}
+        <div className="flex justify-between items-center mb-2 px-3 py-2 border-b bg-card/50 backdrop-blur-sm">
         <div>
           <h1 className="text-xl font-bold text-foreground">
             {mode === 'create' ? 'New GRN' : 
@@ -634,8 +634,8 @@ export function GRNForm({ grn, onSubmit, onCancel, readOnly = false, mode }: GRN
 
       <Form {...form}>
         <form onSubmit={form.handleSubmit(handleSubmit)} className="flex-1 flex flex-col">
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col px-2">
-            <TabsList className="grid w-full grid-cols-2 mb-2 bg-muted/30 h-10">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col px-1">
+            <TabsList className="grid w-full grid-cols-2 mb-1 bg-muted/30 h-8">
               <TabsTrigger value="grn-info" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground flex items-center gap-2 text-sm">
                 <FileText className="h-4 w-4" />
                 <span className="truncate">
@@ -652,12 +652,12 @@ export function GRNForm({ grn, onSubmit, onCancel, readOnly = false, mode }: GRN
 
             <div className="flex-1 overflow-hidden">
               {/* GRN Info Tab */}
-              <TabsContent value="grn-info" className="flex-1 overflow-auto space-y-3 m-0">
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
+              <TabsContent value="grn-info" className="flex-1 overflow-auto space-y-2 m-0">
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-2">
                   {/* GRN Reference Card */}
                   <Card className="shadow-sm border-border/50 lg:col-span-3">
-                    <CardContent className="pt-3 pb-3">
-                      <div className="bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-950 dark:to-pink-950 border border-purple-200 rounded-lg p-3">
+                    <CardContent className="pt-2 pb-2">
+                      <div className="bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-950 dark:to-pink-950 border border-purple-200 rounded-lg p-2">
                         <FormField
                           control={form.control}
                           name="grn_reference_no"
@@ -685,13 +685,13 @@ export function GRNForm({ grn, onSubmit, onCancel, readOnly = false, mode }: GRN
 
                   {/* Purchase Order Details */}
                   <Card className="shadow-sm border-border/50">
-                    <CardHeader className="pb-2 pt-3">
-                      <CardTitle className="text-sm font-semibold flex items-center gap-2">
-                        <ShoppingCart className="h-4 w-4 text-primary" />
+                    <CardHeader className="pb-1 pt-2">
+                      <CardTitle className="text-xs font-semibold flex items-center gap-1">
+                        <ShoppingCart className="h-3 w-3 text-primary" />
                         Purchase Order Details
                       </CardTitle>
                     </CardHeader>
-                    <CardContent className="space-y-3 pt-0">
+                    <CardContent className="space-y-2 pt-0">
                       <FormField
                         control={form.control}
                         name="purchase_order_id"
@@ -707,7 +707,7 @@ export function GRNForm({ grn, onSubmit, onCancel, readOnly = false, mode }: GRN
                               disabled={readOnly || mode === 'edit'}
                             >
                               <FormControl>
-                                <SelectTrigger className="h-8">
+                                <SelectTrigger className="h-7">
                                   <SelectValue placeholder="Select purchase order" />
                                 </SelectTrigger>
                               </FormControl>
@@ -736,7 +736,7 @@ export function GRNForm({ grn, onSubmit, onCancel, readOnly = false, mode }: GRN
                           <FormItem>
                             <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Supplier Name</FormLabel>
                             <FormControl>
-                              <Input {...field} disabled className="h-8 bg-muted/30" />
+                              <Input {...field} disabled className="h-6 bg-muted/30 text-xs" />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -933,8 +933,8 @@ export function GRNForm({ grn, onSubmit, onCancel, readOnly = false, mode }: GRN
                 <Card className="shadow-sm border-border/50">
                   <CardHeader className="pb-2 pt-3">
                     <div className="flex justify-between items-center">
-                      <CardTitle className="text-sm font-semibold flex items-center gap-2">
-                        <Package className="h-4 w-4 text-primary" />
+                      <CardTitle className="text-xs font-semibold flex items-center gap-1">
+                        <Package className="h-3 w-3 text-primary" />
                         GRN Items
                       </CardTitle>
                       <div className="flex items-center gap-3">
@@ -948,8 +948,8 @@ export function GRNForm({ grn, onSubmit, onCancel, readOnly = false, mode }: GRN
                     {items.length > 0 ? (
                       <div className="space-y-4">
                         {/* Default Warehouse & Bin Selection */}
-                        <div className="bg-green-100 dark:bg-green-900/20 p-3 border-b">
-                          <div className="grid grid-cols-2 gap-3">
+                        <div className="bg-green-100 dark:bg-green-900/20 p-2 border-b">
+                          <div className="grid grid-cols-2 gap-2">
                             {/* Default Warehouse */}
                             <div className="space-y-1">
                               <FormField
@@ -1294,17 +1294,17 @@ export function GRNForm({ grn, onSubmit, onCancel, readOnly = false, mode }: GRN
                         </div>
 
                         {/* Summary Cards */}
-                        <div className="px-3 pb-3">
-                          <div className="grid grid-cols-2 gap-3">
+                        <div className="px-2 pb-2">
+                          <div className="grid grid-cols-2 gap-2">
                             {/* Item Summary */}
-                            <Card className="border-dashed border-2 border-blue-200 bg-blue-50/50 dark:bg-blue-950/20">
-                              <CardHeader className="pb-2 pt-3">
-                                <CardTitle className="text-xs font-semibold text-blue-700 dark:text-blue-400 flex items-center gap-2">
-                                  <Package className="h-4 w-4" />
+                            <Card className="border-dashed border border-blue-200 bg-blue-50/50 dark:bg-blue-950/20">
+                              <CardHeader className="pb-1 pt-2">
+                                <CardTitle className="text-xs font-semibold text-blue-700 dark:text-blue-400 flex items-center gap-1">
+                                  <Package className="h-3 w-3" />
                                   Item Summary
                                 </CardTitle>
                               </CardHeader>
-                              <CardContent className="space-y-2 pt-0">
+                              <CardContent className="space-y-1 pt-0">
                                 <div className="flex justify-between text-xs">
                                   <span>Items Count:</span>
                                   <span className="font-medium">{items.length}</span>
@@ -1329,21 +1329,21 @@ export function GRNForm({ grn, onSubmit, onCancel, readOnly = false, mode }: GRN
                             </Card>
 
                             {/* Order Details */}
-                            <Card className="border-dashed border-2 border-green-200 bg-green-50/50 dark:bg-green-950/20">
-                              <CardHeader className="pb-2 pt-3">
-                                <CardTitle className="text-xs font-semibold text-green-700 dark:text-green-400 flex items-center gap-2">
-                                  <Calculator className="h-4 w-4" />
+                            <Card className="border-dashed border border-green-200 bg-green-50/50 dark:bg-green-950/20">
+                              <CardHeader className="pb-1 pt-2">
+                                <CardTitle className="text-xs font-semibold text-green-700 dark:text-green-400 flex items-center gap-1">
+                                  <Calculator className="h-3 w-3" />
                                   Order Details
                                 </CardTitle>
                               </CardHeader>
-                              <CardContent className="space-y-2 pt-0">
+                              <CardContent className="space-y-1 pt-0">
                                 <div className="flex justify-between text-xs">
                                   <span>Currency:</span>
                                   <span className="font-medium">INR</span>
                                 </div>
                                 <div className="flex justify-between text-xs">
                                   <span>Status:</span>
-                                  <Badge variant={form.watch('status') === 'received' ? 'default' : 'secondary'} className="h-4 text-xs">
+                                  <Badge variant={form.watch('status') === 'received' ? 'default' : 'secondary'} className="h-3 text-xs px-1">
                                     {form.watch('status') === 'received' ? 'Received' : 'Draft'}
                                   </Badge>
                                 </div>
