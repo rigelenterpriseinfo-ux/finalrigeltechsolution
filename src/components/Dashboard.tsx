@@ -291,41 +291,6 @@ export default function Dashboard() {
       default:
         return (
           <div className="space-y-6">
-            {/* Key Metrics Grid - Mobile Optimized */}
-            <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 stagger-animation">
-              <StatsCard
-                title="Total Revenue"
-                value="$0"
-                subtitle="Start selling to see revenue"
-                icon={DollarSign}
-                variant="primary"
-                trend={{ value: 0, label: "from last month" }}
-              />
-              
-              <StatsCard
-                title="Active Products"
-                value="0"
-                subtitle="No products added yet"
-                icon={Package}
-                variant="secondary"
-              />
-              
-              <StatsCard
-                title="Orders Today"
-                value="0"
-                subtitle="No orders yet"
-                icon={ShoppingCart}
-                variant="accent"
-              />
-              
-              <StatsCard
-                title="Inventory"
-                value={`${inventoryStats.totalSKUs} SKUs`}
-                subtitle={`Total Units: ${inventoryStats.totalUnits} | Total Cost: ₹${inventoryStats.totalCost.toFixed(2)}`}
-                icon={Package}
-                variant="default"
-              />
-            </div>
 
             {/* Quick Actions Grid - Mobile Optimized */}
             <div className="grid gap-3 sm:gap-4 grid-cols-1 lg:grid-cols-3">
