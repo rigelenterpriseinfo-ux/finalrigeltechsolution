@@ -86,7 +86,45 @@ export default function SalesModule() {
       );
 
       if (error) throw error;
-      setSalesOrders(data || []);
+
+      // Enrich with totals from the Sales Order Form (sales_order_items)
+      const orders = data || [];
+      const orderIds = orders.map((o: any) => o.id);
+      if (orderIds.length === 0) {
+        setSalesOrders(orders);
+        return;
+      }
+
+      const { data: itemsData, error: itemsError } = await supabase
+        .from('sales_order_items')
+        .select('sales_order_id, ordered_quantity, quantity, back_order_quantity')
+        .in('sales_order_id', orderIds);
+
+      if (itemsError) throw itemsError;
+
+      const aggregates = new Map<string, { ordered: number; backorder: number }>();
+      for (const it of itemsData || []) {
+        const ordered = (it.ordered_quantity ?? it.quantity ?? 0) as number;
+        const back = (it.back_order_quantity ?? 0) as number;
+        const prev = aggregates.get(it.sales_order_id) || { ordered: 0, backorder: 0 };
+        aggregates.set(it.sales_order_id, {
+          ordered: prev.ordered + ordered,
+          backorder: prev.backorder + back,
+        });
+      }
+
+      const enriched = orders.map((o: any) => {
+        const agg = aggregates.get(o.id);
+        if (!agg) return o;
+        return {
+          ...o,
+          total_ordered_qty: agg.ordered,
+          total_backorder_qty: agg.backorder,
+          total_ready_to_deliver_qty: Math.max(0, agg.ordered - agg.backorder),
+        };
+      });
+
+      setSalesOrders(enriched);
     } catch (error) {
       console.error('Error fetching sales orders:', error);
       toast({
