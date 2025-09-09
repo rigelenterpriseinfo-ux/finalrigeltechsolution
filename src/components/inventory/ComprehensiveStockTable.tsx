@@ -107,6 +107,18 @@ export const ComprehensiveStockTable = ({
 
       if (stockError) throw stockError;
 
+      // Get warehouse bin details
+      const { data: binData, error: binError } = await supabase
+        .from('warehouse_bins')
+        .select('id, warehouse_name, bin_name, wh_bin_code')
+        .eq('company_id', company.id)
+        .eq('is_active', true);
+
+      if (binError) throw binError;
+
+      // Create a map of bin details
+      const binMap = new Map(binData?.map(bin => [bin.id, bin]) || []);
+
       // Get allocated stock from sales orders
       const { data: allocatedData, error: allocatedError } = await supabase
         .from('sales_order_items')
@@ -154,8 +166,9 @@ export const ComprehensiveStockTable = ({
 
       // Process and combine the data
       const processedData: StockData[] = (stockData || []).map(stock => {
-        const warehouseName = `Warehouse-${stock.warehouse_id?.toString().slice(-4) || 'Unknown'}`;
-        const binName = `Bin-${stock.bin_id?.toString().slice(-4) || 'Unknown'}`;
+        const binDetails = binMap.get(stock.bin_id);
+        const warehouseName = binDetails?.warehouse_name || 'Unknown Warehouse';
+        const binName = binDetails?.bin_name || 'Unknown Bin';
 
         // Calculate allocated stock for this product (simplified - no location-specific allocation)
         const locationAllocated = (allocatedData || [])

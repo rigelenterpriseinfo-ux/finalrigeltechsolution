@@ -39,8 +39,8 @@ export const LocationSearchBox = ({ value, onChange, onRefresh }: LocationSearch
     try {
       setLoading(true);
       
-      // Get all warehouse bins with current stock data
-      const { data, error } = await supabase
+      // Get current stock data
+      const { data: stockData, error: stockError } = await supabase
         .from('current_stock_levels')
         .select(`
           warehouse_id,
@@ -51,16 +51,29 @@ export const LocationSearchBox = ({ value, onChange, onRefresh }: LocationSearch
         .eq('company_id', company?.id)
         .gt('current_stock', 0);
 
-      if (error) throw error;
+      if (stockError) throw stockError;
+
+      // Get warehouse bin details
+      const { data: binData, error: binError } = await supabase
+        .from('warehouse_bins')
+        .select('id, warehouse_name, bin_name, wh_bin_code')
+        .eq('company_id', company?.id)
+        .eq('is_active', true);
+
+      if (binError) throw binError;
+
+      // Create a map of bin details
+      const binMap = new Map(binData?.map(bin => [bin.id, bin]) || []);
 
       // Group by warehouse and bin
       const locationMap = new Map<string, WarehouseBin>();
 
-      data?.forEach(stock => {
+      stockData?.forEach(stock => {
         const key = `${stock.warehouse_id}-${stock.bin_id}`;
-        const warehouseName = `Warehouse-${stock.warehouse_id?.toString().slice(-4) || 'Unknown'}`;
-        const binName = `Bin-${stock.bin_id?.toString().slice(-4) || 'Unknown'}`;
-        const binCode = `${warehouseName}-${binName}`;
+        const binDetails = binMap.get(stock.bin_id);
+        const warehouseName = binDetails?.warehouse_name || 'Unknown Warehouse';
+        const binName = binDetails?.bin_name || 'Unknown Bin';
+        const binCode = binDetails?.wh_bin_code || `${warehouseName}-${binName}`;
         const stockValue = stock.current_stock * (stock.products?.unit_price || 0);
 
         if (!locationMap.has(key)) {
@@ -201,7 +214,7 @@ export const LocationSearchBox = ({ value, onChange, onRefresh }: LocationSearch
               {availableBins.map((bin) => (
                 <SelectItem key={bin.bin_id} value={bin.bin_id}>
                   <div className="flex items-center justify-between w-full">
-                    <span>{bin.bin_name}</span>
+                    <span>{bin.bin_name} ({bin.bin_code})</span>
                     <div className="flex items-center gap-2 ml-4">
                       <Badge variant="outline" className="text-xs">
                         {bin.stock_count} units
@@ -228,7 +241,7 @@ export const LocationSearchBox = ({ value, onChange, onRefresh }: LocationSearch
               </div>
               <div className="flex-1 min-w-0">
                 <div className="font-medium">
-                  {selectedLocation ? selectedLocation.bin_code : `All locations in ${warehouseGroups.find(g => g.warehouse_id === value.warehouse)?.warehouse_name}`}
+                  {selectedLocation ? `${selectedLocation.warehouse_name} - ${selectedLocation.bin_name}` : `All locations in ${warehouseGroups.find(g => g.warehouse_id === value.warehouse)?.warehouse_name}`}
                 </div>
                 <div className="text-sm text-muted-foreground">
                   {selectedLocation ? (
