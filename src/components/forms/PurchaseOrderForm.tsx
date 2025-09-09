@@ -85,6 +85,7 @@ export function PurchaseOrderForm({
   const [companyData, setCompanyData] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('order-info');
+  const [globalGstType, setGlobalGstType] = useState<'intra' | 'inter'>('intra');
 
   const form = useForm<PurchaseOrderFormData>({
     resolver: zodResolver(purchaseOrderSchema),
@@ -329,8 +330,32 @@ export function PurchaseOrderForm({
       igst_amount: 0,
       line_subtotal: 0,
       line_total: 0,
-      gst_type: 'intra',
+      gst_type: globalGstType,
       master_gst_rate: 0,
+    });
+  };
+
+  const handleGlobalGstTypeChange = (newGstType: 'intra' | 'inter') => {
+    setGlobalGstType(newGstType);
+    
+    // Update all existing items to the new GST type
+    fields.forEach((_, index) => {
+      const masterGST = form.getValues(`items.${index}.master_gst_rate`) || 0;
+      form.setValue(`items.${index}.gst_type`, newGstType);
+      
+      if (newGstType === 'intra') {
+        // Intra-state: Clear IGST, set CGST+SGST
+        form.setValue(`items.${index}.igst_rate`, 0);
+        form.setValue(`items.${index}.cgst_rate`, masterGST / 2);
+        form.setValue(`items.${index}.sgst_rate`, masterGST / 2);
+      } else {
+        // Inter-state: Clear CGST+SGST, set IGST
+        form.setValue(`items.${index}.cgst_rate`, 0);
+        form.setValue(`items.${index}.sgst_rate`, 0);
+        form.setValue(`items.${index}.igst_rate`, masterGST);
+      }
+      
+      calculateLineAmounts(index);
     });
   };
 
@@ -744,12 +769,36 @@ export function PurchaseOrderForm({
                         <ShoppingCart className="h-4 w-4 text-primary" />
                         Purchase Order Items
                       </CardTitle>
-                      {!readOnly && (
-                        <Button type="button" onClick={addItem} size="sm" className="h-8 gap-2">
-                          <Plus className="h-4 w-4" />
-                          Add Item
-                        </Button>
-                      )}
+                      <div className="flex items-center gap-3">
+                        {!readOnly && (
+                          <div className="flex items-center gap-2">
+                            <Button
+                              type="button"
+                              variant={globalGstType === 'intra' ? 'default' : 'outline'}
+                              size="sm"
+                              onClick={() => handleGlobalGstTypeChange('intra')}
+                              className="h-8 text-xs"
+                            >
+                              Intra-State (CGST+SGST)
+                            </Button>
+                            <Button
+                              type="button"
+                              variant={globalGstType === 'inter' ? 'default' : 'outline'}
+                              size="sm"
+                              onClick={() => handleGlobalGstTypeChange('inter')}
+                              className="h-8 text-xs"
+                            >
+                              Inter-State (IGST)
+                            </Button>
+                          </div>
+                        )}
+                        {!readOnly && (
+                          <Button type="button" onClick={addItem} size="sm" className="h-8 gap-2">
+                            <Plus className="h-4 w-4" />
+                            Add Item
+                          </Button>
+                        )}
+                      </div>
                     </div>
                   </CardHeader>
                   <CardContent className="p-0">
@@ -760,9 +809,15 @@ export function PurchaseOrderForm({
                              <TableHead className="w-[220px] font-semibold">Product</TableHead>
                              <TableHead className="w-[95px] text-center font-semibold">Qty</TableHead>
                              <TableHead className="w-[110px] text-center font-semibold">Unit Price</TableHead>
-                             <TableHead className="w-[70px] text-center font-semibold">CGST%</TableHead>
-                            <TableHead className="w-[70px] text-center font-semibold">SGST%</TableHead>
-                            <TableHead className="w-[70px] text-center font-semibold">IGST%</TableHead>
+                             {globalGstType === 'intra' && (
+                               <>
+                                 <TableHead className="w-[70px] text-center font-semibold">CGST%</TableHead>
+                                 <TableHead className="w-[70px] text-center font-semibold">SGST%</TableHead>
+                               </>
+                             )}
+                             {globalGstType === 'inter' && (
+                               <TableHead className="w-[70px] text-center font-semibold">IGST%</TableHead>
+                             )}
                             <TableHead className="w-[80px] text-center font-semibold">Disc%</TableHead>
                             <TableHead className="w-[100px] text-center font-semibold">Disc Value</TableHead>
                             <TableHead className="w-[100px] text-center font-semibold">GST Value</TableHead>
@@ -842,150 +897,156 @@ export function PurchaseOrderForm({
                                   />
                                 </TableCell>
 
-                                <TableCell className="p-2">
-                                  <FormField
-                                    control={form.control}
-                                    name={`items.${index}.unit_price`}
-                                    render={({ field }) => (
-                                      <FormItem>
-                                        <FormControl>
-                                          <div className="relative">
-                                            <Input 
-                                              type="number" 
-                                              step="0.01" 
-                                              min="0" 
-                                              className="h-8 w-full text-center text-sm pr-6" 
-                                              {...field}
-                                              onChange={(e) => {
-                                                field.onChange(parseFloat(e.target.value) || 0);
-                                                calculateLineAmounts(index);
-                                              }}
-                                              disabled={readOnly}
-                                            />
-                                            {form.watch(`items.${index}.unit_price`) === products.find(p => p.id === form.watch(`items.${index}.product_id`))?.unit_price && (
-                                              <CheckCircle2 className="h-3 w-3 text-green-500 absolute right-1 top-2.5" />
-                                            )}
-                                          </div>
-                                        </FormControl>
-                                        <FormMessage />
-                                      </FormItem>
-                                    )}
-                                  />
-                                 </TableCell>
-
                                  <TableCell className="p-2">
                                    <FormField
                                      control={form.control}
-                                     name={`items.${index}.cgst_rate`}
-                                    render={({ field }) => (
+                                     name={`items.${index}.unit_price`}
+                                     render={({ field }) => (
                                        <FormItem>
                                          <FormControl>
-                                           <Select 
-                                             value={field.value?.toString() || "0"}
-                                             onValueChange={(value) => {
-                                               const rate = parseFloat(value);
-                                               if (validateGSTRate(index, 'cgst', rate)) {
-                                                 field.onChange(rate);
+                                           <div className="relative">
+                                             <Input 
+                                               type="number" 
+                                               step="0.01" 
+                                               min="0" 
+                                               className="h-8 w-full text-center text-sm pr-6" 
+                                               {...field}
+                                               onChange={(e) => {
+                                                 field.onChange(parseFloat(e.target.value) || 0);
                                                  calculateLineAmounts(index);
-                                               }
-                                             }}
-                                             disabled={readOnly || gstType === 'inter'}
-                                           >
-                                             <FormControl>
-                                               <SelectTrigger className={`h-8 text-sm ${gstType === 'inter' ? 'bg-muted/50' : ''} ${gstMismatch ? 'border-destructive bg-destructive/10' : ''}`}>
-                                                 <SelectValue placeholder="0%" />
-                                               </SelectTrigger>
-                                             </FormControl>
-                                             <SelectContent>
-                                               <SelectItem value="0">0%</SelectItem>
-                                               <SelectItem value="2.5">2.5%</SelectItem>
-                                               <SelectItem value="6">6%</SelectItem>
-                                               <SelectItem value="9">9%</SelectItem>
-                                               <SelectItem value="14">14%</SelectItem>
-                                             </SelectContent>
-                                           </Select>
+                                               }}
+                                               disabled={readOnly}
+                                             />
+                                             {form.watch(`items.${index}.unit_price`) === products.find(p => p.id === form.watch(`items.${index}.product_id`))?.unit_price && (
+                                               <CheckCircle2 className="h-3 w-3 text-green-500 absolute right-1 top-2.5" />
+                                             )}
+                                           </div>
                                          </FormControl>
-                                        <FormMessage />
-                                      </FormItem>
-                                    )}
-                                  />
-                                </TableCell>
+                                         <FormMessage />
+                                       </FormItem>
+                                     )}
+                                   />
+                                  </TableCell>
 
-                                <TableCell className="p-2">
-                                  <FormField
-                                    control={form.control}
-                                    name={`items.${index}.sgst_rate`}
-                                    render={({ field }) => (
-                                       <FormItem>
-                                         <FormControl>
-                                           <Select 
-                                             value={field.value?.toString() || "0"}
-                                             onValueChange={(value) => {
-                                               const rate = parseFloat(value);
-                                               if (validateGSTRate(index, 'sgst', rate)) {
-                                                 field.onChange(rate);
-                                                 calculateLineAmounts(index);
-                                               }
-                                             }}
-                                             disabled={readOnly || gstType === 'inter'}
-                                           >
+                                 {globalGstType === 'intra' && (
+                                   <>
+                                     <TableCell className="p-2">
+                                       <FormField
+                                         control={form.control}
+                                         name={`items.${index}.cgst_rate`}
+                                        render={({ field }) => (
+                                           <FormItem>
                                              <FormControl>
-                                               <SelectTrigger className={`h-8 text-sm ${gstType === 'inter' ? 'bg-muted/50' : ''} ${gstMismatch ? 'border-destructive bg-destructive/10' : ''}`}>
-                                                 <SelectValue placeholder="0%" />
-                                               </SelectTrigger>
+                                               <Select 
+                                                 value={field.value?.toString() || "0"}
+                                                 onValueChange={(value) => {
+                                                   const rate = parseFloat(value);
+                                                   if (validateGSTRate(index, 'cgst', rate)) {
+                                                     field.onChange(rate);
+                                                     calculateLineAmounts(index);
+                                                   }
+                                                 }}
+                                                 disabled={readOnly}
+                                               >
+                                                 <FormControl>
+                                                   <SelectTrigger className={`h-8 text-sm ${gstMismatch ? 'border-destructive bg-destructive/10' : ''}`}>
+                                                     <SelectValue placeholder="0%" />
+                                                   </SelectTrigger>
+                                                 </FormControl>
+                                                 <SelectContent>
+                                                   <SelectItem value="0">0%</SelectItem>
+                                                   <SelectItem value="2.5">2.5%</SelectItem>
+                                                   <SelectItem value="6">6%</SelectItem>
+                                                   <SelectItem value="9">9%</SelectItem>
+                                                   <SelectItem value="14">14%</SelectItem>
+                                                 </SelectContent>
+                                               </Select>
                                              </FormControl>
-                                             <SelectContent>
-                                               <SelectItem value="0">0%</SelectItem>
-                                               <SelectItem value="2.5">2.5%</SelectItem>
-                                               <SelectItem value="6">6%</SelectItem>
-                                               <SelectItem value="9">9%</SelectItem>
-                                               <SelectItem value="14">14%</SelectItem>
-                                             </SelectContent>
-                                           </Select>
-                                         </FormControl>
-                                        <FormMessage />
-                                      </FormItem>
-                                    )}
-                                  />
-                                </TableCell>
+                                            <FormMessage />
+                                          </FormItem>
+                                        )}
+                                      />
+                                    </TableCell>
 
-                                <TableCell className="p-2">
-                                  <FormField
-                                    control={form.control}
-                                    name={`items.${index}.igst_rate`}
-                                    render={({ field }) => (
-                                       <FormItem>
-                                         <FormControl>
-                                            <Select 
-                                              value={field.value?.toString() || "0"}
-                                              onValueChange={(value) => {
-                                                const rate = parseFloat(value);
-                                                if (validateGSTRate(index, 'igst', rate)) {
-                                                  field.onChange(rate);
-                                                  calculateLineAmounts(index);
-                                                }
-                                              }}
-                                              disabled={readOnly || gstType === 'intra'}
-                                            >
+                                    <TableCell className="p-2">
+                                      <FormField
+                                        control={form.control}
+                                        name={`items.${index}.sgst_rate`}
+                                        render={({ field }) => (
+                                           <FormItem>
                                              <FormControl>
-                                               <SelectTrigger className={`h-8 text-sm ${gstType === 'intra' ? 'bg-muted/50' : ''} ${gstMismatch ? 'border-destructive bg-destructive/10' : ''}`}>
-                                                 <SelectValue placeholder="0%" />
-                                               </SelectTrigger>
+                                               <Select 
+                                                 value={field.value?.toString() || "0"}
+                                                 onValueChange={(value) => {
+                                                   const rate = parseFloat(value);
+                                                   if (validateGSTRate(index, 'sgst', rate)) {
+                                                     field.onChange(rate);
+                                                     calculateLineAmounts(index);
+                                                   }
+                                                 }}
+                                                 disabled={readOnly}
+                                               >
+                                                 <FormControl>
+                                                   <SelectTrigger className={`h-8 text-sm ${gstMismatch ? 'border-destructive bg-destructive/10' : ''}`}>
+                                                     <SelectValue placeholder="0%" />
+                                                   </SelectTrigger>
+                                                 </FormControl>
+                                                 <SelectContent>
+                                                   <SelectItem value="0">0%</SelectItem>
+                                                   <SelectItem value="2.5">2.5%</SelectItem>
+                                                   <SelectItem value="6">6%</SelectItem>
+                                                   <SelectItem value="9">9%</SelectItem>
+                                                   <SelectItem value="14">14%</SelectItem>
+                                                 </SelectContent>
+                                               </Select>
                                              </FormControl>
-                                             <SelectContent>
-                                               <SelectItem value="0">0%</SelectItem>
-                                               <SelectItem value="5">5%</SelectItem>
-                                               <SelectItem value="12">12%</SelectItem>
-                                               <SelectItem value="18">18%</SelectItem>
-                                               <SelectItem value="28">28%</SelectItem>
-                                             </SelectContent>
-                                           </Select>
-                                         </FormControl>
-                                        <FormMessage />
-                                      </FormItem>
-                                    )}
-                                  />
-                                </TableCell>
+                                            <FormMessage />
+                                          </FormItem>
+                                        )}
+                                      />
+                                    </TableCell>
+                                   </>
+                                 )}
+
+                                 {globalGstType === 'inter' && (
+                                   <TableCell className="p-2">
+                                     <FormField
+                                       control={form.control}
+                                       name={`items.${index}.igst_rate`}
+                                       render={({ field }) => (
+                                          <FormItem>
+                                            <FormControl>
+                                               <Select 
+                                                 value={field.value?.toString() || "0"}
+                                                 onValueChange={(value) => {
+                                                   const rate = parseFloat(value);
+                                                   if (validateGSTRate(index, 'igst', rate)) {
+                                                     field.onChange(rate);
+                                                     calculateLineAmounts(index);
+                                                   }
+                                                 }}
+                                                 disabled={readOnly}
+                                               >
+                                                <FormControl>
+                                                  <SelectTrigger className={`h-8 text-sm ${gstMismatch ? 'border-destructive bg-destructive/10' : ''}`}>
+                                                    <SelectValue placeholder="0%" />
+                                                  </SelectTrigger>
+                                                </FormControl>
+                                                <SelectContent>
+                                                  <SelectItem value="0">0%</SelectItem>
+                                                  <SelectItem value="5">5%</SelectItem>
+                                                  <SelectItem value="12">12%</SelectItem>
+                                                  <SelectItem value="18">18%</SelectItem>
+                                                  <SelectItem value="28">28%</SelectItem>
+                                                </SelectContent>
+                                              </Select>
+                                            </FormControl>
+                                           <FormMessage />
+                                         </FormItem>
+                                       )}
+                                     />
+                                   </TableCell>
+                                 )}
 
                                 <TableCell className="p-2">
                                   <FormField
