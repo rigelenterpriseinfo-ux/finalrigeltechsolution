@@ -681,8 +681,17 @@ export function DebitNoteTable({ refreshTrigger, onView, onEdit, onDelete, onFil
                             variant="ghost"
                             size="icon"
                             onClick={() => handleEditClick(debitNote)}
-                            className="text-amber-600 hover:text-amber-700 hover:bg-amber-50"
-                            title="Edit Debit Note"
+                            disabled={debitNote.settlement_status === 'settled'}
+                            className={`text-amber-600 hover:text-amber-700 hover:bg-amber-50 ${
+                              debitNote.settlement_status === 'settled' 
+                                ? 'opacity-50 cursor-not-allowed' 
+                                : ''
+                            }`}
+                            title={
+                              debitNote.settlement_status === 'settled' 
+                                ? "Cannot edit settled debit note" 
+                                : "Edit Debit Note"
+                            }
                           >
                             <Edit className="h-4 w-4" />
                           </Button>
@@ -690,8 +699,19 @@ export function DebitNoteTable({ refreshTrigger, onView, onEdit, onDelete, onFil
                             variant="ghost"
                             size="icon"
                             onClick={() => onDelete(debitNote.id)}
-                            className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                            title="Delete Debit Note"
+                            disabled={debitNote.settlement_status === 'settled' || debitNote.settlement_status === 'partially_settled'}
+                            className={`text-red-600 hover:text-red-700 hover:bg-red-50 ${
+                              debitNote.settlement_status === 'settled' || debitNote.settlement_status === 'partially_settled'
+                                ? 'opacity-50 cursor-not-allowed' 
+                                : ''
+                            }`}
+                            title={
+                              debitNote.settlement_status === 'settled' 
+                                ? "Cannot delete settled debit note"
+                                : debitNote.settlement_status === 'partially_settled'
+                                ? "Cannot delete partially settled debit note"
+                                : "Delete Debit Note"
+                            }
                           >
                             <Trash2 className="h-4 w-4" />
                           </Button>
