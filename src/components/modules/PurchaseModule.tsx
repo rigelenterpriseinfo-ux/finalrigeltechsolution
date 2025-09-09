@@ -271,7 +271,9 @@ function PurchaseModuleContent() {
         `)
         .eq('company_id', profile.company_id)
         .lt('expected_date', today)
-        .neq('status', 'closed');
+        .neq('status', 'closed')
+        .order('total_amount', { ascending: false })
+        .limit(5);
 
       if (overdueError) throw overdueError;
 
@@ -637,7 +639,9 @@ function PurchaseModuleContent() {
           title="Overdue Purchase Orders"
           value={stats.overduePOs.count}
           subtitle={stats.overduePOs.details.length > 0 
-            ? `${stats.overduePOs.details.slice(0, 2).map((po: any) => `${po.po_number}`).join(', ')}${stats.overduePOs.details.length > 2 ? '...' : ''}`
+            ? stats.overduePOs.details.map((po: any) => 
+                `${po.supplier?.name || 'Unknown'}: ₹${(po.total_amount || 0).toLocaleString()}`
+              ).join(' • ')
             : `₹${stats.overduePOs.value.toLocaleString()}`
           }
           icon={AlertCircle}
