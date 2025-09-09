@@ -544,16 +544,17 @@ export function DebitNoteForm({ debitNote, onSubmit, onCancel, mode }: DebitNote
                     <div className="col-span-3">
                       {!selectedInvoice ? (
                         <div className="space-y-1">
-                          <ProductSearch
-                            value={item.product_id}
-                            onSelect={(product) => {
-                              handleItemChange(index, 'product_id', product.id);
-                              handleItemChange(index, 'product_name', product.name);
-                              handleItemChange(index, 'product_sku', product.sku);
-                              handleItemChange(index, 'unit_price', product.cost_price || 0);
-                            }}
-                            placeholder="Select product"
-                          />
+                           <ProductSearch
+                             value={item.product_id}
+                             onSelect={(product) => {
+                               handleItemChange(index, 'product_id', product.id);
+                               handleItemChange(index, 'product_name', product.name);
+                               handleItemChange(index, 'product_sku', product.sku);
+                               handleItemChange(index, 'unit_price', product.cost_price || 0);
+                               // GST rates will remain as entered or default to 0
+                             }}
+                             placeholder="Select product"
+                           />
                         </div>
                       ) : (
                         <div>
