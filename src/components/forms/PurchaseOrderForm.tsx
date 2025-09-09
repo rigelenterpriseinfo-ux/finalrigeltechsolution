@@ -421,10 +421,21 @@ export function PurchaseOrderForm({
   const handleSubmit = async (data: PurchaseOrderFormData) => {
     setLoading(true);
     try {
-      // Map place_of_supply to company_place_of_supply for database
+      // Calculate totals from form data
+      const items = data.items || [];
+      const calculatedSubtotal = items.reduce((sum, item) => sum + (item.line_subtotal || 0), 0);
+      const calculatedTotalDiscount = items.reduce((sum, item) => sum + (item.discount_amount || 0), 0);
+      const calculatedTotalTax = items.reduce((sum, item) => sum + (item.cgst_amount || 0) + (item.sgst_amount || 0) + (item.igst_amount || 0), 0);
+      const calculatedTotal = items.reduce((sum, item) => sum + (item.line_total || 0), 0);
+
+      // Map place_of_supply to company_place_of_supply for database and include calculated totals
       const mappedData = {
         ...data,
         company_place_of_supply: data.place_of_supply,
+        subtotal_amount: calculatedSubtotal,
+        total_discount_amount: calculatedTotalDiscount,
+        total_tax_amount: calculatedTotalTax,
+        total_amount: calculatedTotal,
       };
       delete mappedData.place_of_supply;
       
