@@ -1090,6 +1090,9 @@ function PurchaseModuleContent() {
                     grn_header_id: grn.id,
                     product_id: item.product_id,
                     product_name: item.product_name,
+                    product_sku: item.product_sku || '',
+                    unit_of_measure: item.unit_of_measure || 'pcs',
+                    hsn_sac_code: item.hsn_sac_code || '',
                     ordered_quantity: item.ordered_quantity || 0,
                     received_quantity: item.received_quantity || 0,
                     accepted_quantity: item.accepted_quantity || 0,
@@ -1107,14 +1110,17 @@ function PurchaseModuleContent() {
                     line_total: item.line_total || 0,
                     warehouse_id: item.warehouse_id,
                     bin_id: item.bin_id,
-                    remarks: item.remarks || null,
                   }));
 
                   const { error: itemsError } = await supabase
                     .from('grn_line_items')
                     .insert(itemsToInsert);
 
-                  if (itemsError) throw itemsError;
+                  if (itemsError) {
+                    // Safety mechanism: delete the grn_header if line items insertion fails
+                    await supabase.from('grn_header').delete().eq('id', grn.id);
+                    throw itemsError;
+                  }
                 }
 
                 toast({

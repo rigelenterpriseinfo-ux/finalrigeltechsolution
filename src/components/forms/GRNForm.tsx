@@ -261,28 +261,59 @@ export function GRNForm({ grn, onSubmit, onCancel, readOnly = false, mode }: GRN
     
     form.setValue('items', items);
     
+    // Normalize tax rates and calculate totals for each item
+    items.forEach((item, index) => {
+      // Clear CGST/SGST if IGST > 0, or clear IGST if CGST/SGST > 0
+      if (item.igst_rate && item.igst_rate > 0) {
+        form.setValue(`items.${index}.cgst_rate`, 0);
+        form.setValue(`items.${index}.sgst_rate`, 0);
+      } else if ((item.cgst_rate && item.cgst_rate > 0) || (item.sgst_rate && item.sgst_rate > 0)) {
+        form.setValue(`items.${index}.igst_rate`, 0);
+      }
+    });
+    
     // Apply status-based logic to accepted quantities
     const currentStatus = form.getValues('status');
     handleStatusChange(currentStatus);
+    
+    // Calculate totals for all items after setting them
+    items.forEach((_, index) => {
+      calculateItemTotals(index);
+    });
   };
 
   const handleStatusChange = (status: string) => {
     const currentItems = form.getValues('items');
     
-    const updatedItems = currentItems.map(item => {
+    const updatedItems = currentItems.map((item, index) => {
       if (status === 'accepted' || status === 'received') {
         // For "Accepted/Received" status, set accepted_quantity = received_quantity (full receipt)
-        return {
+        const updated = {
           ...item,
           accepted_quantity: item.received_quantity,
           rejected_quantity: 0,
         };
+        
+        // Normalize tax rates for this item
+        if (updated.igst_rate && updated.igst_rate > 0) {
+          updated.cgst_rate = 0;
+          updated.sgst_rate = 0;
+        } else if ((updated.cgst_rate && updated.cgst_rate > 0) || (updated.sgst_rate && updated.sgst_rate > 0)) {
+          updated.igst_rate = 0;
+        }
+        
+        return updated;
       }
       return item;
     });
     
     form.setValue('items', updatedItems);
     form.setValue('status', (status === 'received' ? 'accepted' : status) as any);
+    
+    // Calculate totals for all items after status change
+    updatedItems.forEach((_, index) => {
+      calculateItemTotals(index);
+    });
   };
 
   const calculateItemTotals = (index: number) => {
@@ -292,7 +323,7 @@ export function GRNForm({ grn, onSubmit, onCancel, readOnly = false, mode }: GRN
     if (!item) return;
 
     const subtotal = (item.accepted_quantity || 0) * (item.unit_price || 0);
-    const discountAmount = item.discount_amount || ((item.discount_percentage || 0) * subtotal / 100);
+    const discountAmount = item.discount_amount ?? ((item.discount_percentage || 0) * subtotal / 100);
     const afterDiscount = subtotal - discountAmount;
     
     // GST Logic: Either CGST+SGST OR IGST, but not both
@@ -317,13 +348,13 @@ export function GRNForm({ grn, onSubmit, onCancel, readOnly = false, mode }: GRN
     const totalTaxAmount = cgstAmount + sgstAmount + igstAmount;
     const lineTotal = afterDiscount + totalTaxAmount;
 
-    // Update the form values
-    form.setValue(`items.${index}.discount_amount`, discountAmount);
-    form.setValue(`items.${index}.cgst_amount`, cgstAmount);
-    form.setValue(`items.${index}.sgst_amount`, sgstAmount);
-    form.setValue(`items.${index}.igst_amount`, igstAmount);
-    form.setValue(`items.${index}.total_tax_amount`, totalTaxAmount);
-    form.setValue(`items.${index}.line_total`, lineTotal);
+    // Update the form values, coerce NaN to 0
+    form.setValue(`items.${index}.discount_amount`, isNaN(discountAmount) ? 0 : discountAmount);
+    form.setValue(`items.${index}.cgst_amount`, isNaN(cgstAmount) ? 0 : cgstAmount);
+    form.setValue(`items.${index}.sgst_amount`, isNaN(sgstAmount) ? 0 : sgstAmount);
+    form.setValue(`items.${index}.igst_amount`, isNaN(igstAmount) ? 0 : igstAmount);
+    form.setValue(`items.${index}.total_tax_amount`, isNaN(totalTaxAmount) ? 0 : totalTaxAmount);
+    form.setValue(`items.${index}.line_total`, isNaN(lineTotal) ? 0 : lineTotal);
   };
 
   // Apply default warehouse/bin to all items
