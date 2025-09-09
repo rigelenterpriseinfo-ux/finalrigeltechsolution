@@ -857,29 +857,28 @@ export function GRNForm({ grn, onSubmit, onCancel, readOnly = false, mode }: GRN
                             Delivery Address
                           </label>
                           <div className="bg-muted/30 rounded-md p-3 min-h-[80px]">
-                            {form.watch('same_as_registered_address') ? (
-                              <p className="text-xs text-muted-foreground italic">Same as registered address</p>
-                            ) : (
-                              <div className="text-xs space-y-1">
-                                {form.watch('delivery_address_line1') && (
-                                  <div>{form.watch('delivery_address_line1')}</div>
-                                )}
-                                {form.watch('delivery_address_line2') && (
-                                  <div>{form.watch('delivery_address_line2')}</div>
-                                )}
-                                <div className="flex flex-wrap gap-1">
-                                  {form.watch('delivery_city') && <span>{form.watch('delivery_city')}</span>}
-                                  {form.watch('delivery_state') && <span>, {form.watch('delivery_state')}</span>}
-                                  {form.watch('delivery_postal_code') && <span> - {form.watch('delivery_postal_code')}</span>}
-                                </div>
-                                {form.watch('delivery_country') && (
-                                  <div>{form.watch('delivery_country')}</div>
-                                )}
-                                {!form.watch('delivery_address_line1') && !form.watch('delivery_city') && (
-                                  <p className="text-xs text-muted-foreground italic">No delivery address specified</p>
-                                )}
+                            <div className="text-xs space-y-1">
+                              {form.watch('delivery_address_line1') && (
+                                <div>{form.watch('delivery_address_line1')}</div>
+                              )}
+                              {form.watch('delivery_address_line2') && (
+                                <div>{form.watch('delivery_address_line2')}</div>
+                              )}
+                              <div className="flex flex-wrap gap-1">
+                                {form.watch('delivery_city') && <span>{form.watch('delivery_city')}</span>}
+                                {form.watch('delivery_state') && <span>, {form.watch('delivery_state')}</span>}
+                                {form.watch('delivery_postal_code') && <span> - {form.watch('delivery_postal_code')}</span>}
                               </div>
-                            )}
+                              {form.watch('delivery_country') && (
+                                <div>{form.watch('delivery_country')}</div>
+                              )}
+                              {!form.watch('delivery_address_line1') && !form.watch('delivery_city') && !selectedPO && (
+                                <p className="text-xs text-muted-foreground italic">No delivery address specified</p>
+                              )}
+                              {selectedPO && form.watch('same_as_registered_address') && !form.watch('delivery_address_line1') && (
+                                <p className="text-xs text-muted-foreground italic">Same as registered address</p>
+                              )}
+                            </div>
                           </div>
                         </div>
 
