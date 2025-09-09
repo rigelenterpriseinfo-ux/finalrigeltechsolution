@@ -129,22 +129,24 @@ export const CurrentStockTable = ({ refreshTrigger }: CurrentStockTableProps) =>
       setLoading(true);
       console.log('Fetching current stock levels...');
       
+      // First get the current stock data
       const { data: stockData, error } = await supabase
         .from('current_stock_with_aging')
-        .select(`
-          *,
-          products!inner(
-            name,
-            sku,
-            min_stock_level,
-            unit_price,
-            cost_price
-          ),
-          warehouses!inner(name),
-          bins!inner(name)
-        `)
+        .select('*')
         .eq('company_id', company?.id)
         .order('current_stock', { ascending: false });
+
+      if (error) throw error;
+
+      // Then get related data separately
+      const productIds = [...new Set(stockData?.map(s => s.product_id))];
+
+      const [productsData] = await Promise.all([
+        supabase.from('products').select('id, name, sku, min_stock_level, unit_price, cost_price').in('id', productIds)
+      ]);
+
+      // Create lookup maps
+      const productsMap = new Map(productsData.data?.map(p => [p.id, p]) || []);
 
       if (error) {
         console.error('Error fetching current stock:', error);
@@ -155,7 +157,8 @@ export const CurrentStockTable = ({ refreshTrigger }: CurrentStockTableProps) =>
 
       // Process and format the data with aging information
       const formattedStock: CurrentStock[] = (stockData || []).map(stock => {
-        const totalValue = stock.current_stock * (stock.products?.unit_price || 0);
+        const product = productsMap.get(stock.product_id);
+        const totalValue = stock.current_stock * (product?.unit_price || 0);
         
         return {
           company_id: stock.company_id,
@@ -165,13 +168,13 @@ export const CurrentStockTable = ({ refreshTrigger }: CurrentStockTableProps) =>
           current_stock: stock.current_stock || 0,
           last_transaction_date: stock.last_transaction_date,
           transaction_count: stock.transaction_count || 0,
-          product_name: stock.products?.name || 'Unknown Product',
-          product_sku: stock.products?.sku || 'N/A',
-          min_stock_level: stock.products?.min_stock_level || 0,
-          warehouse_name: stock.warehouses?.name || 'Unknown Warehouse',
-          bin_name: stock.bins?.name || 'Unknown Bin',
-          unit_price: stock.products?.unit_price || 0,
-          cost_price: stock.products?.cost_price || 0,
+          product_name: product?.name || 'Unknown Product',
+          product_sku: product?.sku || 'N/A',
+          min_stock_level: product?.min_stock_level || 0,
+          warehouse_name: `Warehouse-${stock.warehouse_id?.toString().slice(-4) || 'Unknown'}`,
+          bin_name: `Bin-${stock.bin_id?.toString().slice(-4) || 'Unknown'}`,
+          unit_price: product?.unit_price || 0,
+          cost_price: product?.cost_price || 0,
           total_value: totalValue,
           // Aging fields
           weighted_avg_age_days: stock.weighted_avg_age_days,
@@ -305,32 +308,40 @@ export const CurrentStockTable = ({ refreshTrigger }: CurrentStockTableProps) =>
 
   const fetchWarehouseBinAging = async () => {
     try {
-      const { data, error } = await supabase
+      // Get stock with aging data
+      const { data: stockData, error: stockError } = await supabase
         .from('current_stock_with_aging')
         .select(`
           warehouse_id, bin_id,
           aging_0_30_value, aging_31_90_value, aging_91_180_value,
           aging_181_365_value, aging_365_plus_value,
-          current_stock,
-          warehouses!inner(name),
-          bins!inner(name),
-          products!inner(unit_price)
+          current_stock, product_id
         `)
         .eq('company_id', company?.id);
 
-      if (error) throw error;
+      if (stockError) throw stockError;
 
+      // Get product data
+      const productIds = [...new Set(stockData?.map(s => s.product_id))];
+      const [productsData] = await Promise.all([
+        supabase.from('products').select('id, unit_price').in('id', productIds)
+      ]);
+
+      const productsMap = new Map(productsData.data?.map(p => [p.id, p]) || []);
       const warehouseBinMap = new Map();
       
-      data?.forEach(item => {
+      stockData?.forEach(item => {
         const key = `${item.warehouse_id}-${item.bin_id}`;
-        const totalValue = item.current_stock * (item.products?.unit_price || 0);
+        const product = productsMap.get(item.product_id);
+        const totalValue = item.current_stock * (product?.unit_price || 0);
+        const warehouseName = `Warehouse-${item.warehouse_id?.toString().slice(-4) || 'Unknown'}`;
+        const binName = `Bin-${item.bin_id?.toString().slice(-4) || 'Unknown'}`;
         
         if (!warehouseBinMap.has(key)) {
           warehouseBinMap.set(key, {
-            warehouse_name: item.warehouses?.name || 'Unknown',
-            bin_name: item.bins?.name || 'Unknown',
-            location_display: `${item.warehouses?.name || 'Unknown'} - ${item.bins?.name || 'Unknown'}`,
+            warehouse_name: warehouseName,
+            bin_name: binName,
+            location_display: `${warehouseName} - ${binName}`,
             aging_0_30_value: 0,
             aging_31_90_value: 0,
             aging_91_180_value: 0,
