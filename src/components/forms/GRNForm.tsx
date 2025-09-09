@@ -178,7 +178,7 @@ export function GRNForm({ grn, onSubmit, onCancel, readOnly = false, mode }: GRN
           )
         `)
         .eq('company_id', profile?.company_id)
-        .in('status', ['open', 'partially_received'])
+        .eq('status', 'approved')
         .order('created_at', { ascending: false });
 
       if (error) throw error;
