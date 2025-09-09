@@ -123,10 +123,13 @@ export const SalesOrderTable: React.FC<SalesOrderTableProps> = ({
         aValue = a.total_invoiced_qty;
         bValue = b.total_invoiced_qty;
         break;
-      case 'total_ready_to_deliver_qty':
-        aValue = a.total_ready_to_deliver_qty || (a.total_ordered_qty - a.total_invoiced_qty);
-        bValue = b.total_ready_to_deliver_qty || (b.total_ordered_qty - b.total_invoiced_qty);
+      case 'total_ready_to_deliver_qty': {
+        const aReady = (a.total_ready_to_deliver_qty ?? (typeof a.total_backorder_qty === 'number' ? (a.total_ordered_qty - a.total_backorder_qty) : (a.total_ordered_qty - a.total_invoiced_qty)));
+        const bReady = (b.total_ready_to_deliver_qty ?? (typeof b.total_backorder_qty === 'number' ? (b.total_ordered_qty - b.total_backorder_qty) : (b.total_ordered_qty - b.total_invoiced_qty)));
+        aValue = aReady;
+        bValue = bReady;
         break;
+      }
       case 'total_backorder_qty':
         aValue = a.total_backorder_qty;
         bValue = b.total_backorder_qty;
@@ -205,10 +208,8 @@ export const SalesOrderTable: React.FC<SalesOrderTableProps> = ({
         'PO Number': order.customer_po_number || '-',
         'Ordered Qty': order.total_ordered_qty,
         'Invoiced Qty': order.total_invoiced_qty,
-        'Ready to Deliver Qty': order.total_ready_to_deliver_qty || (order.total_ordered_qty - order.total_invoiced_qty),
-        'Backorder Qty': order.total_ready_to_deliver_qty ? 
-          (order.total_ordered_qty - order.total_ready_to_deliver_qty) : 
-          order.total_backorder_qty,
+        'Ready to Deliver Qty': (order.total_ready_to_deliver_qty ?? (typeof order.total_backorder_qty === 'number' ? (order.total_ordered_qty - order.total_backorder_qty) : (order.total_ordered_qty - order.total_invoiced_qty))),
+        'Backorder Qty': (typeof order.total_backorder_qty === 'number' ? order.total_backorder_qty : Math.max(0, order.total_ordered_qty - (order.total_ready_to_deliver_qty ?? (order.total_ordered_qty - order.total_invoiced_qty)))),
         Status: order.status,
         'Delivery Status': order.delivery_status,
         'Total Amount': order.total_amount,
@@ -236,10 +237,8 @@ export const SalesOrderTable: React.FC<SalesOrderTableProps> = ({
       `PO Number: ${order.customer_po_number || '-'}`,
       `Ordered Qty: ${order.total_ordered_qty}`,
       `Invoiced Qty: ${order.total_invoiced_qty}`,
-      `Ready to Deliver Qty: ${order.total_ready_to_deliver_qty || (order.total_ordered_qty - order.total_invoiced_qty)}`,
-      `Backorder Qty: ${order.total_ready_to_deliver_qty ? 
-        (order.total_ordered_qty - order.total_ready_to_deliver_qty) : 
-        order.total_backorder_qty}`,
+      `Ready to Deliver Qty: ${(order.total_ready_to_deliver_qty ?? (typeof order.total_backorder_qty === 'number' ? (order.total_ordered_qty - order.total_backorder_qty) : (order.total_ordered_qty - order.total_invoiced_qty)))}`,
+      `Backorder Qty: ${(typeof order.total_backorder_qty === 'number' ? order.total_backorder_qty : Math.max(0, order.total_ordered_qty - (order.total_ready_to_deliver_qty ?? (order.total_ordered_qty - order.total_invoiced_qty))))}`,
       `Status: ${order.status}`,
       `Delivery Status: ${order.delivery_status}`,
       `Total Amount: ${order.currency} ${order.total_amount.toFixed(2)}`,
@@ -408,7 +407,7 @@ export const SalesOrderTable: React.FC<SalesOrderTableProps> = ({
                     <TableCell className="text-center">
                       <div className="bg-success/10 text-success border border-success/20 rounded-lg px-3 py-2 text-sm">
                         <div className="font-semibold">
-                          {order.total_ready_to_deliver_qty || (order.total_ordered_qty - order.total_invoiced_qty)} units
+                          {(order.total_ready_to_deliver_qty ?? (typeof order.total_backorder_qty === 'number' ? (order.total_ordered_qty - order.total_backorder_qty) : (order.total_ordered_qty - order.total_invoiced_qty)))} units
                         </div>
                         {order.ready_to_deliver_value && (
                           <div className="text-xs mt-1">
@@ -418,9 +417,9 @@ export const SalesOrderTable: React.FC<SalesOrderTableProps> = ({
                       </div>
                     </TableCell>
                     <TableCell className="text-center font-medium">
-                      {order.total_ready_to_deliver_qty ? 
-                        (order.total_ordered_qty - order.total_ready_to_deliver_qty) : 
-                        order.total_backorder_qty}
+                      {typeof order.total_backorder_qty === 'number' ? 
+                        order.total_backorder_qty : 
+                        Math.max(0, order.total_ordered_qty - (order.total_ready_to_deliver_qty ?? (order.total_ordered_qty - order.total_invoiced_qty)))}
                     </TableCell>
                     <TableCell>
                       {getStatusBadge(order.status)}

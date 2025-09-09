@@ -248,7 +248,7 @@ export function SalesOrderTableMobile({
                           <span className="text-muted-foreground text-sm">Ready to Deliver:</span>
                           <div className="text-sm bg-success/10 text-success px-2 py-1 rounded border border-success/20">
                             <div className="font-medium">
-                              {order.total_ready_to_deliver_qty || (order.total_ordered_qty - order.total_invoiced_qty)} units
+                              {(order.total_ready_to_deliver_qty ?? (typeof order.total_backorder_qty === 'number' ? (order.total_ordered_qty - order.total_backorder_qty) : (order.total_ordered_qty - order.total_invoiced_qty)))} units
                             </div>
                             {order.ready_to_deliver_value && (
                               <div className="text-xs">
@@ -257,15 +257,11 @@ export function SalesOrderTableMobile({
                             )}
                           </div>
                         </div>
-                        {(order.total_ready_to_deliver_qty ? 
-                          (order.total_ordered_qty - order.total_ready_to_deliver_qty) : 
-                          order.total_backorder_qty) > 0 && (
+                        {(typeof order.total_backorder_qty === 'number' ? order.total_backorder_qty : Math.max(0, order.total_ordered_qty - (order.total_ready_to_deliver_qty ?? (order.total_ordered_qty - order.total_invoiced_qty)))) > 0 && (
                           <div className="flex justify-between">
                             <span className="text-muted-foreground text-sm">Backorder Qty:</span>
                             <span className="text-sm text-warning">
-                              {order.total_ready_to_deliver_qty ? 
-                                (order.total_ordered_qty - order.total_ready_to_deliver_qty) : 
-                                order.total_backorder_qty}
+                              {typeof order.total_backorder_qty === 'number' ? order.total_backorder_qty : Math.max(0, order.total_ordered_qty - (order.total_ready_to_deliver_qty ?? (order.total_ordered_qty - order.total_invoiced_qty)))}
                             </span>
                           </div>
                         )}
