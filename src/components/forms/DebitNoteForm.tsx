@@ -40,7 +40,6 @@ interface DebitNoteItem {
   line_total: number;
   unit_of_measure: string;
   gst_type: 'intra' | 'inter';
-  master_gst_rate?: number; // Store product's original GST%
 }
 
 interface SupplierInvoice {
@@ -189,8 +188,7 @@ export function DebitNoteForm({ debitNote, onSubmit, onCancel, mode }: DebitNote
       line_subtotal: 0,
       line_total: 0,
       unit_of_measure: "pcs",
-      gst_type: globalGstType,
-      master_gst_rate: 0
+      gst_type: globalGstType
     }]);
   };
 
@@ -246,8 +244,7 @@ export function DebitNoteForm({ debitNote, onSubmit, onCancel, mode }: DebitNote
         line_subtotal: 0,
         line_total: 0,
         unit_of_measure: lineItem.unit_of_measure || "pcs",
-        gst_type: 'intra' as const,
-        master_gst_rate: 0
+        gst_type: 'intra' as const
       })) || [];
 
       // Calculate totals for each item
@@ -289,8 +286,7 @@ export function DebitNoteForm({ debitNote, onSubmit, onCancel, mode }: DebitNote
       tax_amount: totalTax,
       line_subtotal: taxableAmount,
       line_total: lineTotal,
-      gst_type: item.gst_type || 'intra',
-      master_gst_rate: item.master_gst_rate || 0
+      gst_type: item.gst_type || 'intra'
     };
   };
 
@@ -353,8 +349,7 @@ export function DebitNoteForm({ debitNote, onSubmit, onCancel, mode }: DebitNote
       line_subtotal: 0,
       line_total: 0,
       unit_of_measure: "pcs",
-      gst_type: globalGstType,
-      master_gst_rate: 0
+      gst_type: globalGstType
     }]);
   };
 
@@ -583,12 +578,11 @@ export function DebitNoteForm({ debitNote, onSubmit, onCancel, mode }: DebitNote
           <div className="overflow-x-auto">
             <div className="min-w-full">
               {/* Table Header */}
-              <div className="bg-gray-50 dark:bg-gray-900/50 border-b grid grid-cols-13 gap-4 px-6 py-4 text-sm font-medium text-gray-700 dark:text-gray-300">
+              <div className="bg-gray-50 dark:bg-gray-900/50 border-b grid grid-cols-12 gap-4 px-6 py-4 text-sm font-medium text-gray-700 dark:text-gray-300">
                 <div className="col-span-3">Product</div>
                 {selectedInvoice && <div className="col-span-1 text-center">Received</div>}
                 <div className={selectedInvoice ? "col-span-1 text-center" : "col-span-2 text-center"}>Quantity</div>
                 {selectedInvoice && <div className="col-span-1 text-center">Pending</div>}
-                <div className="col-span-1 text-center">GST%</div>
                 <div className="col-span-1 text-center">Unit Price</div>
                 {globalGstType === 'intra' ? (
                   <>
@@ -605,8 +599,8 @@ export function DebitNoteForm({ debitNote, onSubmit, onCancel, mode }: DebitNote
 
               {/* Table Rows */}
               <div className="divide-y divide-gray-100 dark:divide-gray-800">
-                 {items.map((item, index) => (
-                   <div key={index} className="grid grid-cols-13 gap-4 px-6 py-4 hover:bg-gray-50/50 dark:hover:bg-gray-900/25 transition-colors">
+                {items.map((item, index) => (
+                  <div key={index} className="grid grid-cols-12 gap-4 px-6 py-4 hover:bg-gray-50/50 dark:hover:bg-gray-900/25 transition-colors">
                     {/* Product Column */}
                     <div className="col-span-3">
                       {!selectedInvoice ? (
@@ -620,7 +614,6 @@ export function DebitNoteForm({ debitNote, onSubmit, onCancel, mode }: DebitNote
                                handleItemChange(index, 'unit_price', product.cost_price || 0);
                                const gst = product.gst_percentage ?? 0;
                                handleItemChange(index, 'gst_type', globalGstType);
-                               handleItemChange(index, 'master_gst_rate', gst); // Store original GST%
                                
                                if (globalGstType === 'intra') {
                                  handleItemChange(index, 'cgst_rate', gst ? gst / 2 : 0);
@@ -682,18 +675,9 @@ export function DebitNoteForm({ debitNote, onSubmit, onCancel, mode }: DebitNote
                           </span>
                         </div>
                       </div>
-                     )}
+                    )}
 
-                     {/* GST% (Read-only) */}
-                     <div className="col-span-1">
-                       <div className="text-center py-2 px-3 bg-gray-50 dark:bg-gray-900/50 rounded-md border">
-                         <span className="font-medium text-gray-700 dark:text-gray-300">
-                           {item.master_gst_rate ? `${item.master_gst_rate}%` : '-'}
-                         </span>
-                       </div>
-                     </div>
-
-                     {/* Unit Price */}
+                    {/* Unit Price */}
                     <div className="col-span-1">
                       <Input
                         type="number"
