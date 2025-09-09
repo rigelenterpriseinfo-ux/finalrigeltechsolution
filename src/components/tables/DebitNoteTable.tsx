@@ -157,7 +157,6 @@ export function DebitNoteTable({ refreshTrigger, onView, onEdit, onDelete, onFil
         (debitNote.credit_note_numbers && debitNote.credit_note_numbers.toLowerCase().includes(searchTerm.toLowerCase()));
       
       const matchesStatus = statusFilter === 'all' || 
-                           debitNote.status === statusFilter ||
                            debitNote.settlement_status === statusFilter;
       
       return matchesSearch && matchesStatus;
@@ -194,17 +193,6 @@ export function DebitNoteTable({ refreshTrigger, onView, onEdit, onDelete, onFil
     }
     return <ArrowUpDown className={`h-4 w-4 ${sortDirection === 'asc' ? 'rotate-180' : ''}`} />;
   };
-  const getStatusBadge = (status: string) => {
-    const statusConfig = {
-      draft: { variant: 'secondary' as const, label: 'Draft' },
-      confirmed: { variant: 'default' as const, label: 'Confirmed' },
-      cancelled: { variant: 'destructive' as const, label: 'Cancelled' },
-    };
-    
-    const config = statusConfig[status as keyof typeof statusConfig] || statusConfig.draft;
-    return <Badge variant={config.variant}>{config.label}</Badge>;
-  };
-
   const getSettlementStatusBadge = (settlementStatus: 'open' | 'settled' | 'partially_settled') => {
     const statusConfig = {
       open: { variant: 'destructive' as const, label: 'Open' },
@@ -581,9 +569,6 @@ export function DebitNoteTable({ refreshTrigger, onView, onEdit, onDelete, onFil
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Status</SelectItem>
-              <SelectItem value="draft">Draft</SelectItem>
-              <SelectItem value="confirmed">Confirmed</SelectItem>
-              <SelectItem value="cancelled">Cancelled</SelectItem>
               <SelectItem value="open">Open (Settlement)</SelectItem>
               <SelectItem value="settled">Settled</SelectItem>
               <SelectItem value="partially_settled">Partially Settled</SelectItem>
@@ -645,12 +630,6 @@ export function DebitNoteTable({ refreshTrigger, onView, onEdit, onDelete, onFil
                         {getSortIcon('difference_amount')}
                       </div>
                     </TableHead>
-                    <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => handleSort('status')}>
-                      <div className="flex items-center space-x-1">
-                        <span>Status</span>
-                        {getSortIcon('status')}
-                      </div>
-                    </TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -675,9 +654,6 @@ export function DebitNoteTable({ refreshTrigger, onView, onEdit, onDelete, onFil
                       </TableCell>
                       <TableCell className="font-medium">
                         ₹{debitNote.difference_amount.toFixed(2)}
-                      </TableCell>
-                      <TableCell>
-                        {getStatusBadge(debitNote.status)}
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end space-x-1">
