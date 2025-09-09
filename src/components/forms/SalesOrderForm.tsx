@@ -350,11 +350,13 @@ export function SalesOrderForm({
 
   const calculateLineAmounts = (index: number) => {
     const orderedQuantity = form.getValues(`items.${index}.ordered_quantity`) || 0;
+    const quantity = form.getValues(`items.${index}.quantity`) || 0; // Fallback for compatibility
+    const finalQuantity = orderedQuantity || quantity; // Use ordered_quantity first, then quantity
     const unitPrice = form.getValues(`items.${index}.unit_price`) || 0;
     const discountPercentage = form.getValues(`items.${index}.discount_percentage`) || 0;
 
     // Calculate base amount
-    const baseAmount = orderedQuantity * unitPrice;
+    const baseAmount = finalQuantity * unitPrice;
     
     // Calculate discount
     const discountAmount = (baseAmount * discountPercentage) / 100;
@@ -384,9 +386,14 @@ export function SalesOrderForm({
     const totalPrice = netAmount + totalTaxAmount;
     form.setValue(`items.${index}.total_price`, totalPrice);
 
+    // Sync quantity fields for compatibility
+    if (orderedQuantity > 0) {
+      form.setValue(`items.${index}.quantity`, orderedQuantity);
+    }
+
     // Calculate back order quantity
     const stockOnHand = form.getValues(`items.${index}.stock_on_hand`) || 0;
-    const backOrderQuantity = Math.max(0, orderedQuantity - stockOnHand);
+    const backOrderQuantity = Math.max(0, finalQuantity - stockOnHand);
     form.setValue(`items.${index}.back_order_quantity`, backOrderQuantity);
   };
 

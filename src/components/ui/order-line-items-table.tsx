@@ -213,7 +213,7 @@ export function OrderLineItemsTable({
                       <TableCell className="p-2">
                         <FormField
                           control={control}
-                          name={`items.${index}.quantity`}
+                          name={`items.${index}.ordered_quantity`}
                           render={({ field }) => (
                             <FormItem>
                               <FormControl>
@@ -230,6 +230,10 @@ export function OrderLineItemsTable({
                                   disabled={readOnly}
                                 />
                               </FormControl>
+                              {/* Stock Level Display */}
+                              <div className="text-xs text-muted-foreground text-center mt-1">
+                                Stock: {control._formValues?.items?.[index]?.stock_on_hand || 0} units
+                              </div>
                               <FormMessage />
                             </FormItem>
                           )}
@@ -444,7 +448,7 @@ export function OrderLineItemsTable({
                       <TableCell className="p-2 text-right">
                         <FormField
                           control={control}
-                          name={`items.${index}.line_total`}
+                          name={`items.${index}.total_price`}
                           render={({ field }) => (
                             <div className="text-sm font-semibold text-foreground bg-primary/5 rounded px-2 py-1.5 min-h-[36px] flex items-center justify-end border border-primary/20">
                               {currency}{(field.value || 0).toFixed(2)}
