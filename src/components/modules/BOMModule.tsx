@@ -93,6 +93,7 @@ export function BOMModule() {
   const [boms, setBoms] = useState<BOMHeader[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [bomsWithTransactions, setBomsWithTransactions] = useState<Set<string>>(new Set());
 
   // Dialog states
   const [showBOMDialog, setShowBOMDialog] = useState(false);
@@ -201,6 +202,9 @@ export function BOMModule() {
         }));
         setBoms(bomsWithProductNames);
       }
+
+      // Check for BOMs with production runs
+      await checkBomsWithTransactions();
     } catch (error) {
       console.error('Error fetching data:', error);
       toast({
@@ -212,6 +216,25 @@ export function BOMModule() {
       setLoading(false);
     }
   }, [profile?.company_id, toast]);
+
+  // Check for BOMs with production runs
+  const checkBomsWithTransactions = async () => {
+    if (!profile?.company_id) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from('production_runs')
+        .select('bom_id')
+        .eq('company_id', profile.company_id);
+
+      if (error) throw error;
+      
+      const bomIdsWithTransactions = new Set(data?.map(run => run.bom_id) || []);
+      setBomsWithTransactions(bomIdsWithTransactions);
+    } catch (error) {
+      console.error('Error checking BOM transactions:', error);
+    }
+  };
 
   useEffect(() => {
     fetchData();
@@ -740,8 +763,11 @@ export function BOMModule() {
                               <Button 
                                 size="sm" 
                                 variant="outline"
-                                title="Delete BOM"
-                                className="hover:bg-red-50 hover:text-red-600"
+                                title={bomsWithTransactions.has(bom.id) ? "Cannot delete BOM with production runs" : "Delete BOM"}
+                                className={`${bomsWithTransactions.has(bom.id) 
+                                  ? "opacity-50 cursor-not-allowed" 
+                                  : "hover:bg-red-50 hover:text-red-600"}`}
+                                disabled={bomsWithTransactions.has(bom.id)}
                               >
                                 <Trash2 className="h-4 w-4" />
                               </Button>

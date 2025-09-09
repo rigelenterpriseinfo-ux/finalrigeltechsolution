@@ -79,6 +79,7 @@ export const WarehouseBinTable: React.FC<WarehouseBinTableProps> = ({ refreshTri
   const [showViewDialog, setShowViewDialog] = useState(false);
   const [editingBin, setEditingBin] = useState<WarehouseBin | null>(null);
   const [viewingBin, setViewingBin] = useState<WarehouseBin | null>(null);
+  const [binsWithTransactions, setBinsWithTransactions] = useState<Set<string>>(new Set());
   const itemsPerPage = 10;
 
   // Use mobile component on small screens
@@ -94,6 +95,9 @@ export const WarehouseBinTable: React.FC<WarehouseBinTableProps> = ({ refreshTri
 
   useEffect(() => {
     fetchBins();
+    if (profile?.company_id) {
+      checkBinsWithTransactions();
+    }
 
     // Set up real-time subscription
     const channel = supabase
@@ -115,7 +119,7 @@ export const WarehouseBinTable: React.FC<WarehouseBinTableProps> = ({ refreshTri
     return () => {
       supabase.removeChannel(channel);
     };
-  }, []);
+  }, [profile?.company_id]);
 
   const fetchBins = async () => {
     try {
@@ -134,6 +138,30 @@ export const WarehouseBinTable: React.FC<WarehouseBinTableProps> = ({ refreshTri
       console.error('Error fetching warehouse bins:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Check for bins with transactions
+  const checkBinsWithTransactions = async () => {
+    if (!profile?.company_id) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from('inventory_transactions')
+        .select('warehouse_id, bin_id')
+        .eq('company_id', profile.company_id);
+
+      if (error) throw error;
+      
+      const binIdsWithTransactions = new Set<string>();
+      data?.forEach(transaction => {
+        if (transaction.warehouse_id) binIdsWithTransactions.add(transaction.warehouse_id);
+        if (transaction.bin_id) binIdsWithTransactions.add(transaction.bin_id);
+      });
+      
+      setBinsWithTransactions(binIdsWithTransactions);
+    } catch (error) {
+      console.error('Error checking bin transactions:', error);
     }
   };
 
@@ -540,7 +568,11 @@ export const WarehouseBinTable: React.FC<WarehouseBinTableProps> = ({ refreshTri
                           variant="ghost"
                           size="sm"
                           onClick={() => handleDeleteBin(bin.id)}
-                          className="hover:bg-red-50 hover:text-red-600"
+                          title={binsWithTransactions.has(bin.id) ? "Cannot delete warehouse bin with transactions" : "Delete Warehouse Bin"}
+                          className={`${binsWithTransactions.has(bin.id) 
+                            ? "opacity-50 cursor-not-allowed" 
+                            : "hover:bg-red-50 hover:text-red-600"}`}
+                          disabled={binsWithTransactions.has(bin.id)}
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>

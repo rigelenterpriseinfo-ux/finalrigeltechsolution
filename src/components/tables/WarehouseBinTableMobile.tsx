@@ -48,10 +48,14 @@ export const WarehouseBinTableMobile: React.FC<WarehouseBinTableMobileProps> = (
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set());
+  const [binsWithTransactions, setBinsWithTransactions] = useState<Set<string>>(new Set());
   const itemsPerPage = 5;
 
   useEffect(() => {
     fetchBins();
+    if (profile?.company_id) {
+      checkBinsWithTransactions();
+    }
 
     // Set up real-time subscription
     const channel = supabase
@@ -73,7 +77,7 @@ export const WarehouseBinTableMobile: React.FC<WarehouseBinTableMobileProps> = (
     return () => {
       supabase.removeChannel(channel);
     };
-  }, []);
+  }, [profile?.company_id]);
 
   useEffect(() => {
     if (refreshTrigger) {
@@ -112,6 +116,30 @@ export const WarehouseBinTableMobile: React.FC<WarehouseBinTableMobileProps> = (
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Check for bins with transactions
+  const checkBinsWithTransactions = async () => {
+    if (!profile?.company_id) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from('inventory_transactions')
+        .select('warehouse_id, bin_id')
+        .eq('company_id', profile.company_id);
+
+      if (error) throw error;
+      
+      const binIdsWithTransactions = new Set<string>();
+      data?.forEach(transaction => {
+        if (transaction.warehouse_id) binIdsWithTransactions.add(transaction.warehouse_id);
+        if (transaction.bin_id) binIdsWithTransactions.add(transaction.bin_id);
+      });
+      
+      setBinsWithTransactions(binIdsWithTransactions);
+    } catch (error) {
+      console.error('Error checking bin transactions:', error);
     }
   };
 
@@ -214,7 +242,11 @@ export const WarehouseBinTableMobile: React.FC<WarehouseBinTableMobileProps> = (
                           variant="ghost"
                           size="sm"
                           onClick={() => onDelete(bin)}
-                          className="mobile-touch-target p-2 text-destructive hover:text-destructive"
+                          title={binsWithTransactions.has(bin.id) ? "Cannot delete warehouse bin with transactions" : "Delete Warehouse Bin"}
+                          className={`mobile-touch-target p-2 ${binsWithTransactions.has(bin.id) 
+                            ? "opacity-50 cursor-not-allowed" 
+                            : "text-destructive hover:text-destructive"}`}
+                          disabled={binsWithTransactions.has(bin.id)}
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
