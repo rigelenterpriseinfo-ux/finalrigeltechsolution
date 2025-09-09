@@ -1,5 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { useState, useMemo } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -71,6 +70,7 @@ interface ComprehensiveStockTableProps {
   onRefresh: () => void;
   selectedItem?: string;
   selectedLocation?: {warehouse: string, bin: string};
+  processedStockData: StockData[];
 }
 
 export const ComprehensiveStockTable = ({
@@ -78,7 +78,8 @@ export const ComprehensiveStockTable = ({
   loading,
   onRefresh,
   selectedItem,
-  selectedLocation
+  selectedLocation,
+  processedStockData
 }: ComprehensiveStockTableProps) => {
   const { company } = useAuth();
   const { toast } = useToast();
@@ -86,164 +87,7 @@ export const ComprehensiveStockTable = ({
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
   const [sortConfig, setSortConfig] = useState<{key: string; direction: 'asc' | 'desc'} | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
-  const [processedStockData, setProcessedStockData] = useState<StockData[]>([]);
   const itemsPerPage = 25;
-
-  // Fetch comprehensive stock data
-  const fetchComprehensiveStockData = useCallback(async () => {
-    if (!company?.id) return;
-
-    try {
-      // Get current stock with aging
-      const { data: stockData, error: stockError } = await supabase
-        .from('current_stock_with_aging')
-        .select(`
-          product_id, warehouse_id, bin_id, current_stock,
-          aging_status, weighted_avg_age_days,
-          products!inner(name, sku, unit_price)
-        `)
-        .eq('company_id', company.id)
-        .gt('current_stock', 0);
-
-      if (stockError) throw stockError;
-
-      // Get warehouse bin details
-      const { data: binData, error: binError } = await supabase
-        .from('warehouse_bins')
-        .select('id, warehouse_name, bin_name, wh_bin_code')
-        .eq('company_id', company.id)
-        .eq('is_active', true);
-
-      if (binError) throw binError;
-
-      // Create a map of bin details
-      const binMap = new Map(binData?.map(bin => [bin.id, bin]) || []);
-
-      // Get allocated stock from sales orders
-      const { data: allocatedData, error: allocatedError } = await supabase
-        .from('sales_order_items')
-        .select(`
-          product_id, quantity,
-          sales_orders!inner(
-            id, order_number, status
-          )
-        `)
-        .eq('sales_orders.company_id', company.id)
-        .in('sales_orders.status', ['confirmed', 'partially_delivered']);
-
-      if (allocatedError) throw allocatedError;
-
-      // Get pending purchase orders
-      const { data: poData, error: poError } = await supabase
-        .from('purchase_order_items')
-        .select(`
-          product_id, pending_quantity,
-          purchase_orders!inner(
-            po_number, expected_date,
-            suppliers!inner(name)
-          )
-        `)
-        .eq('purchase_orders.company_id', company.id)
-        .eq('purchase_orders.status', 'open')
-        .gt('pending_quantity', 0);
-
-      if (poError) throw poError;
-
-      // Get pending returns
-      const { data: rsoData, error: rsoError } = await supabase
-        .from('credit_note_items')
-        .select(`
-          product_id, pending_return_qty,
-          credit_notes!inner(
-            cn_number, customer_name
-          )
-        `)
-        .eq('credit_notes.company_id', company.id)
-        .eq('credit_notes.status', 'confirmed')
-        .gt('pending_return_qty', 0);
-
-      if (rsoError) throw rsoError;
-
-      // Process and combine the data
-      const processedData: StockData[] = (stockData || []).map(stock => {
-        const binDetails = binMap.get(stock.bin_id);
-        const warehouseName = binDetails?.warehouse_name || 'Unknown Warehouse';
-        const binName = binDetails?.bin_name || 'Unknown Bin';
-
-        // Calculate allocated stock for this product (simplified - no location-specific allocation)
-        const locationAllocated = (allocatedData || [])
-          .filter(alloc => alloc.product_id === stock.product_id)
-          .reduce((sum, alloc) => sum + (alloc.quantity || 0), 0);
-
-        // Get sales orders affecting this stock
-        const salesOrders = (allocatedData || [])
-          .filter(alloc => alloc.product_id === stock.product_id)
-          .map(alloc => ({
-            order_number: alloc.sales_orders?.order_number || '',
-            allocated_qty: alloc.quantity || 0,
-            customer_name: 'Customer', // Simplified since customer_name not available
-          }));
-
-        // Get purchase orders for this product
-        const purchaseOrders = (poData || [])
-          .filter(po => po.product_id === stock.product_id)
-          .map(po => ({
-            po_number: po.purchase_orders?.po_number || '',
-            pending_qty: po.pending_quantity || 0,
-            supplier_name: po.purchase_orders?.suppliers?.name || '',
-            expected_date: po.purchase_orders?.expected_date || '',
-          }));
-
-        // Get return orders for this product
-        const returnOrders = (rsoData || [])
-          .filter(rso => rso.product_id === stock.product_id)
-          .map(rso => ({
-            rso_number: rso.credit_notes?.cn_number || '',
-            pending_qty: rso.pending_return_qty || 0,
-            customer_name: rso.credit_notes?.customer_name || '',
-          }));
-
-        const totalPendingPO = purchaseOrders.reduce((sum, po) => sum + po.pending_qty, 0);
-        const totalPendingRSO = returnOrders.reduce((sum, rso) => sum + rso.pending_qty, 0);
-        const availableToPick = Math.max(0, stock.current_stock - locationAllocated);
-
-        return {
-          product_id: stock.product_id,
-          product_name: stock.products?.name || 'Unknown Product',
-          product_sku: stock.products?.sku || 'N/A',
-          warehouse_id: stock.warehouse_id,
-          warehouse_name: warehouseName,
-          bin_id: stock.bin_id,
-          bin_name: binName,
-          current_stock: stock.current_stock,
-          allocated_stock: locationAllocated,
-          available_to_pick: availableToPick,
-          pending_po_qty: totalPendingPO,
-          pending_rso_qty: totalPendingRSO,
-          aging_status: stock.aging_status || 'Good',
-          weighted_avg_age_days: stock.weighted_avg_age_days || 0,
-          unit_price: stock.products?.unit_price || 0,
-          total_value: stock.current_stock * (stock.products?.unit_price || 0),
-          sales_orders: salesOrders,
-          purchase_orders: purchaseOrders,
-          return_orders: returnOrders,
-        };
-      });
-
-      setProcessedStockData(processedData);
-    } catch (error) {
-      console.error('Error fetching comprehensive stock data:', error);
-      toast({
-        title: "Error",
-        description: "Failed to fetch stock data",
-        variant: "destructive",
-      });
-    }
-  }, [company?.id, toast]);
-
-  useEffect(() => {
-    fetchComprehensiveStockData();
-  }, [fetchComprehensiveStockData]);
 
   // Sorting logic
   const sortedData = useMemo(() => {
