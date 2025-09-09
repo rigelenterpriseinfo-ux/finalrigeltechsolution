@@ -1080,10 +1080,10 @@ export function GRNForm({ grn, onSubmit, onCancel, readOnly = false, mode }: GRN
                                 <TableHead className="text-center font-semibold text-foreground border-r w-[70px] text-xs">Ord Qty</TableHead>
                                 <TableHead className="text-center font-semibold text-foreground border-r w-[70px] text-xs">Total Rec</TableHead>
                                 <TableHead className="text-center font-semibold text-foreground border-r w-[70px] text-xs">Pending</TableHead>
-                                <TableHead className="text-center font-semibold text-foreground border-r w-[70px] text-xs">Rec Qty</TableHead>
-                                <TableHead className="text-center font-semibold text-foreground border-r w-[70px] text-xs">Acc Qty</TableHead>
-                                <TableHead className="text-center font-semibold text-foreground border-r w-[70px] text-xs">Rej Qty</TableHead>
-                                <TableHead className="text-center font-semibold text-foreground border-r w-[90px] text-xs">Unit Price</TableHead>
+                                <TableHead className="text-center font-semibold text-foreground border-r w-[80px] text-xs">Rec Qty</TableHead>
+                                <TableHead className="text-center font-semibold text-foreground border-r w-[80px] text-xs">Acc Qty</TableHead>
+                                <TableHead className="text-center font-semibold text-foreground border-r w-[80px] text-xs">Rej Qty</TableHead>
+                                <TableHead className="text-center font-semibold text-foreground border-r w-[100px] text-xs">Unit Price</TableHead>
                                 <TableHead className="text-center font-semibold text-foreground border-r w-[65px] text-xs">Disc%</TableHead>
                                 <TableHead className="text-center font-semibold text-foreground border-r w-[80px] text-xs">Disc Value</TableHead>
                                 {shouldShowCGSTSGST && (
@@ -1137,7 +1137,7 @@ export function GRNForm({ grn, onSubmit, onCancel, readOnly = false, mode }: GRN
                                   </TableCell>
 
                                    {/* Received Qty */}
-                                   <TableCell className="border-r p-1 text-center relative w-[70px]">
+                                   <TableCell className="border-r p-1 text-center relative w-[80px]">
                                      <div className="space-y-1">
                                        <Input
                                          type="number"
@@ -1165,7 +1165,7 @@ export function GRNForm({ grn, onSubmit, onCancel, readOnly = false, mode }: GRN
                                          }}
                                          disabled={readOnly}
                                          className={cn(
-                                           "text-xs text-center h-7 w-full transition-colors",
+                                           "text-xs text-center h-7 w-full transition-colors [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none",
                                            form.formState.errors.items?.[index]?.received_quantity
                                              ? "border-red-500 bg-red-50 focus:border-red-500 focus:ring-red-200" 
                                              : (item.received_quantity || 0) > 0 
@@ -1185,7 +1185,7 @@ export function GRNForm({ grn, onSubmit, onCancel, readOnly = false, mode }: GRN
                                    </TableCell>
 
                                   {/* Accepted Qty */}
-                                  <TableCell className="border-r p-1 text-center w-[70px]">
+                                  <TableCell className="border-r p-1 text-center w-[80px]">
                                     <Input
                                       type="number"
                                       min="0"
@@ -1199,12 +1199,12 @@ export function GRNForm({ grn, onSubmit, onCancel, readOnly = false, mode }: GRN
                                         calculateItemTotals(index);
                                       }}
                                       disabled={readOnly}
-                                      className="text-xs text-center h-7 w-full border-green-200 focus:border-green-400 bg-green-50"
+                                      className="text-xs text-center h-7 w-full border-green-200 focus:border-green-400 bg-green-50 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                                     />
                                   </TableCell>
 
                                   {/* Rejected Qty */}
-                                  <TableCell className="border-r p-1 text-center w-[70px]">
+                                  <TableCell className="border-r p-1 text-center w-[80px]">
                                     <Input
                                       type="number"
                                       min="0"
@@ -1217,12 +1217,12 @@ export function GRNForm({ grn, onSubmit, onCancel, readOnly = false, mode }: GRN
                                         validateQuantities(index);
                                       }}
                                       disabled={readOnly}
-                                      className="text-xs text-center h-7 w-full border-red-200 focus:border-red-400 bg-red-50"
+                                      className="text-xs text-center h-7 w-full border-red-200 focus:border-red-400 bg-red-50 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                                     />
                                   </TableCell>
 
                                   {/* Unit Price */}
-                                  <TableCell className="border-r p-1 text-center w-[90px]">
+                                  <TableCell className="border-r p-1 text-center w-[100px]">
                                     <Input
                                       type="number"
                                       step="0.01"
@@ -1234,7 +1234,7 @@ export function GRNForm({ grn, onSubmit, onCancel, readOnly = false, mode }: GRN
                                         calculateItemTotals(index);
                                       }}
                                       disabled={readOnly}
-                                      className="text-xs text-center h-7 w-full font-medium"
+                                      className="text-xs text-center h-7 w-full font-medium [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                                     />
                                   </TableCell>
 
