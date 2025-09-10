@@ -61,16 +61,16 @@ export const EnhancedCurrentStockSystem = () => {
     try {
       setLoading(true);
       
-      // Get current stock with aging
+      // Get current stock levels from inventory transactions
       const { data: stockData, error: stockError } = await supabase
-        .from('current_stock_with_aging')
+        .from('inventory_transactions')
         .select(`
-          product_id, warehouse_id, bin_id, current_stock,
-          aging_status, weighted_avg_age_days,
-          products!inner(name, sku, unit_price)
+          product_id, warehouse_id, bin_id, quantity_change,
+          transaction_date, unit_cost,
+          products!inner(name, sku, unit_price, company_id)
         `)
-        .eq('company_id', company.id)
-        .gt('current_stock', 0);
+        .eq('products.company_id', company.id)
+        .order('transaction_date', { ascending: false });
 
       if (stockError) throw stockError;
 
@@ -131,11 +131,57 @@ export const EnhancedCurrentStockSystem = () => {
 
       if (rsoError) throw rsoError;
 
+      // Calculate current stock levels by product/warehouse/bin
+      const stockMap = new Map<string, {
+        product_id: string;
+        warehouse_id: string;
+        bin_id: string;
+        current_stock: number;
+        product_details: any;
+        oldest_transaction_date: Date;
+      }>();
+
+      // Process inventory transactions to calculate current stock
+      (stockData || []).forEach(transaction => {
+        const key = `${transaction.product_id}-${transaction.warehouse_id || 'default'}-${transaction.bin_id || 'default'}`;
+        const existing = stockMap.get(key);
+        
+        if (existing) {
+          existing.current_stock += transaction.quantity_change || 0;
+          // Track oldest transaction for aging
+          const transactionDate = new Date(transaction.transaction_date);
+          if (transactionDate < existing.oldest_transaction_date) {
+            existing.oldest_transaction_date = transactionDate;
+          }
+        } else {
+          stockMap.set(key, {
+            product_id: transaction.product_id,
+            warehouse_id: transaction.warehouse_id || 'default',
+            bin_id: transaction.bin_id || 'default',
+            current_stock: transaction.quantity_change || 0,
+            product_details: transaction.products,
+            oldest_transaction_date: new Date(transaction.transaction_date)
+          });
+        }
+      });
+
+      // Filter out zero/negative stock and convert to array
+      const currentStock = Array.from(stockMap.values())
+        .filter(stock => stock.current_stock > 0);
+
       // Process and combine the data
-      const processedData: StockData[] = (stockData || []).map(stock => {
+      const processedData: StockData[] = currentStock.map(stock => {
         const binDetails = binMap.get(stock.bin_id);
         const warehouseName = binDetails?.warehouse_name || 'Unknown Warehouse';
         const binName = binDetails?.bin_name || 'Unknown Bin';
+
+        // Calculate aging
+        const daysDiff = Math.floor((Date.now() - stock.oldest_transaction_date.getTime()) / (1000 * 60 * 60 * 24));
+        let agingStatus = 'Good';
+        if (daysDiff > 365) agingStatus = 'Dead';
+        else if (daysDiff > 180) agingStatus = 'Slow';
+        else if (daysDiff > 90) agingStatus = 'Aging';
+        else if (daysDiff < 30) agingStatus = 'Fresh';
 
         // Calculate allocated stock for this product (simplified - no location-specific allocation)
         const locationAllocated = (allocatedData || [])
@@ -176,8 +222,8 @@ export const EnhancedCurrentStockSystem = () => {
 
         return {
           product_id: stock.product_id,
-          product_name: stock.products?.name || 'Unknown Product',
-          product_sku: stock.products?.sku || 'N/A',
+          product_name: stock.product_details?.name || 'Unknown Product',
+          product_sku: stock.product_details?.sku || 'N/A',
           warehouse_id: stock.warehouse_id,
           warehouse_name: warehouseName,
           bin_id: stock.bin_id,
@@ -187,10 +233,10 @@ export const EnhancedCurrentStockSystem = () => {
           available_to_pick: availableToPick,
           pending_po_qty: totalPendingPO,
           pending_rso_qty: totalPendingRSO,
-          aging_status: stock.aging_status || 'Good',
-          weighted_avg_age_days: stock.weighted_avg_age_days || 0,
-          unit_price: stock.products?.unit_price || 0,
-          total_value: stock.current_stock * (stock.products?.unit_price || 0),
+          aging_status: agingStatus,
+          weighted_avg_age_days: daysDiff,
+          unit_price: stock.product_details?.unit_price || 0,
+          total_value: stock.current_stock * (stock.product_details?.unit_price || 0),
           sales_orders: salesOrders,
           purchase_orders: purchaseOrders,
           return_orders: returnOrders,
