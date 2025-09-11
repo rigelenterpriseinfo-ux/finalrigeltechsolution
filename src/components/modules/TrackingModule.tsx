@@ -7,8 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { Truck, Package, CheckCircle, Clock, Edit, FileText, Search, Trash2 } from 'lucide-react';
+import { Truck, Package, CheckCircle, Clock, Edit, FileText, Search, Eye, Download, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useBusinessAuth } from '@/hooks/useBusinessAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
@@ -48,12 +47,14 @@ export function TrackingModule() {
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [editingOrder, setEditingOrder] = useState<TrackableOrder | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
   const fetchTrackableOrders = async () => {
     try {
       setLoading(true);
       
-      // Fetch sales orders with tracking fields
+      // Fetch sales orders with tracking fields and delivery address
       const { data: salesOrders, error: salesError } = await supabase
         .from('sales_orders')
         .select(`
@@ -73,6 +74,7 @@ export function TrackingModule() {
           tracking_status,
           dispatch_date,
           delivery_date,
+          delivery_city,
           customers(name)
         `);
 
@@ -109,29 +111,37 @@ export function TrackingModule() {
         return;
       }
 
-      // Format sales orders
-      const trackableSalesOrders: TrackableOrder[] = (salesOrders || []).map(order => ({
-        id: order.id,
-        order_number: order.order_number,
-        type: 'sales' as const,
-        status: order.status,
-        order_date: order.order_date,
-        customer_name: order.customers?.name,
-        total_amount: order.total_amount,
-        destination: order.destination,
-        item_count: order.item_count,
-        eway_bill_no: order.eway_bill_no,
-        eway_bill_date: order.eway_bill_date,
-        carrier_transporter: order.carrier_transporter,
-        awb_no: order.awb_no,
-        eta: order.eta,
-        pod_document_url: order.pod_document_url,
-        tracking_status: order.tracking_status || 'pending',
-        dispatch_date: order.dispatch_date,
-        delivery_date: order.delivery_date
-      }));
+      // Format sales orders with auto-populated destination
+      const trackableSalesOrders: TrackableOrder[] = (salesOrders || []).map(order => {
+        // Auto-populate destination from delivery_city if not already set
+        let autoDestination = order.destination;
+        if (!autoDestination && order.delivery_city) {
+          autoDestination = order.delivery_city;
+        }
 
-      // Format debit notes
+        return {
+          id: order.id,
+          order_number: order.order_number,
+          type: 'sales' as const,
+          status: order.status,
+          order_date: order.order_date,
+          customer_name: order.customers?.name,
+          total_amount: order.total_amount,
+          destination: autoDestination,
+          item_count: order.item_count,
+          eway_bill_no: order.eway_bill_no,
+          eway_bill_date: order.eway_bill_date,
+          carrier_transporter: order.carrier_transporter,
+          awb_no: order.awb_no,
+          eta: order.eta,
+          pod_document_url: order.pod_document_url,
+          tracking_status: order.tracking_status || 'pending',
+          dispatch_date: order.dispatch_date,
+          delivery_date: order.delivery_date
+        };
+      });
+
+      // Format debit notes (destination remains as manually entered)
       const trackableDebitNotes: TrackableOrder[] = (debitNotesData || []).map(note => ({
         id: note.id,
         order_number: note.debit_note_number,
@@ -168,44 +178,27 @@ export function TrackingModule() {
     fetchTrackableOrders();
   };
 
-  const handleDeleteTracking = async (orderId: string, orderType: 'sales' | 'debit_note') => {
+  const handleViewPOD = (podUrl: string) => {
+    window.open(podUrl, '_blank', 'noopener,noreferrer');
+  };
+
+  const handleDownloadPOD = async (podUrl: string, orderNumber: string) => {
     try {
-      const tableName = orderType === 'sales' ? 'sales_orders' : 'debit_notes';
-      
-      const clearData = {
-        destination: null,
-        item_count: 0,
-        eway_bill_no: null,
-        eway_bill_date: null,
-        carrier_transporter: null,
-        awb_no: null,
-        eta: null,
-        tracking_status: 'pending',
-        dispatch_date: null,
-        delivery_date: null,
-        pod_document_url: null,
-      };
-
-      const { error } = await supabase
-        .from(tableName)
-        .update(clearData)
-        .eq('id', orderId);
-
-      if (error) {
-        throw error;
-      }
-
-      toast({
-        title: 'Success',
-        description: 'Tracking information cleared successfully',
-      });
-      
-      fetchTrackableOrders();
+      const response = await fetch(podUrl);
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `POD_${orderNumber}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
     } catch (error) {
-      console.error('Delete error:', error);
+      console.error('Download error:', error);
       toast({
         title: 'Error',
-        description: 'Failed to clear tracking information',
+        description: 'Failed to download POD document',
         variant: 'destructive',
       });
     }
@@ -284,7 +277,14 @@ export function TrackingModule() {
     return matchesSearch && matchesStatus;
   });
 
-  const renderTrackingTable = (data: TrackableOrder[], title: string) => (
+  const renderTrackingTable = (data: TrackableOrder[], title: string) => {
+    // Pagination logic
+    const totalPages = Math.ceil(data.length / itemsPerPage);
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    const paginatedData = data.slice(startIndex, endIndex);
+
+    return (
     <Card>
       <CardHeader>
         <CardTitle>{title}</CardTitle>
@@ -307,11 +307,11 @@ export function TrackingModule() {
                 <TableHead className="min-w-[120px]">Dispatch Date</TableHead>
                 <TableHead className="min-w-[120px]">Delivery Date</TableHead>
                 <TableHead className="min-w-[80px]">POD</TableHead>
-                <TableHead className="min-w-[150px] sticky right-0 bg-background border-l">Actions</TableHead>
+                <TableHead className="min-w-[200px] sticky right-0 bg-background border-l">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {data.length === 0 ? (
+              {paginatedData.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={14} className="text-center py-8">
                     <Package className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
@@ -319,7 +319,7 @@ export function TrackingModule() {
                   </TableCell>
                 </TableRow>
               ) : (
-                data.map((item) => (
+                paginatedData.map((item) => (
                   <TableRow key={item.id}>
                     <TableCell className="font-medium">{item.order_number}</TableCell>
                     <TableCell>{item.customer_name || item.supplier_name}</TableCell>
@@ -395,31 +395,27 @@ export function TrackingModule() {
                           </DialogContent>
                         </Dialog>
                         
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <Button size="sm" variant="outline" title="Clear Tracking">
-                              <Trash2 className="h-4 w-4 text-destructive" />
+                        {item.pod_document_url && (
+                          <>
+                            <Button 
+                              size="sm" 
+                              variant="outline"
+                              onClick={() => handleViewPOD(item.pod_document_url!)}
+                              title="View POD"
+                            >
+                              <Eye className="h-4 w-4" />
                             </Button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>Clear Tracking Information</AlertDialogTitle>
-                              <AlertDialogDescription>
-                                Are you sure you want to clear all tracking information for order {item.order_number}? 
-                                This action cannot be undone.
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>Cancel</AlertDialogCancel>
-                              <AlertDialogAction
-                                onClick={() => handleDeleteTracking(item.id, item.type)}
-                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                              >
-                                Clear Tracking
-                              </AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
+                            
+                            <Button 
+                              size="sm" 
+                              variant="outline"
+                              onClick={() => handleDownloadPOD(item.pod_document_url!, item.order_number)}
+                              title="Download POD"
+                            >
+                              <Download className="h-4 w-4" />
+                            </Button>
+                          </>
+                        )}
                       </div>
                     </TableCell>
                   </TableRow>
@@ -428,9 +424,54 @@ export function TrackingModule() {
             </TableBody>
           </Table>
         </div>
+        
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between mt-4">
+            <div className="text-sm text-muted-foreground">
+              Showing {startIndex + 1}-{Math.min(endIndex, data.length)} of {data.length} items
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                disabled={currentPage === 1}
+              >
+                <ChevronLeft className="h-4 w-4" />
+                Previous
+              </Button>
+              
+              <div className="flex items-center gap-1">
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                  <Button
+                    key={page}
+                    variant={page === currentPage ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setCurrentPage(page)}
+                    className="min-w-[32px]"
+                  >
+                    {page}
+                  </Button>
+                ))}
+              </div>
+              
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                disabled={currentPage === totalPages}
+              >
+                Next
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        )}
       </CardContent>
     </Card>
   );
+  };
 
   return (
     <div className="space-y-6">
