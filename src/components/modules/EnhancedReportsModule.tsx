@@ -1014,25 +1014,37 @@ export function EnhancedReportsModule() {
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                   <Card>
                     <CardHeader>
-                      <CardTitle>Visual Analysis</CardTitle>
+                      <CardTitle className="text-lg font-semibold">Visual Analysis</CardTitle>
+                      <CardDescription>Outstanding amounts by aging period</CardDescription>
                     </CardHeader>
                     <CardContent>
-                      <ResponsiveContainer width="100%" height={300}>
+                      <ResponsiveContainer width="100%" height={350}>
                         {selectedReport.includes('aging') ? (
                           <PieChart>
                             <Pie
                               data={chartData}
                               cx="50%"
                               cy="50%"
-                              outerRadius={80}
+                              innerRadius={60}
+                              outerRadius={120}
                               dataKey="value"
-                              label={({ name, percentage }) => `${name} (${percentage}%)`}
+                              label={({ name, percentage }) => percentage > 5 ? `${percentage}%` : ''}
+                              labelLine={false}
                             >
                               {chartData.map((entry, index) => (
                                 <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
                               ))}
                             </Pie>
-                            <Tooltip formatter={(value) => [`₹${Number(value).toLocaleString('en-IN')}`, 'Amount']} />
+                            <Tooltip 
+                              formatter={(value) => [`₹${Number(value).toLocaleString('en-IN', { maximumFractionDigits: 0 })}`, 'Amount']}
+                              labelFormatter={(label) => `${label}`}
+                              contentStyle={{
+                                backgroundColor: 'hsl(var(--card))',
+                                border: '1px solid hsl(var(--border))',
+                                borderRadius: '6px',
+                                fontSize: '14px'
+                              }}
+                            />
                           </PieChart>
                         ) : selectedReport.includes('sales') || selectedReport.includes('purchase') ? (
                           <AreaChart data={chartData}>
@@ -1060,36 +1072,76 @@ export function EnhancedReportsModule() {
 
                   <Card>
                     <CardHeader>
-                      <CardTitle>Key Metrics</CardTitle>
+                      <CardTitle className="text-lg font-semibold">Key Metrics</CardTitle>
+                      <CardDescription>Summary of outstanding amounts</CardDescription>
                     </CardHeader>
                     <CardContent>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="p-4 rounded-lg bg-muted">
-                          <div className="text-2xl font-bold text-primary">
-                            {selectedReport.includes('aging') ? '₹' + Number(chartData.reduce((sum, item) => sum + item.value, 0)).toLocaleString('en-IN') : reportData.length}
-                          </div>
-                          <div className="text-sm text-muted-foreground">
+                      <div className="space-y-4">
+                        <div className="p-4 rounded-lg bg-gradient-to-r from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 border border-blue-200 dark:border-blue-800">
+                          <div className="text-sm font-medium text-blue-700 dark:text-blue-300 mb-1">
                             {selectedReport.includes('aging') ? 'Total Outstanding' : 'Total Records'}
                           </div>
-                        </div>
-                        <div className="p-4 rounded-lg bg-muted">
-                          <div className="text-2xl font-bold text-green-600">
-                            {selectedReport.includes('aging') ? chartData[0]?.percentage + '%' : '✓'}
-                          </div>
-                          <div className="text-sm text-muted-foreground">
-                            {selectedReport.includes('aging') ? 'Current' : 'Up to Date'}
+                          <div className="text-xl font-bold text-blue-900 dark:text-blue-100 break-all">
+                            {selectedReport.includes('aging') ? 
+                              `₹${Number(chartData.reduce((sum, item) => sum + item.value, 0)).toLocaleString('en-IN', { maximumFractionDigits: 0 })}` : 
+                              reportData.length
+                            }
                           </div>
                         </div>
+                        
+                        {selectedReport.includes('aging') && chartData.length > 0 && (
+                          <div className="grid grid-cols-2 gap-3">
+                            <div className="p-3 rounded-lg bg-gradient-to-r from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/20 border border-green-200 dark:border-green-800">
+                              <div className="text-xs font-medium text-green-700 dark:text-green-300 mb-1">Current (0 days)</div>
+                              <div className="text-lg font-bold text-green-900 dark:text-green-100">
+                                {chartData[0]?.percentage || 0}%
+                              </div>
+                            </div>
+                            <div className="p-3 rounded-lg bg-gradient-to-r from-orange-50 to-orange-100 dark:from-orange-900/20 dark:to-orange-800/20 border border-orange-200 dark:border-orange-800">
+                              <div className="text-xs font-medium text-orange-700 dark:text-orange-300 mb-1">Overdue (90+ days)</div>
+                              <div className="text-lg font-bold text-orange-900 dark:text-orange-100">
+                                {chartData[4]?.percentage || 0}%
+                              </div>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     </CardContent>
                   </Card>
                 </div>
               )}
 
+              {/* Legend for Aging Reports */}
+              {selectedReport.includes('aging') && chartData.length > 0 && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-lg font-semibold">Aging Categories</CardTitle>
+                    <CardDescription>Color-coded breakdown of aging periods</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                      {chartData.map((entry, index) => (
+                        <div key={entry.name} className="flex items-center p-3 rounded-lg border bg-card/50">
+                          <div 
+                            className="w-4 h-4 rounded mr-3 flex-shrink-0" 
+                            style={{ backgroundColor: CHART_COLORS[index % CHART_COLORS.length] }}
+                          ></div>
+                          <div className="min-w-0 flex-1">
+                            <div className="text-xs font-medium text-muted-foreground">{entry.name}</div>
+                            <div className="text-sm font-semibold">₹{Number(entry.value).toLocaleString('en-IN', { maximumFractionDigits: 0 })}</div>
+                            <div className="text-xs text-muted-foreground">{entry.percentage}%</div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
               {/* Report Table */}
               <Card>
                 <CardHeader>
-                  <CardTitle>Report Data</CardTitle>
+                  <CardTitle className="text-lg font-semibold">Report Data</CardTitle>
                   <CardDescription>
                     Detailed breakdown for {currentReport?.name}
                   </CardDescription>
@@ -1098,9 +1150,9 @@ export function EnhancedReportsModule() {
                   <div className="overflow-x-auto">
                     <table className="w-full text-sm">
                       <thead>
-                        <tr className="border-b">
+                        <tr className="border-b bg-muted/50">
                           {reportData.length > 0 && Object.keys(reportData[0]).map((key) => (
-                            <th key={key} className="text-left p-3 font-medium capitalize">
+                            <th key={key} className="text-left p-3 font-semibold text-foreground">
                               {key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}
                             </th>
                           ))}
@@ -1108,11 +1160,13 @@ export function EnhancedReportsModule() {
                       </thead>
                       <tbody>
                         {reportData.map((row, index) => (
-                          <tr key={index} className="border-b hover:bg-muted/50">
+                          <tr key={index} className="border-b hover:bg-muted/30 transition-colors">
                             {Object.entries(row).map(([key, value]) => (
-                              <td key={key} className="p-3">
+                              <td key={key} className="p-3 max-w-[200px]">
                                 {typeof value === 'number' && (key.toLowerCase().includes('amount') || key.toLowerCase().includes('total') || key.toLowerCase().includes('value')) ? 
-                                  `₹${Number(value).toLocaleString('en-IN')}` : 
+                                  <span className="font-medium tabular-nums">
+                                    ₹{Number(value).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                                  </span> : 
                                   key === 'status' ? (
                                     <Badge variant={
                                       value === 'Delivered' ? 'default' :
@@ -1122,7 +1176,9 @@ export function EnhancedReportsModule() {
                                     }>
                                       {String(value)}
                                     </Badge>
-                                  ) : String(value)
+                                  ) : (
+                                    <span className="break-words">{String(value)}</span>
+                                  )
                                 }
                               </td>
                             ))}
