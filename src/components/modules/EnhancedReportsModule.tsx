@@ -231,35 +231,58 @@ export function EnhancedReportsModule() {
   };
 
   const fetchAPAgingData = async (filters: FilterState) => {
-    const { data: orders, error } = await supabase
-      .from('purchase_orders')
+    // Get GRN data (actual goods received that need payment) instead of purchase orders
+    const { data: grnData, error } = await supabase
+      .from('grn_header')
       .select(`
-        id, po_number, total_amount, 
-        order_date, status, supplier_id,
-        payments(amount, payment_date)
+        id, grn_number, total_amount, 
+        grn_date, status, supplier_name, supplier_id,
+        purchase_order_id
       `)
-      .in('status', ['confirmed', 'partially_received', 'closed'])
-      .gte('order_date', format(filters.dateRange.from, 'yyyy-MM-dd'))
-      .lte('order_date', format(filters.dateRange.to, 'yyyy-MM-dd'));
+      .in('status', ['received', 'partially_received'])
+      .gte('grn_date', format(filters.dateRange.from, 'yyyy-MM-dd'))
+      .lte('grn_date', format(filters.dateRange.to, 'yyyy-MM-dd'));
 
     if (error) throw error;
 
-    const agingData = orders?.map(order => {
-      const totalPaid = order.payments?.reduce((sum: number, payment: any) => sum + payment.amount, 0) || 0;
-      const outstandingAmount = order.total_amount - totalPaid;
-      const daysOutstanding = differenceInDays(new Date(), new Date(order.order_date));
+    // Get payment data for GRNs and related purchase orders
+    const grnIds = grnData?.map(grn => grn.id) || [];
+    const purchaseOrderIds = grnData?.map(grn => grn.purchase_order_id).filter(Boolean) || [];
+    let paymentsData: any[] = [];
+    
+    if (grnIds.length > 0 || purchaseOrderIds.length > 0) {
+      const { data: payments } = await supabase
+        .from('payments')
+        .select('*')
+        .or(`grn_id.in.(${grnIds.join(',')}),purchase_order_id.in.(${purchaseOrderIds.join(',')})`);
+      
+      paymentsData = payments || [];
+    }
+
+    const agingData = grnData?.map(grn => {
+      // Calculate payments related to this GRN or its purchase order
+      const relatedPayments = paymentsData.filter(payment => 
+        payment.grn_id === grn.id || payment.purchase_order_id === grn.purchase_order_id
+      );
+      const advancePayments = relatedPayments.filter(p => p.payment_type === 'advance');
+      const regularPayments = relatedPayments.filter(p => p.payment_type !== 'advance');
+      
+      const totalAdvancePayment = advancePayments.reduce((sum, payment) => sum + payment.amount, 0);
+      const totalAmountReceived = regularPayments.reduce((sum, payment) => sum + payment.amount, 0);
+      const outstandingAmount = grn.total_amount - totalAdvancePayment - totalAmountReceived;
+      const daysOutstanding = differenceInDays(new Date(), new Date(grn.grn_date));
       
       return {
-        vendor: `Supplier ${order.supplier_id?.slice(0, 8)}`,
-        orderNumber: order.po_number,
-        amount: outstandingAmount,
+        vendor: grn.supplier_name,
+        orderNumber: grn.grn_number,
+        amount: Math.max(0, outstandingAmount),
         daysOutstanding,
-        orderDate: order.order_date,
-        current: daysOutstanding <= 0 ? outstandingAmount : 0,
-        days30: daysOutstanding > 0 && daysOutstanding <= 30 ? outstandingAmount : 0,
-        days60: daysOutstanding > 30 && daysOutstanding <= 60 ? outstandingAmount : 0,
-        days90: daysOutstanding > 60 && daysOutstanding <= 90 ? outstandingAmount : 0,
-        over90: daysOutstanding > 90 ? outstandingAmount : 0
+        orderDate: grn.grn_date,
+        current: daysOutstanding <= 0 ? Math.max(0, outstandingAmount) : 0,
+        days30: daysOutstanding > 0 && daysOutstanding <= 30 ? Math.max(0, outstandingAmount) : 0,
+        days60: daysOutstanding > 30 && daysOutstanding <= 60 ? Math.max(0, outstandingAmount) : 0,
+        days90: daysOutstanding > 60 && daysOutstanding <= 90 ? Math.max(0, outstandingAmount) : 0,
+        over90: daysOutstanding > 90 ? Math.max(0, outstandingAmount) : 0
       };
     }).filter(item => item.amount > 0) || [];
 
