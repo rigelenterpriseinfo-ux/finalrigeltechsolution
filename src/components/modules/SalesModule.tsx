@@ -663,10 +663,10 @@ export default function SalesModule() {
       }
 
       // Ensure order_type has a valid value - check constraint requires specific values
-      const validOrderTypes = ['sales', 'service', 'rental', 'maintenance'];
+      const validOrderTypes = ['standard', 'return', 'export', 'sample'];
       if (!orderData.order_type || !validOrderTypes.includes(orderData.order_type)) {
-        console.log('⚠️ Invalid order_type:', orderData.order_type, 'Setting to default: sales');
-        orderData.order_type = 'sales'; // Default to 'sales' if invalid or missing
+        console.log('⚠️ Invalid order_type:', orderData.order_type, 'Setting to default: standard');
+        orderData.order_type = 'standard'; // Default to 'standard' if invalid or missing
       }
       
       // Convert empty date strings to null

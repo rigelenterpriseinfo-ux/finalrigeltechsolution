@@ -98,7 +98,7 @@ export function SalesOrderForm({
       customer_po_number: salesOrder?.customer_po_number || '',
       status: salesOrder?.status || 'draft',
       account_manager: salesOrder?.account_manager || '',
-      order_type: salesOrder?.order_type || 'sales',
+      order_type: salesOrder?.order_type || 'standard',
       currency: salesOrder?.currency || 'INR',
       payment_terms: salesOrder?.payment_terms || '',
       expected_delivery_date: salesOrder?.expected_delivery_date || '',
@@ -452,7 +452,7 @@ export function SalesOrderForm({
         customer_po_number: data.customer_po_number,
         status: data.status,
         account_manager: data.account_manager,
-        order_type: data.order_type || 'sales', // Ensure order_type has default value
+        order_type: data.order_type || 'standard', // Ensure order_type has default value
         currency: data.currency,
         payment_terms: data.payment_terms,
         expected_delivery_date: data.expected_delivery_date,
@@ -716,10 +716,10 @@ export function SalesOrderForm({
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="sales">Sales</SelectItem>
-                        <SelectItem value="service">Service</SelectItem>
-                        <SelectItem value="rental">Rental</SelectItem>
-                        <SelectItem value="maintenance">Maintenance</SelectItem>
+                        <SelectItem value="standard">Standard</SelectItem>
+                        <SelectItem value="return">Return</SelectItem>
+                        <SelectItem value="export">Export</SelectItem>
+                        <SelectItem value="sample">Sample</SelectItem>
                       </SelectContent>
                     </Select>
                     <FormMessage />
