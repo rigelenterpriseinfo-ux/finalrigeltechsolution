@@ -190,8 +190,8 @@ export function AIAssistant() {
         </CardHeader>
         
         <CardContent className="flex-1 flex flex-col p-0">
-          <ScrollArea className="flex-1 p-4">
-            <div className="space-y-4">
+          <ScrollArea className="flex-1 p-4 max-h-[500px] overflow-y-auto">
+            <div className="space-y-4 pr-4">
               {messages.map((message) => (
                 <div key={message.id} className={`flex gap-3 ${message.isUser ? 'justify-end' : 'justify-start'}`}>
                   {!message.isUser && (
