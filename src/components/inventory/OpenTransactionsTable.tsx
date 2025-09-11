@@ -40,6 +40,7 @@ interface OpenTransactionSummary {
   warehouse_name: string;
   bin_name: string;
   bin_code: string;
+  total_stock_on_hand: number;
   available_to_pick: number;
   in_transit_qty: number;
   return_order_qty: number;
@@ -276,6 +277,7 @@ export const OpenTransactionsTable = ({
         warehouse_name: binData?.warehouse_name || 'Unknown Warehouse',
         bin_name: binData?.bin_name || 'Unknown Bin',
         bin_code: binData?.wh_bin_code || 'N/A',
+        total_stock_on_hand: currentStock,
         available_to_pick: availableToPick,
         in_transit_qty: totalInTransit,
         return_order_qty: totalReturnOrder,
@@ -387,7 +389,11 @@ export const OpenTransactionsTable = ({
       <CardContent className="space-y-6">
         {/* Summary Section */}
         {summary && (
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+            <div className="text-center p-4 bg-primary/10 border border-primary/20 rounded-lg">
+              <div className="text-2xl font-bold text-primary">{summary.total_stock_on_hand}</div>
+              <div className="text-xs text-muted-foreground">Total Stock on Hand</div>
+            </div>
             <div className="text-center p-4 bg-success/10 border border-success/20 rounded-lg">
               <div className="text-2xl font-bold text-success">{summary.available_to_pick}</div>
               <div className="text-xs text-muted-foreground">Available to Pick</div>
