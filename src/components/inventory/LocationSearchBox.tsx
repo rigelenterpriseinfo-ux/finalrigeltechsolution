@@ -267,11 +267,6 @@ export const LocationSearchBox = ({ value, onChange, onRefresh }: LocationSearch
         </Card>
       )}
 
-      {/* Quick Stats */}
-      <div className="flex items-center justify-between text-sm text-muted-foreground">
-        <span>{warehouseGroups.length} warehouses | {locations.length} bin locations</span>
-        <span>Total stock: {locations.reduce((sum, loc) => sum + loc.stock_count, 0)} units</span>
-      </div>
     </div>
   );
 };
