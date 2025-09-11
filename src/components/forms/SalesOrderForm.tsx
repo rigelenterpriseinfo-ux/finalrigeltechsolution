@@ -58,6 +58,7 @@ const salesOrderSchema = z.object({
   payment_terms: z.string().optional(),
   expected_delivery_date: z.string().optional(),
   mode_of_transport: z.string().optional(),
+  place_of_supply: z.string().optional(),
   notes: z.string().optional(),
   same_as_registered_address: z.boolean().default(false),
   delivery_address_line1: z.string().optional(),
@@ -114,6 +115,7 @@ export function SalesOrderForm({
       payment_terms: salesOrder?.payment_terms || '',
       expected_delivery_date: salesOrder?.expected_delivery_date || '',
       mode_of_transport: salesOrder?.mode_of_transport || 'courier',
+      place_of_supply: salesOrder?.place_of_supply || '',
       notes: salesOrder?.notes || '',
       same_as_registered_address: salesOrder?.same_as_registered_address || false,
       delivery_address_line1: salesOrder?.delivery_address_line1 || '',
@@ -678,502 +680,506 @@ export function SalesOrderForm({
               </TabsTrigger>
             </TabsList>
 
-            {/* Order Info Tab */}
-            <TabsContent value="order-info" className="flex-1 overflow-auto m-0 p-0">
-              <div className="space-y-4">
-                {/* Order Details */}
-                <Card className="shadow-sm border-border/50">
-                  <CardHeader className="pb-2 pt-3">
-                    <CardTitle className="text-sm font-semibold flex items-center gap-2">
-                      <Calendar className="h-4 w-4 text-primary" />
-                      Order Details
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                    <FormField
-                      control={form.control}
-                      name="order_number"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="text-sm">Order Number</FormLabel>
-                          <FormControl>
-                            <Input placeholder="Auto-generated" {...field} disabled className="h-8" />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+            <TabsList className="grid w-full grid-cols-2 mb-4 bg-muted/30 h-12">
+              <TabsTrigger value="order-info" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground flex items-center gap-2">
+                <Building className="h-4 w-4" />
+                {(() => {
+                  const selectedCustomerId = form.watch('customer_id');
+                  const selectedCustomer = customers.find(c => c.id === selectedCustomerId);
+                  return selectedCustomer ? `Order Info (${selectedCustomer.name})` : 'Order Info';
+                })()}
+              </TabsTrigger>
+              <TabsTrigger value="items" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground flex items-center gap-2">
+                <Package className="h-4 w-4" />
+                Items & Summary ({fields.length})
+              </TabsTrigger>
+            </TabsList>
 
-                    <FormField
-                      control={form.control}
-                      name="order_date"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="text-sm">Order Date *</FormLabel>
-                          <FormControl>
-                            <Input type="date" {...field} disabled={readOnly} className="h-8" />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+            <div className="flex-1 overflow-hidden">
+              {/* Order Info Tab */}
+              <TabsContent value="order-info" className="flex-1 overflow-auto space-y-4 m-0">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                  {/* Basic Information */}
+                  <Card className="shadow-sm border-border/50">
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-base font-semibold flex items-center gap-2">
+                        <Calendar className="h-4 w-4 text-primary" />
+                        Basic Information
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="grid grid-cols-1 gap-4">
+                        <FormField
+                          control={form.control}
+                          name="order_number"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Order Number</FormLabel>
+                              <FormControl>
+                                <Input 
+                                  placeholder="Auto-generated on save" 
+                                  {...field} 
+                                  disabled 
+                                  className="h-9 bg-muted/30 text-muted-foreground" 
+                                />
+                              </FormControl>
+                            </FormItem>
+                          )}
+                        />
 
-                    <FormField
-                      control={form.control}
-                      name="status"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="text-sm">Status *</FormLabel>
-                          <Select value={field.value} onValueChange={field.onChange} disabled={readOnly}>
-                            <FormControl>
-                              <SelectTrigger className="h-8">
-                                <SelectValue placeholder="Select status" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              <SelectItem value="draft">Draft</SelectItem>
-                              <SelectItem value="pending">Pending</SelectItem>
-                              <SelectItem value="confirmed">Confirmed</SelectItem>
-                              <SelectItem value="delivered">Delivered</SelectItem>
-                              <SelectItem value="cancelled">Cancelled</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </CardContent>
-                </Card>
+                        <FormField
+                          control={form.control}
+                          name="customer_id"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Customer</FormLabel>
+                              <FormControl>
+                                <SearchableCombobox
+                                  value={field.value}
+                                  onSelect={field.onChange}
+                                  placeholder="Select customer"
+                                  searchPlaceholder="Search customers..."
+                                  options={customers.map(customer => ({
+                                    id: customer.id,
+                                    name: customer.name,
+                                    subtitle: customer.email || customer.phone
+                                  }))}
+                                  disabled={readOnly}
+                                  emptyMessage="No customers found"
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
 
-                {/* Customer Information */}
-                <Card className="shadow-sm border-border/50">
-                  <CardHeader className="pb-2 pt-3">
-                    <CardTitle className="text-sm font-semibold flex items-center gap-2">
-                      <Users className="h-4 w-4 text-primary" />
-                      Customer Information
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    <FormField
-                      control={form.control}
-                      name="customer_id"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="text-sm">Customer *</FormLabel>
-                          <FormControl>
-                            <SearchableCombobox
-                              value={field.value}
-                              onSelect={field.onChange}
-                              placeholder="Select customer"
-                              searchPlaceholder="Search customers..."
-                              options={customers.map(customer => ({
-                                id: customer.id,
-                                name: customer.name,
-                                subtitle: customer.email || customer.phone
-                              }))}
-                              disabled={readOnly}
-                              emptyMessage="No customers found"
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+                        <div className="grid grid-cols-2 gap-3">
+                          <FormField
+                            control={form.control}
+                            name="order_date"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Order Date</FormLabel>
+                                <FormControl>
+                                  <Input 
+                                    type="date" 
+                                    {...field} 
+                                    disabled={readOnly} 
+                                    className="h-9" 
+                                  />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
 
-                    <FormField
-                      control={form.control}
-                      name="customer_po_number"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="text-sm">Customer PO Number</FormLabel>
-                          <FormControl>
-                            <Input {...field} disabled={readOnly} className="h-8" />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </CardContent>
-                </Card>
+                          <FormField
+                            control={form.control}
+                            name="expected_delivery_date"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Expected Delivery</FormLabel>
+                                <FormControl>
+                                  <Input 
+                                    type="date" 
+                                    {...field} 
+                                    disabled={readOnly} 
+                                    className="h-9" 
+                                  />
+                                </FormControl>
+                              </FormItem>
+                            )}
+                          />
+                        </div>
 
-                {/* Order Configuration */}
-                <Card className="shadow-sm border-border/50">
-                  <CardHeader className="pb-2 pt-3">
-                    <CardTitle className="text-sm font-semibold flex items-center gap-2">
-                      <Building className="h-4 w-4 text-primary" />
-                      Order Configuration
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                    <FormField
-                      control={form.control}
-                      name="order_type"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="text-sm">Order Type *</FormLabel>
-                          <Select value={field.value} onValueChange={field.onChange} disabled={readOnly}>
-                            <FormControl>
-                              <SelectTrigger className="h-8">
-                                <SelectValue placeholder="Select type" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              <SelectItem value="standard">Standard</SelectItem>
-                              <SelectItem value="return">Return</SelectItem>
-                              <SelectItem value="export">Export</SelectItem>
-                              <SelectItem value="sample">Sample</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+                        <div className="grid grid-cols-2 gap-3">
+                          <FormField
+                            control={form.control}
+                            name="currency"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Currency</FormLabel>
+                                <Select value={field.value} onValueChange={field.onChange} disabled={readOnly}>
+                                  <FormControl>
+                                    <SelectTrigger className="h-9">
+                                      <SelectValue placeholder="Select currency" />
+                                    </SelectTrigger>
+                                  </FormControl>
+                                  <SelectContent>
+                                    <SelectItem value="INR">INR - Indian Rupee</SelectItem>
+                                    <SelectItem value="USD">USD - US Dollar</SelectItem>
+                                    <SelectItem value="EUR">EUR - Euro</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
 
-                    <FormField
-                      control={form.control}
-                      name="currency"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="text-sm">Currency *</FormLabel>
-                          <Select value={field.value} onValueChange={field.onChange} disabled={readOnly}>
-                            <FormControl>
-                              <SelectTrigger className="h-8">
-                                <SelectValue placeholder="Select currency" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              <SelectItem value="INR">INR - Indian Rupee</SelectItem>
-                              <SelectItem value="USD">USD - US Dollar</SelectItem>
-                              <SelectItem value="EUR">EUR - Euro</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+                          <FormField
+                            control={form.control}
+                            name="status"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Status</FormLabel>
+                                <Select value={field.value} onValueChange={field.onChange} disabled={readOnly}>
+                                  <FormControl>
+                                    <SelectTrigger className="h-9">
+                                      <SelectValue placeholder="Select status" />
+                                    </SelectTrigger>
+                                  </FormControl>
+                                  <SelectContent>
+                                    <SelectItem value="draft">Draft</SelectItem>
+                                    <SelectItem value="pending">Pending</SelectItem>
+                                    <SelectItem value="confirmed">Confirmed</SelectItem>
+                                    <SelectItem value="delivered">Delivered</SelectItem>
+                                    <SelectItem value="cancelled">Cancelled</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        </div>
 
-                    <FormField
-                      control={form.control}
-                      name="expected_delivery_date"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="text-sm">Expected Delivery</FormLabel>
-                          <FormControl>
-                            <Input type="date" {...field} disabled={readOnly} className="h-8" />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </CardContent>
-                </Card>
+                        <div className="grid grid-cols-2 gap-3">
+                          <FormField
+                            control={form.control}
+                            name="order_type"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Order Type</FormLabel>
+                                <Select value={field.value} onValueChange={field.onChange} disabled={readOnly}>
+                                  <FormControl>
+                                    <SelectTrigger className="h-9">
+                                      <SelectValue placeholder="Select type" />
+                                    </SelectTrigger>
+                                  </FormControl>
+                                  <SelectContent>
+                                    <SelectItem value="standard">Standard</SelectItem>
+                                    <SelectItem value="return">Return</SelectItem>
+                                    <SelectItem value="export">Export</SelectItem>
+                                    <SelectItem value="sample">Sample</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
 
-                {/* Payment & Terms */}
-                <Card className="shadow-sm border-border/50">
-                  <CardHeader className="pb-2 pt-3">
-                    <CardTitle className="text-sm font-semibold flex items-center gap-2">
-                      <CreditCard className="h-4 w-4 text-primary" />
-                      Payment & Terms
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    <FormField
-                      control={form.control}
-                      name="payment_terms"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="text-sm">Payment Terms</FormLabel>
-                          <FormControl>
-                            <Input placeholder="Net 30 days" {...field} disabled={readOnly} className="h-8" />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+                          <FormField
+                            control={form.control}
+                            name="place_of_supply"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Place of Supply</FormLabel>
+                                <FormControl>
+                                  <Input 
+                                    placeholder="Place of supply" 
+                                    {...field} 
+                                    disabled={readOnly} 
+                                    className="h-9" 
+                                  />
+                                </FormControl>
+                              </FormItem>
+                            )}
+                          />
+                        </div>
 
-                    <FormField
-                      control={form.control}
-                      name="account_manager"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="text-sm">Account Manager</FormLabel>
-                          <FormControl>
-                            <Input placeholder="Manager name" {...field} disabled={readOnly} className="h-8" />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </CardContent>
-                </Card>
+                        <FormField
+                          control={form.control}
+                          name="customer_po_number"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Customer PO Number</FormLabel>
+                              <FormControl>
+                                <Input 
+                                  placeholder="Customer purchase order number" 
+                                  {...field} 
+                                  disabled={readOnly} 
+                                  className="h-9" 
+                                />
+                              </FormControl>
+                            </FormItem>
+                          )}
+                        />
 
-                {/* Warehouse & Logistics */}
-                <Card className="shadow-sm border-border/50">
-                  <CardHeader className="pb-2 pt-3">
-                    <CardTitle className="text-sm font-semibold flex items-center gap-2">
-                      <Truck className="h-4 w-4 text-primary" />
-                      Warehouse & Logistics
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    <FormField
-                      control={form.control}
-                      name="default_warehouse_id"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="text-sm">Default Warehouse *</FormLabel>
-                          <Select 
-                            value={field.value} 
-                            onValueChange={(value) => {
-                              const previousValue = field.value;
-                              field.onChange(value);
-                              fetchBins(value);
-                              if (previousValue && previousValue !== value) {
-                                form.setValue('default_bin_id', '');
-                              }
-                            }} 
-                            disabled={readOnly}
-                          >
-                            <FormControl>
-                              <SelectTrigger className="h-8">
-                                <SelectValue placeholder="Select warehouse" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              {warehouses.map((warehouse) => (
-                                <SelectItem key={warehouse.id} value={warehouse.id}>
-                                  {warehouse.name}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+                        <div className="grid grid-cols-2 gap-3">
+                          <FormField
+                            control={form.control}
+                            name="payment_terms"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Payment Terms</FormLabel>
+                                <FormControl>
+                                  <Input 
+                                    placeholder="e.g., Net 30 days" 
+                                    {...field} 
+                                    disabled={readOnly} 
+                                    className="h-9" 
+                                  />
+                                </FormControl>
+                              </FormItem>
+                            )}
+                          />
 
-                    <FormField
-                      control={form.control}
-                      name="default_bin_id"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="text-sm">Default Bin *</FormLabel>
-                          <Select 
-                            value={field.value} 
-                            onValueChange={(value) => {
-                              field.onChange(value);
-                              const warehouseId = form.watch('default_warehouse_id');
-                              if (warehouseId && value) {
-                                fetchStockLevels(warehouseId, value);
-                              }
-                            }} 
-                            disabled={readOnly || !form.watch('default_warehouse_id')}
-                          >
-                            <FormControl>
-                              <SelectTrigger className="h-8">
-                                <SelectValue placeholder="Select bin" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              {bins.map((bin) => (
-                                <SelectItem key={bin.id} value={bin.id}>
-                                  {bin.bin_name} ({bin.wh_bin_code})
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </CardContent>
-                </Card>
+                          <FormField
+                            control={form.control}
+                            name="account_manager"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Account Manager</FormLabel>
+                                <FormControl>
+                                  <Input 
+                                    placeholder="Manager name" 
+                                    {...field} 
+                                    disabled={readOnly} 
+                                    className="h-9" 
+                                  />
+                                </FormControl>
+                              </FormItem>
+                            )}
+                          />
+                        </div>
 
-                {/* Delivery Address */}
-                <Card className="shadow-sm border-border/50">
-                  <CardHeader className="pb-2 pt-3">
-                    <CardTitle className="text-sm font-semibold flex items-center gap-2">
-                      <MapPin className="h-4 w-4 text-primary" />
-                      Delivery Address
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-3">
-                    <FormField
-                      control={form.control}
-                      name="same_as_registered_address"
-                      render={({ field }) => (
-                        <FormItem className="flex flex-row items-center space-x-3 space-y-0">
-                          <FormControl>
-                            <Checkbox
-                              checked={field.value}
-                              onCheckedChange={(checked) => {
-                                field.onChange(checked);
-                                handleSameAsRegisteredAddressChange(checked as boolean);
-                              }}
-                              disabled={readOnly}
-                            />
-                          </FormControl>
-                          <FormLabel className="text-sm font-normal">
-                            Same as registered address
-                          </FormLabel>
-                        </FormItem>
-                      )}
-                    />
+                        <div className="grid grid-cols-2 gap-3">
+                          <FormField
+                            control={form.control}
+                            name="default_warehouse_id"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Default Warehouse</FormLabel>
+                                <Select 
+                                  value={field.value} 
+                                  onValueChange={(value) => {
+                                    const previousValue = field.value;
+                                    field.onChange(value);
+                                    fetchBins(value);
+                                    if (previousValue && previousValue !== value) {
+                                      form.setValue('default_bin_id', '');
+                                    }
+                                  }} 
+                                  disabled={readOnly}
+                                >
+                                  <FormControl>
+                                    <SelectTrigger className="h-9">
+                                      <SelectValue placeholder="Select warehouse" />
+                                    </SelectTrigger>
+                                  </FormControl>
+                                  <SelectContent>
+                                    {warehouses.map((warehouse) => (
+                                      <SelectItem key={warehouse.id} value={warehouse.id}>
+                                        {warehouse.name}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                      <FormField
-                        control={form.control}
-                        name="delivery_address_line1"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel className="text-sm">Address Line 1</FormLabel>
-                            <FormControl>
-                              <Input 
-                                placeholder="Street address" 
-                                {...field} 
-                                disabled={readOnly || form.watch('same_as_registered_address')} 
-                                className="h-8" 
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
+                          <FormField
+                            control={form.control}
+                            name="default_bin_id"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Default Bin</FormLabel>
+                                <Select 
+                                  value={field.value} 
+                                  onValueChange={(value) => {
+                                    field.onChange(value);
+                                    const warehouseId = form.watch('default_warehouse_id');
+                                    if (warehouseId && value) {
+                                      fetchStockLevels(warehouseId, value);
+                                    }
+                                  }} 
+                                  disabled={readOnly || !form.watch('default_warehouse_id')}
+                                >
+                                  <FormControl>
+                                    <SelectTrigger className="h-9">
+                                      <SelectValue placeholder="Select bin" />
+                                    </SelectTrigger>
+                                  </FormControl>
+                                  <SelectContent>
+                                    {bins.map((bin) => (
+                                      <SelectItem key={bin.id} value={bin.id}>
+                                        {bin.bin_name} ({bin.wh_bin_code})
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        </div>
 
-                      <FormField
-                        control={form.control}
-                        name="delivery_address_line2"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel className="text-sm">Address Line 2</FormLabel>
-                            <FormControl>
-                              <Input 
-                                placeholder="Apartment, suite, etc." 
-                                {...field} 
-                                disabled={readOnly || form.watch('same_as_registered_address')} 
-                                className="h-8" 
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </div>
+                        <FormField
+                          control={form.control}
+                          name="notes"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Notes</FormLabel>
+                              <FormControl>
+                                <Textarea 
+                                  placeholder="Additional notes..." 
+                                  className="resize-none" 
+                                  rows={3}
+                                  {...field} 
+                                  disabled={readOnly}
+                                />
+                              </FormControl>
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+                    </CardContent>
+                  </Card>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                      <FormField
-                        control={form.control}
-                        name="delivery_city"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel className="text-sm">City</FormLabel>
-                            <FormControl>
-                              <Input 
-                                placeholder="City" 
-                                {...field} 
-                                disabled={readOnly || form.watch('same_as_registered_address')} 
-                                className="h-8" 
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
+                  {/* Delivery Address */}
+                  <Card className="shadow-sm border-border/50">
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-base font-semibold flex items-center gap-2">
+                        <MapPin className="h-4 w-4 text-primary" />
+                        Delivery Address
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="flex items-center space-x-2">
+                        <Checkbox
+                          id="same_as_registered_address"
+                          checked={form.watch('same_as_registered_address')}
+                          onCheckedChange={(checked) => {
+                            form.setValue('same_as_registered_address', checked as boolean);
+                            handleSameAsRegisteredAddressChange(checked as boolean);
+                          }}
+                          disabled={readOnly}
+                        />
+                        <FormLabel 
+                          htmlFor="same_as_registered_address" 
+                          className="text-sm font-normal cursor-pointer"
+                        >
+                          Same as registered address
+                        </FormLabel>
+                      </div>
 
-                      <FormField
-                        control={form.control}
-                        name="delivery_state"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel className="text-sm">State</FormLabel>
-                            <FormControl>
-                              <Input 
-                                placeholder="State" 
-                                {...field} 
-                                disabled={readOnly || form.watch('same_as_registered_address')} 
-                                className="h-8" 
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </div>
+                      <div className="grid grid-cols-1 gap-4">
+                        <FormField
+                          control={form.control}
+                          name="delivery_address_line1"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Address Line 1</FormLabel>
+                              <FormControl>
+                                <Input 
+                                  placeholder="Street address" 
+                                  {...field} 
+                                  disabled={readOnly || form.watch('same_as_registered_address')} 
+                                  className="h-9" 
+                                />
+                              </FormControl>
+                            </FormItem>
+                          )}
+                        />
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                      <FormField
-                        control={form.control}
-                        name="delivery_country"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel className="text-sm">Country</FormLabel>
-                            <FormControl>
-                              <Input 
-                                placeholder="Country" 
-                                {...field} 
-                                disabled={readOnly || form.watch('same_as_registered_address')} 
-                                className="h-8" 
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
+                        <FormField
+                          control={form.control}
+                          name="delivery_address_line2"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Address Line 2</FormLabel>
+                              <FormControl>
+                                <Input 
+                                  placeholder="Apartment, suite, etc." 
+                                  {...field} 
+                                  disabled={readOnly || form.watch('same_as_registered_address')} 
+                                  className="h-9" 
+                                />
+                              </FormControl>
+                            </FormItem>
+                          )}
+                        />
 
-                      <FormField
-                        control={form.control}
-                        name="delivery_postal_code"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel className="text-sm">Postal Code</FormLabel>
-                            <FormControl>
-                              <Input 
-                                placeholder="PIN Code" 
-                                {...field} 
-                                disabled={readOnly || form.watch('same_as_registered_address')} 
-                                className="h-8" 
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </div>
-                  </CardContent>
-                </Card>
+                        <div className="grid grid-cols-2 gap-3">
+                          <FormField
+                            control={form.control}
+                            name="delivery_city"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">City</FormLabel>
+                                <FormControl>
+                                  <Input 
+                                    placeholder="City" 
+                                    {...field} 
+                                    disabled={readOnly || form.watch('same_as_registered_address')} 
+                                    className="h-9" 
+                                  />
+                                </FormControl>
+                              </FormItem>
+                            )}
+                          />
 
-                {/* Additional Information */}
-                <Card className="shadow-sm border-border/50">
-                  <CardHeader className="pb-2 pt-3">
-                    <CardTitle className="text-sm font-semibold flex items-center gap-2">
-                      <AlertCircle className="h-4 w-4 text-primary" />
-                      Additional Information
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <FormField
-                      control={form.control}
-                      name="notes"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="text-sm">Remarks / Special Instructions</FormLabel>
-                          <FormControl>
-                            <Textarea 
-                              placeholder="Enter any special instructions or remarks" 
-                              {...field} 
-                              disabled={readOnly} 
-                              rows={2}
-                              className="text-sm"
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </CardContent>
-                </Card>
-              </div>
-            </TabsContent>
+                          <FormField
+                            control={form.control}
+                            name="delivery_state"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">State</FormLabel>
+                                <FormControl>
+                                  <Input 
+                                    placeholder="State" 
+                                    {...field} 
+                                    disabled={readOnly || form.watch('same_as_registered_address')} 
+                                    className="h-9" 
+                                  />
+                                </FormControl>
+                              </FormItem>
+                            )}
+                          />
+                        </div>
+
+                        <FormField
+                          control={form.control}
+                          name="delivery_country"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Country</FormLabel>
+                              <FormControl>
+                                <Input 
+                                  placeholder="Country" 
+                                  {...field} 
+                                  disabled={readOnly || form.watch('same_as_registered_address')} 
+                                  className="h-9" 
+                                />
+                              </FormControl>
+                            </FormItem>
+                          )}
+                        />
+
+                        <FormField
+                          control={form.control}
+                          name="delivery_postal_code"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Postal Code</FormLabel>
+                              <FormControl>
+                                <Input 
+                                  placeholder="PIN Code" 
+                                  {...field} 
+                                  disabled={readOnly || form.watch('same_as_registered_address')} 
+                                  className="h-9" 
+                                />
+                              </FormControl>
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+              </TabsContent>
+            </div>
 
             {/* Items & Summary Tab */}
             <TabsContent value="items" className="flex-1 overflow-auto m-0 p-0">

@@ -2696,6 +2696,7 @@ export type Database = {
           order_number: string
           order_type: string | null
           payment_terms: string | null
+          place_of_supply: string | null
           salesperson_id: string | null
           same_as_registered_address: boolean | null
           shipping_instructions: string | null
@@ -2739,6 +2740,7 @@ export type Database = {
           order_number: string
           order_type?: string | null
           payment_terms?: string | null
+          place_of_supply?: string | null
           salesperson_id?: string | null
           same_as_registered_address?: boolean | null
           shipping_instructions?: string | null
@@ -2782,6 +2784,7 @@ export type Database = {
           order_number?: string
           order_type?: string | null
           payment_terms?: string | null
+          place_of_supply?: string | null
           salesperson_id?: string | null
           same_as_registered_address?: boolean | null
           shipping_instructions?: string | null
