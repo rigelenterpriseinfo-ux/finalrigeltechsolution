@@ -372,30 +372,14 @@ export const EnhancedCurrentStockSystem = () => {
       )}
 
       {/* Main Stock Table */}
-      <Card className="card-elevated">
-        <CardHeader>
-          <CardTitle className="text-xl flex items-center gap-2">
-            <TrendingUp className="h-6 w-6 text-accent" />
-            Stock Analysis & Allocation Tracking
-          </CardTitle>
-          {(selectedItem || selectedLocation.warehouse || selectedLocation.bin) && (
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <AlertTriangle className="h-4 w-4" />
-              Filtered results - showing {filteredStockData.length} of {stockData.length} stock entries
-            </div>
-          )}
-        </CardHeader>
-        <CardContent>
-          <ComprehensiveStockTable
-            stockData={filteredStockData}
-            loading={loading}
-            onRefresh={handleRefresh}
-            selectedItem={selectedItem}
-            selectedLocation={selectedLocation}
-            processedStockData={stockData}
-          />
-        </CardContent>
-      </Card>
+      <ComprehensiveStockTable
+        stockData={filteredStockData}
+        loading={loading}
+        onRefresh={handleRefresh}
+        selectedItem={selectedItem}
+        selectedLocation={selectedLocation}
+        processedStockData={stockData}
+      />
     </div>
   );
 };
