@@ -816,10 +816,21 @@ export function EnhancedReportsModule() {
 
       console.log('Sales items for specific product:', salesItems?.length || 0, 'items');
 
-      if (!salesItems || salesItems.length === 0) {
-        console.log('No sales data for selected product');
-        return { tableData: [], chartData: [] };
-      }
+    if (!salesItems || salesItems.length === 0) {
+      console.log('No sales data for selected product');
+      // Instead of returning empty arrays, return a message indicating no sales for this product
+      return { 
+        tableData: [{
+          customer: 'No sales data available',
+          quantitySold: 0,
+          totalRevenue: 0,
+          avgPrice: 0,
+          invoiceCount: 0,
+          lastPurchaseDate: 'N/A'
+        }], 
+        chartData: [] 
+      };
+    }
 
       // Group by customer
       const customerSales = salesItems?.reduce((acc: Record<string, any>, item) => {
@@ -1946,8 +1957,10 @@ export function EnhancedReportsModule() {
                   {reportData.length === 0 ? (
                     <div className="text-center py-8">
                       <p className="text-muted-foreground">
-                        {selectedReport === 'item_wise_sales' && (!filters.product || filters.product === 'all') 
-                          ? 'Please select a specific product to view customer sales data' 
+                        {selectedReport === 'item_wise_sales' && filters.product && filters.product !== 'all' 
+                          ? 'No sales data available for the selected product. Try selecting "All Products" to see the complete sales summary.' 
+                          : selectedReport === 'item_wise_sales' && (!filters.product || filters.product === 'all')
+                          ? 'Loading product sales data...'
                           : 'No data available for the selected criteria'
                         }
                       </p>

@@ -7,7 +7,7 @@ interface ProductSelectorProps {
   onChange: (value: string) => void;
 }
 
-export function ProductSelector({ value, onChange }: ProductSelectorProps) {
+export function ProductSelector({ value = "all", onChange }: ProductSelectorProps) {
   const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -34,10 +34,17 @@ export function ProductSelector({ value, onChange }: ProductSelectorProps) {
     fetchProducts();
   }, []);
 
+  // Set default value to "all" if not provided
+  useEffect(() => {
+    if (!value && !loading) {
+      onChange("all");
+    }
+  }, [value, onChange, loading]);
+
   console.log('ProductSelector: Current value:', value, 'Products available:', products.length);
 
   return (
-    <Select value={value} onValueChange={(val) => {
+    <Select value={value || "all"} onValueChange={(val) => {
       console.log('ProductSelector: Value changed to:', val);
       onChange(val);
     }}>
@@ -45,10 +52,12 @@ export function ProductSelector({ value, onChange }: ProductSelectorProps) {
         <SelectValue placeholder={loading ? "Loading products..." : "Select product..."} />
       </SelectTrigger>
       <SelectContent className="bg-background border-input shadow-lg z-50">
-        <SelectItem value="all" className="bg-background hover:bg-accent">All Products</SelectItem>
+        <SelectItem value="all" className="bg-background hover:bg-accent">
+          All Products (Summary View)
+        </SelectItem>
         {products.map((product) => (
           <SelectItem key={product.id} value={product.id} className="bg-background hover:bg-accent">
-            {product.name} ({product.sku})
+            {product.name} ({product.sku}) - Customer Breakdown
           </SelectItem>
         ))}
       </SelectContent>
