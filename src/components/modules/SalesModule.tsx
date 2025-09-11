@@ -643,20 +643,49 @@ export default function SalesModule() {
 
     try {
       setLoading(true);
+      console.log('🚀 SalesModule: Starting sales order submission');
       const { orderData, lineItems } = data;
+      
+      console.log('📋 Sales Order Data:', orderData);
+      console.log('📦 Line Items:', lineItems);
+      
+      // Validate required fields
+      const requiredFields = ['customer_id', 'order_date'];
+      const missingFields = requiredFields.filter(field => !orderData[field]);
+      
+      if (missingFields.length > 0) {
+        toast({
+          title: "Validation Error",
+          description: `Missing required fields: ${missingFields.join(', ')}`,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Ensure order_type has a valid value - check constraint requires specific values
+      const validOrderTypes = ['sales', 'service', 'rental', 'maintenance'];
+      if (!orderData.order_type || !validOrderTypes.includes(orderData.order_type)) {
+        console.log('⚠️ Invalid order_type:', orderData.order_type, 'Setting to default: sales');
+        orderData.order_type = 'sales'; // Default to 'sales' if invalid or missing
+      }
       
       // Convert empty date strings to null
       const processedOrderData = {
         ...orderData,
         expected_delivery_date: orderData.expected_delivery_date || null,
         delivery_date: orderData.delivery_date || null,
+        order_type: orderData.order_type, // Ensure order_type is included
       };
+      
+      console.log('✅ Processed Order Data:', processedOrderData);
       
       const salesOrderPayload = {
         ...processedOrderData,
         company_id: company.id,
         created_by: profile.id,
       };
+
+      console.log('📤 Final Payload:', salesOrderPayload);
 
       let result;
       if (editingSalesOrder) {
@@ -733,15 +762,39 @@ export default function SalesModule() {
       fetchSalesMetrics();
       setShowSalesOrderDialog(false);
       setEditingSalesOrder(null);
-    } catch (error) {
-      console.error('Error saving sales order:', error);
+    } catch (error: any) {
+      console.error('❌ Error saving sales order:', error);
+      
+      // Extract meaningful error message
+      let errorMessage = "Failed to save sales order";
+      
+      if (error?.message) {
+        if (error.message.includes('sales_orders_order_type_check')) {
+          errorMessage = "Invalid order type. Please select a valid order type.";
+        } else if (error.message.includes('violates check constraint')) {
+          errorMessage = `Database constraint violation: ${error.message}`;
+        } else if (error.message.includes('duplicate key')) {
+          errorMessage = "A sales order with this information already exists.";
+        } else if (error.message.includes('foreign key')) {
+          errorMessage = "Invalid reference to customer, warehouse, or bin. Please check your selections.";
+        } else {
+          errorMessage = `Database error: ${error.message}`;
+        }
+      }
+      
+      console.log('📋 Detailed error info:');
+      console.log('- Error code:', error?.code);
+      console.log('- Error details:', error?.details);
+      console.log('- Error hint:', error?.hint);
+      
       toast({
         title: "Error",
-        description: "Failed to save sales order",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
       setLoading(false);
+      console.log('🏁 SalesModule: handleSalesOrderSubmit finished');
     }
   };
 

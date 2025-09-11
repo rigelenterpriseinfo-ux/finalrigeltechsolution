@@ -452,7 +452,7 @@ export function SalesOrderForm({
         customer_po_number: data.customer_po_number,
         status: data.status,
         account_manager: data.account_manager,
-        order_type: data.order_type,
+        order_type: data.order_type || 'sales', // Ensure order_type has default value
         currency: data.currency,
         payment_terms: data.payment_terms,
         expected_delivery_date: data.expected_delivery_date,
@@ -466,6 +466,18 @@ export function SalesOrderForm({
         tax_amount: totalTaxAmount,
         total_amount: totalAmount
       };
+
+      console.log('📋 Form data being submitted:', {
+        orderData,
+        lineItemsCount: data.items.length,
+        requiredFields: {
+          customer_id: data.customer_id,
+          order_date: data.order_date,
+          order_type: data.order_type || 'sales',
+          default_warehouse_id: data.default_warehouse_id,
+          default_bin_id: data.default_bin_id
+        }
+      });
 
       // Prepare line items
       const lineItems = data.items.map((item, index) => {
@@ -505,11 +517,18 @@ export function SalesOrderForm({
       if (result?.order_number) {
         form.setValue('order_number', result.order_number);
       }
-    } catch (error) {
-      console.error('Error submitting sales order:', error);
+    } catch (error: any) {
+      console.error('❌ Error submitting sales order from form:', error);
+      
+      // More specific error handling
+      let errorMessage = "Failed to save sales order";
+      if (error?.message) {
+        errorMessage = error.message;
+      }
+      
       toast({
         title: "Error",
-        description: "Failed to save sales order",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
