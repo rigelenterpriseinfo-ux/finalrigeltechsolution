@@ -370,16 +370,6 @@ export const EnhancedCurrentStockSystem = () => {
           loading={loading}
         />
       )}
-
-      {/* Main Stock Table */}
-      <ComprehensiveStockTable
-        stockData={filteredStockData}
-        loading={loading}
-        onRefresh={handleRefresh}
-        selectedItem={selectedItem}
-        selectedLocation={selectedLocation}
-        processedStockData={stockData}
-      />
     </div>
   );
 };
