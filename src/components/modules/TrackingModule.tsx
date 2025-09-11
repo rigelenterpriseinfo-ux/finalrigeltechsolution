@@ -35,6 +35,18 @@ interface TrackableOrder {
   dispatch_date?: string;
   delivery_date?: string;
   customers?: { name: string };
+  // Additional fields for order details
+  delivery_city?: string;
+  subtotal_amount?: number;
+  tax_amount?: number;
+  discount_amount?: number;
+  notes?: string;
+}
+
+interface OrderDetailDialogProps {
+  order: TrackableOrder | null;
+  open: boolean;
+  onClose: () => void;
 }
 
 export function TrackingModule() {
@@ -49,12 +61,14 @@ export function TrackingModule() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
+  const [orderDetailDialogOpen, setOrderDetailDialogOpen] = useState(false);
+  const [selectedOrderForDetails, setSelectedOrderForDetails] = useState<TrackableOrder | null>(null);
 
   const fetchTrackableOrders = async () => {
     try {
       setLoading(true);
       
-      // Fetch sales orders with tracking fields and delivery address
+      // Fetch sales orders with tracking fields and all necessary details
       const { data: salesOrders, error: salesError } = await supabase
         .from('sales_orders')
         .select(`
@@ -63,6 +77,9 @@ export function TrackingModule() {
           status,
           order_date,
           total_amount,
+          subtotal_amount,
+          tax_amount,
+          discount_amount,
           destination,
           item_count,
           eway_bill_no,
@@ -75,6 +92,7 @@ export function TrackingModule() {
           dispatch_date,
           delivery_date,
           delivery_city,
+          notes,
           customers(name)
         `);
 
@@ -83,7 +101,7 @@ export function TrackingModule() {
         return;
       }
 
-      // Fetch debit notes with tracking fields
+      // Fetch debit notes with tracking fields and all necessary details
       const { data: debitNotesData, error: debitError } = await supabase
         .from('debit_notes')
         .select(`
@@ -93,6 +111,9 @@ export function TrackingModule() {
           debit_note_date,
           supplier_name,
           total_amount,
+          subtotal_amount,
+          tax_amount,
+          discount_amount,
           destination,
           item_count,
           eway_bill_no,
@@ -103,7 +124,8 @@ export function TrackingModule() {
           pod_document_url,
           tracking_status,
           dispatch_date,
-          delivery_date
+          delivery_date,
+          notes
         `);
 
       if (debitError) {
@@ -127,7 +149,11 @@ export function TrackingModule() {
           order_date: order.order_date,
           customer_name: order.customers?.name,
           total_amount: order.total_amount,
+          subtotal_amount: order.subtotal_amount,
+          tax_amount: order.tax_amount,
+          discount_amount: order.discount_amount,
           destination: autoDestination,
+          delivery_city: order.delivery_city,
           item_count: order.item_count,
           eway_bill_no: order.eway_bill_no,
           eway_bill_date: order.eway_bill_date,
@@ -137,7 +163,8 @@ export function TrackingModule() {
           pod_document_url: order.pod_document_url,
           tracking_status: order.tracking_status || 'pending',
           dispatch_date: order.dispatch_date,
-          delivery_date: order.delivery_date
+          delivery_date: order.delivery_date,
+          notes: order.notes
         };
       });
 
@@ -150,6 +177,9 @@ export function TrackingModule() {
         order_date: note.debit_note_date,
         supplier_name: note.supplier_name,
         total_amount: note.total_amount,
+        subtotal_amount: note.subtotal_amount,
+        tax_amount: note.tax_amount,
+        discount_amount: note.discount_amount,
         destination: note.destination,
         item_count: note.item_count,
         eway_bill_no: note.eway_bill_no,
@@ -160,7 +190,8 @@ export function TrackingModule() {
         pod_document_url: note.pod_document_url,
         tracking_status: note.tracking_status || 'pending',
         dispatch_date: note.dispatch_date,
-        delivery_date: note.delivery_date
+        delivery_date: note.delivery_date,
+        notes: note.notes
       }));
 
       setOrders(trackableSalesOrders);
@@ -203,6 +234,97 @@ export function TrackingModule() {
       });
     }
   };
+
+  const handleOrderClick = (order: TrackableOrder) => {
+    setSelectedOrderForDetails(order);
+    setOrderDetailDialogOpen(true);
+  };
+
+  const OrderDetailDialog = ({ order, open, onClose }: OrderDetailDialogProps) => (
+    <Dialog open={open} onOpenChange={onClose}>
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>
+            {order?.type === 'sales' ? 'Sales Order' : 'Debit Note'} Details - {order?.order_number}
+          </DialogTitle>
+        </DialogHeader>
+        {order && (
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <h4 className="font-semibold mb-2">Basic Information</h4>
+                <div className="space-y-2 text-sm">
+                  <p><span className="font-medium">Order Number:</span> {order.order_number}</p>
+                  <p><span className="font-medium">Status:</span> <Badge>{order.status}</Badge></p>
+                  <p><span className="font-medium">Date:</span> {format(new Date(order.order_date), 'dd/MM/yyyy')}</p>
+                  <p><span className="font-medium">{order.type === 'sales' ? 'Customer' : 'Supplier'}:</span> {order.customer_name || order.supplier_name}</p>
+                  {order.delivery_city && <p><span className="font-medium">Delivery City:</span> {order.delivery_city}</p>}
+                </div>
+              </div>
+              <div>
+                <h4 className="font-semibold mb-2">Financial Summary</h4>
+                <div className="space-y-2 text-sm">
+                  <p><span className="font-medium">Subtotal:</span> ₹{order.subtotal_amount?.toLocaleString() || 'N/A'}</p>
+                  <p><span className="font-medium">Tax Amount:</span> ₹{order.tax_amount?.toLocaleString() || 'N/A'}</p>
+                  <p><span className="font-medium">Discount:</span> ₹{order.discount_amount?.toLocaleString() || 'N/A'}</p>
+                  <p><span className="font-medium">Total Amount:</span> ₹{order.total_amount.toLocaleString()}</p>
+                </div>
+              </div>
+            </div>
+            
+            <div>
+              <h4 className="font-semibold mb-2">Tracking Information</h4>
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div className="space-y-2">
+                  <p><span className="font-medium">Destination:</span> {order.destination || '-'}</p>
+                  <p><span className="font-medium">Item Count:</span> {order.item_count || '-'}</p>
+                  <p><span className="font-medium">E-way Bill No:</span> {order.eway_bill_no || '-'}</p>
+                  <p><span className="font-medium">E-way Bill Date:</span> {order.eway_bill_date ? format(new Date(order.eway_bill_date), 'dd/MM/yyyy') : '-'}</p>
+                </div>
+                <div className="space-y-2">
+                  <p><span className="font-medium">Carrier:</span> {order.carrier_transporter || '-'}</p>
+                  <p><span className="font-medium">AWB No:</span> {order.awb_no || '-'}</p>
+                  <p><span className="font-medium">ETA:</span> {order.eta ? format(new Date(order.eta), 'dd/MM/yyyy') : '-'}</p>
+                  <p><span className="font-medium">Tracking Status:</span> <Badge variant={getStatusColor(order.tracking_status || 'pending')}>{(order.tracking_status || 'pending').replace('_', ' ').toUpperCase()}</Badge></p>
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <h4 className="font-semibold mb-2">Delivery Information</h4>
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <p><span className="font-medium">Dispatch Date:</span> {order.dispatch_date ? format(new Date(order.dispatch_date), 'dd/MM/yyyy') : '-'}</p>
+                <p><span className="font-medium">Delivery Date:</span> {order.delivery_date ? format(new Date(order.delivery_date), 'dd/MM/yyyy') : '-'}</p>
+              </div>
+            </div>
+
+            {order.notes && (
+              <div>
+                <h4 className="font-semibold mb-2">Notes</h4>
+                <p className="text-sm bg-muted p-2 rounded">{order.notes}</p>
+              </div>
+            )}
+
+            {order.pod_document_url && (
+              <div>
+                <h4 className="font-semibold mb-2">POD Document</h4>
+                <div className="flex gap-2">
+                  <Button size="sm" variant="outline" onClick={() => handleViewPOD(order.pod_document_url!)}>
+                    <Eye className="h-4 w-4 mr-2" />
+                    View POD
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={() => handleDownloadPOD(order.pod_document_url!, order.order_number)}>
+                    <Download className="h-4 w-4 mr-2" />
+                    Download POD
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
 
   useEffect(() => {
     const initializeTracking = async () => {
@@ -321,7 +443,15 @@ export function TrackingModule() {
               ) : (
                 paginatedData.map((item) => (
                   <TableRow key={item.id}>
-                    <TableCell className="font-medium">{item.order_number}</TableCell>
+                    <TableCell className="font-medium">
+                      <Button 
+                        variant="link" 
+                        className="p-0 h-auto text-primary hover:underline"
+                        onClick={() => handleOrderClick(item)}
+                      >
+                        {item.order_number}
+                      </Button>
+                    </TableCell>
                     <TableCell>{item.customer_name || item.supplier_name}</TableCell>
                     <TableCell>{item.destination || '-'}</TableCell>
                     <TableCell>{item.item_count || '-'}</TableCell>
@@ -478,106 +608,114 @@ export function TrackingModule() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">Track & Trace</h1>
-          <p className="text-muted-foreground">Monitor your orders and shipments with comprehensive tracking</p>
+          <p className="text-muted-foreground">Monitor the status of your sales orders and debit notes</p>
+        </div>
+        <div className="flex items-center space-x-2">
+          <Truck className="h-6 w-6 text-primary" />
+          <Package className="h-6 w-6 text-secondary" />
         </div>
       </div>
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">In Transit</CardTitle>
-            <Truck className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {[...filteredOrders, ...filteredDebitNotes].filter(o => 
-                o.tracking_status === 'in_transit' || o.tracking_status === 'dispatched'
-              ).length}
+          <CardContent className="p-4 flex items-center space-x-2">
+            <Clock className="h-8 w-8 text-orange-500" />
+            <div>
+              <p className="text-sm font-medium text-muted-foreground">Pending</p>
+              <p className="text-2xl font-bold">
+                {[...orders, ...debitNotes].filter(item => item.tracking_status === 'pending').length}
+              </p>
             </div>
           </CardContent>
         </Card>
-
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Pending Shipment</CardTitle>
-            <Package className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {[...filteredOrders, ...filteredDebitNotes].filter(o => 
-                o.tracking_status === 'pending' || o.tracking_status === 'processing'
-              ).length}
+          <CardContent className="p-4 flex items-center space-x-2">
+            <Truck className="h-8 w-8 text-blue-500" />
+            <div>
+              <p className="text-sm font-medium text-muted-foreground">In Transit</p>
+              <p className="text-2xl font-bold">
+                {[...orders, ...debitNotes].filter(item => item.tracking_status === 'in_transit').length}
+              </p>
             </div>
           </CardContent>
         </Card>
-
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Delivered</CardTitle>
-            <CheckCircle className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {[...filteredOrders, ...filteredDebitNotes].filter(o => 
-                o.tracking_status === 'delivered'
-              ).length}
+          <CardContent className="p-4 flex items-center space-x-2">
+            <CheckCircle className="h-8 w-8 text-green-500" />
+            <div>
+              <p className="text-sm font-medium text-muted-foreground">Delivered</p>
+              <p className="text-2xl font-bold">
+                {[...orders, ...debitNotes].filter(item => item.tracking_status === 'delivered').length}
+              </p>
             </div>
           </CardContent>
         </Card>
-
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Items</CardTitle>
-            <Clock className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{filteredOrders.length + filteredDebitNotes.length}</div>
+          <CardContent className="p-4 flex items-center space-x-2">
+            <Package className="h-8 w-8 text-purple-500" />
+            <div>
+              <p className="text-sm font-medium text-muted-foreground">Total Orders</p>
+              <p className="text-2xl font-bold">{orders.length + debitNotes.length}</p>
+            </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Search and Filters */}
-      <div className="flex gap-4">
-        <div className="flex-1 relative">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            placeholder="Search by order number, customer, AWB, E-way bill..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10 max-w-md"
-          />
-        </div>
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-48">
-            <SelectValue placeholder="Filter by status" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Status</SelectItem>
-            <SelectItem value="pending">Pending</SelectItem>
-            <SelectItem value="processing">Processing</SelectItem>
-            <SelectItem value="dispatched">Dispatched</SelectItem>
-            <SelectItem value="in_transit">In Transit</SelectItem>
-            <SelectItem value="delivered">Delivered</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
+      {/* Filters and Search */}
+      <Card>
+        <CardContent className="p-4">
+          <div className="flex flex-col md:flex-row gap-4">
+            <div className="flex-1">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+                <Input
+                  placeholder="Search by order number, customer, AWB, or e-way bill..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-9"
+                />
+              </div>
+            </div>
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Filter by status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Status</SelectItem>
+                <SelectItem value="pending">Pending</SelectItem>
+                <SelectItem value="processing">Processing</SelectItem>
+                <SelectItem value="dispatched">Dispatched</SelectItem>
+                <SelectItem value="in_transit">In Transit</SelectItem>
+                <SelectItem value="delivered">Delivered</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </CardContent>
+      </Card>
 
-      {/* Tabs for different order types */}
-      <Tabs defaultValue="sales" className="space-y-4">
-        <TabsList>
+      {/* Tracking Tables */}
+      <Tabs defaultValue="sales" className="w-full" onValueChange={() => setCurrentPage(1)}>
+        <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="sales">Sales Orders</TabsTrigger>
           <TabsTrigger value="debit_notes">Debit Notes</TabsTrigger>
         </TabsList>
-
+        
         <TabsContent value="sales" className="space-y-4">
-          {renderTrackingTable(filteredOrders, "Sales Orders Tracking")}
+          {renderTrackingTable(filteredOrders, 'Sales Orders')}
         </TabsContent>
-
+        
         <TabsContent value="debit_notes" className="space-y-4">
-          {renderTrackingTable(filteredDebitNotes, "Debit Notes Tracking")}
+          {renderTrackingTable(filteredDebitNotes, 'Debit Notes')}
         </TabsContent>
       </Tabs>
+
+      {/* Order Detail Dialog */}
+      <OrderDetailDialog 
+        order={selectedOrderForDetails}
+        open={orderDetailDialogOpen}
+        onClose={() => setOrderDetailDialogOpen(false)}
+      />
     </div>
   );
 }
