@@ -89,6 +89,8 @@ export function PaymentsModule() {
   const [accountReceivable, setAccountReceivable] = useState<SalesInvoiceReceivable[]>([]);
   const [overdueVendors, setOverdueVendors] = useState<{name: string, amount: number}[]>([]);
   const [overdueCustomers, setOverdueCustomers] = useState<{name: string, amount: number}[]>([]);
+  const [topAPVendors, setTopAPVendors] = useState<{name: string, amount: number}[]>([]);
+  const [topARCustomers, setTopARCustomers] = useState<{name: string, amount: number}[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [showAPDetails, setShowAPDetails] = useState(false);
@@ -146,6 +148,8 @@ export function PaymentsModule() {
   useEffect(() => {
     fetchAccountPayable();
     fetchAccountReceivable();
+    fetchTopAPVendors();
+    fetchTopARCustomers();
   }, []);
 
   const fetchAccountPayable = async () => {
@@ -257,6 +261,9 @@ export function PaymentsModule() {
       });
 
       setAccountPayable(transformedData);
+      
+      // Recalculate top AP vendors after data is updated
+      setTimeout(() => fetchTopAPVendors(), 100);
     } catch (error) {
       console.error('Error fetching account payable:', error);
       toast({
@@ -374,6 +381,9 @@ export function PaymentsModule() {
       });
 
       setAccountReceivable(transformedData);
+      
+      // Recalculate top AR customers after data is updated
+      setTimeout(() => fetchTopARCustomers(), 100);
     } catch (error) {
       console.error('Error fetching account receivable:', error);
       toast({
@@ -484,6 +494,59 @@ export function PaymentsModule() {
       setOverdueCustomers(sortedCustomers);
     } catch (error) {
       console.error('Error fetching overdue customers:', error);
+    }
+  };
+
+  // Fetch top 5 vendors with highest AP
+  const fetchTopAPVendors = async () => {
+    if (!profile?.company_id) return;
+
+    try {
+      // Get all vendors and their total payable amounts
+      const vendorAPAmounts: { [key: string]: number } = {};
+      
+      accountPayable.forEach((grn) => {
+        if (grn.pending_payment > 0) {
+          vendorAPAmounts[grn.supplier_name] = (vendorAPAmounts[grn.supplier_name] || 0) + grn.pending_payment;
+        }
+      });
+
+      // Get top 5 vendors with highest AP
+      const sortedVendors = Object.entries(vendorAPAmounts)
+        .map(([name, amount]) => ({ name, amount }))
+        .sort((a, b) => b.amount - a.amount)
+        .slice(0, 5);
+
+      setTopAPVendors(sortedVendors);
+    } catch (error) {
+      console.error('Error calculating top AP vendors:', error);
+    }
+  };
+
+  // Fetch top 5 customers with highest AR
+  const fetchTopARCustomers = async () => {
+    if (!profile?.company_id) return;
+
+    try {
+      // Get all customers and their total receivable amounts
+      const customerARAmounts: { [key: string]: number } = {};
+      
+      accountReceivable.forEach((invoice) => {
+        if (invoice.pending_payment > 0) {
+          const customerName = invoice.customer?.name || 'Unknown Customer';
+          customerARAmounts[customerName] = (customerARAmounts[customerName] || 0) + invoice.pending_payment;
+        }
+      });
+
+      // Get top 5 customers with highest AR
+      const sortedCustomers = Object.entries(customerARAmounts)
+        .map(([name, amount]) => ({ name, amount }))
+        .sort((a, b) => b.amount - a.amount)
+        .slice(0, 5);
+
+      setTopARCustomers(sortedCustomers);
+    } catch (error) {
+      console.error('Error calculating top AR customers:', error);
     }
   };
 
@@ -730,24 +793,67 @@ export function PaymentsModule() {
           </CardContent>
         </Card>
 
-        {/* Placeholder cards for balance */}
-        <Card className="opacity-50">
+        {/* Top 5 Vendors with Highest AP */}
+        <Card className="cursor-pointer hover:bg-accent/50 transition-colors">
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm">Summary Card 3</CardTitle>
+            <CardTitle className="flex items-center justify-between text-sm">
+              <div className="flex items-center gap-2">
+                <TrendingDown className="h-4 w-4 text-red-600" />
+                Top 5 Vendors - Highest AP
+              </div>
+            </CardTitle>
           </CardHeader>
           <CardContent className="pt-0">
-            <div className="text-xl font-bold">-</div>
-            <p className="text-xs text-muted-foreground">Coming soon</p>
+            <div className="text-xl font-bold">₹{topAPVendors.reduce((sum, vendor) => sum + vendor.amount, 0).toLocaleString()}</div>
+            <div className="space-y-1 mt-2 max-h-24 overflow-y-auto">
+              {topAPVendors.map((vendor, index) => (
+                <div key={index} className="flex justify-between items-center text-xs">
+                  <span className="text-muted-foreground truncate max-w-[120px]" title={vendor.name}>
+                    {vendor.name}
+                  </span>
+                  <span className="font-medium text-red-600">
+                    ₹{vendor.amount.toLocaleString()}
+                  </span>
+                </div>
+              ))}
+              {topAPVendors.length === 0 && (
+                <p className="text-xs text-muted-foreground">
+                  No vendors with pending AP
+                </p>
+              )}
+            </div>
           </CardContent>
         </Card>
 
-        <Card className="opacity-50">
+        {/* Top 5 Customers with Highest AR */}
+        <Card className="cursor-pointer hover:bg-accent/50 transition-colors">
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm">Summary Card 4</CardTitle>
+            <CardTitle className="flex items-center justify-between text-sm">
+              <div className="flex items-center gap-2">
+                <TrendingUp className="h-4 w-4 text-green-600" />
+                Top 5 Customers - Highest AR
+              </div>
+            </CardTitle>
           </CardHeader>
           <CardContent className="pt-0">
-            <div className="text-xl font-bold">-</div>
-            <p className="text-xs text-muted-foreground">Coming soon</p>
+            <div className="text-xl font-bold">₹{topARCustomers.reduce((sum, customer) => sum + customer.amount, 0).toLocaleString()}</div>
+            <div className="space-y-1 mt-2 max-h-24 overflow-y-auto">
+              {topARCustomers.map((customer, index) => (
+                <div key={index} className="flex justify-between items-center text-xs">
+                  <span className="text-muted-foreground truncate max-w-[120px]" title={customer.name}>
+                    {customer.name}
+                  </span>
+                  <span className="font-medium text-green-600">
+                    ₹{customer.amount.toLocaleString()}
+                  </span>
+                </div>
+              ))}
+              {topARCustomers.length === 0 && (
+                <p className="text-xs text-muted-foreground">
+                  No customers with pending AR
+                </p>
+              )}
+            </div>
           </CardContent>
         </Card>
       </div>
