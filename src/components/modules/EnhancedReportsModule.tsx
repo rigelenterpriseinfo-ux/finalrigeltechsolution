@@ -30,13 +30,16 @@ import {
   AlertTriangle,
   CheckCircle,
   Clock,
-  Target
+  Target,
+  RefreshCw
 } from 'lucide-react';
-import { format, subDays, startOfMonth, endOfMonth } from 'date-fns';
+import { format, subDays, startOfMonth, endOfMonth, differenceInDays } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { useBusinessAuth } from '@/hooks/useBusinessAuth';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Area, AreaChart } from 'recharts';
+import { toast } from "sonner";
 
 interface ReportCategory {
   id: string;
@@ -147,99 +150,359 @@ export function EnhancedReportsModule() {
     .flatMap(cat => cat.reports)
     .find(report => report.id === selectedReport);
 
-  useEffect(() => {
-    if (!authLoading && hasAccess('reports')) {
-      fetchReportData();
-    }
-  }, [selectedReport, filters, authLoading]);
+  // Use React Query for real-time data fetching
+  const { data: reportResult, isLoading, error, refetch } = useQuery({
+    queryKey: ['report', selectedReport, filters],
+    queryFn: () => generateReportData(selectedReport, filters),
+    enabled: !authLoading && hasAccess('reports'),
+    refetchInterval: 30000, // Refetch every 30 seconds for real-time updates
+    staleTime: 10000, // Consider data stale after 10 seconds
+  });
 
-  const fetchReportData = async () => {
-    setLoading(true);
-    try {
-      // Simulate different report data based on selected report
-      const data = await generateReportData(selectedReport, filters);
-      setReportData(data.tableData);
-      setChartData(data.chartData);
-    } catch (error) {
-      console.error('Error fetching report data:', error);
-    } finally {
-      setLoading(false);
-    }
+  const queryClient = useQueryClient();
+
+  // Manual refresh function
+  const handleRefresh = () => {
+    queryClient.invalidateQueries({ queryKey: ['report'] });
+    toast.success('Report data refreshed');
+  };
+
+  // Real-time data fetching functions
+  const fetchARAgingData = async (filters: FilterState) => {
+    const { data: invoices, error } = await supabase
+      .from('sales_invoices')
+      .select(`
+        id, invoice_number, customer_name, total_amount, 
+        invoice_date, status, customer_id,
+        payments(amount, payment_date)
+      `)
+      .eq('status', 'finalized')
+      .gte('invoice_date', format(filters.dateRange.from, 'yyyy-MM-dd'))
+      .lte('invoice_date', format(filters.dateRange.to, 'yyyy-MM-dd'));
+
+    if (error) throw error;
+
+    const agingData = invoices?.map(invoice => {
+      const totalPaid = invoice.payments?.reduce((sum: number, payment: any) => sum + payment.amount, 0) || 0;
+      const outstandingAmount = invoice.total_amount - totalPaid;
+      const daysOutstanding = differenceInDays(new Date(), new Date(invoice.invoice_date));
+      
+      return {
+        customer: invoice.customer_name,
+        invoiceNumber: invoice.invoice_number,
+        amount: outstandingAmount,
+        daysOutstanding,
+        invoiceDate: invoice.invoice_date,
+        current: daysOutstanding <= 0 ? outstandingAmount : 0,
+        days30: daysOutstanding > 0 && daysOutstanding <= 30 ? outstandingAmount : 0,
+        days60: daysOutstanding > 30 && daysOutstanding <= 60 ? outstandingAmount : 0,
+        days90: daysOutstanding > 60 && daysOutstanding <= 90 ? outstandingAmount : 0,
+        over90: daysOutstanding > 90 ? outstandingAmount : 0
+      };
+    }).filter(item => item.amount > 0) || [];
+
+    // Group by customer
+    const customerAging = agingData.reduce((acc: Record<string, any>, item) => {
+      if (!acc[item.customer]) {
+        acc[item.customer] = {
+          customer: item.customer,
+          current: 0, days30: 0, days60: 0, days90: 0, over90: 0, total: 0
+        };
+      }
+      acc[item.customer].current += item.current;
+      acc[item.customer].days30 += item.days30;
+      acc[item.customer].days60 += item.days60;
+      acc[item.customer].days90 += item.days90;
+      acc[item.customer].over90 += item.over90;
+      acc[item.customer].total += item.amount;
+      return acc;
+    }, {});
+
+    const tableData = Object.values(customerAging);
+    
+    // Chart data
+    const totals = tableData.reduce((acc: any, item: any) => ({
+      current: acc.current + item.current,
+      days30: acc.days30 + item.days30,
+      days60: acc.days60 + item.days60,
+      days90: acc.days90 + item.days90,
+      over90: acc.over90 + item.over90
+    }), { current: 0, days30: 0, days60: 0, days90: 0, over90: 0 });
+
+    const total = totals.current + totals.days30 + totals.days60 + totals.days90 + totals.over90;
+    
+    const chartData = [
+      { name: 'Current', value: totals.current, percentage: total ? Math.round((totals.current / total) * 100) : 0 },
+      { name: '1-30 Days', value: totals.days30, percentage: total ? Math.round((totals.days30 / total) * 100) : 0 },
+      { name: '31-60 Days', value: totals.days60, percentage: total ? Math.round((totals.days60 / total) * 100) : 0 },
+      { name: '61-90 Days', value: totals.days90, percentage: total ? Math.round((totals.days90 / total) * 100) : 0 },
+      { name: '90+ Days', value: totals.over90, percentage: total ? Math.round((totals.over90 / total) * 100) : 0 }
+    ];
+
+    return { tableData, chartData };
+  };
+
+  const fetchAPAgingData = async (filters: FilterState) => {
+    const { data: orders, error } = await supabase
+      .from('purchase_orders')
+      .select(`
+        id, po_number, total_amount, 
+        order_date, status, supplier_id,
+        payments(amount, payment_date)
+      `)
+      .in('status', ['confirmed', 'partially_received', 'closed'])
+      .gte('order_date', format(filters.dateRange.from, 'yyyy-MM-dd'))
+      .lte('order_date', format(filters.dateRange.to, 'yyyy-MM-dd'));
+
+    if (error) throw error;
+
+    const agingData = orders?.map(order => {
+      const totalPaid = order.payments?.reduce((sum: number, payment: any) => sum + payment.amount, 0) || 0;
+      const outstandingAmount = order.total_amount - totalPaid;
+      const daysOutstanding = differenceInDays(new Date(), new Date(order.order_date));
+      
+      return {
+        vendor: `Supplier ${order.supplier_id?.slice(0, 8)}`,
+        orderNumber: order.po_number,
+        amount: outstandingAmount,
+        daysOutstanding,
+        orderDate: order.order_date,
+        current: daysOutstanding <= 0 ? outstandingAmount : 0,
+        days30: daysOutstanding > 0 && daysOutstanding <= 30 ? outstandingAmount : 0,
+        days60: daysOutstanding > 30 && daysOutstanding <= 60 ? outstandingAmount : 0,
+        days90: daysOutstanding > 60 && daysOutstanding <= 90 ? outstandingAmount : 0,
+        over90: daysOutstanding > 90 ? outstandingAmount : 0
+      };
+    }).filter(item => item.amount > 0) || [];
+
+    const vendorAging = agingData.reduce((acc: Record<string, any>, item) => {
+      if (!acc[item.vendor]) {
+        acc[item.vendor] = {
+          vendor: item.vendor,
+          current: 0, days30: 0, days60: 0, days90: 0, over90: 0, total: 0
+        };
+      }
+      acc[item.vendor].current += item.current;
+      acc[item.vendor].days30 += item.days30;
+      acc[item.vendor].days60 += item.days60;
+      acc[item.vendor].days90 += item.days90;
+      acc[item.vendor].over90 += item.over90;
+      acc[item.vendor].total += item.amount;
+      return acc;
+    }, {});
+
+    const tableData = Object.values(vendorAging);
+    
+    const totals = tableData.reduce((acc: any, item: any) => ({
+      current: acc.current + item.current,
+      days30: acc.days30 + item.days30,
+      days60: acc.days60 + item.days60,
+      days90: acc.days90 + item.days90,
+      over90: acc.over90 + item.over90
+    }), { current: 0, days30: 0, days60: 0, days90: 0, over90: 0 });
+
+    const total = totals.current + totals.days30 + totals.days60 + totals.days90 + totals.over90;
+    
+    const chartData = [
+      { name: 'Current', value: totals.current, percentage: total ? Math.round((totals.current / total) * 100) : 0 },
+      { name: '1-30 Days', value: totals.days30, percentage: total ? Math.round((totals.days30 / total) * 100) : 0 },
+      { name: '31-60 Days', value: totals.days60, percentage: total ? Math.round((totals.days60 / total) * 100) : 0 },
+      { name: '61-90 Days', value: totals.days90, percentage: total ? Math.round((totals.days90 / total) * 100) : 0 },
+      { name: '90+ Days', value: totals.over90, percentage: total ? Math.round((totals.over90 / total) * 100) : 0 }
+    ];
+
+    return { tableData, chartData };
+  };
+
+  const fetchSalesOrdersData = async (filters: FilterState) => {
+    const { data: orders, error } = await supabase
+      .from('sales_orders')
+      .select('*')
+      .gte('order_date', format(filters.dateRange.from, 'yyyy-MM-dd'))
+      .lte('order_date', format(filters.dateRange.to, 'yyyy-MM-dd'))
+      .order('order_date', { ascending: false });
+
+    if (error) throw error;
+
+    const tableData = orders?.map(order => ({
+      orderNumber: order.order_number,
+      customer: order.account_manager || 'N/A',
+      date: order.order_date,
+      amount: order.total_amount,
+      status: order.status
+    })) || [];
+
+    // Monthly aggregation for chart
+    const monthlyData = orders?.reduce((acc: Record<string, any>, order) => {
+      const month = format(new Date(order.order_date), 'MMM yyyy');
+      if (!acc[month]) {
+        acc[month] = { month, orders: 0, revenue: 0 };
+      }
+      acc[month].orders += 1;
+      acc[month].revenue += order.total_amount || 0;
+      return acc;
+    }, {}) || {};
+
+    const chartData = Object.values(monthlyData);
+
+    return { tableData, chartData };
+  };
+
+  const fetchCurrentStockData = async () => {
+    const { data: products, error } = await supabase
+      .from('products')
+      .select('*')
+      .eq('is_active', true);
+
+    if (error) throw error;
+
+    const tableData = products?.map(product => {
+      const stockStatus = product.stock_quantity <= product.min_stock_level ? 'Low' :
+                         product.stock_quantity >= (product.max_stock_level || product.min_stock_level * 10) ? 'Overstock' : 'Good';
+      
+      return {
+        product: product.name,
+        sku: product.sku,
+        currentStock: product.stock_quantity,
+        minStock: product.min_stock_level,
+        maxStock: product.max_stock_level || product.min_stock_level * 10,
+        value: product.stock_quantity * product.cost_price,
+        costPrice: product.cost_price,
+        status: stockStatus
+      };
+    }) || [];
+
+    // Chart data by status
+    const statusCounts = tableData.reduce((acc: Record<string, number>, item) => {
+      acc[item.status] = (acc[item.status] || 0) + item.currentStock;
+      return acc;
+    }, {});
+
+    const total = Object.values(statusCounts).reduce((sum: number, val: number) => sum + val, 0);
+    
+    const chartData = Object.entries(statusCounts).map(([status, value]: [string, number]) => ({
+      name: status + ' Stock',
+      value,
+      percentage: total ? Math.round((value / total) * 100) : 0
+    }));
+
+    return { tableData, chartData };
+  };
+
+  const fetchCustomerSalesData = async (filters: FilterState) => {
+    const { data: invoices, error } = await supabase
+      .from('sales_invoices')
+      .select('customer_name, total_amount, invoice_date, customer_id')
+      .eq('status', 'finalized')
+      .gte('invoice_date', format(filters.dateRange.from, 'yyyy-MM-dd'))
+      .lte('invoice_date', format(filters.dateRange.to, 'yyyy-MM-dd'));
+
+    if (error) throw error;
+
+    const customerSales = invoices?.reduce((acc: Record<string, any>, invoice) => {
+      if (!acc[invoice.customer_name]) {
+        acc[invoice.customer_name] = {
+          customer: invoice.customer_name,
+          totalSales: 0,
+          orderCount: 0,
+          customerId: invoice.customer_id
+        };
+      }
+      acc[invoice.customer_name].totalSales += invoice.total_amount;
+      acc[invoice.customer_name].orderCount += 1;
+      return acc;
+    }, {}) || {};
+
+    const tableData = Object.values(customerSales).sort((a: any, b: any) => b.totalSales - a.totalSales);
+    
+    const chartData = tableData.slice(0, 10).map((item: any) => ({
+      name: item.customer,
+      value: item.totalSales,
+      orders: item.orderCount
+    }));
+
+    return { tableData, chartData };
+  };
+
+  const fetchGSTR1Data = async (filters: FilterState) => {
+    const { data: invoices, error } = await supabase
+      .from('sales_invoices')
+      .select(`
+        *, 
+        sales_invoice_items(*)
+      `)
+      .eq('status', 'finalized')
+      .gte('invoice_date', format(filters.dateRange.from, 'yyyy-MM-dd'))
+      .lte('invoice_date', format(filters.dateRange.to, 'yyyy-MM-dd'));
+
+    if (error) throw error;
+
+    const gstrData = invoices?.map(invoice => ({
+      invoiceNumber: invoice.invoice_number,
+      invoiceDate: invoice.invoice_date,
+      customerName: invoice.customer_name,
+      gstin: 'Unregistered', // This field doesn't exist in the schema
+      invoiceValue: invoice.total_amount,
+      taxableValue: invoice.subtotal_amount,
+      cgst: invoice.sales_invoice_items?.reduce((sum: number, item: any) => sum + (item.cgst_amount || 0), 0) || 0,
+      sgst: invoice.sales_invoice_items?.reduce((sum: number, item: any) => sum + (item.sgst_amount || 0), 0) || 0,
+      igst: invoice.sales_invoice_items?.reduce((sum: number, item: any) => sum + (item.igst_amount || 0), 0) || 0,
+      totalTax: invoice.tax_amount
+    })) || [];
+
+    // HSN-wise summary for chart
+    const hsnSummary = invoices?.flatMap(invoice => 
+      invoice.sales_invoice_items?.map((item: any) => ({
+        hsn: item.hsn_sac_code || 'Not Specified',
+        taxableValue: item.unit_price * item.quantity_invoiced - (item.discount_amount || 0),
+        tax: (item.cgst_amount || 0) + (item.sgst_amount || 0) + (item.igst_amount || 0)
+      })) || []
+    ).reduce((acc: Record<string, any>, item) => {
+      if (!acc[item.hsn]) {
+        acc[item.hsn] = { name: item.hsn, taxableValue: 0, tax: 0 };
+      }
+      acc[item.hsn].taxableValue += item.taxableValue;
+      acc[item.hsn].tax += item.tax;
+      return acc;
+    }, {}) || {};
+
+    const chartData = Object.values(hsnSummary);
+
+    return { tableData: gstrData, chartData };
   };
 
   const generateReportData = async (reportId: string, filters: FilterState) => {
-    // This would normally fetch from your database
-    // For now, generating sample data based on report type
-    
-    switch (reportId) {
-      case 'ar_aging':
-        return {
-          tableData: [
-            { customer: 'ABC Corp', current: 15000, days30: 8000, days60: 3000, days90: 2000, over90: 1000, total: 29000 },
-            { customer: 'XYZ Ltd', current: 22000, days30: 5000, days60: 0, days90: 0, over90: 0, total: 27000 },
-            { customer: 'Tech Solutions', current: 8000, days30: 12000, days60: 4000, days90: 0, over90: 0, total: 24000 }
-          ],
-          chartData: [
-            { name: 'Current', value: 45000, percentage: 60 },
-            { name: '1-30 Days', value: 25000, percentage: 33 },
-            { name: '31-60 Days', value: 7000, percentage: 9 },
-            { name: '61-90 Days', value: 2000, percentage: 3 },
-            { name: '90+ Days', value: 1000, percentage: 1 }
-          ]
-        };
-      
-      case 'ap_aging':
-        return {
-          tableData: [
-            { vendor: 'Supplier A', current: 18000, days30: 6000, days60: 2000, days90: 0, over90: 0, total: 26000 },
-            { vendor: 'Supplier B', current: 12000, days30: 8000, days60: 3000, days90: 1000, over90: 0, total: 24000 },
-            { vendor: 'Supplier C', current: 25000, days30: 4000, days60: 0, days90: 0, over90: 0, total: 29000 }
-          ],
-          chartData: [
-            { name: 'Current', value: 55000, percentage: 70 },
-            { name: '1-30 Days', value: 18000, percentage: 23 },
-            { name: '31-60 Days', value: 5000, percentage: 6 },
-            { name: '61-90 Days', value: 1000, percentage: 1 },
-            { name: '90+ Days', value: 0, percentage: 0 }
-          ]
-        };
-
-      case 'sales_orders':
-        return {
-          tableData: [
-            { orderNumber: 'SO-001', customer: 'ABC Corp', date: '2024-01-15', amount: 15000, status: 'Delivered' },
-            { orderNumber: 'SO-002', customer: 'XYZ Ltd', date: '2024-01-16', amount: 22000, status: 'Shipped' },
-            { orderNumber: 'SO-003', customer: 'Tech Solutions', date: '2024-01-17', amount: 8000, status: 'Confirmed' }
-          ],
-          chartData: [
-            { month: 'Jan', orders: 45, revenue: 180000 },
-            { month: 'Feb', orders: 52, revenue: 210000 },
-            { month: 'Mar', orders: 38, revenue: 152000 },
-            { month: 'Apr', orders: 61, revenue: 244000 }
-          ]
-        };
-
-      case 'current_stock':
-        return {
-          tableData: [
-            { product: 'Product A', currentStock: 250, minStock: 50, maxStock: 500, value: 125000, status: 'Good' },
-            { product: 'Product B', currentStock: 30, minStock: 50, maxStock: 300, value: 15000, status: 'Low' },
-            { product: 'Product C', currentStock: 180, minStock: 25, maxStock: 200, value: 90000, status: 'Good' }
-          ],
-          chartData: [
-            { name: 'Good Stock', value: 430, percentage: 67 },
-            { name: 'Low Stock', value: 30, percentage: 5 },
-            { name: 'Overstock', value: 180, percentage: 28 }
-          ]
-        };
-
-      default:
-        return {
-          tableData: [],
-          chartData: []
-        };
+    try {
+      switch (reportId) {
+        case 'ar_aging':
+          return await fetchARAgingData(filters);
+        case 'ap_aging':
+          return await fetchAPAgingData(filters);
+        case 'sales_orders':
+          return await fetchSalesOrdersData(filters);
+        case 'current_stock':
+          return await fetchCurrentStockData();
+        case 'customer_sales':
+          return await fetchCustomerSalesData(filters);
+        case 'gstr1':
+          return await fetchGSTR1Data(filters);
+        default:
+          return { tableData: [], chartData: [] };
+      }
+    } catch (error) {
+      console.error('Error fetching report data:', error);
+      toast.error('Failed to fetch report data');
+      return { tableData: [], chartData: [] };
     }
   };
+
+  // Update state when query data changes
+  useEffect(() => {
+    if (reportResult) {
+      setReportData(reportResult.tableData);
+      setChartData(reportResult.chartData);
+    }
+  }, [reportResult]);
 
   const toggleCategory = (categoryId: string) => {
     setOpenCategories(prev => 
@@ -355,6 +618,10 @@ export function EnhancedReportsModule() {
               <p className="text-muted-foreground">{currentReport?.description}</p>
             </div>
             <div className="flex gap-2">
+              <Button variant="outline" size="sm" onClick={handleRefresh} disabled={isLoading}>
+                <RefreshCw className={cn("h-4 w-4 mr-2", isLoading && "animate-spin")} />
+                Refresh
+              </Button>
               <Button variant="outline" size="sm" onClick={() => exportReport('excel')}>
                 <FileSpreadsheet className="h-4 w-4 mr-2" />
                 Excel
