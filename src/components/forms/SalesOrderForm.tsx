@@ -697,7 +697,195 @@ export function SalesOrderForm({
                       </CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-4">
-                      {/* Order Info content goes here */}
+                      <div className="grid grid-cols-1 gap-4">
+                        <FormField
+                          control={form.control}
+                          name="order_number"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Order Number</FormLabel>
+                              <FormControl>
+                                <Input 
+                                  placeholder="Auto-generated on save" 
+                                  {...field} 
+                                  disabled 
+                                  className="h-9 bg-muted/30 text-muted-foreground" 
+                                />
+                              </FormControl>
+                            </FormItem>
+                          )}
+                        />
+
+                        <FormField
+                          control={form.control}
+                          name="customer_id"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Customer</FormLabel>
+                              <FormControl>
+                                <SearchableCombobox
+                                  value={field.value}
+                                  onSelect={field.onChange}
+                                  placeholder="Select customer"
+                                  searchPlaceholder="Search customers..."
+                                  options={customers.map(customer => ({
+                                    id: customer.id,
+                                    name: customer.name,
+                                    subtitle: customer.customer_code ? `Code: ${customer.customer_code}` : undefined
+                                  }))}
+                                  disabled={readOnly}
+                                  loading={loading}
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+
+                        <div className="grid grid-cols-2 gap-3">
+                          <FormField
+                            control={form.control}
+                            name="order_date"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Order Date</FormLabel>
+                                <FormControl>
+                                  <Input 
+                                    type="date" 
+                                    {...field} 
+                                    disabled={readOnly} 
+                                    className="h-9" 
+                                  />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+
+                          <FormField
+                            control={form.control}
+                            name="expected_delivery_date"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Expected Delivery</FormLabel>
+                                <FormControl>
+                                  <Input 
+                                    type="date" 
+                                    {...field} 
+                                    disabled={readOnly} 
+                                    className="h-9" 
+                                  />
+                                </FormControl>
+                              </FormItem>
+                            )}
+                          />
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-3">
+                          <FormField
+                            control={form.control}
+                            name="currency"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Currency</FormLabel>
+                                <Select value={field.value} onValueChange={field.onChange} disabled={readOnly}>
+                                  <FormControl>
+                                    <SelectTrigger className="h-9">
+                                      <SelectValue placeholder="Select currency" />
+                                    </SelectTrigger>
+                                  </FormControl>
+                                  <SelectContent>
+                                    <SelectItem value="INR">INR - Indian Rupee</SelectItem>
+                                    <SelectItem value="USD">USD - US Dollar</SelectItem>
+                                    <SelectItem value="EUR">EUR - Euro</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+
+                          <FormField
+                            control={form.control}
+                            name="status"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Status</FormLabel>
+                                <Select value={field.value} onValueChange={field.onChange} disabled={readOnly}>
+                                  <FormControl>
+                                    <SelectTrigger className="h-9">
+                                      <SelectValue placeholder="Select status" />
+                                    </SelectTrigger>
+                                  </FormControl>
+                                  <SelectContent>
+                                    <SelectItem value="draft">Draft</SelectItem>
+                                    <SelectItem value="pending">Pending</SelectItem>
+                                    <SelectItem value="confirmed">Confirmed</SelectItem>
+                                    <SelectItem value="shipped">Shipped</SelectItem>
+                                    <SelectItem value="delivered">Delivered</SelectItem>
+                                    <SelectItem value="cancelled">Cancelled</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        </div>
+
+                        <FormField
+                          control={form.control}
+                          name="customer_po_number"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Customer PO Number</FormLabel>
+                              <FormControl>
+                                <Input 
+                                  placeholder="Customer purchase order number" 
+                                  {...field} 
+                                  disabled={readOnly} 
+                                  className="h-9" 
+                                />
+                              </FormControl>
+                            </FormItem>
+                          )}
+                        />
+
+                        <FormField
+                          control={form.control}
+                          name="place_of_supply"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Place of Supply</FormLabel>
+                              <FormControl>
+                                <Input 
+                                  placeholder="Place of supply" 
+                                  {...field} 
+                                  disabled={readOnly} 
+                                  className="h-9" 
+                                />
+                              </FormControl>
+                            </FormItem>
+                          )}
+                        />
+
+                        <FormField
+                          control={form.control}
+                          name="notes"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Notes</FormLabel>
+                              <FormControl>
+                                <Textarea 
+                                  placeholder="Additional notes or instructions" 
+                                  {...field} 
+                                  disabled={readOnly} 
+                                  className="min-h-20 resize-none" 
+                                />
+                              </FormControl>
+                            </FormItem>
+                          )}
+                        />
+                      </div>
                     </CardContent>
                   </Card>
                 </div>
