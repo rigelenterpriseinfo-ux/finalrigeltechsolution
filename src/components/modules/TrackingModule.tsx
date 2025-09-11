@@ -884,7 +884,17 @@ export function TrackingModule() {
                     {getSortIcon('item_count')}
                   </Button>
                 </TableHead>
-                <TableHead className="min-w-[120px]">Amount</TableHead>
+                <TableHead className="min-w-[120px]">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-auto p-0 font-semibold hover:bg-transparent"
+                    onClick={() => handleSort('total_amount')}
+                  >
+                    Amount
+                    {getSortIcon('total_amount')}
+                  </Button>
+                </TableHead>
                 <TableHead className="min-w-[120px]">E-way Bill No</TableHead>
                 <TableHead className="min-w-[120px]">
                   <Button
@@ -1178,8 +1188,18 @@ export function TrackingModule() {
       {/* Tracking Tables */}
       <Tabs defaultValue="sales" className="w-full" onValueChange={() => setCurrentPage(1)}>
         <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="sales">Sales Orders</TabsTrigger>
-          <TabsTrigger value="debit_notes">Debit Notes</TabsTrigger>
+          <TabsTrigger 
+            value="sales"
+            className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+          >
+            Sales Orders
+          </TabsTrigger>
+          <TabsTrigger 
+            value="debit_notes"
+            className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+          >
+            Debit Notes
+          </TabsTrigger>
         </TabsList>
         
         <TabsContent value="sales" className="space-y-4">
