@@ -7,6 +7,7 @@ import { ItemSearchBox } from './ItemSearchBox';
 import { LocationSearchBox } from './LocationSearchBox';
 import { StockAnalysisPanel } from './StockAnalysisPanel';
 import { ComprehensiveStockTable } from './ComprehensiveStockTable';
+import { OpenTransactionsTable } from './OpenTransactionsTable';
 import { Package, MapPin, TrendingUp, AlertTriangle } from 'lucide-react';
 
 interface StockData {
@@ -289,6 +290,9 @@ export const EnhancedCurrentStockSystem = () => {
     return filtered;
   }, [stockData, selectedItem, selectedLocation]);
 
+  // Check if we have specific item + warehouse + bin selected for detailed view
+  const hasSpecificSelection = selectedItem && selectedLocation.warehouse && selectedLocation.bin;
+
   // Summary calculations
   const summaryData = useMemo(() => {
     const data = filteredStockData;
@@ -363,6 +367,16 @@ export const EnhancedCurrentStockSystem = () => {
         selectedItem={selectedItem}
         selectedLocation={selectedLocation}
       />
+
+      {/* Open Transactions Table - Show when specific item + warehouse + bin are selected */}
+      {hasSpecificSelection && (
+        <OpenTransactionsTable
+          selectedProductId={selectedItem}
+          selectedWarehouseId={selectedLocation.warehouse}
+          selectedBinId={selectedLocation.bin}
+          loading={loading}
+        />
+      )}
 
       {/* Main Stock Table */}
       <Card className="card-elevated">
