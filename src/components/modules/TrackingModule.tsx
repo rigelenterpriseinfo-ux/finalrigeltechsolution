@@ -100,37 +100,42 @@ export function TrackingModule() {
     try {
       setLoading(true);
       
-      // Fetch sales orders with tracking fields and all necessary details
-      const { data: salesOrders, error: salesError } = await supabase
-        .from('sales_orders')
+      // Fetch sales invoices with their corresponding sales order tracking information
+      const { data: salesInvoices, error: invoicesError } = await supabase
+        .from('sales_invoices')
         .select(`
           id,
-          order_number,
+          invoice_number,
           status,
-          order_date,
+          invoice_date,
           total_amount,
           subtotal_amount,
           tax_amount,
           discount_amount,
-          destination,
-          item_count,
-          eway_bill_no,
-          eway_bill_date,
-          carrier_transporter,
-          awb_no,
-          eta,
-          pod_document_url,
-          tracking_status,
-          dispatch_date,
-          delivery_date,
-          delivery_city,
-          notes,
+          customer_name,
           customer_id,
-          customers(name)
+          sales_order_id,
+          notes,
+          sales_orders!inner(
+            id,
+            destination,
+            item_count,
+            eway_bill_no,
+            eway_bill_date,
+            carrier_transporter,
+            awb_no,
+            eta,
+            pod_document_url,
+            tracking_status,
+            dispatch_date,
+            delivery_date,
+            delivery_city,
+            customers(name)
+          )
         `);
 
-      if (salesError) {
-        console.error('Error fetching sales orders:', salesError);
+      if (invoicesError) {
+        console.error('Error fetching sales invoices:', invoicesError);
         return;
       }
 
@@ -167,39 +172,41 @@ export function TrackingModule() {
         return;
       }
 
-      // Format sales orders with auto-populated destination
-      const trackableSalesOrders: TrackableOrder[] = (salesOrders || []).map(order => {
+      // Format sales invoices with tracking information from their sales orders
+      const trackableSalesInvoices: TrackableOrder[] = (salesInvoices || []).map(invoice => {
+        const salesOrder = invoice.sales_orders;
+        
         // Auto-populate destination from delivery_city if not already set
-        let autoDestination = order.destination;
-        if (!autoDestination && order.delivery_city) {
-          autoDestination = order.delivery_city;
+        let autoDestination = salesOrder.destination;
+        if (!autoDestination && salesOrder.delivery_city) {
+          autoDestination = salesOrder.delivery_city;
         }
 
         return {
-          id: order.id,
-          order_number: order.order_number,
-          type: 'sales' as const,
-          status: order.status,
-          order_date: order.order_date,
-          customer_name: order.customers?.name,
-          customer_id: order.customer_id,
-          total_amount: order.total_amount,
-          subtotal_amount: order.subtotal_amount,
-          tax_amount: order.tax_amount,
-          discount_amount: order.discount_amount,
+          id: invoice.id,
+          order_number: invoice.invoice_number, // Display invoice number instead of order number
+          type: 'sales_invoice' as const,
+          status: invoice.status,
+          order_date: invoice.invoice_date,
+          customer_name: salesOrder.customers?.name || invoice.customer_name,
+          customer_id: invoice.customer_id,
+          total_amount: invoice.total_amount,
+          subtotal_amount: invoice.subtotal_amount,
+          tax_amount: invoice.tax_amount,
+          discount_amount: invoice.discount_amount,
           destination: autoDestination,
-          delivery_city: order.delivery_city,
-          item_count: order.item_count,
-          eway_bill_no: order.eway_bill_no,
-          eway_bill_date: order.eway_bill_date,
-          carrier_transporter: order.carrier_transporter,
-          awb_no: order.awb_no,
-          eta: order.eta,
-          pod_document_url: order.pod_document_url,
-          tracking_status: order.tracking_status || 'pending',
-          dispatch_date: order.dispatch_date,
-          delivery_date: order.delivery_date,
-          notes: order.notes
+          delivery_city: salesOrder.delivery_city,
+          item_count: salesOrder.item_count,
+          eway_bill_no: salesOrder.eway_bill_no,
+          eway_bill_date: salesOrder.eway_bill_date,
+          carrier_transporter: salesOrder.carrier_transporter,
+          awb_no: salesOrder.awb_no,
+          eta: salesOrder.eta,
+          pod_document_url: salesOrder.pod_document_url,
+          tracking_status: salesOrder.tracking_status || 'pending',
+          dispatch_date: salesOrder.dispatch_date,
+          delivery_date: salesOrder.delivery_date,
+          notes: invoice.notes
         };
       });
 
@@ -230,7 +237,7 @@ export function TrackingModule() {
         notes: note.notes
       }));
 
-      setOrders(trackableSalesOrders);
+      setOrders(trackableSalesInvoices);
       setDebitNotes(trackableDebitNotes);
     } catch (error) {
       console.error('Error fetching trackable orders:', error);
@@ -452,54 +459,12 @@ export function TrackingModule() {
   };
 
   const handleOrderClick = async (order: TrackableOrder) => {
-    if (order.type === 'sales') {
-      // For sales orders, fetch and show the corresponding sales invoice
+    if (order.type === 'sales_invoice') {
+      // For sales invoices, we already have the invoice data, just need to fetch items and address
       setLoadingOrderDetails(true);
       setOrderDetailDialogOpen(true);
       
       try {
-        // Fetch the sales invoice associated with this sales order
-        const { data: invoices, error: invoiceError } = await supabase
-          .from('sales_invoices')
-          .select(`
-            id,
-            invoice_number,
-            status,
-            invoice_date,
-            customer_name,
-            subtotal_amount,
-            tax_amount,
-            discount_amount,
-            total_amount,
-            notes,
-            sales_order_id,
-            customer_id
-          `)
-          .eq('sales_order_id', order.id)
-          .single();
-
-        if (invoiceError && invoiceError.code !== 'PGRST116') {
-          console.error('Error fetching sales invoice:', invoiceError);
-          toast({
-            title: 'Error',
-            description: 'Failed to load invoice details',
-            variant: 'destructive',
-          });
-          return;
-        }
-
-        if (!invoices) {
-          // No invoice found, show order details instead
-          toast({
-            title: 'No Invoice Found',
-            description: 'No invoice has been created for this sales order yet.',
-            variant: 'default',
-          });
-          const detailedOrder = await fetchOrderDetails(order);
-          setSelectedOrderForDetails(detailedOrder);
-          return;
-        }
-
         // Fetch invoice items
         const { data: invoiceItems, error: itemsError } = await supabase
           .from('sales_invoice_items')
@@ -514,7 +479,7 @@ export function TrackingModule() {
             unit_of_measure,
             hsn_sac_code
           `)
-          .eq('sales_invoice_id', invoices.id);
+          .eq('sales_invoice_id', order.id);
 
         if (itemsError) {
           console.error('Error fetching invoice items:', itemsError);
@@ -522,7 +487,7 @@ export function TrackingModule() {
 
         // Fetch customer address if available
         let customerAddress: CustomerAddress | undefined;
-        if (invoices.customer_id) {
+        if (order.customer_id) {
           const { data: customer, error: customerError } = await supabase
             .from('customers')
             .select(`
@@ -533,7 +498,7 @@ export function TrackingModule() {
               shipping_country,
               shipping_pin_code
             `)
-            .eq('id', invoices.customer_id)
+            .eq('id', order.customer_id)
             .single();
 
           if (customerError) {
@@ -543,20 +508,9 @@ export function TrackingModule() {
           }
         }
 
-        // Format invoice data to match our DetailedOrder interface
-        const invoiceAsOrder: DetailedOrder = {
+        // Create detailed order with invoice information
+        const detailedOrder: DetailedOrder = {
           ...order,
-          id: invoices.id,
-          order_number: invoices.invoice_number,
-          type: 'sales_invoice' as any,
-          status: invoices.status,
-          order_date: invoices.invoice_date,
-          customer_name: invoices.customer_name,
-          subtotal_amount: invoices.subtotal_amount,
-          tax_amount: invoices.tax_amount,
-          discount_amount: invoices.discount_amount,
-          total_amount: invoices.total_amount,
-          notes: invoices.notes,
           items: (invoiceItems || []).map(item => ({
             id: item.id,
             product_name: item.item_description,
@@ -572,7 +526,7 @@ export function TrackingModule() {
           customerAddress
         };
 
-        setSelectedOrderForDetails(invoiceAsOrder);
+        setSelectedOrderForDetails(detailedOrder);
       } catch (error) {
         console.error('Error loading invoice details:', error);
         toast({
