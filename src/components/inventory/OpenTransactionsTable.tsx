@@ -43,6 +43,7 @@ interface OpenTransactionSummary {
   bin_code: string;
   total_stock_on_hand: number;
   available_to_pick: number;
+  open_sales_order_qty: number;
   in_transit_qty: number;
   return_order_qty: number;
   debit_note_qty: number;
@@ -300,6 +301,7 @@ export const OpenTransactionsTable = ({
       ];
 
       // Calculate summary totals
+      const totalOpenSalesOrder = allTransactions.reduce((sum, t) => sum + t.sales_qty, 0);
       const totalInTransit = allTransactions.reduce((sum, t) => sum + t.po_qty, 0);
       const totalReturnOrder = allTransactions.reduce((sum, t) => sum + t.return_qty, 0);
       const totalDebitNote = allTransactions.reduce((sum, t) => sum + t.debit_note_qty, 0);
@@ -326,6 +328,7 @@ export const OpenTransactionsTable = ({
         bin_code: binData?.wh_bin_code || 'N/A',
         total_stock_on_hand: currentStock,
         available_to_pick: availableToPick,
+        open_sales_order_qty: totalOpenSalesOrder,
         in_transit_qty: totalInTransit,
         return_order_qty: totalReturnOrder,
         debit_note_qty: totalDebitNote,
@@ -441,7 +444,7 @@ export const OpenTransactionsTable = ({
       <CardContent className="space-y-6">
         {/* Summary Section */}
         {summary && (
-          <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-7 gap-4">
             <div className="text-center p-4 bg-primary/10 border border-primary/20 rounded-lg">
               <div className="text-2xl font-bold text-primary">{summary.total_stock_on_hand}</div>
               <div className="text-xs text-muted-foreground">Total Stock on Hand</div>
@@ -449,6 +452,10 @@ export const OpenTransactionsTable = ({
             <div className="text-center p-4 bg-success/10 border border-success/20 rounded-lg">
               <div className="text-2xl font-bold text-success">{summary.available_to_pick}</div>
               <div className="text-xs text-muted-foreground">Available to Pick</div>
+            </div>
+            <div className="text-center p-4 bg-blue-100 border border-blue-300 rounded-lg">
+              <div className="text-2xl font-bold text-blue-600">{summary.open_sales_order_qty}</div>
+              <div className="text-xs text-muted-foreground">Open Sales Order Qty</div>
             </div>
             <div className="text-center p-4 bg-accent/10 border border-accent/20 rounded-lg">
               <div className="text-2xl font-bold text-accent">{summary.in_transit_qty}</div>
