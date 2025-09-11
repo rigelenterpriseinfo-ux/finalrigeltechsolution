@@ -440,7 +440,8 @@ export function EnhancedReportsModule() {
       .from('sales_invoices')
       .select(`
         *, 
-        sales_invoice_items(*)
+        sales_invoice_items(*),
+        customers(gstin)
       `)
       .eq('status', 'finalized')
       .gte('invoice_date', format(filters.dateRange.from, 'yyyy-MM-dd'))
@@ -448,38 +449,129 @@ export function EnhancedReportsModule() {
 
     if (error) throw error;
 
-    const gstrData = invoices?.map(invoice => ({
-      invoiceNumber: invoice.invoice_number,
-      invoiceDate: invoice.invoice_date,
-      customerName: invoice.customer_name,
-      gstin: 'Unregistered', // This field doesn't exist in the schema
-      invoiceValue: invoice.total_amount,
-      taxableValue: invoice.subtotal_amount,
-      cgst: invoice.sales_invoice_items?.reduce((sum: number, item: any) => sum + (item.cgst_amount || 0), 0) || 0,
-      sgst: invoice.sales_invoice_items?.reduce((sum: number, item: any) => sum + (item.sgst_amount || 0), 0) || 0,
-      igst: invoice.sales_invoice_items?.reduce((sum: number, item: any) => sum + (item.igst_amount || 0), 0) || 0,
-      totalTax: invoice.tax_amount
-    })) || [];
+    const b2bSupplies: any[] = [];
+    const b2cLargeSupplies: any[] = [];
+    const b2cSmallSupplies: any[] = [];
+    const hsnSummary: Record<string, any> = {};
+    let totalTaxableValue = 0;
+    let totalTaxAmount = 0;
 
-    // HSN-wise summary for chart
-    const hsnSummary = invoices?.flatMap(invoice => 
-      invoice.sales_invoice_items?.map((item: any) => ({
-        hsn: item.hsn_sac_code || 'Not Specified',
-        taxableValue: item.unit_price * item.quantity_invoiced - (item.discount_amount || 0),
-        tax: (item.cgst_amount || 0) + (item.sgst_amount || 0) + (item.igst_amount || 0)
-      })) || []
-    ).reduce((acc: Record<string, any>, item) => {
-      if (!acc[item.hsn]) {
-        acc[item.hsn] = { name: item.hsn, taxableValue: 0, tax: 0 };
+    invoices?.forEach(invoice => {
+      const customerGSTIN = invoice.customers?.gstin;
+      const invoiceValue = invoice.total_amount;
+      const taxableValue = invoice.subtotal_amount;
+      
+      totalTaxableValue += taxableValue;
+      totalTaxAmount += invoice.tax_amount;
+
+      // Categorize supplies
+      if (customerGSTIN && customerGSTIN.trim() !== '') {
+        // B2B Supply - Registered customer
+        b2bSupplies.push({
+          gstin: customerGSTIN,
+          customerName: invoice.customer_name,
+          invoiceNumber: invoice.invoice_number,
+          invoiceDate: format(new Date(invoice.invoice_date), 'dd-MMM-yyyy'),
+          invoiceValue: invoiceValue,
+          placeOfSupply: '29-Karnataka', // Default - should come from customer data
+          reverseCharge: 'N',
+          invoiceType: 'Regular',
+          ecommerceGSTIN: '',
+          taxableValue: taxableValue,
+          cgstAmount: invoice.sales_invoice_items?.reduce((sum: number, item: any) => sum + (item.cgst_amount || 0), 0) || 0,
+          sgstAmount: invoice.sales_invoice_items?.reduce((sum: number, item: any) => sum + (item.sgst_amount || 0), 0) || 0,
+          igstAmount: invoice.sales_invoice_items?.reduce((sum: number, item: any) => sum + (item.igst_amount || 0), 0) || 0,
+          totalTax: invoice.tax_amount
+        });
+      } else if (invoiceValue > 250000) {
+        // B2C Large - Above 2.5L
+        b2cLargeSupplies.push({
+          invoiceNumber: invoice.invoice_number,
+          invoiceDate: format(new Date(invoice.invoice_date), 'dd-MMM-yyyy'),
+          invoiceValue: invoiceValue,
+          placeOfSupply: '29-Karnataka',
+          taxableValue: taxableValue,
+          cgstAmount: invoice.sales_invoice_items?.reduce((sum: number, item: any) => sum + (item.cgst_amount || 0), 0) || 0,
+          sgstAmount: invoice.sales_invoice_items?.reduce((sum: number, item: any) => sum + (item.sgst_amount || 0), 0) || 0,
+          igstAmount: invoice.sales_invoice_items?.reduce((sum: number, item: any) => sum + (item.igst_amount || 0), 0) || 0,
+          ecommerceGSTIN: ''
+        });
+      } else {
+        // B2C Small - Below 2.5L
+        const placeOfSupply = '29-Karnataka'; // Should come from customer data
+        if (!b2cSmallSupplies[placeOfSupply]) {
+          b2cSmallSupplies[placeOfSupply] = {
+            placeOfSupply,
+            taxableValue: 0,
+            cgstAmount: 0,
+            sgstAmount: 0,
+            igstAmount: 0
+          };
+        }
+        b2cSmallSupplies[placeOfSupply].taxableValue += taxableValue;
+        b2cSmallSupplies[placeOfSupply].cgstAmount += invoice.sales_invoice_items?.reduce((sum: number, item: any) => sum + (item.cgst_amount || 0), 0) || 0;
+        b2cSmallSupplies[placeOfSupply].sgstAmount += invoice.sales_invoice_items?.reduce((sum: number, item: any) => sum + (item.sgst_amount || 0), 0) || 0;
+        b2cSmallSupplies[placeOfSupply].igstAmount += invoice.sales_invoice_items?.reduce((sum: number, item: any) => sum + (item.igst_amount || 0), 0) || 0;
       }
-      acc[item.hsn].taxableValue += item.taxableValue;
-      acc[item.hsn].tax += item.tax;
-      return acc;
-    }, {}) || {};
 
-    const chartData = Object.values(hsnSummary);
+      // HSN Summary
+      invoice.sales_invoice_items?.forEach((item: any) => {
+        const hsn = item.hsn_sac_code || 'Not Specified';
+        const itemTaxableValue = (item.unit_price * item.quantity_invoiced) - (item.discount_amount || 0);
+        const totalTax = (item.cgst_amount || 0) + (item.sgst_amount || 0) + (item.igst_amount || 0);
+        const taxRate = itemTaxableValue > 0 ? ((totalTax / itemTaxableValue) * 100).toFixed(1) : '0';
 
-    return { tableData: gstrData, chartData };
+        if (!hsnSummary[hsn]) {
+          hsnSummary[hsn] = {
+            hsn,
+            description: item.item_description || item.product_name || 'N/A',
+            uom: item.unit_of_measure || 'PCS',
+            totalQuantity: 0,
+            totalValue: 0,
+            taxableValue: 0,
+            cgstAmount: 0,
+            sgstAmount: 0,
+            igstAmount: 0,
+            totalTax: 0,
+            taxRate
+          };
+        }
+        
+        hsnSummary[hsn].totalQuantity += item.quantity_invoiced;
+        hsnSummary[hsn].totalValue += item.unit_price * item.quantity_invoiced;
+        hsnSummary[hsn].taxableValue += itemTaxableValue;
+        hsnSummary[hsn].cgstAmount += item.cgst_amount || 0;
+        hsnSummary[hsn].sgstAmount += item.sgst_amount || 0;
+        hsnSummary[hsn].igstAmount += item.igst_amount || 0;
+        hsnSummary[hsn].totalTax += totalTax;
+      });
+    });
+
+    const chartData = Object.values(hsnSummary).map((hsn: any) => ({
+      name: hsn.hsn,
+      value: hsn.taxableValue,
+      tax: hsn.totalTax
+    }));
+
+    return { 
+      tableData: b2bSupplies, 
+      chartData,
+      gstr1Sections: {
+        b2bSupplies,
+        b2cLargeSupplies,
+        b2cSmallSupplies: Object.values(b2cSmallSupplies),
+        hsnSummary: Object.values(hsnSummary)
+      },
+      summary: {
+        totalInvoices: invoices?.length || 0,
+        totalTaxableValue,
+        totalTaxAmount,
+        b2bCount: b2bSupplies.length,
+        b2cLargeCount: b2cLargeSupplies.length,
+        b2cSmallStates: Object.keys(b2cSmallSupplies).length,
+        totalHSNs: Object.keys(hsnSummary).length
+      }
+    };
   };
 
   const fetchPurchaseOrdersData = async (filters: FilterState) => {
@@ -1134,6 +1226,252 @@ export function EnhancedReportsModule() {
             <div className="flex items-center justify-center h-64">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
               <span className="ml-3 text-muted-foreground">Loading report data...</span>
+            </div>
+          ) : selectedReport === 'gstr1' ? (
+            // GSTR-1 Specific Layout
+            <div className="space-y-6">
+              {/* GSTR-1 Summary Cards */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <Card className="bg-gradient-to-r from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 border-blue-200 dark:border-blue-800">
+                  <CardContent className="p-4">
+                    <div className="text-sm font-medium text-blue-700 dark:text-blue-300">Total Invoices</div>
+                    <div className="text-2xl font-bold text-blue-900 dark:text-blue-100">
+                      {(reportData as any)?.summary?.totalInvoices || 0}
+                    </div>
+                  </CardContent>
+                </Card>
+                <Card className="bg-gradient-to-r from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/20 border-green-200 dark:border-green-800">
+                  <CardContent className="p-4">
+                    <div className="text-sm font-medium text-green-700 dark:text-green-300">Taxable Value</div>
+                    <div className="text-2xl font-bold text-green-900 dark:text-green-100">
+                      ₹{Number((reportData as any)?.summary?.totalTaxableValue || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                    </div>
+                  </CardContent>
+                </Card>
+                <Card className="bg-gradient-to-r from-orange-50 to-orange-100 dark:from-orange-900/20 dark:to-orange-800/20 border-orange-200 dark:border-orange-800">
+                  <CardContent className="p-4">
+                    <div className="text-sm font-medium text-orange-700 dark:text-orange-300">Total Tax</div>
+                    <div className="text-2xl font-bold text-orange-900 dark:text-orange-100">
+                      ₹{Number((reportData as any)?.summary?.totalTaxAmount || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                    </div>
+                  </CardContent>
+                </Card>
+                <Card className="bg-gradient-to-r from-purple-50 to-purple-100 dark:from-purple-900/20 dark:to-purple-800/20 border-purple-200 dark:border-purple-800">
+                  <CardContent className="p-4">
+                    <div className="text-sm font-medium text-purple-700 dark:text-purple-300">HSN Codes</div>
+                    <div className="text-2xl font-bold text-purple-900 dark:text-purple-100">
+                      {(reportData as any)?.summary?.totalHSNs || 0}
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* HSN Summary Chart */}
+              {chartData.length > 0 && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle>HSN-wise Taxable Value Distribution</CardTitle>
+                    <CardDescription>Visual breakdown of taxable value by HSN codes</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <ResponsiveContainer width="100%" height={400}>
+                      <BarChart data={chartData.slice(0, 10)}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="name" />
+                        <YAxis />
+                        <Tooltip 
+                          formatter={(value, name) => [
+                            name === 'value' ? `₹${Number(value).toLocaleString('en-IN')}` : `₹${Number(value).toLocaleString('en-IN')}`,
+                            name === 'value' ? 'Taxable Value' : 'Tax Amount'
+                          ]}
+                        />
+                        <Bar dataKey="value" fill="#0ea5e9" name="Taxable Value" />
+                        <Bar dataKey="tax" fill="#10b981" name="Tax Amount" />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* GSTR-1 Sections */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* B2B Supplies */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center justify-between">
+                      <span>B2B Supplies</span>
+                      <Badge variant="secondary">{(reportData as any)?.gstr1Sections?.b2bSupplies?.length || 0} records</Badge>
+                    </CardTitle>
+                    <CardDescription>Sales to registered businesses</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-2 max-h-64 overflow-y-auto">
+                      {(reportData as any)?.gstr1Sections?.b2bSupplies?.slice(0, 5).map((item: any, index: number) => (
+                        <div key={index} className="p-3 border rounded-lg bg-card/50">
+                          <div className="flex justify-between items-start">
+                            <div className="min-w-0 flex-1">
+                              <div className="font-medium text-sm truncate">{item.customerName}</div>
+                              <div className="text-xs text-muted-foreground">{item.gstin}</div>
+                              <div className="text-xs text-muted-foreground">{item.invoiceNumber} - {item.invoiceDate}</div>
+                            </div>
+                            <div className="text-right">
+                              <div className="font-medium text-sm">₹{Number(item.invoiceValue).toLocaleString('en-IN')}</div>
+                              <div className="text-xs text-muted-foreground">Tax: ₹{Number(item.totalTax).toLocaleString('en-IN')}</div>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                      {(reportData as any)?.gstr1Sections?.b2bSupplies?.length > 5 && (
+                        <div className="text-center text-sm text-muted-foreground py-2">
+                          +{(reportData as any)?.gstr1Sections?.b2bSupplies?.length - 5} more records
+                        </div>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* B2C Large Supplies */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center justify-between">
+                      <span>B2C Large Supplies</span>
+                      <Badge variant="secondary">{(reportData as any)?.gstr1Sections?.b2cLargeSupplies?.length || 0} records</Badge>
+                    </CardTitle>
+                    <CardDescription>B2C sales above ₹2.5 Lakhs</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-2 max-h-64 overflow-y-auto">
+                      {(reportData as any)?.gstr1Sections?.b2cLargeSupplies?.slice(0, 5).map((item: any, index: number) => (
+                        <div key={index} className="p-3 border rounded-lg bg-card/50">
+                          <div className="flex justify-between items-start">
+                            <div className="min-w-0 flex-1">
+                              <div className="font-medium text-sm">{item.invoiceNumber}</div>
+                              <div className="text-xs text-muted-foreground">{item.invoiceDate}</div>
+                              <div className="text-xs text-muted-foreground">POS: {item.placeOfSupply}</div>
+                            </div>
+                            <div className="text-right">
+                              <div className="font-medium text-sm">₹{Number(item.invoiceValue).toLocaleString('en-IN')}</div>
+                              <div className="text-xs text-muted-foreground">
+                                Tax: ₹{Number(item.cgstAmount + item.sgstAmount + item.igstAmount).toLocaleString('en-IN')}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                      {(reportData as any)?.gstr1Sections?.b2cLargeSupplies?.length > 5 && (
+                        <div className="text-center text-sm text-muted-foreground py-2">
+                          +{(reportData as any)?.gstr1Sections?.b2cLargeSupplies?.length - 5} more records
+                        </div>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* HSN Summary Table */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>HSN/SAC Summary</CardTitle>
+                  <CardDescription>HSN-wise summary of outward supplies (Required for GSTR-1)</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b bg-muted/50">
+                          <th className="text-left p-3 font-semibold">HSN/SAC</th>
+                          <th className="text-left p-3 font-semibold">Description</th>
+                          <th className="text-left p-3 font-semibold">UOM</th>
+                          <th className="text-right p-3 font-semibold">Total Qty</th>
+                          <th className="text-right p-3 font-semibold">Taxable Value</th>
+                          <th className="text-right p-3 font-semibold">CGST</th>
+                          <th className="text-right p-3 font-semibold">SGST</th>
+                          <th className="text-right p-3 font-semibold">IGST</th>
+                          <th className="text-right p-3 font-semibold">Total Tax</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {(reportData as any)?.gstr1Sections?.hsnSummary?.map((hsn: any, index: number) => (
+                          <tr key={index} className="border-b hover:bg-muted/30 transition-colors">
+                            <td className="p-3 font-medium">{hsn.hsn}</td>
+                            <td className="p-3 max-w-[200px] truncate" title={hsn.description}>{hsn.description}</td>
+                            <td className="p-3">{hsn.uom}</td>
+                            <td className="p-3 text-right tabular-nums">{hsn.totalQuantity}</td>
+                            <td className="p-3 text-right tabular-nums font-medium">
+                              ₹{Number(hsn.taxableValue).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                            </td>
+                            <td className="p-3 text-right tabular-nums">
+                              ₹{Number(hsn.cgstAmount).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                            </td>
+                            <td className="p-3 text-right tabular-nums">
+                              ₹{Number(hsn.sgstAmount).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                            </td>
+                            <td className="p-3 text-right tabular-nums">
+                              ₹{Number(hsn.igstAmount).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                            </td>
+                            <td className="p-3 text-right tabular-nums font-medium">
+                              ₹{Number(hsn.totalTax).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* B2C Small Supplies & Export Note */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>B2C Small Supplies</CardTitle>
+                    <CardDescription>State-wise summary of B2C sales below ₹2.5 Lakhs</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-2">
+                      {(reportData as any)?.gstr1Sections?.b2cSmallSupplies?.map((item: any, index: number) => (
+                        <div key={index} className="flex justify-between items-center p-3 border rounded-lg bg-card/50">
+                          <span className="font-medium">{item.placeOfSupply}</span>
+                          <div className="text-right">
+                            <div className="font-medium">₹{Number(item.taxableValue).toLocaleString('en-IN')}</div>
+                            <div className="text-xs text-muted-foreground">
+                              Tax: ₹{Number(item.cgstAmount + item.sgstAmount + item.igstAmount).toLocaleString('en-IN')}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Export Information</CardTitle>
+                    <CardDescription>Ready for CA filing and GST return</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      <div className="p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
+                        <h4 className="font-medium text-green-800 dark:text-green-200 mb-2">✓ GSTR-1 Ready</h4>
+                        <p className="text-sm text-green-700 dark:text-green-300">
+                          This report contains all required sections for GSTR-1 filing:
+                        </p>
+                        <ul className="text-sm text-green-700 dark:text-green-300 mt-2 space-y-1">
+                          <li>• B2B Supplies with GSTIN</li>
+                          <li>• B2C Large supplies (&gt;₹2.5L)</li>
+                          <li>• B2C Small supplies (State-wise)</li>
+                          <li>• HSN/SAC Summary</li>
+                          <li>• Tax breakup (CGST/SGST/IGST)</li>
+                        </ul>
+                      </div>
+                      <div className="text-sm text-muted-foreground">
+                        <p><strong>Note:</strong> Export this data to Excel/PDF and share with your CA for GSTR-1 filing. 
+                        Ensure customer GSTIN data is updated for accurate B2B classification.</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
             </div>
           ) : (
             <div className="space-y-6">
