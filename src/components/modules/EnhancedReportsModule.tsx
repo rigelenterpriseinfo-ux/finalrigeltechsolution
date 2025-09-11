@@ -40,6 +40,7 @@ import { useBusinessAuth } from '@/hooks/useBusinessAuth';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Area, AreaChart } from 'recharts';
 import { toast } from "sonner";
+import { ProductSelector } from '@/components/ui/product-selector';
 
 interface ReportCategory {
   id: string;
@@ -67,6 +68,7 @@ interface FilterState {
   gstin?: string;
   state?: string;
   status?: string;
+  product?: string;
 }
 
 const CHART_COLORS = ['#0ea5e9', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#84cc16', '#f97316'];
@@ -97,7 +99,7 @@ const reportCategories: ReportCategory[] = [
     reports: [
       { id: 'sales_orders', name: 'Sales Orders', description: 'Sales orders analysis', category: 'sales', requiresFilters: ['dateRange'], dataFields: ['orderNumber', 'customer', 'amount', 'status'] },
       { id: 'customer_sales', name: 'Customer Sales', description: 'Customer-wise sales analysis', category: 'sales', requiresFilters: ['dateRange'], dataFields: ['customer', 'totalSales', 'orderCount'] },
-      { id: 'item_wise_sales', name: 'Item wise Sales Report', description: 'Product-wise sales analysis with quantities and revenue', category: 'sales', requiresFilters: ['dateRange'], dataFields: ['product', 'quantitySold', 'totalRevenue', 'avgPrice'] },
+      { id: 'item_wise_sales', name: 'Item wise Sales Report', description: 'Product-wise sales analysis with quantities and revenue', category: 'sales', requiresFilters: ['dateRange', 'product'], dataFields: ['product', 'quantitySold', 'totalRevenue', 'avgPrice'] },
       { id: 'purchase_orders', name: 'Purchase Orders', description: 'Purchase orders analysis', category: 'sales', requiresFilters: ['dateRange'], dataFields: ['orderNumber', 'vendor', 'amount', 'status'] },
       { id: 'vendor_purchases', name: 'Vendor Purchases', description: 'Vendor-wise purchase analysis', category: 'sales', requiresFilters: ['dateRange'], dataFields: ['vendor', 'totalPurchases', 'orderCount'] },
       { id: 'item_wise_purchase', name: 'Item wise Purchase Report', description: 'Product-wise purchase analysis with quantities and costs', category: 'sales', requiresFilters: ['dateRange'], dataFields: ['product', 'quantityPurchased', 'totalCost', 'avgPrice'] },
@@ -692,80 +694,155 @@ export function EnhancedReportsModule() {
   };
 
   const fetchItemWiseSalesData = async (filters: FilterState) => {
-    const { data: salesItems, error } = await supabase
-      .from('sales_invoice_items')
-      .select(`
-        *,
-        sales_invoices!inner(
-          invoice_date,
-          status,
-          customer_name
-        )
-      `)
-      .eq('sales_invoices.status', 'finalized')
-      .gte('sales_invoices.invoice_date', format(filters.dateRange.from, 'yyyy-MM-dd'))
-      .lte('sales_invoices.invoice_date', format(filters.dateRange.to, 'yyyy-MM-dd'));
+    // If no product selected, show product selection summary
+    if (!filters.product || filters.product === 'all') {
+      const { data: salesItems, error } = await supabase
+        .from('sales_invoice_items')
+        .select(`
+          *,
+          sales_invoices!inner(
+            invoice_date,
+            status,
+            customer_name
+          )
+        `)
+        .eq('sales_invoices.status', 'finalized')
+        .gte('sales_invoices.invoice_date', format(filters.dateRange.from, 'yyyy-MM-dd'))
+        .lte('sales_invoices.invoice_date', format(filters.dateRange.to, 'yyyy-MM-dd'));
 
-    if (error) throw error;
+      if (error) throw error;
 
-    // Get product information separately
-    const productIds = [...new Set(salesItems?.map(item => item.product_id).filter(Boolean))] as string[];
-    let productsData: any[] = [];
-    
-    if (productIds.length > 0) {
-      const { data: products } = await supabase
-        .from('products')
-        .select('id, name, sku')
-        .in('id', productIds);
-      productsData = products || [];
-    }
-
-    // Create product lookup map
-    const productMap = productsData.reduce((acc: Record<string, any>, product) => {
-      acc[product.id] = product;
-      return acc;
-    }, {});
-
-    // Group by product
-    const productSales = salesItems?.reduce((acc: Record<string, any>, item) => {
-      const productKey = item.product_id || 'unknown';
-      const productInfo = productMap[item.product_id];
-      const productName = productInfo?.name || item.item_description || 'Unknown Product';
-      const sku = productInfo?.sku || 'N/A';
+      // Get product information separately
+      const productIds = [...new Set(salesItems?.map(item => item.product_id).filter(Boolean))] as string[];
+      let productsData: any[] = [];
       
-      if (!acc[productKey]) {
-        acc[productKey] = {
-          product: productName,
-          sku: sku,
-          quantitySold: 0,
-          totalRevenue: 0,
-          avgPrice: 0,
-          invoiceCount: new Set()
-        };
+      if (productIds.length > 0) {
+        const { data: products } = await supabase
+          .from('products')
+          .select('id, name, sku')
+          .in('id', productIds);
+        productsData = products || [];
       }
-      
-      acc[productKey].quantitySold += item.quantity_invoiced || 0;
-      acc[productKey].totalRevenue += item.line_total || 0;
-      acc[productKey].invoiceCount.add(item.sales_invoice_id);
-      
-      return acc;
-    }, {}) || {};
 
-    // Calculate averages and convert Set to count
-    const tableData = Object.values(productSales).map((item: any) => ({
-      ...item,
-      avgPrice: item.quantitySold > 0 ? item.totalRevenue / item.quantitySold : 0,
-      invoiceCount: item.invoiceCount.size
-    })).sort((a: any, b: any) => b.totalRevenue - a.totalRevenue);
+      // Create product lookup map
+      const productMap = productsData.reduce((acc: Record<string, any>, product) => {
+        acc[product.id] = product;
+        return acc;
+      }, {});
 
-    // Chart data - top 10 products by revenue
-    const chartData = tableData.slice(0, 10).map((item: any) => ({
-      name: item.product.length > 20 ? item.product.substring(0, 20) + '...' : item.product,
-      value: item.totalRevenue,
-      quantity: item.quantitySold
-    }));
+      // Group by product
+      const productSales = salesItems?.reduce((acc: Record<string, any>, item) => {
+        const productKey = item.product_id || 'unknown';
+        const productInfo = productMap[item.product_id];
+        const productName = productInfo?.name || item.item_description || 'Unknown Product';
+        const sku = productInfo?.sku || 'N/A';
+        
+        if (!acc[productKey]) {
+          acc[productKey] = {
+            product: productName,
+            sku: sku,
+            quantitySold: 0,
+            totalRevenue: 0,
+            avgPrice: 0,
+            invoiceCount: new Set()
+          };
+        }
+        
+        acc[productKey].quantitySold += item.quantity_invoiced || 0;
+        acc[productKey].totalRevenue += item.line_total || 0;
+        acc[productKey].invoiceCount.add(item.sales_invoice_id);
+        
+        return acc;
+      }, {}) || {};
 
-    return { tableData, chartData };
+      // Calculate averages and convert Set to count
+      const tableData = Object.values(productSales).map((item: any) => ({
+        ...item,
+        avgPrice: item.quantitySold > 0 ? item.totalRevenue / item.quantitySold : 0,
+        invoiceCount: item.invoiceCount.size
+      })).sort((a: any, b: any) => b.totalRevenue - a.totalRevenue);
+
+      // Chart data - top 10 products by revenue
+      const chartData = tableData.slice(0, 10).map((item: any) => ({
+        name: item.product.length > 20 ? item.product.substring(0, 20) + '...' : item.product,
+        value: item.totalRevenue,
+        quantity: item.quantitySold
+      }));
+
+      return { tableData, chartData };
+    } else {
+      // Show customer breakdown for selected product with month-on-month trends
+      const { data: salesItems, error } = await supabase
+        .from('sales_invoice_items')
+        .select(`
+          *,
+          sales_invoices!inner(
+            invoice_date,
+            status,
+            customer_name,
+            customer_id
+          )
+        `)
+        .eq('sales_invoices.status', 'finalized')
+        .eq('product_id', filters.product)
+        .gte('sales_invoices.invoice_date', format(filters.dateRange.from, 'yyyy-MM-dd'))
+        .lte('sales_invoices.invoice_date', format(filters.dateRange.to, 'yyyy-MM-dd'));
+
+      if (error) throw error;
+
+      // Group by customer
+      const customerSales = salesItems?.reduce((acc: Record<string, any>, item) => {
+        const customerKey = item.sales_invoices.customer_id || 'unknown';
+        const customerName = item.sales_invoices.customer_name || 'Unknown Customer';
+        
+        if (!acc[customerKey]) {
+          acc[customerKey] = {
+            customer: customerName,
+            quantitySold: 0,
+            totalRevenue: 0,
+            avgPrice: 0,
+            invoiceCount: new Set(),
+            lastPurchaseDate: null
+          };
+        }
+        
+        acc[customerKey].quantitySold += item.quantity_invoiced || 0;
+        acc[customerKey].totalRevenue += item.line_total || 0;
+        acc[customerKey].invoiceCount.add(item.sales_invoice_id);
+        
+        const invoiceDate = new Date(item.sales_invoices.invoice_date);
+        if (!acc[customerKey].lastPurchaseDate || invoiceDate > acc[customerKey].lastPurchaseDate) {
+          acc[customerKey].lastPurchaseDate = invoiceDate;
+        }
+        
+        return acc;
+      }, {}) || {};
+
+      // Calculate averages and format dates
+      const tableData = Object.values(customerSales).map((item: any) => ({
+        ...item,
+        avgPrice: item.quantitySold > 0 ? item.totalRevenue / item.quantitySold : 0,
+        invoiceCount: item.invoiceCount.size,
+        lastPurchaseDate: item.lastPurchaseDate ? format(item.lastPurchaseDate, 'MMM dd, yyyy') : 'N/A'
+      })).sort((a: any, b: any) => b.totalRevenue - a.totalRevenue);
+
+      // Month-on-month chart data
+      const monthlyData = salesItems?.reduce((acc: Record<string, any>, item) => {
+        const month = format(new Date(item.sales_invoices.invoice_date), 'MMM yyyy');
+        if (!acc[month]) {
+          acc[month] = { month, quantity: 0, revenue: 0 };
+        }
+        acc[month].quantity += item.quantity_invoiced || 0;
+        acc[month].revenue += item.line_total || 0;
+        return acc;
+      }, {}) || {};
+
+      const chartData = Object.values(monthlyData).sort((a: any, b: any) => 
+        new Date(a.month).getTime() - new Date(b.month).getTime()
+      );
+
+      return { tableData, chartData };
+    }
   };
 
   const fetchItemWisePurchaseData = async (filters: FilterState) => {
@@ -1377,6 +1454,16 @@ export function EnhancedReportsModule() {
                 </Select>
               </div>
             )}
+
+            {currentReport?.requiresFilters?.includes('product') && (
+              <div className="flex-1 min-w-[200px]">
+                <label className="text-sm font-medium mb-2 block">Product</label>
+                <ProductSelector
+                  value={filters.product}
+                  onChange={(value) => setFilters(prev => ({ ...prev, product: value }))}
+                />
+              </div>
+            )}
           </div>
         </div>
 
@@ -1640,8 +1727,18 @@ export function EnhancedReportsModule() {
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                   <Card>
                     <CardHeader>
-                      <CardTitle className="text-lg font-semibold">Visual Analysis</CardTitle>
-                      <CardDescription>Outstanding amounts by aging period</CardDescription>
+                      <CardTitle className="text-lg font-semibold">
+                        {selectedReport === 'item_wise_sales' && filters.product && filters.product !== 'all' 
+                          ? 'Month-on-Month Sales Trend' 
+                          : 'Visual Analysis'
+                        }
+                      </CardTitle>
+                      <CardDescription>
+                        {selectedReport === 'item_wise_sales' && filters.product && filters.product !== 'all' 
+                          ? 'Volume and revenue trends for selected item' 
+                          : selectedReport.includes('aging') ? 'Outstanding amounts by aging period' : 'Data visualization'
+                        }
+                      </CardDescription>
                     </CardHeader>
                     <CardContent>
                       <ResponsiveContainer width="100%" height={350}>
@@ -1672,17 +1769,30 @@ export function EnhancedReportsModule() {
                               }}
                             />
                           </PieChart>
-                        ) : selectedReport.includes('sales') || selectedReport.includes('purchase') ? (
-                          <AreaChart data={chartData}>
-                            <CartesianGrid strokeDasharray="3 3" />
-                            <XAxis dataKey="month" />
-                            <YAxis />
-                            <Tooltip formatter={(value, name) => [
-                              name === 'revenue' ? `₹${Number(value).toLocaleString('en-IN')}` : value,
-                              name === 'revenue' ? 'Revenue' : 'Orders'
-                            ]} />
-                            <Area type="monotone" dataKey="revenue" stackId="1" stroke="#0ea5e9" fill="#0ea5e9" fillOpacity={0.6} />
-                          </AreaChart>
+                         ) : selectedReport === 'item_wise_sales' && filters.product && filters.product !== 'all' ? (
+                           <AreaChart data={chartData}>
+                             <CartesianGrid strokeDasharray="3 3" />
+                             <XAxis dataKey="month" />
+                             <YAxis yAxisId="left" />
+                             <YAxis yAxisId="right" orientation="right" />
+                             <Tooltip formatter={(value, name) => [
+                               name === 'revenue' ? `₹${Number(value).toLocaleString('en-IN')}` : `${value} units`,
+                               name === 'revenue' ? 'Revenue' : 'Quantity'
+                             ]} />
+                             <Area yAxisId="left" type="monotone" dataKey="revenue" stackId="1" stroke="#0ea5e9" fill="#0ea5e9" fillOpacity={0.6} />
+                             <Area yAxisId="right" type="monotone" dataKey="quantity" stackId="2" stroke="#10b981" fill="#10b981" fillOpacity={0.4} />
+                           </AreaChart>
+                         ) : selectedReport.includes('sales') || selectedReport.includes('purchase') ? (
+                           <AreaChart data={chartData}>
+                             <CartesianGrid strokeDasharray="3 3" />
+                             <XAxis dataKey="month" />
+                             <YAxis />
+                             <Tooltip formatter={(value, name) => [
+                               name === 'revenue' ? `₹${Number(value).toLocaleString('en-IN')}` : value,
+                               name === 'revenue' ? 'Revenue' : 'Orders'
+                             ]} />
+                             <Area type="monotone" dataKey="revenue" stackId="1" stroke="#0ea5e9" fill="#0ea5e9" fillOpacity={0.6} />
+                           </AreaChart>
                         ) : (
                           <BarChart data={chartData}>
                             <CartesianGrid strokeDasharray="3 3" />
@@ -1699,7 +1809,12 @@ export function EnhancedReportsModule() {
                   <Card>
                     <CardHeader>
                       <CardTitle className="text-lg font-semibold">Key Metrics</CardTitle>
-                      <CardDescription>Summary of outstanding amounts</CardDescription>
+                      <CardDescription>
+                        {selectedReport === 'item_wise_sales' && filters.product && filters.product !== 'all' 
+                          ? 'Customer breakdown for selected item' 
+                          : 'Summary of outstanding amounts'
+                        }
+                      </CardDescription>
                     </CardHeader>
                     <CardContent>
                       <div className="space-y-4">
