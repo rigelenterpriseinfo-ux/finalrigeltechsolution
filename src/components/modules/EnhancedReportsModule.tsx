@@ -114,18 +114,6 @@ const reportCategories: ReportCategory[] = [
       { id: 'bom_consumption', name: 'BOM Consumption', description: 'Bill of materials consumption', category: 'inventory', requiresFilters: ['dateRange'], dataFields: ['product', 'consumed', 'cost'] },
       { id: 'yield_report', name: 'Yield Report', description: 'Production yield analysis', category: 'inventory', requiresFilters: ['dateRange'], dataFields: ['product', 'produced', 'yield'] }
     ]
-  },
-  {
-    id: 'analytics',
-    name: 'Analytics & AI Insights',
-    icon: Activity,
-    reports: [
-      { id: 'sales_forecast', name: 'Sales Forecast', description: 'AI-powered sales forecasting', category: 'analytics', requiresFilters: ['dateRange'] },
-      { id: 'price_variance', name: 'Purchase Price Variance', description: 'Price variance analysis', category: 'analytics', requiresFilters: ['dateRange'] },
-      { id: 'cashflow_risk', name: 'Cash Flow Risk', description: 'Cash flow risk assessment', category: 'analytics' },
-      { id: 'profitability', name: 'Profitability Analysis', description: 'Product and customer profitability', category: 'analytics', requiresFilters: ['dateRange'] },
-      { id: 'exception_reports', name: 'Exception Reports', description: 'Anomaly and exception detection', category: 'analytics' }
-    ]
   }
 ];
 
@@ -471,6 +459,171 @@ export function EnhancedReportsModule() {
     return { tableData: gstrData, chartData };
   };
 
+  const fetchPurchaseOrdersData = async (filters: FilterState) => {
+    const { data: orders, error } = await supabase
+      .from('purchase_orders')
+      .select('*')
+      .gte('order_date', format(filters.dateRange.from, 'yyyy-MM-dd'))
+      .lte('order_date', format(filters.dateRange.to, 'yyyy-MM-dd'))
+      .order('order_date', { ascending: false });
+
+    if (error) throw error;
+
+    const tableData = orders?.map(order => ({
+      orderNumber: order.po_number,
+      vendor: order.supplier_id ? `Supplier ${order.supplier_id.slice(0, 8)}` : 'N/A',
+      date: order.order_date,
+      amount: order.total_amount,
+      status: order.status
+    })) || [];
+
+    // Monthly aggregation for chart
+    const monthlyData = orders?.reduce((acc: Record<string, any>, order) => {
+      const month = format(new Date(order.order_date), 'MMM yyyy');
+      if (!acc[month]) {
+        acc[month] = { month, orders: 0, spending: 0 };
+      }
+      acc[month].orders += 1;
+      acc[month].spending += order.total_amount || 0;
+      return acc;
+    }, {}) || {};
+
+    const chartData = Object.values(monthlyData);
+
+    return { tableData, chartData };
+  };
+
+  const fetchVendorPurchasesData = async (filters: FilterState) => {
+    const { data: orders, error } = await supabase
+      .from('purchase_orders')
+      .select('supplier_id, total_amount, order_date')
+      .in('status', ['confirmed', 'partially_received', 'closed'])
+      .gte('order_date', format(filters.dateRange.from, 'yyyy-MM-dd'))
+      .lte('order_date', format(filters.dateRange.to, 'yyyy-MM-dd'));
+
+    if (error) throw error;
+
+    const vendorPurchases = orders?.reduce((acc: Record<string, any>, order) => {
+      const vendorKey = order.supplier_id || 'Unknown';
+      if (!acc[vendorKey]) {
+        acc[vendorKey] = {
+          vendor: `Supplier ${vendorKey.slice(0, 8)}`,
+          totalPurchases: 0,
+          orderCount: 0,
+          supplierId: order.supplier_id
+        };
+      }
+      acc[vendorKey].totalPurchases += order.total_amount || 0;
+      acc[vendorKey].orderCount += 1;
+      return acc;
+    }, {}) || {};
+
+    const tableData = Object.values(vendorPurchases).sort((a: any, b: any) => b.totalPurchases - a.totalPurchases);
+    
+    const chartData = tableData.slice(0, 10).map((item: any) => ({
+      name: item.vendor,
+      value: item.totalPurchases,
+      orders: item.orderCount
+    }));
+
+    return { tableData, chartData };
+  };
+
+  const fetchStockMovementData = async (filters: FilterState) => {
+    const { data: transactions, error } = await supabase
+      .from('inventory_transactions')
+      .select(`
+        *, 
+        products(name, sku)
+      `)
+      .gte('transaction_date', format(filters.dateRange.from, 'yyyy-MM-dd'))
+      .lte('transaction_date', format(filters.dateRange.to, 'yyyy-MM-dd'))
+      .order('transaction_date', { ascending: false })
+      .limit(1000);
+
+    if (error) throw error;
+
+    const tableData = transactions?.map(transaction => ({
+      product: transaction.products?.name || 'Unknown Product',
+      sku: transaction.products?.sku || 'N/A',
+      transaction: transaction.transaction_type,
+      quantity: transaction.quantity_change,
+      unitCost: transaction.unit_cost,
+      totalValue: transaction.total_value,
+      date: transaction.transaction_date,
+      reference: transaction.reference_number
+    })) || [];
+
+    // Daily movement chart
+    const dailyMovement = transactions?.reduce((acc: Record<string, any>, transaction) => {
+      const date = format(new Date(transaction.transaction_date), 'yyyy-MM-dd');
+      if (!acc[date]) {
+        acc[date] = { date, inward: 0, outward: 0, net: 0 };
+      }
+      if (transaction.quantity_change > 0) {
+        acc[date].inward += transaction.quantity_change;
+      } else {
+        acc[date].outward += Math.abs(transaction.quantity_change);
+      }
+      acc[date].net += transaction.quantity_change;
+      return acc;
+    }, {}) || {};
+
+    const chartData = Object.values(dailyMovement);
+
+    return { tableData, chartData };
+  };
+
+  const fetchCreditDebitNotesData = async (filters: FilterState) => {
+    const { data: creditNotes, error: creditError } = await supabase
+      .from('credit_notes')
+      .select('*')
+      .gte('cn_date', format(filters.dateRange.from, 'yyyy-MM-dd'))
+      .lte('cn_date', format(filters.dateRange.to, 'yyyy-MM-dd'));
+
+    const { data: debitNotes, error: debitError } = await supabase
+      .from('debit_notes')
+      .select('*')
+      .gte('debit_note_date', format(filters.dateRange.from, 'yyyy-MM-dd'))
+      .lte('debit_note_date', format(filters.dateRange.to, 'yyyy-MM-dd'));
+
+    if (creditError || debitError) throw creditError || debitError;
+
+    const tableData = [
+      ...(creditNotes?.map(note => ({
+        type: 'Credit Note',
+        number: note.cn_number,
+        customer: note.customer_name,
+        date: note.cn_date,
+        amount: note.total_amount,
+        status: note.status
+      })) || []),
+      ...(debitNotes?.map(note => ({
+        type: 'Debit Note',
+        number: note.debit_note_number,
+        supplier: note.supplier_name,
+        date: note.debit_note_date,
+        amount: note.total_amount,
+        status: note.status
+      })) || [])
+    ];
+
+    const chartData = [
+      { 
+        name: 'Credit Notes', 
+        value: creditNotes?.reduce((sum, note) => sum + note.total_amount, 0) || 0,
+        count: creditNotes?.length || 0 
+      },
+      { 
+        name: 'Debit Notes', 
+        value: debitNotes?.reduce((sum, note) => sum + note.total_amount, 0) || 0,
+        count: debitNotes?.length || 0 
+      }
+    ];
+
+    return { tableData, chartData };
+  };
+
   const generateReportData = async (reportId: string, filters: FilterState) => {
     try {
       switch (reportId) {
@@ -486,6 +639,14 @@ export function EnhancedReportsModule() {
           return await fetchCustomerSalesData(filters);
         case 'gstr1':
           return await fetchGSTR1Data(filters);
+        case 'purchase_orders':
+          return await fetchPurchaseOrdersData(filters);
+        case 'vendor_purchases':
+          return await fetchVendorPurchasesData(filters);
+        case 'stock_movement':
+          return await fetchStockMovementData(filters);
+        case 'credit_debit_notes':
+          return await fetchCreditDebitNotesData(filters);
         default:
           return { tableData: [], chartData: [] };
       }
@@ -517,9 +678,119 @@ export function EnhancedReportsModule() {
     setSelectedCategory(categoryId);
   };
 
-  const exportReport = (format: 'excel' | 'pdf' | 'json') => {
-    // Implementation for export functionality
-    console.log(`Exporting ${currentReport?.name} as ${format}`);
+  const exportReport = (exportFormat: 'excel' | 'pdf' | 'json') => {
+    if (!reportData.length) {
+      toast.error('No data to export');
+      return;
+    }
+
+    const fileName = `${currentReport?.name.replace(/\s+/g, '_')}_${format(new Date(), 'yyyy-MM-dd')}`;
+    
+    if (exportFormat === 'json') {
+      const jsonData = JSON.stringify({ 
+        reportName: currentReport?.name,
+        dateRange: filters.dateRange,
+        data: reportData,
+        chartData: chartData
+      }, null, 2);
+      
+      const blob = new Blob([jsonData], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${fileName}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      
+      toast.success('JSON file downloaded successfully');
+    } else if (exportFormat === 'excel') {
+      // Create CSV content for Excel compatibility
+      if (reportData.length === 0) return;
+      
+      const headers = Object.keys(reportData[0]);
+      const csvContent = [
+        headers.join(','),
+        ...reportData.map(row => 
+          headers.map(header => {
+            const value = row[header];
+            // Format numbers properly for Excel
+            if (typeof value === 'number') {
+              return value;
+            }
+            return `"${String(value).replace(/"/g, '""')}"`;
+          }).join(',')
+        )
+      ].join('\n');
+      
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${fileName}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      
+      toast.success('Excel file downloaded successfully');
+    } else if (exportFormat === 'pdf') {
+      // Create a simple HTML table for PDF generation
+      const htmlContent = `
+        <html>
+          <head>
+            <title>${currentReport?.name}</title>
+            <style>
+              body { font-family: Arial, sans-serif; margin: 20px; }
+              h1 { color: #333; }
+              table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+              th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+              th { background-color: #f5f5f5; font-weight: bold; }
+              .currency { text-align: right; }
+            </style>
+          </head>
+          <body>
+            <h1>${currentReport?.name}</h1>
+            <p>Date Range: ${format(filters.dateRange.from, 'MMM dd, yyyy')} - ${format(filters.dateRange.to, 'MMM dd, yyyy')}</p>
+            <table>
+              <thead>
+                <tr>
+                  ${Object.keys(reportData[0] || {}).map(key => 
+                    `<th>${key.charAt(0).toUpperCase() + key.slice(1).replace(/([A-Z])/g, ' $1').trim()}</th>`
+                  ).join('')}
+                </tr>
+              </thead>
+              <tbody>
+                ${reportData.map(row => 
+                  `<tr>
+                    ${Object.entries(row).map(([key, value]) => {
+                      const isAmount = key.includes('amount') || key.includes('total') || key.includes('value');
+                      const displayValue = typeof value === 'number' && isAmount 
+                        ? `₹${value.toLocaleString('en-IN')}`
+                        : String(value);
+                      return `<td class="${isAmount ? 'currency' : ''}">${displayValue}</td>`;
+                    }).join('')}
+                  </tr>`
+                ).join('')}
+              </tbody>
+            </table>
+          </body>
+        </html>
+      `;
+      
+      const blob = new Blob([htmlContent], { type: 'text/html' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${fileName}.html`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      
+      toast.success('PDF file downloaded successfully (HTML format)');
+    }
   };
 
   if (authLoading) {
