@@ -14,6 +14,7 @@ export function ProductSelector({ value, onChange }: ProductSelectorProps) {
   useEffect(() => {
     const fetchProducts = async () => {
       try {
+        console.log('ProductSelector: Fetching products...');
         const { data, error } = await supabase
           .from('products')
           .select('id, name, sku')
@@ -21,9 +22,10 @@ export function ProductSelector({ value, onChange }: ProductSelectorProps) {
           .order('name');
 
         if (error) throw error;
+        console.log('ProductSelector: Products fetched:', data?.length || 0);
         setProducts(data || []);
       } catch (error) {
-        console.error('Error fetching products:', error);
+        console.error('ProductSelector: Error fetching products:', error);
       } finally {
         setLoading(false);
       }
@@ -32,15 +34,20 @@ export function ProductSelector({ value, onChange }: ProductSelectorProps) {
     fetchProducts();
   }, []);
 
+  console.log('ProductSelector: Current value:', value, 'Products available:', products.length);
+
   return (
-    <Select value={value} onValueChange={onChange}>
-      <SelectTrigger>
+    <Select value={value} onValueChange={(val) => {
+      console.log('ProductSelector: Value changed to:', val);
+      onChange(val);
+    }}>
+      <SelectTrigger className="bg-background border-input">
         <SelectValue placeholder={loading ? "Loading products..." : "Select product..."} />
       </SelectTrigger>
-      <SelectContent>
-        <SelectItem value="all">All Products</SelectItem>
+      <SelectContent className="bg-background border-input shadow-lg z-50">
+        <SelectItem value="all" className="bg-background hover:bg-accent">All Products</SelectItem>
         {products.map((product) => (
-          <SelectItem key={product.id} value={product.id}>
+          <SelectItem key={product.id} value={product.id} className="bg-background hover:bg-accent">
             {product.name} ({product.sku})
           </SelectItem>
         ))}

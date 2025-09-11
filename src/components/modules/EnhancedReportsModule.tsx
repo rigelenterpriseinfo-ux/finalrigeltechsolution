@@ -695,11 +695,28 @@ export function EnhancedReportsModule() {
   };
 
   const fetchItemWiseSalesData = async (filters: FilterState) => {
-    console.log('fetchItemWiseSalesData called with filters:', filters);
+    console.log('=== fetchItemWiseSalesData START ===');
+    console.log('Filters received:', filters);
     
     // If no product selected, show product selection summary
     if (!filters.product || filters.product === 'all') {
-      console.log('Fetching all products summary');
+      console.log('Fetching ALL products summary');
+      
+      // First, get all active products
+      const { data: allProducts, error: productsError } = await supabase
+        .from('products')
+        .select('id, name, sku')
+        .eq('is_active', true)
+        .order('name');
+
+      if (productsError) {
+        console.error('Error fetching products:', productsError);
+        throw productsError;
+      }
+
+      console.log('All active products count:', allProducts?.length || 0);
+
+      // Then get sales data
       const { data: salesItems, error } = await supabase
         .from('sales_invoice_items')
         .select(`
@@ -714,50 +731,43 @@ export function EnhancedReportsModule() {
         .gte('sales_invoices.invoice_date', format(filters.dateRange.from, 'yyyy-MM-dd'))
         .lte('sales_invoices.invoice_date', format(filters.dateRange.to, 'yyyy-MM-dd'));
 
-      if (error) throw error;
-
-      // Get product information separately
-      const productIds = [...new Set(salesItems?.map(item => item.product_id).filter(Boolean))] as string[];
-      let productsData: any[] = [];
-      
-      if (productIds.length > 0) {
-        const { data: products } = await supabase
-          .from('products')
-          .select('id, name, sku')
-          .in('id', productIds);
-        productsData = products || [];
+      if (error) {
+        console.error('Error fetching sales items:', error);
+        throw error;
       }
 
+      console.log('Raw sales items count:', salesItems?.length || 0);
+
       // Create product lookup map
-      const productMap = productsData.reduce((acc: Record<string, any>, product) => {
+      const productMap = (allProducts || []).reduce((acc: Record<string, any>, product) => {
         acc[product.id] = product;
         return acc;
       }, {});
 
-      // Group by product
-      const productSales = salesItems?.reduce((acc: Record<string, any>, item) => {
-        const productKey = item.product_id || 'unknown';
-        const productInfo = productMap[item.product_id];
-        const productName = productInfo?.name || item.item_description || 'Unknown Product';
-        const sku = productInfo?.sku || 'N/A';
-        
-        if (!acc[productKey]) {
-          acc[productKey] = {
-            product: productName,
-            sku: sku,
-            quantitySold: 0,
-            totalRevenue: 0,
-            avgPrice: 0,
-            invoiceCount: new Set()
-          };
-        }
-        
-        acc[productKey].quantitySold += item.quantity_invoiced || 0;
-        acc[productKey].totalRevenue += item.line_total || 0;
-        acc[productKey].invoiceCount.add(item.sales_invoice_id);
-        
+      // Initialize all products with zero sales
+      const productSales = (allProducts || []).reduce((acc: Record<string, any>, product) => {
+        acc[product.id] = {
+          product: product.name,
+          sku: product.sku,
+          quantitySold: 0,
+          totalRevenue: 0,
+          avgPrice: 0,
+          invoiceCount: new Set()
+        };
         return acc;
-      }, {}) || {};
+      }, {});
+
+      // Add sales data to products that have sales
+      salesItems?.forEach(item => {
+        const productId = item.product_id;
+        if (productSales[productId]) {
+          productSales[productId].quantitySold += item.quantity_invoiced || 0;
+          productSales[productId].totalRevenue += item.line_total || 0;
+          productSales[productId].invoiceCount.add(item.sales_invoice_id);
+        }
+      });
+
+      console.log('Product sales aggregated:', Object.keys(productSales).length, 'products');
 
       // Calculate averages and convert Set to count
       const tableData = Object.values(productSales).map((item: any) => ({
@@ -766,14 +776,19 @@ export function EnhancedReportsModule() {
         invoiceCount: item.invoiceCount.size
       })).sort((a: any, b: any) => b.totalRevenue - a.totalRevenue);
 
-      // Chart data - top 10 products by revenue
-      const chartData = tableData.slice(0, 10).map((item: any) => ({
+      // Chart data - products with sales only, top 10
+      const productsWithSales = tableData.filter((item: any) => item.totalRevenue > 0);
+      const chartData = productsWithSales.slice(0, 10).map((item: any) => ({
         name: item.product.length > 20 ? item.product.substring(0, 20) + '...' : item.product,
         value: item.totalRevenue,
         quantity: item.quantitySold
       }));
 
-      console.log('All products summary result:', { tableDataCount: tableData.length, chartDataCount: chartData.length });
+      console.log('Final result - Table data count:', tableData.length);
+      console.log('Final result - Chart data count:', chartData.length);
+      console.log('Products with sales:', productsWithSales.length);
+      console.log('=== fetchItemWiseSalesData END (ALL) ===');
+      
       return { tableData, chartData };
     } else {
       // Show customer breakdown for selected product with month-on-month trends
@@ -800,6 +815,11 @@ export function EnhancedReportsModule() {
       }
 
       console.log('Sales items for specific product:', salesItems?.length || 0, 'items');
+
+      if (!salesItems || salesItems.length === 0) {
+        console.log('No sales data for selected product');
+        return { tableData: [], chartData: [] };
+      }
 
       // Group by customer
       const customerSales = salesItems?.reduce((acc: Record<string, any>, item) => {
@@ -852,11 +872,9 @@ export function EnhancedReportsModule() {
         new Date(a.month + ' 01').getTime() - new Date(b.month + ' 01').getTime()
       );
 
-      console.log('Specific product result:', { 
-        tableDataCount: tableData.length, 
-        chartDataCount: chartData.length,
-        customerSales: Object.keys(customerSales).length
-      });
+      console.log('Specific product result - Table data count:', tableData.length);
+      console.log('Specific product result - Chart data count:', chartData.length);
+      console.log('=== fetchItemWiseSalesData END (SPECIFIC) ===');
       
       return { tableData, chartData };
     }
@@ -1171,8 +1189,25 @@ export function EnhancedReportsModule() {
   };
 
   const handleReportSelect = (reportId: string, categoryId: string) => {
+    console.log('Report selected:', reportId, 'Category:', categoryId);
     setSelectedReport(reportId);
     setSelectedCategory(categoryId);
+    
+    // Reset filters when changing reports
+    if (reportId === 'item_wise_sales') {
+      console.log('Setting product filter to "all" for item wise sales report');
+      setFilters(prev => ({
+        ...prev,
+        product: 'all'
+      }));
+    } else {
+      // Clear product filter for other reports
+      setFilters(prev => {
+        const newFilters = { ...prev };
+        delete newFilters.product;
+        return newFilters;
+      });
+    }
   };
 
   const exportReport = (exportFormat: 'excel' | 'pdf' | 'json') => {
