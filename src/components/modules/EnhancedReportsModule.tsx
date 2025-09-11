@@ -435,6 +435,102 @@ export function EnhancedReportsModule() {
     return { tableData, chartData };
   };
 
+  const fetchGSTR3BData = async (filters: FilterState) => {
+    // Fetch sales data for GSTR-3B
+    const { data: salesInvoices, error: salesError } = await supabase
+      .from('sales_invoices')
+      .select(`
+        *, 
+        sales_invoice_items(*)
+      `)
+      .eq('status', 'finalized')
+      .gte('invoice_date', format(filters.dateRange.from, 'yyyy-MM-dd'))
+      .lte('invoice_date', format(filters.dateRange.to, 'yyyy-MM-dd'));
+
+    if (salesError) throw salesError;
+
+    // Fetch purchase data for GSTR-3B
+    const { data: purchaseInvoices, error: purchaseError } = await supabase
+      .from('grn_header')
+      .select(`
+        *, 
+        grn_line_items(*)
+      `)
+      .in('status', ['accepted', 'received', 'partially_received'])
+      .gte('grn_date', format(filters.dateRange.from, 'yyyy-MM-dd'))
+      .lte('grn_date', format(filters.dateRange.to, 'yyyy-MM-dd'));
+
+    if (purchaseError) throw purchaseError;
+
+    // Calculate GSTR-3B data
+    let totalOutwardTaxableSupplies = 0;
+    let totalOutwardCGST = 0;
+    let totalOutwardSGST = 0;
+    let totalOutwardIGST = 0;
+
+    salesInvoices?.forEach(invoice => {
+      totalOutwardTaxableSupplies += invoice.subtotal_amount || 0;
+      invoice.sales_invoice_items?.forEach((item: any) => {
+        totalOutwardCGST += item.cgst_amount || 0;
+        totalOutwardSGST += item.sgst_amount || 0;
+        totalOutwardIGST += item.igst_amount || 0;
+      });
+    });
+
+    let totalInwardTaxableSupplies = 0;
+    let totalInwardCGST = 0;
+    let totalInwardSGST = 0;
+    let totalInwardIGST = 0;
+
+    purchaseInvoices?.forEach(grn => {
+      grn.grn_line_items?.forEach((item: any) => {
+        const taxableValue = (item.unit_price * item.accepted_quantity) - (item.discount_amount || 0);
+        totalInwardTaxableSupplies += taxableValue;
+        totalInwardCGST += item.cgst_amount || 0;
+        totalInwardSGST += item.sgst_amount || 0;
+        totalInwardIGST += item.igst_amount || 0;
+      });
+    });
+
+    const gstr3bData = [
+      {
+        section: '3.1',
+        description: 'Outward Taxable Supplies (other than zero rated, nil rated and exempted)',
+        taxableValue: totalOutwardTaxableSupplies,
+        cgst: totalOutwardCGST,
+        sgst: totalOutwardSGST,
+        igst: totalOutwardIGST,
+        totalTax: totalOutwardCGST + totalOutwardSGST + totalOutwardIGST
+      },
+      {
+        section: '4.1',
+        description: 'Inward Supplies liable to reverse charge (other than 1, 2, 3, 4, 5 above)',
+        taxableValue: totalInwardTaxableSupplies,
+        cgst: totalInwardCGST,
+        sgst: totalInwardSGST,
+        igst: totalInwardIGST,
+        totalTax: totalInwardCGST + totalInwardSGST + totalInwardIGST
+      }
+    ];
+
+    const chartData = [
+      { name: 'Outward Supplies', value: totalOutwardTaxableSupplies },
+      { name: 'Inward Supplies', value: totalInwardTaxableSupplies }
+    ];
+
+    return { 
+      tableData: gstr3bData, 
+      chartData,
+      summary: {
+        totalOutwardSupplies: totalOutwardTaxableSupplies,
+        totalInwardSupplies: totalInwardTaxableSupplies,
+        totalOutwardTax: totalOutwardCGST + totalOutwardSGST + totalOutwardIGST,
+        totalInwardTax: totalInwardCGST + totalInwardSGST + totalInwardIGST,
+        netTaxLiability: (totalOutwardCGST + totalOutwardSGST + totalOutwardIGST) - (totalInwardCGST + totalInwardSGST + totalInwardIGST)
+      }
+    };
+  };
+
   const fetchGSTR1Data = async (filters: FilterState) => {
     const { data: invoices, error } = await supabase
       .from('sales_invoices')
@@ -882,6 +978,8 @@ export function EnhancedReportsModule() {
           return await fetchCustomerSalesData(filters);
         case 'gstr1':
           return await fetchGSTR1Data(filters);
+        case 'gstr3b':
+          return await fetchGSTR3BData(filters);
         case 'purchase_orders':
           return await fetchPurchaseOrdersData(filters);
         case 'vendor_purchases':
@@ -907,7 +1005,13 @@ export function EnhancedReportsModule() {
       if (selectedReport === 'gstr1' && 'gstr1Sections' in reportResult && 'summary' in reportResult) {
         setReportData(reportResult as any); // Set the full GSTR-1 result object
         setChartData(reportResult.chartData);
-      } else {
+      } 
+      // Handle GSTR-3B specific data structure
+      else if (selectedReport === 'gstr3b' && 'summary' in reportResult) {
+        setReportData(reportResult as any); // Set the full GSTR-3B result object
+        setChartData(reportResult.chartData);
+      } 
+      else {
         setReportData(reportResult.tableData);
         setChartData(reportResult.chartData);
       }
