@@ -11,11 +11,13 @@ import { SearchableCombobox } from '@/components/ui/searchable-combobox';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { Plus, Trash2 } from 'lucide-react';
+import { Plus, Trash2, Building, MapPin, Package, Calculator, Users, CreditCard, Truck, Calendar, AlertCircle } from 'lucide-react';
 import { OrderLineItemsTable } from '@/components/ui/order-line-items-table';
 import { useAuth } from '@/hooks/useAuth';
 
@@ -88,6 +90,7 @@ export function SalesOrderForm({
   const [loading, setLoading] = useState(false);
   const [stockLevels, setStockLevels] = useState<Record<string, number>>({});
   const [globalGstType, setGlobalGstType] = useState<'intra' | 'inter'>('intra');
+  const [activeTab, setActiveTab] = useState('order-info');
 
   const form = useForm<SalesOrderFormData>({
     resolver: zodResolver(salesOrderSchema),
@@ -578,397 +581,475 @@ export function SalesOrderForm({
     };
   };
 
-  const { 
-    subtotal, totalDiscount, totalTax, total,
-    totalOrderQty, totalOrderValue,
-    readyToDeliverQty, readyToDeliverValue,
-    backOrderQty, backOrderValue
-  } = calculateTotals();
+  // Calculate totals
+  const items = form.watch('items') || [];
+  const subtotal = items.reduce((sum, item) => sum + (item.net_amount || 0), 0);
+  const totalDiscount = items.reduce((sum, item) => sum + (item.discount_amount || 0), 0);
+  const totalTax = items.reduce((sum, item) => sum + (item.tax_amount || 0), 0);
+  const total = items.reduce((sum, item) => sum + (item.total_price || 0), 0);
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
+    <div className="h-[calc(100vh-120px)] flex flex-col bg-background">
+      {/* Compact Header */}
+      <div className="flex justify-between items-center mb-3 px-4 py-3 border-b bg-card/50 backdrop-blur-sm">
         <div>
-          <h2 className="text-2xl font-bold">
-            {mode === 'create' ? 'Create Sales Order' : 
+          <h1 className="text-xl font-bold text-foreground">
+            {mode === 'create' ? 'New Sales Order' : 
              mode === 'edit' ? 'Edit Sales Order' : 'Sales Order Details'}
-          </h2>
+          </h1>
           {salesOrder?.order_number && (
-            <p className="text-muted-foreground">SO Number: {salesOrder.order_number}</p>
+            <p className="text-sm text-muted-foreground">SO: {salesOrder.order_number}</p>
           )}
         </div>
-        <Badge variant={readOnly ? "secondary" : "default"}>
-          {readOnly ? 'View Only' : (mode === 'edit' ? 'Edit Mode' : 'Create Mode')}
-        </Badge>
+        <div className="flex items-center gap-3">
+          <Badge variant={readOnly ? "secondary" : "default"} className="text-xs px-2">
+            {readOnly ? 'View Only' : (mode === 'edit' ? 'Edit' : 'Create')}
+          </Badge>
+          <div className="text-right text-sm bg-primary/10 px-3 py-2 rounded-lg border">
+            <div className="font-bold text-primary text-lg">₹{total.toFixed(2)}</div>
+            <div className="text-xs text-muted-foreground">{fields.length} items</div>
+          </div>
+        </div>
       </div>
 
       <Form {...form}>
-        <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
-          {/* Header Information */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Sales Order Information</CardTitle>
-            </CardHeader>
-            <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              <FormField
-                control={form.control}
-                name="order_number"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Sales Order No.</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Will be auto-generated" {...field} disabled readOnly />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+        <form onSubmit={form.handleSubmit(handleSubmit)} className="flex-1 flex flex-col">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col px-4">
+            <TabsList className="grid w-full grid-cols-2 mb-4 bg-muted/30 h-12">
+              <TabsTrigger value="order-info" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground flex items-center gap-2">
+                <Building className="h-4 w-4" />
+                Order Info
+              </TabsTrigger>
+              <TabsTrigger value="items" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground flex items-center gap-2">
+                <Package className="h-4 w-4" />
+                Items & Summary
+              </TabsTrigger>
+            </TabsList>
 
-              <FormField
-                control={form.control}
-                name="order_date"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Order Date *</FormLabel>
-                    <FormControl>
-                      <Input type="date" {...field} disabled={readOnly} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="customer_id"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Customer *</FormLabel>
-                    <FormControl>
-                      <SearchableCombobox
-                        value={field.value}
-                        onSelect={field.onChange}
-                        placeholder="Select customer"
-                        searchPlaceholder="Search customers..."
-                        options={customers.map(customer => ({
-                          id: customer.id,
-                          name: customer.name,
-                          subtitle: customer.email || customer.phone
-                        }))}
-                        disabled={readOnly}
-                        emptyMessage="No customers found"
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="customer_po_number"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Customer PO Number</FormLabel>
-                    <FormControl>
-                      <Input {...field} disabled={readOnly} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="status"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Status *</FormLabel>
-                    <Select value={field.value} onValueChange={field.onChange} disabled={readOnly}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select status" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="draft">Draft</SelectItem>
-                        <SelectItem value="pending">Pending</SelectItem>
-                        <SelectItem value="confirmed">Confirmed</SelectItem>
-                        <SelectItem value="delivered">Delivered</SelectItem>
-                        <SelectItem value="cancelled">Cancelled</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="order_type"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Order Type *</FormLabel>
-                    <Select value={field.value} onValueChange={field.onChange} disabled={readOnly}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select type" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="standard">Standard</SelectItem>
-                        <SelectItem value="return">Return</SelectItem>
-                        <SelectItem value="export">Export</SelectItem>
-                        <SelectItem value="sample">Sample</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="currency"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Currency *</FormLabel>
-                    <Select value={field.value} onValueChange={field.onChange} disabled={readOnly}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select currency" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="INR">INR - Indian Rupee</SelectItem>
-                        <SelectItem value="USD">USD - US Dollar</SelectItem>
-                        <SelectItem value="EUR">EUR - Euro</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="payment_terms"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Payment Terms</FormLabel>
-                    <FormControl>
-                      <Input placeholder="e.g., Net 30 days" {...field} disabled={readOnly} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="expected_delivery_date"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Expected Delivery Date</FormLabel>
-                    <FormControl>
-                      <Input type="date" {...field} disabled={readOnly} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="default_warehouse_id"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Default Warehouse *</FormLabel>
-                    <Select 
-                      value={field.value} 
-                      onValueChange={(value) => {
-                        const previousValue = field.value;
-                        field.onChange(value);
-                        fetchBins(value);
-                        // Only clear bin_id if warehouse actually changed (not initial load)
-                        if (previousValue && previousValue !== value) {
-                          form.setValue('default_bin_id', '');
-                        }
-                      }} 
-                      disabled={readOnly}
-                    >
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select warehouse" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {warehouses.map((warehouse) => (
-                          <SelectItem key={warehouse.id} value={warehouse.id}>
-                            {warehouse.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="default_bin_id"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Default Bin *</FormLabel>
-                    <Select 
-                      value={field.value} 
-                      onValueChange={(value) => {
-                        field.onChange(value);
-                        // Trigger stock levels fetch when bin is selected
-                        const warehouseId = form.watch('default_warehouse_id');
-                        if (warehouseId && value) {
-                          fetchStockLevels(warehouseId, value);
-                        }
-                      }} 
-                      disabled={readOnly || !form.watch('default_warehouse_id')}
-                    >
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select bin" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {bins.map((bin) => (
-                          <SelectItem key={bin.id} value={bin.id}>
-                            {bin.bin_name} ({bin.wh_bin_code})
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <div className="col-span-full">
-                <FormField
-                  control={form.control}
-                  name="notes"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Remarks / Special Instructions</FormLabel>
-                      <FormControl>
-                        <Textarea 
-                          placeholder="Enter any special instructions or remarks" 
-                          {...field} 
-                          disabled={readOnly} 
-                          rows={3}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Line Items */}
-          <OrderLineItemsTable
-            control={form.control}
-            fieldsArray={fieldsArray}
-            products={products}
-            globalGstType={globalGstType}
-            onGstTypeChange={handleGlobalGstTypeChange}
-            onAddItem={addItem}
-            onProductSelect={handleProductSelect}
-            onCalculateLineAmounts={calculateLineAmounts}
-            onValidateGSTRate={validateGSTRate}
-            readOnly={readOnly}
-            currency="₹"
-          />
-
-          {/* Enhanced Order Summary */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Order Summary</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {/* Traditional Totals */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-                <div className="text-center">
-                  <Label className="text-sm text-muted-foreground">Subtotal</Label>
-                  <p className="text-lg font-semibold">₹{subtotal.toFixed(2)}</p>
-                </div>
-                <div className="text-center">
-                  <Label className="text-sm text-muted-foreground">Discount</Label>
-                  <p className="text-lg font-semibold">₹{totalDiscount.toFixed(2)}</p>
-                </div>
-                <div className="text-center">
-                  <Label className="text-sm text-muted-foreground">Tax</Label>
-                  <p className="text-lg font-semibold">₹{totalTax.toFixed(2)}</p>
-                </div>
-                <div className="text-center bg-primary/10 p-3 rounded">
-                  <Label className="text-sm text-muted-foreground">Grand Total</Label>
-                  <p className="text-xl font-bold">₹{total.toFixed(2)}</p>
-                </div>
-              </div>
-
-              <Separator className="my-4" />
-
-              {/* Enhanced Summary */}
+            {/* Order Info Tab */}
+            <TabsContent value="order-info" className="flex-1 overflow-auto m-0 p-0">
               <div className="space-y-4">
-                <h4 className="text-md font-semibold">Delivery Summary</h4>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  {/* Total Order */}
-                  <div className="bg-blue-50 dark:bg-blue-950/20 p-4 rounded-lg border border-blue-200 dark:border-blue-800">
-                    <div className="text-center">
-                      <Label className="text-sm font-medium text-blue-700 dark:text-blue-300">Total Order</Label>
-                      <div className="mt-2">
-                        <p className="text-lg font-bold text-blue-800 dark:text-blue-200">{totalOrderQty} units</p>
-                        <p className="text-md text-blue-600 dark:text-blue-400">₹{totalOrderValue.toFixed(2)}</p>
-                      </div>
-                    </div>
-                  </div>
+                {/* Basic Order Information */}
+                <Card className="shadow-sm border-border/50">
+                  <CardHeader className="pb-2 pt-3">
+                    <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                      <Building className="h-4 w-4 text-primary" />
+                      Order Information
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                    <FormField
+                      control={form.control}
+                      name="order_number"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-sm">Order Number</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Auto-generated" {...field} disabled className="h-8" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
 
-                  {/* Ready to Deliver */}
-                  <div className="bg-green-50 dark:bg-green-950/20 p-4 rounded-lg border border-green-200 dark:border-green-800">
-                    <div className="text-center">
-                      <Label className="text-sm font-medium text-green-700 dark:text-green-300">Ready to Deliver</Label>
-                      <div className="mt-2">
-                        <p className="text-lg font-bold text-green-800 dark:text-green-200">{readyToDeliverQty} units</p>
-                        <p className="text-md text-green-600 dark:text-green-400">₹{readyToDeliverValue.toFixed(2)}</p>
-                      </div>
-                    </div>
-                  </div>
+                    <FormField
+                      control={form.control}
+                      name="order_date"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-sm">Order Date *</FormLabel>
+                          <FormControl>
+                            <Input type="date" {...field} disabled={readOnly} className="h-8" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
 
-                  {/* Back Order */}
-                  <div className="bg-orange-50 dark:bg-orange-950/20 p-4 rounded-lg border border-orange-200 dark:border-orange-800">
-                    <div className="text-center">
-                      <Label className="text-sm font-medium text-orange-700 dark:text-orange-300">Back Order</Label>
-                      <div className="mt-2">
-                        <p className="text-lg font-bold text-orange-800 dark:text-orange-200">{backOrderQty} units</p>
-                        <p className="text-md text-orange-600 dark:text-orange-400">₹{backOrderValue.toFixed(2)}</p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
+                    <FormField
+                      control={form.control}
+                      name="status"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-sm">Status *</FormLabel>
+                          <Select value={field.value} onValueChange={field.onChange} disabled={readOnly}>
+                            <FormControl>
+                              <SelectTrigger className="h-8">
+                                <SelectValue placeholder="Select status" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="draft">Draft</SelectItem>
+                              <SelectItem value="pending">Pending</SelectItem>
+                              <SelectItem value="confirmed">Confirmed</SelectItem>
+                              <SelectItem value="delivered">Delivered</SelectItem>
+                              <SelectItem value="cancelled">Cancelled</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </CardContent>
+                </Card>
+
+                {/* Customer & Order Details */}
+                <Card className="shadow-sm border-border/50">
+                  <CardHeader className="pb-2 pt-3">
+                    <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                      <Users className="h-4 w-4 text-primary" />
+                      Customer & Order Details
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                    <FormField
+                      control={form.control}
+                      name="customer_id"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-sm">Customer *</FormLabel>
+                          <FormControl>
+                            <SearchableCombobox
+                              value={field.value}
+                              onSelect={field.onChange}
+                              placeholder="Select customer"
+                              searchPlaceholder="Search customers..."
+                              options={customers.map(customer => ({
+                                id: customer.id,
+                                name: customer.name,
+                                subtitle: customer.email || customer.phone
+                              }))}
+                              disabled={readOnly}
+                              emptyMessage="No customers found"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="customer_po_number"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-sm">Customer PO Number</FormLabel>
+                          <FormControl>
+                            <Input {...field} disabled={readOnly} className="h-8" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="order_type"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-sm">Order Type *</FormLabel>
+                          <Select value={field.value} onValueChange={field.onChange} disabled={readOnly}>
+                            <FormControl>
+                              <SelectTrigger className="h-8">
+                                <SelectValue placeholder="Select type" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="standard">Standard</SelectItem>
+                              <SelectItem value="return">Return</SelectItem>
+                              <SelectItem value="export">Export</SelectItem>
+                              <SelectItem value="sample">Sample</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="currency"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-sm">Currency *</FormLabel>
+                          <Select value={field.value} onValueChange={field.onChange} disabled={readOnly}>
+                            <FormControl>
+                              <SelectTrigger className="h-8">
+                                <SelectValue placeholder="Select currency" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="INR">INR - Indian Rupee</SelectItem>
+                              <SelectItem value="USD">USD - US Dollar</SelectItem>
+                              <SelectItem value="EUR">EUR - Euro</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="payment_terms"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-sm">Payment Terms</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Net 30 days" {...field} disabled={readOnly} className="h-8" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="expected_delivery_date"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-sm">Expected Delivery Date</FormLabel>
+                          <FormControl>
+                            <Input type="date" {...field} disabled={readOnly} className="h-8" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </CardContent>
+                </Card>
+
+                {/* Warehouse & Logistics */}
+                <Card className="shadow-sm border-border/50">
+                  <CardHeader className="pb-2 pt-3">
+                    <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                      <Truck className="h-4 w-4 text-primary" />
+                      Warehouse & Logistics
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <FormField
+                      control={form.control}
+                      name="default_warehouse_id"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-sm">Default Warehouse *</FormLabel>
+                          <Select 
+                            value={field.value} 
+                            onValueChange={(value) => {
+                              const previousValue = field.value;
+                              field.onChange(value);
+                              fetchBins(value);
+                              if (previousValue && previousValue !== value) {
+                                form.setValue('default_bin_id', '');
+                              }
+                            }} 
+                            disabled={readOnly}
+                          >
+                            <FormControl>
+                              <SelectTrigger className="h-8">
+                                <SelectValue placeholder="Select warehouse" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {warehouses.map((warehouse) => (
+                                <SelectItem key={warehouse.id} value={warehouse.id}>
+                                  {warehouse.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="default_bin_id"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-sm">Default Bin *</FormLabel>
+                          <Select 
+                            value={field.value} 
+                            onValueChange={(value) => {
+                              field.onChange(value);
+                              const warehouseId = form.watch('default_warehouse_id');
+                              if (warehouseId && value) {
+                                fetchStockLevels(warehouseId, value);
+                              }
+                            }} 
+                            disabled={readOnly || !form.watch('default_warehouse_id')}
+                          >
+                            <FormControl>
+                              <SelectTrigger className="h-8">
+                                <SelectValue placeholder="Select bin" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {bins.map((bin) => (
+                                <SelectItem key={bin.id} value={bin.id}>
+                                  {bin.bin_name} ({bin.wh_bin_code})
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </CardContent>
+                </Card>
+
+                {/* Additional Information */}
+                <Card className="shadow-sm border-border/50">
+                  <CardHeader className="pb-2 pt-3">
+                    <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                      <AlertCircle className="h-4 w-4 text-primary" />
+                      Additional Information
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <FormField
+                      control={form.control}
+                      name="notes"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-sm">Remarks / Special Instructions</FormLabel>
+                          <FormControl>
+                            <Textarea 
+                              placeholder="Enter any special instructions or remarks" 
+                              {...field} 
+                              disabled={readOnly} 
+                              rows={2}
+                              className="text-sm"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </CardContent>
+                </Card>
               </div>
-            </CardContent>
-          </Card>
+            </TabsContent>
 
-          {/* Form Actions */}
-          <div className="flex justify-end space-x-2">
-            <Button type="button" variant="outline" onClick={onCancel}>
-              Cancel
-            </Button>
-            {!readOnly && (
-              <Button type="submit" disabled={loading}>
-                {loading ? 'Saving...' : (mode === 'edit' ? 'Update Sales Order' : 'Create Sales Order')}
+            {/* Items & Summary Tab */}
+            <TabsContent value="items" className="flex-1 overflow-auto m-0 p-0">
+              <div className="space-y-4">
+                {/* Line Items */}
+                <OrderLineItemsTable
+                  control={form.control}
+                  fieldsArray={fieldsArray}
+                  products={products}
+                  globalGstType={globalGstType}
+                  onGstTypeChange={handleGlobalGstTypeChange}
+                  onAddItem={addItem}
+                  onProductSelect={handleProductSelect}
+                  onCalculateLineAmounts={calculateLineAmounts}
+                  onValidateGSTRate={validateGSTRate}
+                  readOnly={readOnly}
+                  currency="₹"
+                />
+
+                {/* Order Summary */}
+                <Card className="shadow-sm border-border/50">
+                  <CardHeader className="pb-2 pt-3">
+                    <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                      <Calculator className="h-4 w-4 text-primary" />
+                      Order Summary
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {/* Quick Totals */}
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+                      <div className="text-center p-2 bg-muted/30 rounded border">
+                        <Label className="text-xs text-muted-foreground">Subtotal</Label>
+                        <p className="text-sm font-semibold">₹{subtotal.toFixed(2)}</p>
+                      </div>
+                      <div className="text-center p-2 bg-muted/30 rounded border">
+                        <Label className="text-xs text-muted-foreground">Discount</Label>
+                        <p className="text-sm font-semibold">₹{totalDiscount.toFixed(2)}</p>
+                      </div>
+                      <div className="text-center p-2 bg-muted/30 rounded border">
+                        <Label className="text-xs text-muted-foreground">Tax</Label>
+                        <p className="text-sm font-semibold">₹{totalTax.toFixed(2)}</p>
+                      </div>
+                      <div className="text-center p-2 bg-primary/10 rounded border border-primary/20">
+                        <Label className="text-xs text-muted-foreground">Grand Total</Label>
+                        <p className="text-lg font-bold text-primary">₹{total.toFixed(2)}</p>
+                      </div>
+                    </div>
+
+                    <Separator className="my-3" />
+
+                    {/* Enhanced Summary */}
+                    <div className="space-y-3">
+                      <h4 className="text-sm font-semibold">Delivery Summary</h4>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                        {/* Total Order */}
+                        <div className="bg-blue-50 dark:bg-blue-950/20 p-3 rounded border border-blue-200 dark:border-blue-800">
+                          <div className="text-center">
+                            <Label className="text-xs font-medium text-blue-700 dark:text-blue-300">Total Order</Label>
+                            <div className="mt-1">
+                              <p className="text-sm font-bold text-blue-800 dark:text-blue-200">{fields.reduce((sum, _, i) => sum + (form.watch(`items.${i}.ordered_quantity`) || 0), 0)} units</p>
+                              <p className="text-xs text-blue-600 dark:text-blue-400">₹{total.toFixed(2)}</p>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Ready to Deliver */}
+                        <div className="bg-green-50 dark:bg-green-950/20 p-3 rounded border border-green-200 dark:border-green-800">
+                          <div className="text-center">
+                            <Label className="text-xs font-medium text-green-700 dark:text-green-300">Ready to Deliver</Label>
+                            <div className="mt-1">
+                              <p className="text-sm font-bold text-green-800 dark:text-green-200">
+                                {fields.reduce((sum, _, i) => {
+                                  const orderedQty = form.watch(`items.${i}.ordered_quantity`) || 0;
+                                  const stockOnHand = form.watch(`items.${i}.stock_on_hand`) || 0;
+                                  return sum + Math.min(orderedQty, stockOnHand);
+                                }, 0)} units
+                              </p>
+                              <p className="text-xs text-green-600 dark:text-green-400">Available</p>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Back Order */}
+                        <div className="bg-orange-50 dark:bg-orange-950/20 p-3 rounded border border-orange-200 dark:border-orange-800">
+                          <div className="text-center">
+                            <Label className="text-xs font-medium text-orange-700 dark:text-orange-300">Back Order</Label>
+                            <div className="mt-1">
+                              <p className="text-sm font-bold text-orange-800 dark:text-orange-200">
+                                {fields.reduce((sum, _, i) => {
+                                  const orderedQty = form.watch(`items.${i}.ordered_quantity`) || 0;
+                                  const stockOnHand = form.watch(`items.${i}.stock_on_hand`) || 0;
+                                  return sum + Math.max(0, orderedQty - stockOnHand);
+                                }, 0)} units
+                              </p>
+                              <p className="text-xs text-orange-600 dark:text-orange-400">Pending</p>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            </TabsContent>
+
+            {/* Action Buttons */}
+            <div className="flex justify-end gap-3 p-4 border-t bg-card/50">
+              <Button type="button" variant="outline" onClick={onCancel} disabled={loading}>
+                Cancel
               </Button>
-            )}
-          </div>
+              {!readOnly && (
+                <Button type="submit" disabled={loading}>
+                  {loading ? 'Saving...' : (mode === 'edit' ? 'Update Order' : 'Create Order')}
+                </Button>
+              )}
+            </div>
+          </Tabs>
         </form>
       </Form>
     </div>
