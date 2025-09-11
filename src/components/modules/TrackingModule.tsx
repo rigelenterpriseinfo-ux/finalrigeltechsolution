@@ -17,7 +17,7 @@ import { useToast } from '@/hooks/use-toast';
 interface TrackableOrder {
   id: string;
   order_number: string;
-  type: 'sales' | 'debit_note';
+  type: 'sales' | 'debit_note' | 'sales_invoice';
   status: string;
   order_date: string;
   customer_name?: string;
@@ -452,21 +452,155 @@ export function TrackingModule() {
   };
 
   const handleOrderClick = async (order: TrackableOrder) => {
-    setLoadingOrderDetails(true);
-    setOrderDetailDialogOpen(true);
-    
-    try {
-      const detailedOrder = await fetchOrderDetails(order);
-      setSelectedOrderForDetails(detailedOrder);
-    } catch (error) {
-      console.error('Error loading order details:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to load order details',
-        variant: 'destructive',
-      });
-    } finally {
-      setLoadingOrderDetails(false);
+    if (order.type === 'sales') {
+      // For sales orders, fetch and show the corresponding sales invoice
+      setLoadingOrderDetails(true);
+      setOrderDetailDialogOpen(true);
+      
+      try {
+        // Fetch the sales invoice associated with this sales order
+        const { data: invoices, error: invoiceError } = await supabase
+          .from('sales_invoices')
+          .select(`
+            id,
+            invoice_number,
+            status,
+            invoice_date,
+            customer_name,
+            subtotal_amount,
+            tax_amount,
+            discount_amount,
+            total_amount,
+            notes,
+            sales_order_id,
+            customer_id
+          `)
+          .eq('sales_order_id', order.id)
+          .single();
+
+        if (invoiceError && invoiceError.code !== 'PGRST116') {
+          console.error('Error fetching sales invoice:', invoiceError);
+          toast({
+            title: 'Error',
+            description: 'Failed to load invoice details',
+            variant: 'destructive',
+          });
+          return;
+        }
+
+        if (!invoices) {
+          // No invoice found, show order details instead
+          toast({
+            title: 'No Invoice Found',
+            description: 'No invoice has been created for this sales order yet.',
+            variant: 'default',
+          });
+          const detailedOrder = await fetchOrderDetails(order);
+          setSelectedOrderForDetails(detailedOrder);
+          return;
+        }
+
+        // Fetch invoice items
+        const { data: invoiceItems, error: itemsError } = await supabase
+          .from('sales_invoice_items')
+          .select(`
+            id,
+            item_description,
+            quantity_invoiced,
+            unit_price,
+            discount_amount,
+            tax_amount,
+            line_total,
+            unit_of_measure,
+            hsn_sac_code
+          `)
+          .eq('sales_invoice_id', invoices.id);
+
+        if (itemsError) {
+          console.error('Error fetching invoice items:', itemsError);
+        }
+
+        // Fetch customer address if available
+        let customerAddress: CustomerAddress | undefined;
+        if (invoices.customer_id) {
+          const { data: customer, error: customerError } = await supabase
+            .from('customers')
+            .select(`
+              shipping_address_line1,
+              shipping_address_line2,
+              shipping_city,
+              shipping_state,
+              shipping_country,
+              shipping_pin_code
+            `)
+            .eq('id', invoices.customer_id)
+            .single();
+
+          if (customerError) {
+            console.error('Error fetching customer address:', customerError);
+          } else {
+            customerAddress = customer;
+          }
+        }
+
+        // Format invoice data to match our DetailedOrder interface
+        const invoiceAsOrder: DetailedOrder = {
+          ...order,
+          id: invoices.id,
+          order_number: invoices.invoice_number,
+          type: 'sales_invoice' as any,
+          status: invoices.status,
+          order_date: invoices.invoice_date,
+          customer_name: invoices.customer_name,
+          subtotal_amount: invoices.subtotal_amount,
+          tax_amount: invoices.tax_amount,
+          discount_amount: invoices.discount_amount,
+          total_amount: invoices.total_amount,
+          notes: invoices.notes,
+          items: (invoiceItems || []).map(item => ({
+            id: item.id,
+            product_name: item.item_description,
+            product_sku: 'N/A',
+            quantity: item.quantity_invoiced,
+            unit_price: item.unit_price,
+            discount_amount: item.discount_amount || 0,
+            tax_amount: item.tax_amount || 0,
+            line_total: item.line_total,
+            unit_of_measure: item.unit_of_measure,
+            hsn_sac_code: item.hsn_sac_code
+          })),
+          customerAddress
+        };
+
+        setSelectedOrderForDetails(invoiceAsOrder);
+      } catch (error) {
+        console.error('Error loading invoice details:', error);
+        toast({
+          title: 'Error',
+          description: 'Failed to load invoice details',
+          variant: 'destructive',
+        });
+      } finally {
+        setLoadingOrderDetails(false);
+      }
+    } else {
+      // For debit notes, show the original order details
+      setLoadingOrderDetails(true);
+      setOrderDetailDialogOpen(true);
+      
+      try {
+        const detailedOrder = await fetchOrderDetails(order);
+        setSelectedOrderForDetails(detailedOrder);
+      } catch (error) {
+        console.error('Error loading order details:', error);
+        toast({
+          title: 'Error',
+          description: 'Failed to load order details',
+          variant: 'destructive',
+        });
+      } finally {
+        setLoadingOrderDetails(false);
+      }
     }
   };
 
@@ -479,7 +613,7 @@ export function TrackingModule() {
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
-            {order?.type === 'sales' ? 'Sales Order' : 'Debit Note'} Details - {order?.order_number}
+            {order?.type === 'sales_invoice' ? 'Sales Invoice' : order?.type === 'sales' ? 'Sales Order' : 'Debit Note'} Details - {order?.order_number}
           </DialogTitle>
         </DialogHeader>
         
@@ -803,7 +937,7 @@ export function TrackingModule() {
                             </DialogHeader>
                             <TrackingUpdateForm
                               orderId={item.id}
-                              orderType={item.type}
+                              orderType={item.type === 'sales_invoice' ? 'sales' : item.type}
                               initialData={{
                                 destination: item.destination,
                                 item_count: item.item_count,
