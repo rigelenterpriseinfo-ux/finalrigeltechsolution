@@ -7,10 +7,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Truck, Package, CheckCircle, Clock, Edit, FileText, Search } from 'lucide-react';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { Truck, Package, CheckCircle, Clock, Edit, FileText, Search, Trash2 } from 'lucide-react';
 import { useBusinessAuth } from '@/hooks/useBusinessAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
+import { TrackingUpdateForm } from '@/components/forms/TrackingUpdateForm';
+import { useToast } from '@/hooks/use-toast';
 
 interface TrackableOrder {
   id: string;
@@ -36,11 +39,14 @@ interface TrackableOrder {
 
 export function TrackingModule() {
   const { hasAccess } = useBusinessAuth();
+  const { toast } = useToast();
   const [orders, setOrders] = useState<TrackableOrder[]>([]);
   const [debitNotes, setDebitNotes] = useState<TrackableOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [editingOrder, setEditingOrder] = useState<TrackableOrder | null>(null);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
 
   const fetchTrackableOrders = async () => {
     try {
@@ -152,6 +158,55 @@ export function TrackingModule() {
       console.error('Error fetching trackable orders:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleTrackingUpdate = () => {
+    setIsDialogOpen(false);
+    setEditingOrder(null);
+    fetchTrackableOrders();
+  };
+
+  const handleDeleteTracking = async (orderId: string, orderType: 'sales' | 'debit_note') => {
+    try {
+      const tableName = orderType === 'sales' ? 'sales_orders' : 'debit_notes';
+      
+      const clearData = {
+        destination: null,
+        item_count: 0,
+        eway_bill_no: null,
+        eway_bill_date: null,
+        carrier_transporter: null,
+        awb_no: null,
+        eta: null,
+        tracking_status: 'pending',
+        dispatch_date: null,
+        delivery_date: null,
+        pod_document_url: null,
+      };
+
+      const { error } = await supabase
+        .from(tableName)
+        .update(clearData)
+        .eq('id', orderId);
+
+      if (error) {
+        throw error;
+      }
+
+      toast({
+        title: 'Success',
+        description: 'Tracking information cleared successfully',
+      });
+      
+      fetchTrackableOrders();
+    } catch (error) {
+      console.error('Delete error:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to clear tracking information',
+        variant: 'destructive',
+      });
     }
   };
 
@@ -300,23 +355,69 @@ export function TrackingModule() {
                     )}
                   </TableCell>
                   <TableCell>
-                    <Dialog>
-                      <DialogTrigger asChild>
-                        <Button size="sm" variant="outline">
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                      </DialogTrigger>
-                      <DialogContent className="max-w-2xl">
-                        <DialogHeader>
-                          <DialogTitle>Update Tracking Information</DialogTitle>
-                        </DialogHeader>
-                        <div className="grid grid-cols-2 gap-4">
-                          <p className="col-span-2 text-muted-foreground">
-                            Tracking update functionality will be implemented in the next phase.
-                          </p>
-                        </div>
-                      </DialogContent>
-                    </Dialog>
+                    <div className="flex gap-2">
+                      <Dialog open={isDialogOpen && editingOrder?.id === item.id} onOpenChange={setIsDialogOpen}>
+                        <DialogTrigger asChild>
+                          <Button 
+                            size="sm" 
+                            variant="outline"
+                            onClick={() => setEditingOrder(item)}
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+                          <DialogHeader>
+                            <DialogTitle>Update Tracking Information - {item.order_number}</DialogTitle>
+                          </DialogHeader>
+                          <TrackingUpdateForm
+                            orderId={item.id}
+                            orderType={item.type}
+                            initialData={{
+                              destination: item.destination,
+                              item_count: item.item_count,
+                              eway_bill_no: item.eway_bill_no,
+                              eway_bill_date: item.eway_bill_date ? new Date(item.eway_bill_date) : undefined,
+                              carrier_transporter: item.carrier_transporter,
+                              awb_no: item.awb_no,
+                              eta: item.eta ? new Date(item.eta) : undefined,
+                              tracking_status: item.tracking_status as any,
+                              dispatch_date: item.dispatch_date ? new Date(item.dispatch_date) : undefined,
+                              delivery_date: item.delivery_date ? new Date(item.delivery_date) : undefined,
+                              pod_document_url: item.pod_document_url,
+                            }}
+                            onSuccess={handleTrackingUpdate}
+                            onCancel={() => setIsDialogOpen(false)}
+                          />
+                        </DialogContent>
+                      </Dialog>
+                      
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button size="sm" variant="outline">
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Clear Tracking Information</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Are you sure you want to clear all tracking information for order {item.order_number}? 
+                              This action cannot be undone.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction
+                              onClick={() => handleDeleteTracking(item.id, item.type)}
+                              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                            >
+                              Clear Tracking
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))
