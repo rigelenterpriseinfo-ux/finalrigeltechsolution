@@ -1,34 +1,52 @@
-import { useState, useEffect } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { supabase } from '@/integrations/supabase/client';
+import React, { useState, useEffect } from 'react';
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Truck, Package, CheckCircle, Clock, Edit, FileText, Search } from 'lucide-react';
 import { useBusinessAuth } from '@/hooks/useBusinessAuth';
-import { Search, MapPin, Truck, Package, CheckCircle } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { format } from 'date-fns';
 
 interface TrackableOrder {
   id: string;
   order_number: string;
-  type: 'sales' | 'purchase';
+  type: 'sales' | 'debit_note';
   status: string;
   order_date: string;
-  expected_date?: string | null;
-  delivery_date?: string | null;
   customer_name?: string;
   supplier_name?: string;
   total_amount: number;
+  destination?: string;
+  item_count?: number;
+  eway_bill_no?: string;
+  eway_bill_date?: string;
+  carrier_transporter?: string;
+  awb_no?: string;
+  eta?: string;
+  pod_document_url?: string;
+  tracking_status?: string;
+  dispatch_date?: string;
+  delivery_date?: string;
 }
 
 export function TrackingModule() {
   const { hasAccess } = useBusinessAuth();
   const [orders, setOrders] = useState<TrackableOrder[]>([]);
+  const [debitNotes, setDebitNotes] = useState<TrackableOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  
+  const [statusFilter, setStatusFilter] = useState<string>('all');
+
   const fetchTrackableOrders = async () => {
     try {
-      // Fetch sales orders
+      setLoading(true);
+      
+      // Fetch sales orders with tracking fields
       const { data: salesOrders, error: salesError } = await supabase
         .from('sales_orders')
         .select(`
@@ -36,61 +54,100 @@ export function TrackingModule() {
           order_number,
           status,
           order_date,
-          delivery_date,
           total_amount,
-          customer:customers(name)
-        `)
-        .in('status', ['confirmed', 'shipped'])
-        .order('order_date', { ascending: false });
+          destination,
+          item_count,
+          eway_bill_no,
+          eway_bill_date,
+          carrier_transporter,
+          awb_no,
+          eta,
+          pod_document_url,
+          tracking_status,
+          dispatch_date,
+          delivery_date,
+          customers(name)
+        `);
 
       if (salesError) {
         console.error('Error fetching sales orders:', salesError);
+        return;
       }
 
-      // Fetch purchase orders
-      const { data: purchaseOrders, error: purchaseError } = await supabase
-        .from('purchase_orders')
+      // Fetch debit notes with tracking fields
+      const { data: debitNotesData, error: debitError } = await supabase
+        .from('debit_notes')
         .select(`
           id,
-          po_number,
+          debit_note_number,
           status,
-          order_date,
-          expected_date,
+          debit_note_date,
+          supplier_name,
           total_amount,
-          supplier:suppliers(name)
-        `)
-        .in('status', ['sent', 'confirmed'])
-        .order('order_date', { ascending: false });
+          destination,
+          item_count,
+          eway_bill_no,
+          eway_bill_date,
+          carrier_transporter,
+          awb_no,
+          eta,
+          pod_document_url,
+          tracking_status,
+          dispatch_date,
+          delivery_date
+        `);
 
-      if (purchaseError) {
-        console.error('Error fetching purchase orders:', purchaseError);
+      if (debitError) {
+        console.error('Error fetching debit notes:', debitError);
+        return;
       }
 
-      // Combine and format orders
-      const allOrders: TrackableOrder[] = [
-        ...(salesOrders || []).map(order => ({
-          id: order.id,
-          order_number: order.order_number,
-          type: 'sales' as const,
-          status: order.status,
-          order_date: order.order_date,
-          delivery_date: order.delivery_date,
-          customer_name: order.customer?.name,
-          total_amount: order.total_amount,
-        })),
-        ...(purchaseOrders || []).map(order => ({
-          id: order.id,
-          order_number: order.po_number,
-          type: 'purchase' as const,
-          status: order.status,
-          order_date: order.order_date,
-          expected_date: order.expected_date,
-          supplier_name: order.supplier?.name,
-          total_amount: order.total_amount,
-        })),
-      ];
+      // Format sales orders
+      const trackableSalesOrders: TrackableOrder[] = (salesOrders || []).map(order => ({
+        id: order.id,
+        order_number: order.order_number,
+        type: 'sales' as const,
+        status: order.status,
+        order_date: order.order_date,
+        customer_name: order.customers?.name,
+        total_amount: order.total_amount,
+        destination: order.destination,
+        item_count: order.item_count,
+        eway_bill_no: order.eway_bill_no,
+        eway_bill_date: order.eway_bill_date,
+        carrier_transporter: order.carrier_transporter,
+        awb_no: order.awb_no,
+        eta: order.eta,
+        pod_document_url: order.pod_document_url,
+        tracking_status: order.tracking_status || 'pending',
+        dispatch_date: order.dispatch_date,
+        delivery_date: order.delivery_date
+      }));
 
-      setOrders(allOrders);
+      // Format debit notes
+      const trackableDebitNotes: TrackableOrder[] = (debitNotesData || []).map(note => ({
+        id: note.id,
+        order_number: note.debit_note_number,
+        type: 'debit_note' as const,
+        status: note.status,
+        order_date: note.debit_note_date,
+        supplier_name: note.supplier_name,
+        total_amount: note.total_amount,
+        destination: note.destination,
+        item_count: note.item_count,
+        eway_bill_no: note.eway_bill_no,
+        eway_bill_date: note.eway_bill_date,
+        carrier_transporter: note.carrier_transporter,
+        awb_no: note.awb_no,
+        eta: note.eta,
+        pod_document_url: note.pod_document_url,
+        tracking_status: note.tracking_status || 'pending',
+        dispatch_date: note.dispatch_date,
+        delivery_date: note.delivery_date
+      }));
+
+      setOrders(trackableSalesOrders);
+      setDebitNotes(trackableDebitNotes);
     } catch (error) {
       console.error('Error fetching trackable orders:', error);
     } finally {
@@ -117,57 +174,6 @@ export function TrackingModule() {
     );
   }
 
-  const getStatusIcon = (status: string, type: string) => {
-    if (type === 'sales') {
-      switch (status) {
-        case 'confirmed': return <Package className="h-4 w-4 text-blue-600" />;
-        case 'shipped': return <Truck className="h-4 w-4 text-orange-600" />;
-        case 'delivered': return <CheckCircle className="h-4 w-4 text-green-600" />;
-        default: return <MapPin className="h-4 w-4 text-gray-600" />;
-      }
-    } else {
-      switch (status) {
-        case 'sent': return <Package className="h-4 w-4 text-blue-600" />;
-        case 'confirmed': return <Truck className="h-4 w-4 text-orange-600" />;
-        case 'received': return <CheckCircle className="h-4 w-4 text-green-600" />;
-        default: return <MapPin className="h-4 w-4 text-gray-600" />;
-      }
-    }
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'confirmed':
-      case 'sent': return 'default';
-      case 'shipped': return 'default';
-      case 'delivered':
-      case 'received': return 'default';
-      default: return 'secondary';
-    }
-  };
-
-  const getTrackingSteps = (order: TrackableOrder) => {
-    if (order.type === 'sales') {
-      return [
-        { name: 'Order Confirmed', completed: ['confirmed', 'shipped', 'delivered'].includes(order.status) },
-        { name: 'Order Shipped', completed: ['shipped', 'delivered'].includes(order.status) },
-        { name: 'Order Delivered', completed: order.status === 'delivered' },
-      ];
-    } else {
-      return [
-        { name: 'Order Sent', completed: ['sent', 'confirmed', 'received'].includes(order.status) },
-        { name: 'Order Confirmed', completed: ['confirmed', 'received'].includes(order.status) },
-        { name: 'Order Received', completed: order.status === 'received' },
-      ];
-    }
-  };
-
-  const filteredOrders = orders.filter(order =>
-    order.order_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    order.customer_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    order.supplier_name?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
   if (loading) {
     return (
       <div className="flex items-center justify-center h-48">
@@ -176,152 +182,243 @@ export function TrackingModule() {
     );
   }
 
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'pending': return 'secondary';
+      case 'processing': return 'default';
+      case 'dispatched': return 'default';
+      case 'in_transit': return 'default';
+      case 'delivered': return 'default';
+      default: return 'secondary';
+    }
+  };
+
+  const filteredOrders = orders.filter(order => {
+    const matchesSearch = order.order_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (order.customer_name && order.customer_name.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (order.awb_no && order.awb_no.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (order.eway_bill_no && order.eway_bill_no.toLowerCase().includes(searchTerm.toLowerCase()));
+    
+    const matchesStatus = statusFilter === 'all' || order.tracking_status === statusFilter;
+    
+    return matchesSearch && matchesStatus;
+  });
+
+  const filteredDebitNotes = debitNotes.filter(note => {
+    const matchesSearch = note.order_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (note.supplier_name && note.supplier_name.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (note.awb_no && note.awb_no.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (note.eway_bill_no && note.eway_bill_no.toLowerCase().includes(searchTerm.toLowerCase()));
+    
+    const matchesStatus = statusFilter === 'all' || note.tracking_status === statusFilter;
+    
+    return matchesSearch && matchesStatus;
+  });
+
+  const renderTrackingTable = (data: TrackableOrder[], title: string) => (
+    <Card>
+      <CardHeader>
+        <CardTitle>{title}</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Order Number</TableHead>
+              <TableHead>Customer/Supplier</TableHead>
+              <TableHead>Destination</TableHead>
+              <TableHead>Item Count</TableHead>
+              <TableHead>E-way Bill No</TableHead>
+              <TableHead>E-way Bill Date</TableHead>
+              <TableHead>Carrier/Transporter</TableHead>
+              <TableHead>AWB No</TableHead>
+              <TableHead>ETA</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead>Dispatch Date</TableHead>
+              <TableHead>Delivery Date</TableHead>
+              <TableHead>POD</TableHead>
+              <TableHead>Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {data.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={14} className="text-center py-8">
+                  <Package className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                  <p className="text-muted-foreground">No {title.toLowerCase()} to track</p>
+                </TableCell>
+              </TableRow>
+            ) : (
+              data.map((item) => (
+                <TableRow key={item.id}>
+                  <TableCell className="font-medium">{item.order_number}</TableCell>
+                  <TableCell>{item.customer_name || item.supplier_name}</TableCell>
+                  <TableCell>{item.destination || '-'}</TableCell>
+                  <TableCell>{item.item_count || '-'}</TableCell>
+                  <TableCell>{item.eway_bill_no || '-'}</TableCell>
+                  <TableCell>
+                    {item.eway_bill_date ? format(new Date(item.eway_bill_date), 'dd/MM/yyyy') : '-'}
+                  </TableCell>
+                  <TableCell>{item.carrier_transporter || '-'}</TableCell>
+                  <TableCell>{item.awb_no || '-'}</TableCell>
+                  <TableCell>
+                    {item.eta ? format(new Date(item.eta), 'dd/MM/yyyy') : '-'}
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant={getStatusColor(item.tracking_status || 'pending')}>
+                      {(item.tracking_status || 'pending').replace('_', ' ').toUpperCase()}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
+                    {item.dispatch_date ? format(new Date(item.dispatch_date), 'dd/MM/yyyy') : '-'}
+                  </TableCell>
+                  <TableCell>
+                    {item.delivery_date ? format(new Date(item.delivery_date), 'dd/MM/yyyy') : '-'}
+                  </TableCell>
+                  <TableCell>
+                    {item.pod_document_url ? (
+                      <Button size="sm" variant="outline" asChild>
+                        <a href={item.pod_document_url} target="_blank" rel="noopener noreferrer">
+                          <FileText className="h-4 w-4" />
+                        </a>
+                      </Button>
+                    ) : (
+                      '-'
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    <Dialog>
+                      <DialogTrigger asChild>
+                        <Button size="sm" variant="outline">
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent className="max-w-2xl">
+                        <DialogHeader>
+                          <DialogTitle>Update Tracking Information</DialogTitle>
+                        </DialogHeader>
+                        <div className="grid grid-cols-2 gap-4">
+                          <p className="col-span-2 text-muted-foreground">
+                            Tracking update functionality will be implemented in the next phase.
+                          </p>
+                        </div>
+                      </DialogContent>
+                    </Dialog>
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
+          </TableBody>
+        </Table>
+      </CardContent>
+    </Card>
+  );
+
   return (
     <div className="space-y-6">
-      {/* Stats Cards */}
-      <div className="grid gap-6 md:grid-cols-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold">Track & Trace</h1>
+          <p className="text-muted-foreground">Monitor your orders and shipments with comprehensive tracking</p>
+        </div>
+      </div>
+
+      {/* Summary Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">In Transit</CardTitle>
-            <Truck className="h-4 w-4 text-orange-600" />
+            <Truck className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {orders.filter(o => ['shipped', 'confirmed'].includes(o.status)).length}
+              {[...filteredOrders, ...filteredDebitNotes].filter(o => 
+                o.tracking_status === 'in_transit' || o.tracking_status === 'dispatched'
+              ).length}
             </div>
-            <p className="text-xs text-muted-foreground">Orders being processed</p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Pending Shipment</CardTitle>
-            <Package className="h-4 w-4 text-blue-600" />
+            <Package className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {orders.filter(o => ['confirmed', 'sent'].includes(o.status)).length}
+              {[...filteredOrders, ...filteredDebitNotes].filter(o => 
+                o.tracking_status === 'pending' || o.tracking_status === 'processing'
+              ).length}
             </div>
-            <p className="text-xs text-muted-foreground">Awaiting dispatch</p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Delivered</CardTitle>
-            <CheckCircle className="h-4 w-4 text-green-600" />
+            <CheckCircle className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {orders.filter(o => ['delivered', 'received'].includes(o.status)).length}
+              {[...filteredOrders, ...filteredDebitNotes].filter(o => 
+                o.tracking_status === 'delivered'
+              ).length}
             </div>
-            <p className="text-xs text-muted-foreground">Successfully completed</p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Orders</CardTitle>
-            <MapPin className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium">Total Items</CardTitle>
+            <Clock className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{orders.length}</div>
-            <p className="text-xs text-muted-foreground">Being tracked</p>
+            <div className="text-2xl font-bold">{filteredOrders.length + filteredDebitNotes.length}</div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Search */}
-      <div className="flex items-center gap-4">
-        <div className="relative flex-1 max-w-sm">
+      {/* Search and Filters */}
+      <div className="flex gap-4">
+        <div className="flex-1 relative">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
-            placeholder="Search orders to track..."
+            placeholder="Search by order number, customer, AWB, E-way bill..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10"
+            className="pl-10 max-w-md"
           />
         </div>
+        <Select value={statusFilter} onValueChange={setStatusFilter}>
+          <SelectTrigger className="w-48">
+            <SelectValue placeholder="Filter by status" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Status</SelectItem>
+            <SelectItem value="pending">Pending</SelectItem>
+            <SelectItem value="processing">Processing</SelectItem>
+            <SelectItem value="dispatched">Dispatched</SelectItem>
+            <SelectItem value="in_transit">In Transit</SelectItem>
+            <SelectItem value="delivered">Delivered</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
-      {/* Orders List */}
-      <div className="space-y-4">
-        {filteredOrders.map((order) => (
-          <Card key={order.id}>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  {getStatusIcon(order.status, order.type)}
-                  <div>
-                    <CardTitle className="text-lg">{order.order_number}</CardTitle>
-                    <CardDescription>
-                      {order.type === 'sales' ? `Customer: ${order.customer_name}` : `Supplier: ${order.supplier_name}`}
-                      {' • '}
-                      ${order.total_amount.toFixed(2)}
-                    </CardDescription>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Badge variant={getStatusColor(order.status)}>
-                    {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
-                  </Badge>
-                  <Badge variant="outline">
-                    {order.type === 'sales' ? 'Sales' : 'Purchase'}
-                  </Badge>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center justify-between mb-4">
-                <span className="text-sm text-muted-foreground">
-                  Order Date: {new Date(order.order_date).toLocaleDateString()}
-                </span>
-                {(order.expected_date || order.delivery_date) && (
-                  <span className="text-sm text-muted-foreground">
-                    {order.type === 'sales' ? 'Delivery' : 'Expected'}: {' '}
-                    {new Date(order.expected_date || order.delivery_date!).toLocaleDateString()}
-                  </span>
-                )}
-              </div>
-              
-              {/* Progress Tracker */}
-              <div className="flex items-center justify-between">
-                {getTrackingSteps(order).map((step, index) => (
-                  <div key={index} className="flex flex-col items-center flex-1">
-                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-medium ${
-                      step.completed 
-                        ? 'bg-green-100 text-green-800 border-2 border-green-500' 
-                        : 'bg-gray-100 text-gray-500 border-2 border-gray-300'
-                    }`}>
-                      {step.completed ? '✓' : index + 1}
-                    </div>
-                    <span className={`text-xs mt-2 text-center ${
-                      step.completed ? 'text-green-700' : 'text-gray-500'
-                    }`}>
-                      {step.name}
-                    </span>
-                    {index < getTrackingSteps(order).length - 1 && (
-                      <div className={`absolute h-0.5 w-full top-4 ${
-                        step.completed ? 'bg-green-500' : 'bg-gray-300'
-                      }`} style={{ left: '50%', width: 'calc(100% - 2rem)', zIndex: -1 }} />
-                    )}
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-        
-        {filteredOrders.length === 0 && (
-          <Card>
-            <CardContent className="text-center py-8">
-              <MapPin className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-muted-foreground">No orders to track</h3>
-              <p className="text-sm text-muted-foreground">Orders will appear here once they're confirmed or shipped</p>
-            </CardContent>
-          </Card>
-        )}
-      </div>
+      {/* Tabs for different order types */}
+      <Tabs defaultValue="sales" className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="sales">Sales Orders</TabsTrigger>
+          <TabsTrigger value="debit_notes">Debit Notes</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="sales" className="space-y-4">
+          {renderTrackingTable(filteredOrders, "Sales Orders Tracking")}
+        </TabsContent>
+
+        <TabsContent value="debit_notes" className="space-y-4">
+          {renderTrackingTable(filteredDebitNotes, "Debit Notes Tracking")}
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

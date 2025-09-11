@@ -809,15 +809,25 @@ export type Database = {
       }
       debit_notes: {
         Row: {
+          awb_no: string | null
+          carrier_transporter: string | null
           company_id: string
           created_at: string
           created_by: string
           debit_note_date: string
           debit_note_number: string | null
+          delivery_date: string | null
+          destination: string | null
           discount_amount: number
+          dispatch_date: string | null
+          eta: string | null
+          eway_bill_date: string | null
+          eway_bill_no: string | null
           grn_id: string | null
           id: string
+          item_count: number | null
           notes: string | null
+          pod_document_url: string | null
           purchase_order_id: string | null
           reason: string
           status: string
@@ -828,18 +838,29 @@ export type Database = {
           supplier_name: string
           tax_amount: number
           total_amount: number
+          tracking_status: string | null
           updated_at: string
         }
         Insert: {
+          awb_no?: string | null
+          carrier_transporter?: string | null
           company_id: string
           created_at?: string
           created_by: string
           debit_note_date?: string
           debit_note_number?: string | null
+          delivery_date?: string | null
+          destination?: string | null
           discount_amount?: number
+          dispatch_date?: string | null
+          eta?: string | null
+          eway_bill_date?: string | null
+          eway_bill_no?: string | null
           grn_id?: string | null
           id?: string
+          item_count?: number | null
           notes?: string | null
+          pod_document_url?: string | null
           purchase_order_id?: string | null
           reason: string
           status?: string
@@ -850,18 +871,29 @@ export type Database = {
           supplier_name: string
           tax_amount?: number
           total_amount?: number
+          tracking_status?: string | null
           updated_at?: string
         }
         Update: {
+          awb_no?: string | null
+          carrier_transporter?: string | null
           company_id?: string
           created_at?: string
           created_by?: string
           debit_note_date?: string
           debit_note_number?: string | null
+          delivery_date?: string | null
+          destination?: string | null
           discount_amount?: number
+          dispatch_date?: string | null
+          eta?: string | null
+          eway_bill_date?: string | null
+          eway_bill_no?: string | null
           grn_id?: string | null
           id?: string
+          item_count?: number | null
           notes?: string | null
+          pod_document_url?: string | null
           purchase_order_id?: string | null
           reason?: string
           status?: string
@@ -872,6 +904,7 @@ export type Database = {
           supplier_name?: string
           tax_amount?: number
           total_amount?: number
+          tracking_status?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -2664,12 +2697,14 @@ export type Database = {
       sales_orders: {
         Row: {
           account_manager: string | null
+          awb_no: string | null
           billing_address_line1: string | null
           billing_address_line2: string | null
           billing_city: string | null
           billing_country: string | null
           billing_pin_code: string | null
           billing_state: string | null
+          carrier_transporter: string | null
           company_id: string
           created_at: string
           created_by: string
@@ -2687,9 +2722,15 @@ export type Database = {
           delivery_pin_code: string | null
           delivery_postal_code: string | null
           delivery_state: string | null
+          destination: string | null
           discount_amount: number
+          dispatch_date: string | null
+          eta: string | null
+          eway_bill_date: string | null
+          eway_bill_no: string | null
           expected_delivery_date: string | null
           id: string
+          item_count: number | null
           mode_of_transport: string | null
           notes: string | null
           order_date: string
@@ -2697,6 +2738,7 @@ export type Database = {
           order_type: string | null
           payment_terms: string | null
           place_of_supply: string | null
+          pod_document_url: string | null
           salesperson_id: string | null
           same_as_registered_address: boolean | null
           shipping_instructions: string | null
@@ -2704,16 +2746,19 @@ export type Database = {
           subtotal_amount: number | null
           tax_amount: number
           total_amount: number
+          tracking_status: string | null
           updated_at: string
         }
         Insert: {
           account_manager?: string | null
+          awb_no?: string | null
           billing_address_line1?: string | null
           billing_address_line2?: string | null
           billing_city?: string | null
           billing_country?: string | null
           billing_pin_code?: string | null
           billing_state?: string | null
+          carrier_transporter?: string | null
           company_id: string
           created_at?: string
           created_by: string
@@ -2731,9 +2776,15 @@ export type Database = {
           delivery_pin_code?: string | null
           delivery_postal_code?: string | null
           delivery_state?: string | null
+          destination?: string | null
           discount_amount?: number
+          dispatch_date?: string | null
+          eta?: string | null
+          eway_bill_date?: string | null
+          eway_bill_no?: string | null
           expected_delivery_date?: string | null
           id?: string
+          item_count?: number | null
           mode_of_transport?: string | null
           notes?: string | null
           order_date?: string
@@ -2741,6 +2792,7 @@ export type Database = {
           order_type?: string | null
           payment_terms?: string | null
           place_of_supply?: string | null
+          pod_document_url?: string | null
           salesperson_id?: string | null
           same_as_registered_address?: boolean | null
           shipping_instructions?: string | null
@@ -2748,16 +2800,19 @@ export type Database = {
           subtotal_amount?: number | null
           tax_amount?: number
           total_amount?: number
+          tracking_status?: string | null
           updated_at?: string
         }
         Update: {
           account_manager?: string | null
+          awb_no?: string | null
           billing_address_line1?: string | null
           billing_address_line2?: string | null
           billing_city?: string | null
           billing_country?: string | null
           billing_pin_code?: string | null
           billing_state?: string | null
+          carrier_transporter?: string | null
           company_id?: string
           created_at?: string
           created_by?: string
@@ -2775,9 +2830,15 @@ export type Database = {
           delivery_pin_code?: string | null
           delivery_postal_code?: string | null
           delivery_state?: string | null
+          destination?: string | null
           discount_amount?: number
+          dispatch_date?: string | null
+          eta?: string | null
+          eway_bill_date?: string | null
+          eway_bill_no?: string | null
           expected_delivery_date?: string | null
           id?: string
+          item_count?: number | null
           mode_of_transport?: string | null
           notes?: string | null
           order_date?: string
@@ -2785,6 +2846,7 @@ export type Database = {
           order_type?: string | null
           payment_terms?: string | null
           place_of_supply?: string | null
+          pod_document_url?: string | null
           salesperson_id?: string | null
           same_as_registered_address?: boolean | null
           shipping_instructions?: string | null
@@ -2792,6 +2854,7 @@ export type Database = {
           subtotal_amount?: number | null
           tax_amount?: number
           total_amount?: number
+          tracking_status?: string | null
           updated_at?: string
         }
         Relationships: [
