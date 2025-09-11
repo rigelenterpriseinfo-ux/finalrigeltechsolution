@@ -97,8 +97,10 @@ const reportCategories: ReportCategory[] = [
     reports: [
       { id: 'sales_orders', name: 'Sales Orders', description: 'Sales orders analysis', category: 'sales', requiresFilters: ['dateRange'], dataFields: ['orderNumber', 'customer', 'amount', 'status'] },
       { id: 'customer_sales', name: 'Customer Sales', description: 'Customer-wise sales analysis', category: 'sales', requiresFilters: ['dateRange'], dataFields: ['customer', 'totalSales', 'orderCount'] },
+      { id: 'item_wise_sales', name: 'Item wise Sales Report', description: 'Product-wise sales analysis with quantities and revenue', category: 'sales', requiresFilters: ['dateRange'], dataFields: ['product', 'quantitySold', 'totalRevenue', 'avgPrice'] },
       { id: 'purchase_orders', name: 'Purchase Orders', description: 'Purchase orders analysis', category: 'sales', requiresFilters: ['dateRange'], dataFields: ['orderNumber', 'vendor', 'amount', 'status'] },
       { id: 'vendor_purchases', name: 'Vendor Purchases', description: 'Vendor-wise purchase analysis', category: 'sales', requiresFilters: ['dateRange'], dataFields: ['vendor', 'totalPurchases', 'orderCount'] },
+      { id: 'item_wise_purchase', name: 'Item wise Purchase Report', description: 'Product-wise purchase analysis with quantities and costs', category: 'sales', requiresFilters: ['dateRange'], dataFields: ['product', 'quantityPurchased', 'totalCost', 'avgPrice'] },
       { id: 'quotation_comparison', name: 'Quotation Comparison', description: 'Vendor quotation comparison', category: 'sales', requiresFilters: ['dateRange'] }
     ]
   },
@@ -689,6 +691,160 @@ export function EnhancedReportsModule() {
     return { tableData, chartData };
   };
 
+  const fetchItemWiseSalesData = async (filters: FilterState) => {
+    const { data: salesItems, error } = await supabase
+      .from('sales_invoice_items')
+      .select(`
+        *,
+        sales_invoices!inner(
+          invoice_date,
+          status,
+          customer_name
+        )
+      `)
+      .eq('sales_invoices.status', 'finalized')
+      .gte('sales_invoices.invoice_date', format(filters.dateRange.from, 'yyyy-MM-dd'))
+      .lte('sales_invoices.invoice_date', format(filters.dateRange.to, 'yyyy-MM-dd'));
+
+    if (error) throw error;
+
+    // Get product information separately
+    const productIds = [...new Set(salesItems?.map(item => item.product_id).filter(Boolean))] as string[];
+    let productsData: any[] = [];
+    
+    if (productIds.length > 0) {
+      const { data: products } = await supabase
+        .from('products')
+        .select('id, name, sku')
+        .in('id', productIds);
+      productsData = products || [];
+    }
+
+    // Create product lookup map
+    const productMap = productsData.reduce((acc: Record<string, any>, product) => {
+      acc[product.id] = product;
+      return acc;
+    }, {});
+
+    // Group by product
+    const productSales = salesItems?.reduce((acc: Record<string, any>, item) => {
+      const productKey = item.product_id || 'unknown';
+      const productInfo = productMap[item.product_id];
+      const productName = productInfo?.name || item.item_description || 'Unknown Product';
+      const sku = productInfo?.sku || 'N/A';
+      
+      if (!acc[productKey]) {
+        acc[productKey] = {
+          product: productName,
+          sku: sku,
+          quantitySold: 0,
+          totalRevenue: 0,
+          avgPrice: 0,
+          invoiceCount: new Set()
+        };
+      }
+      
+      acc[productKey].quantitySold += item.quantity_invoiced || 0;
+      acc[productKey].totalRevenue += item.line_total || 0;
+      acc[productKey].invoiceCount.add(item.sales_invoice_id);
+      
+      return acc;
+    }, {}) || {};
+
+    // Calculate averages and convert Set to count
+    const tableData = Object.values(productSales).map((item: any) => ({
+      ...item,
+      avgPrice: item.quantitySold > 0 ? item.totalRevenue / item.quantitySold : 0,
+      invoiceCount: item.invoiceCount.size
+    })).sort((a: any, b: any) => b.totalRevenue - a.totalRevenue);
+
+    // Chart data - top 10 products by revenue
+    const chartData = tableData.slice(0, 10).map((item: any) => ({
+      name: item.product.length > 20 ? item.product.substring(0, 20) + '...' : item.product,
+      value: item.totalRevenue,
+      quantity: item.quantitySold
+    }));
+
+    return { tableData, chartData };
+  };
+
+  const fetchItemWisePurchaseData = async (filters: FilterState) => {
+    const { data: purchaseItems, error } = await supabase
+      .from('grn_line_items')
+      .select(`
+        *,
+        grn_header!inner(
+          grn_date,
+          status,
+          supplier_name
+        )
+      `)
+      .in('grn_header.status', ['accepted', 'received', 'partially_received'])
+      .gte('grn_header.grn_date', format(filters.dateRange.from, 'yyyy-MM-dd'))
+      .lte('grn_header.grn_date', format(filters.dateRange.to, 'yyyy-MM-dd'));
+
+    if (error) throw error;
+
+    // Get product information separately
+    const productIds = [...new Set(purchaseItems?.map(item => item.product_id).filter(Boolean))] as string[];
+    let productsData: any[] = [];
+    
+    if (productIds.length > 0) {
+      const { data: products } = await supabase
+        .from('products')
+        .select('id, name, sku')
+        .in('id', productIds);
+      productsData = products || [];
+    }
+
+    // Create product lookup map
+    const productMap = productsData.reduce((acc: Record<string, any>, product) => {
+      acc[product.id] = product;
+      return acc;
+    }, {});
+
+    // Group by product
+    const productPurchases = purchaseItems?.reduce((acc: Record<string, any>, item) => {
+      const productKey = item.product_id || 'unknown';
+      const productInfo = productMap[item.product_id];
+      const productName = productInfo?.name || item.product_name || 'Unknown Product';
+      const sku = productInfo?.sku || item.product_sku || 'N/A';
+      
+      if (!acc[productKey]) {
+        acc[productKey] = {
+          product: productName,
+          sku: sku,
+          quantityPurchased: 0,
+          totalCost: 0,
+          avgPrice: 0,
+          grnCount: new Set()
+        };
+      }
+      
+      acc[productKey].quantityPurchased += item.accepted_quantity || 0;
+      acc[productKey].totalCost += item.line_total || 0;
+      acc[productKey].grnCount.add(item.grn_header_id);
+      
+      return acc;
+    }, {}) || {};
+
+    // Calculate averages and convert Set to count
+    const tableData = Object.values(productPurchases).map((item: any) => ({
+      ...item,
+      avgPrice: item.quantityPurchased > 0 ? item.totalCost / item.quantityPurchased : 0,
+      grnCount: item.grnCount.size
+    })).sort((a: any, b: any) => b.totalCost - a.totalCost);
+
+    // Chart data - top 10 products by cost
+    const chartData = tableData.slice(0, 10).map((item: any) => ({
+      name: item.product.length > 20 ? item.product.substring(0, 20) + '...' : item.product,
+      value: item.totalCost,
+      quantity: item.quantityPurchased
+    }));
+
+    return { tableData, chartData };
+  };
+
   const fetchCreditDebitNotesData = async (filters: FilterState) => {
     const { data: creditNotes, error: creditError } = await supabase
       .from('credit_notes')
@@ -890,6 +1046,10 @@ export function EnhancedReportsModule() {
           return await fetchStockMovementData(filters);
         case 'credit_debit_notes':
           return await fetchCreditDebitNotesData(filters);
+        case 'item_wise_sales':
+          return await fetchItemWiseSalesData(filters);
+        case 'item_wise_purchase':
+          return await fetchItemWisePurchaseData(filters);
         default:
           return { tableData: [], chartData: [] };
       }
