@@ -9,7 +9,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
-import { useBusinessAuth } from '@/hooks/useBusinessAuth';
+import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 import {
   ResponsiveContainer,
@@ -66,7 +66,7 @@ const reportCategories = [
 ];
 
 export default function EnhancedReportsModule() {
-  const { businessUser } = useBusinessAuth();
+  const { user, profile } = useAuth();
   const [selectedReport, setSelectedReport] = useState<string>('ar_aging');
   const [selectedCategory, setSelectedCategory] = useState<string>('finance');
   const [openCategories, setOpenCategories] = useState<string[]>(['finance']);
@@ -207,7 +207,7 @@ export default function EnhancedReportsModule() {
   const { data: reportResult, isLoading } = useQuery({
     queryKey: ['report', selectedReport, filters],
     queryFn: () => generateReportData(selectedReport, filters),
-    enabled: !!selectedReport && !!businessUser
+    enabled: !!selectedReport && !!user && !!profile
   });
 
   // Update state when query data changes
@@ -246,10 +246,10 @@ export default function EnhancedReportsModule() {
     setSelectedCategory(categoryId);
   };
 
-  if (!businessUser) {
+  if (!user || !profile) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="text-muted-foreground">Access denied. Admin privileges required.</div>
+        <div className="text-muted-foreground">Please log in to access reports.</div>
       </div>
     );
   }
