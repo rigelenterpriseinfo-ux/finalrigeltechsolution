@@ -312,18 +312,6 @@ export const EnhancedCurrentStockSystem = () => {
 
   return (
     <div className="space-y-6 p-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="p-2 bg-primary/10 rounded-lg">
-            <Package className="h-6 w-6 text-primary" />
-          </div>
-          <div>
-            <h1 className="text-2xl font-bold">Current Stock Management</h1>
-            <p className="text-muted-foreground">Advanced inventory tracking and allocation management</p>
-          </div>
-        </div>
-      </div>
 
       {/* Search Interface */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
