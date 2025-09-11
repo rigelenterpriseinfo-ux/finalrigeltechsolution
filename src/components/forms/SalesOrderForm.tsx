@@ -888,6 +888,144 @@ export function SalesOrderForm({
                       </div>
                     </CardContent>
                   </Card>
+
+                  {/* Delivery Address */}
+                  <Card className="shadow-sm border-border/50">
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-base font-semibold flex items-center gap-2">
+                        <MapPin className="h-4 w-4 text-primary" />
+                        Delivery Address
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="flex items-center space-x-2">
+                        <Checkbox
+                          id="same_as_registered_address"
+                          checked={form.watch('same_as_registered_address')}
+                          onCheckedChange={handleSameAsRegisteredAddressChange}
+                          disabled={readOnly}
+                        />
+                        <FormLabel
+                          htmlFor="same_as_registered_address"
+                          className="text-sm font-normal cursor-pointer"
+                        >
+                          Same as registered address
+                        </FormLabel>
+                      </div>
+
+                      <div className="grid grid-cols-1 gap-4">
+                        <FormField
+                          control={form.control}
+                          name="delivery_address_line1"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Address Line 1</FormLabel>
+                              <FormControl>
+                                <Input 
+                                  placeholder="Street address" 
+                                  {...field} 
+                                  disabled={readOnly || form.watch('same_as_registered_address')} 
+                                  className="h-9" 
+                                />
+                              </FormControl>
+                            </FormItem>
+                          )}
+                        />
+
+                        <FormField
+                          control={form.control}
+                          name="delivery_address_line2"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Address Line 2</FormLabel>
+                              <FormControl>
+                                <Input 
+                                  placeholder="Apartment, suite, etc." 
+                                  {...field} 
+                                  disabled={readOnly || form.watch('same_as_registered_address')} 
+                                  className="h-9" 
+                                />
+                              </FormControl>
+                            </FormItem>
+                          )}
+                        />
+
+                        <div className="grid grid-cols-2 gap-3">
+                          <FormField
+                            control={form.control}
+                            name="delivery_city"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">City</FormLabel>
+                                <FormControl>
+                                  <Input 
+                                    placeholder="City" 
+                                    {...field} 
+                                    disabled={readOnly || form.watch('same_as_registered_address')} 
+                                    className="h-9" 
+                                  />
+                                </FormControl>
+                              </FormItem>
+                            )}
+                          />
+
+                          <FormField
+                            control={form.control}
+                            name="delivery_state"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">State</FormLabel>
+                                <FormControl>
+                                  <Input 
+                                    placeholder="State" 
+                                    {...field} 
+                                    disabled={readOnly || form.watch('same_as_registered_address')} 
+                                    className="h-9" 
+                                  />
+                                </FormControl>
+                              </FormItem>
+                            )}
+                          />
+                        </div>
+
+                        <FormField
+                          control={form.control}
+                          name="delivery_country"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Country</FormLabel>
+                              <FormControl>
+                                <Input 
+                                  placeholder="Country" 
+                                  {...field} 
+                                  disabled={readOnly || form.watch('same_as_registered_address')} 
+                                  className="h-9" 
+                                />
+                              </FormControl>
+                            </FormItem>
+                          )}
+                        />
+
+                        <FormField
+                          control={form.control}
+                          name="delivery_postal_code"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Postal Code</FormLabel>
+                              <FormControl>
+                                <Input 
+                                  placeholder="PIN Code" 
+                                  {...field} 
+                                  disabled={readOnly || form.watch('same_as_registered_address')} 
+                                  className="h-9" 
+                                />
+                              </FormControl>
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+                    </CardContent>
+                  </Card>
                 </div>
               </TabsContent>
 
