@@ -41,10 +41,41 @@ interface TrackableOrder {
   tax_amount?: number;
   discount_amount?: number;
   notes?: string;
+  // Address fields
+  customer_id?: string;
+  supplier_id?: string;
+}
+
+interface OrderItem {
+  id: string;
+  product_name?: string;
+  product_sku?: string;
+  quantity: number;
+  unit_price: number;
+  discount_amount?: number;
+  tax_amount?: number;
+  line_total: number;
+  unit_of_measure?: string;
+  hsn_sac_code?: string;
+}
+
+interface CustomerAddress {
+  shipping_address_line1?: string;
+  shipping_address_line2?: string;
+  shipping_city?: string;
+  shipping_state?: string;
+  shipping_country?: string;
+  shipping_pin_code?: string;
+}
+
+interface DetailedOrder extends TrackableOrder {
+  items: OrderItem[];
+  customerAddress?: CustomerAddress;
+  supplierAddress?: any;
 }
 
 interface OrderDetailDialogProps {
-  order: TrackableOrder | null;
+  order: DetailedOrder | null;
   open: boolean;
   onClose: () => void;
 }
@@ -62,7 +93,8 @@ export function TrackingModule() {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
   const [orderDetailDialogOpen, setOrderDetailDialogOpen] = useState(false);
-  const [selectedOrderForDetails, setSelectedOrderForDetails] = useState<TrackableOrder | null>(null);
+  const [selectedOrderForDetails, setSelectedOrderForDetails] = useState<DetailedOrder | null>(null);
+  const [loadingOrderDetails, setLoadingOrderDetails] = useState(false);
 
   const fetchTrackableOrders = async () => {
     try {
@@ -93,6 +125,7 @@ export function TrackingModule() {
           delivery_date,
           delivery_city,
           notes,
+          customer_id,
           customers(name)
         `);
 
@@ -125,7 +158,8 @@ export function TrackingModule() {
           tracking_status,
           dispatch_date,
           delivery_date,
-          notes
+          notes,
+          supplier_id
         `);
 
       if (debitError) {
@@ -148,6 +182,7 @@ export function TrackingModule() {
           status: order.status,
           order_date: order.order_date,
           customer_name: order.customers?.name,
+          customer_id: order.customer_id,
           total_amount: order.total_amount,
           subtotal_amount: order.subtotal_amount,
           tax_amount: order.tax_amount,
@@ -176,6 +211,7 @@ export function TrackingModule() {
         status: note.status,
         order_date: note.debit_note_date,
         supplier_name: note.supplier_name,
+        supplier_id: note.supplier_id,
         total_amount: note.total_amount,
         subtotal_amount: note.subtotal_amount,
         tax_amount: note.tax_amount,
@@ -203,6 +239,111 @@ export function TrackingModule() {
     }
   };
 
+  const fetchOrderDetails = async (order: TrackableOrder): Promise<DetailedOrder> => {
+    let items: OrderItem[] = [];
+    let customerAddress: CustomerAddress | undefined;
+
+    try {
+      if (order.type === 'sales') {
+        // Fetch sales order items
+        const { data: salesItems, error: salesItemsError } = await supabase
+          .from('sales_order_items')
+          .select(`
+            id,
+            item_description,
+            quantity,
+            unit_price,
+            discount_amount,
+            total_price,
+            unit_of_measure,
+            hsn_sac_code
+          `)
+          .eq('sales_order_id', order.id);
+
+        if (salesItemsError) {
+          console.error('Error fetching sales order items:', salesItemsError);
+        } else {
+          items = (salesItems || []).map(item => ({
+            id: item.id,
+            product_name: item.item_description,
+            product_sku: 'N/A',
+            quantity: item.quantity,
+            unit_price: item.unit_price,
+            discount_amount: item.discount_amount || 0,
+            tax_amount: 0, // Not available in this table
+            line_total: item.total_price,
+            unit_of_measure: item.unit_of_measure,
+            hsn_sac_code: item.hsn_sac_code
+          }));
+        }
+
+        // Fetch customer address
+        if (order.customer_id) {
+          const { data: customer, error: customerError } = await supabase
+            .from('customers')
+            .select(`
+              shipping_address_line1,
+              shipping_address_line2,
+              shipping_city,
+              shipping_state,
+              shipping_country,
+              shipping_pin_code
+            `)
+            .eq('id', order.customer_id)
+            .single();
+
+          if (customerError) {
+            console.error('Error fetching customer address:', customerError);
+          } else {
+            customerAddress = customer;
+          }
+        }
+      } else if (order.type === 'debit_note') {
+        // Fetch debit note items
+        const { data: debitItems, error: debitItemsError } = await supabase
+          .from('debit_note_items')
+          .select(`
+            id,
+            product_name,
+            product_sku,
+            quantity,
+            unit_price,
+            discount_amount,
+            tax_amount,
+            line_subtotal,
+            unit_of_measure,
+            hsn_sac_code
+          `)
+          .eq('debit_note_id', order.id);
+
+        if (debitItemsError) {
+          console.error('Error fetching debit note items:', debitItemsError);
+        } else {
+          items = (debitItems || []).map(item => ({
+            id: item.id,
+            product_name: item.product_name,
+            product_sku: item.product_sku,
+            quantity: item.quantity,
+            unit_price: item.unit_price,
+            discount_amount: item.discount_amount || 0,
+            tax_amount: item.tax_amount || 0,
+            line_total: item.line_subtotal,
+            unit_of_measure: item.unit_of_measure,
+            hsn_sac_code: item.hsn_sac_code
+          }));
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching order details:', error);
+    }
+
+    return {
+      ...order,
+      items,
+      customerAddress
+    };
+  };
+
   const handleTrackingUpdate = () => {
     setIsDialogOpen(false);
     setEditingOrder(null);
@@ -210,70 +351,192 @@ export function TrackingModule() {
   };
 
   const handleViewPOD = (podUrl: string) => {
-    window.open(podUrl, '_blank', 'noopener,noreferrer');
-  };
-
-  const handleDownloadPOD = async (podUrl: string, orderNumber: string) => {
-    try {
-      const response = await fetch(podUrl);
-      const blob = await response.blob();
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `POD_${orderNumber}.pdf`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
-    } catch (error) {
-      console.error('Download error:', error);
+    if (!podUrl) {
       toast({
         title: 'Error',
-        description: 'Failed to download POD document',
+        description: 'POD document URL not available',
+        variant: 'destructive',
+      });
+      return;
+    }
+    
+    // Open POD document in new tab
+    const newTab = window.open(podUrl, '_blank', 'noopener,noreferrer');
+    if (!newTab) {
+      toast({
+        title: 'Error',
+        description: 'Unable to open POD document. Please check your browser settings.',
         variant: 'destructive',
       });
     }
   };
 
-  const handleOrderClick = (order: TrackableOrder) => {
-    setSelectedOrderForDetails(order);
+  const handleDownloadPOD = async (podUrl: string, orderNumber: string) => {
+    if (!podUrl) {
+      toast({
+        title: 'Error',
+        description: 'POD document URL not available',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    try {
+      toast({
+        title: 'Downloading...',
+        description: 'Starting POD document download',
+      });
+
+      const response = await fetch(podUrl);
+      if (!response.ok) {
+        throw new Error('Failed to fetch document');
+      }
+      
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      
+      // Get file extension from URL or default to pdf
+      const fileExtension = podUrl.split('.').pop()?.toLowerCase() || 'pdf';
+      link.download = `POD_${orderNumber}.${fileExtension}`;
+      
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+
+      toast({
+        title: 'Success',
+        description: 'POD document downloaded successfully',
+      });
+    } catch (error) {
+      console.error('Download error:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to download POD document. Please try again.',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleOrderClick = async (order: TrackableOrder) => {
+    setLoadingOrderDetails(true);
     setOrderDetailDialogOpen(true);
+    
+    try {
+      const detailedOrder = await fetchOrderDetails(order);
+      setSelectedOrderForDetails(detailedOrder);
+    } catch (error) {
+      console.error('Error loading order details:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to load order details',
+        variant: 'destructive',
+      });
+    } finally {
+      setLoadingOrderDetails(false);
+    }
   };
 
   const OrderDetailDialog = ({ order, open, onClose }: OrderDetailDialogProps) => (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
             {order?.type === 'sales' ? 'Sales Order' : 'Debit Note'} Details - {order?.order_number}
           </DialogTitle>
         </DialogHeader>
-        {order && (
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+        
+        {loadingOrderDetails ? (
+          <div className="flex items-center justify-center py-8">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+          </div>
+        ) : order && (
+          <div className="space-y-6">
+            <div className="grid grid-cols-2 gap-6">
               <div>
-                <h4 className="font-semibold mb-2">Basic Information</h4>
+                <h4 className="font-semibold mb-3">Basic Information</h4>
                 <div className="space-y-2 text-sm">
                   <p><span className="font-medium">Order Number:</span> {order.order_number}</p>
                   <p><span className="font-medium">Status:</span> <Badge>{order.status}</Badge></p>
                   <p><span className="font-medium">Date:</span> {format(new Date(order.order_date), 'dd/MM/yyyy')}</p>
                   <p><span className="font-medium">{order.type === 'sales' ? 'Customer' : 'Supplier'}:</span> {order.customer_name || order.supplier_name}</p>
-                  {order.delivery_city && <p><span className="font-medium">Delivery City:</span> {order.delivery_city}</p>}
                 </div>
               </div>
               <div>
-                <h4 className="font-semibold mb-2">Financial Summary</h4>
+                <h4 className="font-semibold mb-3">Financial Summary</h4>
                 <div className="space-y-2 text-sm">
-                  <p><span className="font-medium">Subtotal:</span> ₹{order.subtotal_amount?.toLocaleString() || 'N/A'}</p>
-                  <p><span className="font-medium">Tax Amount:</span> ₹{order.tax_amount?.toLocaleString() || 'N/A'}</p>
-                  <p><span className="font-medium">Discount:</span> ₹{order.discount_amount?.toLocaleString() || 'N/A'}</p>
+                  <p><span className="font-medium">Subtotal:</span> ₹{order.subtotal_amount?.toLocaleString() || '0'}</p>
+                  <p><span className="font-medium">Tax Amount:</span> ₹{order.tax_amount?.toLocaleString() || '0'}</p>
+                  <p><span className="font-medium">Discount:</span> ₹{order.discount_amount?.toLocaleString() || '0'}</p>
                   <p><span className="font-medium">Total Amount:</span> ₹{order.total_amount.toLocaleString()}</p>
                 </div>
               </div>
             </div>
             
+            {/* Delivery Address */}
+            {order.customerAddress && (
+              <div>
+                <h4 className="font-semibold mb-3">Delivery Address</h4>
+                <div className="text-sm bg-muted p-3 rounded">
+                  {order.customerAddress.shipping_address_line1 && (
+                    <p>{order.customerAddress.shipping_address_line1}</p>
+                  )}
+                  {order.customerAddress.shipping_address_line2 && (
+                    <p>{order.customerAddress.shipping_address_line2}</p>
+                  )}
+                  <p>
+                    {[
+                      order.customerAddress.shipping_city,
+                      order.customerAddress.shipping_state,
+                      order.customerAddress.shipping_country,
+                      order.customerAddress.shipping_pin_code
+                    ].filter(Boolean).join(', ')}
+                  </p>
+                </div>
+              </div>
+            )}
+            
+            {/* Items Details */}
             <div>
-              <h4 className="font-semibold mb-2">Tracking Information</h4>
+              <h4 className="font-semibold mb-3">Items Details</h4>
+              {order.items && order.items.length > 0 ? (
+                <div className="border rounded-lg overflow-hidden">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Product</TableHead>
+                        <TableHead>SKU</TableHead>
+                        <TableHead>Quantity</TableHead>
+                        <TableHead>Unit Price</TableHead>
+                        <TableHead>Discount</TableHead>
+                        <TableHead>Tax</TableHead>
+                        <TableHead>Total</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {order.items.map((item, index) => (
+                        <TableRow key={item.id || index}>
+                          <TableCell className="font-medium">{item.product_name || 'N/A'}</TableCell>
+                          <TableCell>{item.product_sku || 'N/A'}</TableCell>
+                          <TableCell>{item.quantity} {item.unit_of_measure || 'pcs'}</TableCell>
+                          <TableCell>₹{item.unit_price.toLocaleString()}</TableCell>
+                          <TableCell>₹{(item.discount_amount || 0).toLocaleString()}</TableCell>
+                          <TableCell>₹{(item.tax_amount || 0).toLocaleString()}</TableCell>
+                          <TableCell>₹{item.line_total.toLocaleString()}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">No items found</p>
+              )}
+            </div>
+            
+            <div>
+              <h4 className="font-semibold mb-3">Tracking Information</h4>
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div className="space-y-2">
                   <p><span className="font-medium">Destination:</span> {order.destination || '-'}</p>
@@ -291,7 +554,7 @@ export function TrackingModule() {
             </div>
 
             <div>
-              <h4 className="font-semibold mb-2">Delivery Information</h4>
+              <h4 className="font-semibold mb-3">Delivery Information</h4>
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <p><span className="font-medium">Dispatch Date:</span> {order.dispatch_date ? format(new Date(order.dispatch_date), 'dd/MM/yyyy') : '-'}</p>
                 <p><span className="font-medium">Delivery Date:</span> {order.delivery_date ? format(new Date(order.delivery_date), 'dd/MM/yyyy') : '-'}</p>
@@ -300,14 +563,14 @@ export function TrackingModule() {
 
             {order.notes && (
               <div>
-                <h4 className="font-semibold mb-2">Notes</h4>
-                <p className="text-sm bg-muted p-2 rounded">{order.notes}</p>
+                <h4 className="font-semibold mb-3">Notes</h4>
+                <p className="text-sm bg-muted p-3 rounded">{order.notes}</p>
               </div>
             )}
 
             {order.pod_document_url && (
               <div>
-                <h4 className="font-semibold mb-2">POD Document</h4>
+                <h4 className="font-semibold mb-3">POD Document</h4>
                 <div className="flex gap-2">
                   <Button size="sm" variant="outline" onClick={() => handleViewPOD(order.pod_document_url!)}>
                     <Eye className="h-4 w-4 mr-2" />
@@ -453,7 +716,7 @@ export function TrackingModule() {
                       </Button>
                     </TableCell>
                     <TableCell>{item.customer_name || item.supplier_name}</TableCell>
-                    <TableCell>{item.destination || '-'}</TableCell>
+                    <TableCell>{item.destination || item.delivery_city || '-'}</TableCell>
                     <TableCell>{item.item_count || '-'}</TableCell>
                     <TableCell>{item.eway_bill_no || '-'}</TableCell>
                     <TableCell>
@@ -714,7 +977,10 @@ export function TrackingModule() {
       <OrderDetailDialog 
         order={selectedOrderForDetails}
         open={orderDetailDialogOpen}
-        onClose={() => setOrderDetailDialogOpen(false)}
+        onClose={() => {
+          setOrderDetailDialogOpen(false);
+          setSelectedOrderForDetails(null);
+        }}
       />
     </div>
   );
