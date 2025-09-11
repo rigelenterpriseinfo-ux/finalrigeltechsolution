@@ -981,7 +981,7 @@ export function TrackingModule() {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
         <Card>
           <CardContent className="p-4 flex items-center space-x-2">
             <Clock className="h-8 w-8 text-orange-500" />
@@ -989,6 +989,17 @@ export function TrackingModule() {
               <p className="text-sm font-medium text-muted-foreground">Pending</p>
               <p className="text-2xl font-bold">
                 {[...orders, ...debitNotes].filter(item => item.tracking_status === 'pending').length}
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4 flex items-center space-x-2">
+            <Package className="h-8 w-8 text-blue-600" />
+            <div>
+              <p className="text-sm font-medium text-muted-foreground">Dispatched</p>
+              <p className="text-2xl font-bold">
+                {[...orders, ...debitNotes].filter(item => item.tracking_status === 'dispatched').length}
               </p>
             </div>
           </CardContent>
@@ -1048,7 +1059,6 @@ export function TrackingModule() {
               <SelectContent>
                 <SelectItem value="all">All Status</SelectItem>
                 <SelectItem value="pending">Pending</SelectItem>
-                <SelectItem value="processing">Processing</SelectItem>
                 <SelectItem value="dispatched">Dispatched</SelectItem>
                 <SelectItem value="in_transit">In Transit</SelectItem>
                 <SelectItem value="delivered">Delivered</SelectItem>
