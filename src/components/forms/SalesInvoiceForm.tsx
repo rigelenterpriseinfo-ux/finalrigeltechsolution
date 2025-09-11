@@ -522,7 +522,7 @@ export const SalesInvoiceForm: React.FC<SalesInvoiceFormProps> = ({
 
           {/* Tab Navigation */}
           <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-col flex-1">
-            <TabsList className="grid w-full grid-cols-3 bg-muted/50 rounded-none border-b h-auto p-0">
+            <TabsList className="grid w-full grid-cols-2 bg-muted/50 rounded-none border-b h-auto p-0">
               <TabsTrigger 
                 value="invoice-info" 
                 className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-background h-12"
@@ -538,16 +538,7 @@ export const SalesInvoiceForm: React.FC<SalesInvoiceFormProps> = ({
               >
                 <div className="flex items-center gap-2">
                   <Package className="h-4 w-4" />
-                  Line Items
-                </div>
-              </TabsTrigger>
-              <TabsTrigger 
-                value="review" 
-                className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-background h-12"
-              >
-                <div className="flex items-center gap-2">
-                  <ClipboardCheck className="h-4 w-4" />
-                  Review & Submit
+                  Line Items & Review
                 </div>
               </TabsTrigger>
             </TabsList>
@@ -1006,16 +997,18 @@ export const SalesInvoiceForm: React.FC<SalesInvoiceFormProps> = ({
               </div>
             </TabsContent>
 
-            {/* Items Tab */}
+            {/* Items Tab (including Review & Submit) */}
             <TabsContent value="items" className="flex-1 overflow-auto m-0 p-4">
-              <Card className="shadow-sm border-border/50">
-                <CardHeader className="pb-2 pt-3">
-                  <CardTitle className="text-sm font-semibold flex items-center gap-2">
-                    <Package className="h-4 w-4 text-primary" />
-                    Line Items
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
+              <div className="space-y-4">
+                {/* Line Items Section */}
+                <Card className="shadow-sm border-border/50">
+                  <CardHeader className="pb-2 pt-3">
+                    <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                      <Package className="h-4 w-4 text-primary" />
+                      Line Items
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
                   {watchedItems.length > 0 ? (
                     <div className="space-y-4">
                       <div className="overflow-x-auto">
@@ -1208,13 +1201,9 @@ export const SalesInvoiceForm: React.FC<SalesInvoiceFormProps> = ({
                       <p>No line items available. Please select a sales order first.</p>
                     </div>
                   )}
-                </CardContent>
-              </Card>
-            </TabsContent>
+                  </CardContent>
+                </Card>
 
-            {/* Review Tab */}
-            <TabsContent value="review" className="flex-1 overflow-auto m-0 p-4">
-              <div className="space-y-4">
                 {/* Additional Charges */}
                 <Card className="shadow-sm border-border/50">
                   <CardHeader className="pb-2 pt-3">
