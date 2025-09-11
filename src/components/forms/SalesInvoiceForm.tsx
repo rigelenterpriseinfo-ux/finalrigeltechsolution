@@ -13,7 +13,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { format } from "date-fns";
-import { CalendarIcon, Plus, Trash2 } from "lucide-react";
+import { CalendarIcon, Plus, Trash2, FileText, User, MapPin, Package, Settings, Info } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from '@/hooks/use-toast';
@@ -485,18 +485,7 @@ export const SalesInvoiceForm: React.FC<SalesInvoiceFormProps> = ({
   };
 
   const handleSubmit = async (data: SalesInvoiceFormData) => {
-    console.log('🔄 SalesInvoiceForm: Starting submission...', { editingInvoice: !!editingInvoice });
-    
-    // Check for any validation errors
-    const hasErrors = Object.values(quantityErrors).some(error => error);
-    if (hasErrors) {
-      toast({
-        title: "Validation Error",
-        description: "Please fix quantity validation errors before submitting",
-        variant: "destructive",
-      });
-      return;
-    }
+    console.log('🚀 SalesInvoiceForm: handleSubmit called with data keys:', Object.keys(data));
     
     setLoading(true);
     try {
@@ -531,22 +520,29 @@ export const SalesInvoiceForm: React.FC<SalesInvoiceFormProps> = ({
   const totals = calculateGrandTotals();
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8 max-w-7xl mx-auto">
       <Form {...form}>
-        <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
+        <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-8">
           {/* Header Section */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Sales Invoice - Header Information</CardTitle>
+          <Card className="border-2 border-primary/10 shadow-lg">
+            <CardHeader className="bg-gradient-to-r from-primary/5 to-primary/10 border-b">
+              <CardTitle className="flex items-center gap-3 text-xl">
+                <FileText className="h-6 w-6 text-primary" />
+                Sales Invoice - Header Information
+              </CardTitle>
+              <p className="text-sm text-muted-foreground mt-2">
+                Configure the basic invoice details and reference information
+              </p>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <CardContent className="p-8">
+              {/* Primary Fields Row */}
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
                 <FormField
                   control={form.control}
                   name="invoice_number"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Invoice Number</FormLabel>
+                      <FormLabel className="text-base font-semibold">Invoice Number</FormLabel>
                       <FormControl>
                         <Input 
                           placeholder={
@@ -556,6 +552,7 @@ export const SalesInvoiceForm: React.FC<SalesInvoiceFormProps> = ({
                           } 
                           {...field} 
                           disabled={!!editingInvoice || watchedStatus === 'draft'}
+                          className="h-12 text-base"
                         />
                       </FormControl>
                       <FormMessage />
@@ -568,14 +565,14 @@ export const SalesInvoiceForm: React.FC<SalesInvoiceFormProps> = ({
                   name="invoice_date"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Invoice Date</FormLabel>
+                      <FormLabel className="text-base font-semibold">Invoice Date</FormLabel>
                       <Popover>
                         <PopoverTrigger asChild>
                           <FormControl>
                             <Button
                               variant="outline"
                               className={cn(
-                                "pl-3 text-left font-normal",
+                                "h-12 text-base pl-4 text-left font-normal border-2",
                                 !field.value && "text-muted-foreground"
                               )}
                             >
@@ -584,7 +581,7 @@ export const SalesInvoiceForm: React.FC<SalesInvoiceFormProps> = ({
                               ) : (
                                 <span>Pick a date</span>
                               )}
-                              <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                              <CalendarIcon className="ml-auto h-5 w-5 opacity-50" />
                             </Button>
                           </FormControl>
                         </PopoverTrigger>
@@ -608,10 +605,10 @@ export const SalesInvoiceForm: React.FC<SalesInvoiceFormProps> = ({
                   name="sales_order_id"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Sales Order Number</FormLabel>
+                      <FormLabel className="text-base font-semibold">Sales Order Number</FormLabel>
                       <Select onValueChange={onSalesOrderChange} value={field.value}>
                         <FormControl>
-                          <SelectTrigger>
+                          <SelectTrigger className="h-12 text-base border-2">
                             <SelectValue placeholder="Select sales order" />
                           </SelectTrigger>
                         </FormControl>
@@ -631,11 +628,14 @@ export const SalesInvoiceForm: React.FC<SalesInvoiceFormProps> = ({
 
               {/* Recent Invoices Reference */}
               {recentInvoices.length > 0 && (
-                <div className="mt-4">
-                  <FormLabel>Recent Invoices (Reference)</FormLabel>
-                  <div className="flex flex-wrap gap-2 mt-2">
+                <div className="bg-muted/30 rounded-lg p-6 mb-8">
+                  <div className="flex items-center gap-2 mb-4">
+                    <Info className="h-5 w-5 text-primary" />
+                    <FormLabel className="text-base font-semibold">Recent Invoices (Reference)</FormLabel>
+                  </div>
+                  <div className="flex flex-wrap gap-3">
                     {recentInvoices.map((invoice) => (
-                      <Badge key={invoice.invoice_number} variant="secondary">
+                      <Badge key={invoice.invoice_number} variant="secondary" className="py-2 px-4 text-sm">
                         {invoice.invoice_number} - ₹{invoice.total_amount}
                       </Badge>
                     ))}
@@ -643,15 +643,16 @@ export const SalesInvoiceForm: React.FC<SalesInvoiceFormProps> = ({
                 </div>
               )}
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Secondary Fields Row */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
                 <FormField
                   control={form.control}
                   name="delivery_note_number"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Delivery Note Number</FormLabel>
+                      <FormLabel className="text-base font-semibold">Delivery Note Number</FormLabel>
                       <FormControl>
-                        <Input placeholder="Optional" {...field} />
+                        <Input placeholder="Optional" {...field} className="h-12 text-base" />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -663,9 +664,9 @@ export const SalesInvoiceForm: React.FC<SalesInvoiceFormProps> = ({
                   name="customer_po_reference"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Customer PO Reference</FormLabel>
+                      <FormLabel className="text-base font-semibold">Customer PO Reference</FormLabel>
                       <FormControl>
-                        <Input placeholder="Customer PO reference" {...field} />
+                        <Input placeholder="Customer PO reference" {...field} className="h-12 text-base" />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -673,72 +674,87 @@ export const SalesInvoiceForm: React.FC<SalesInvoiceFormProps> = ({
                 />
               </div>
 
-              {/* Warehouse and Bin (Read-only from Sales Order) */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <FormField
-                  control={form.control}
-                  name="default_warehouse_id"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Default Warehouse *</FormLabel>
-                      <FormControl>
-                        <Input 
-                          value={warehouseName || 'Not selected'}
-                          disabled
-                          className="bg-muted text-muted-foreground"
-                        />
-                      </FormControl>
-                      <FormMessage />
-                      {!field.value && (
-                        <p className="text-sm text-muted-foreground">
-                          Will be auto-filled from selected Sales Order
-                        </p>
-                      )}
-                    </FormItem>
-                  )}
-                />
+              {/* Warehouse and Bin Section */}
+              <div className="bg-amber-50/50 border border-amber-200 rounded-lg p-6">
+                <div className="flex items-center gap-2 mb-4">
+                  <Package className="h-5 w-5 text-amber-600" />
+                  <h4 className="text-base font-semibold text-amber-800">Warehouse & Bin Configuration</h4>
+                </div>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  <FormField
+                    control={form.control}
+                    name="default_warehouse_id"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-base font-semibold">Default Warehouse *</FormLabel>
+                        <FormControl>
+                          <Input 
+                            value={warehouseName || 'Not selected'}
+                            disabled
+                            className="h-12 text-base bg-amber-50 border-amber-200 text-amber-700"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                        {!field.value && (
+                          <p className="text-sm text-amber-600 flex items-center gap-1 mt-1">
+                            <Info className="h-4 w-4" />
+                            Will be auto-filled from selected Sales Order
+                          </p>
+                        )}
+                      </FormItem>
+                    )}
+                  />
 
-                <FormField
-                  control={form.control}
-                  name="default_bin_id"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Default Bin *</FormLabel>
-                      <FormControl>
-                        <Input 
-                          value={binName || 'Not selected'}
-                          disabled
-                          className="bg-muted text-muted-foreground"
-                        />
-                      </FormControl>
-                      <FormMessage />
-                      {!field.value && (
-                        <p className="text-sm text-muted-foreground">
-                          Will be auto-filled from selected Sales Order
-                        </p>
-                      )}
-                    </FormItem>
-                  )}
-                />
+                  <FormField
+                    control={form.control}
+                    name="default_bin_id"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-base font-semibold">Default Bin *</FormLabel>
+                        <FormControl>
+                          <Input 
+                            value={binName || 'Not selected'}
+                            disabled
+                            className="h-12 text-base bg-amber-50 border-amber-200 text-amber-700"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                        {!field.value && (
+                          <p className="text-sm text-amber-600 flex items-center gap-1 mt-1">
+                            <Info className="h-4 w-4" />
+                            Will be auto-filled from selected Sales Order
+                          </p>
+                        )}
+                      </FormItem>
+                    )}
+                  />
+                </div>
               </div>
             </CardContent>
           </Card>
 
           {/* Customer and Address Section */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Customer & Address Details</CardTitle>
+          <Card className="border-2 border-blue-100 shadow-lg">
+            <CardHeader className="bg-gradient-to-r from-blue-50 to-blue-100 border-b">
+              <CardTitle className="flex items-center gap-3 text-xl">
+                <User className="h-6 w-6 text-blue-600" />
+                Customer & Address Details
+              </CardTitle>
+              <p className="text-sm text-muted-foreground mt-2">
+                Customer information and billing/shipping addresses
+              </p>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <CardContent className="p-8">
+              {/* Customer Name */}
+              <div className="mb-8">
                 <FormField
                   control={form.control}
                   name="customer_name"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Customer Name</FormLabel>
+                      <FormLabel className="text-base font-semibold">Customer Name</FormLabel>
                       <FormControl>
-                        <Input {...field} disabled />
+                        <Input {...field} disabled className="h-12 text-base bg-blue-50 border-blue-200 text-blue-700" />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -746,45 +762,52 @@ export const SalesInvoiceForm: React.FC<SalesInvoiceFormProps> = ({
                 />
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Address Section */}
+              <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
                 {/* Billing Address */}
-                <div className="space-y-4">
-                  <h4 className="font-medium">Billing Address</h4>
+                <div className="space-y-6 p-6 bg-green-50/50 border border-green-200 rounded-lg">
+                  <div className="flex items-center gap-2 mb-4">
+                    <MapPin className="h-5 w-5 text-green-600" />
+                    <h4 className="text-lg font-semibold text-green-800">Billing Address</h4>
+                  </div>
+                  
                   <FormField
                     control={form.control}
                     name="billing_address_line1"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Address Line 1</FormLabel>
+                        <FormLabel className="font-medium">Address Line 1</FormLabel>
                         <FormControl>
-                          <Input {...field} />
+                          <Input {...field} className="h-11" />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
+                  
                   <FormField
                     control={form.control}
                     name="billing_address_line2"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Address Line 2</FormLabel>
+                        <FormLabel className="font-medium">Address Line 2</FormLabel>
                         <FormControl>
-                          <Input {...field} />
+                          <Input {...field} className="h-11" />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
-                  <div className="grid grid-cols-2 gap-2">
+                  
+                  <div className="grid grid-cols-2 gap-4">
                     <FormField
                       control={form.control}
                       name="billing_city"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>City</FormLabel>
+                          <FormLabel className="font-medium">City</FormLabel>
                           <FormControl>
-                            <Input {...field} />
+                            <Input {...field} className="h-11" />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -795,23 +818,24 @@ export const SalesInvoiceForm: React.FC<SalesInvoiceFormProps> = ({
                       name="billing_pin_code"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Pin Code</FormLabel>
+                          <FormLabel className="font-medium">Pin Code</FormLabel>
                           <FormControl>
-                            <Input {...field} />
+                            <Input {...field} className="h-11" />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
                       )}
                     />
                   </div>
+                  
                   <FormField
                     control={form.control}
                     name="billing_country"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Country</FormLabel>
+                        <FormLabel className="font-medium">Country</FormLabel>
                         <FormControl>
-                          <Input {...field} />
+                          <Input {...field} className="h-11" />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -820,21 +844,25 @@ export const SalesInvoiceForm: React.FC<SalesInvoiceFormProps> = ({
                 </div>
 
                 {/* Shipping Address */}
-                <div className="space-y-4">
-                  <div className="flex items-center space-x-2">
-                    <h4 className="font-medium">Shipping Address</h4>
+                <div className="space-y-6 p-6 bg-purple-50/50 border border-purple-200 rounded-lg">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-2">
+                      <MapPin className="h-5 w-5 text-purple-600" />
+                      <h4 className="text-lg font-semibold text-purple-800">Shipping Address</h4>
+                    </div>
                     <FormField
                       control={form.control}
                       name="same_as_billing_address"
                       render={({ field }) => (
-                        <FormItem className="flex items-center space-x-2">
+                        <FormItem className="flex items-center space-x-3 space-y-0">
                           <FormControl>
                             <Checkbox
                               checked={field.value}
                               onCheckedChange={field.onChange}
+                              className="border-2"
                             />
                           </FormControl>
-                          <FormLabel className="text-sm">Same as Billing</FormLabel>
+                          <FormLabel className="text-sm font-medium cursor-pointer">Same as Billing</FormLabel>
                         </FormItem>
                       )}
                     />
@@ -845,36 +873,50 @@ export const SalesInvoiceForm: React.FC<SalesInvoiceFormProps> = ({
                     name="shipping_address_line1"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Address Line 1</FormLabel>
+                        <FormLabel className="font-medium">Address Line 1</FormLabel>
                         <FormControl>
-                          <Input {...field} disabled={watchedSameAsBilling} />
+                          <Input 
+                            {...field} 
+                            disabled={watchedSameAsBilling} 
+                            className={cn("h-11", watchedSameAsBilling && "bg-purple-100 text-purple-600")}
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
+                  
                   <FormField
                     control={form.control}
                     name="shipping_address_line2"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Address Line 2</FormLabel>
+                        <FormLabel className="font-medium">Address Line 2</FormLabel>
                         <FormControl>
-                          <Input {...field} disabled={watchedSameAsBilling} />
+                          <Input 
+                            {...field} 
+                            disabled={watchedSameAsBilling} 
+                            className={cn("h-11", watchedSameAsBilling && "bg-purple-100 text-purple-600")}
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
-                  <div className="grid grid-cols-2 gap-2">
+                  
+                  <div className="grid grid-cols-2 gap-4">
                     <FormField
                       control={form.control}
                       name="shipping_city"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>City</FormLabel>
+                          <FormLabel className="font-medium">City</FormLabel>
                           <FormControl>
-                            <Input {...field} disabled={watchedSameAsBilling} />
+                            <Input 
+                              {...field} 
+                              disabled={watchedSameAsBilling} 
+                              className={cn("h-11", watchedSameAsBilling && "bg-purple-100 text-purple-600")}
+                            />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -885,23 +927,32 @@ export const SalesInvoiceForm: React.FC<SalesInvoiceFormProps> = ({
                       name="shipping_pin_code"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Pin Code</FormLabel>
+                          <FormLabel className="font-medium">Pin Code</FormLabel>
                           <FormControl>
-                            <Input {...field} disabled={watchedSameAsBilling} />
+                            <Input 
+                              {...field} 
+                              disabled={watchedSameAsBilling} 
+                              className={cn("h-11", watchedSameAsBilling && "bg-purple-100 text-purple-600")}
+                            />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
                       )}
                     />
                   </div>
+                  
                   <FormField
                     control={form.control}
                     name="shipping_country"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Country</FormLabel>
+                        <FormLabel className="font-medium">Country</FormLabel>
                         <FormControl>
-                          <Input {...field} disabled={watchedSameAsBilling} />
+                          <Input 
+                            {...field} 
+                            disabled={watchedSameAsBilling} 
+                            className={cn("h-11", watchedSameAsBilling && "bg-purple-100 text-purple-600")}
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -1023,154 +1074,177 @@ export const SalesInvoiceForm: React.FC<SalesInvoiceFormProps> = ({
                           const remainingData = remainingQuantities[item.product_id];
                           return (
                              <tr key={index}>
-                               <td className="px-4 py-3 text-sm">{item.item_code}</td>
-                               <td className="px-4 py-3 text-sm">{item.item_description}</td>
-                               <td className="px-4 py-3 text-sm">
+                               <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">{item.item_code}</td>
+                               <td className="px-4 py-4 text-sm text-gray-900 max-w-xs truncate">{item.item_description}</td>
+                               <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">{item.hsn_sac_code}</td>
+                               <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">{item.quantity_ordered}</td>
+                               <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
+                                 {remainingData?.quantity_already_invoiced || 0}
+                               </td>
+                               <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
+                                 {remainingData?.quantity_remaining || 0}
+                               </td>
+                               <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
+                                 {stockLevels[item.product_id] || 0}
+                               </td>
+                               <td className="px-4 py-4 whitespace-nowrap">
                                  <FormField
                                    control={form.control}
-                                   name={`items.${index}.hsn_sac_code`}
+                                   name={`items.${index}.quantity_invoiced`}
                                    render={({ field }) => (
-                                     <Input {...field} className="w-20" />
+                                     <FormItem>
+                                       <FormControl>
+                                         <Input
+                                           type="number"
+                                           min="0"
+                                           {...field}
+                                           onChange={(e) => {
+                                             const value = parseFloat(e.target.value) || 0;
+                                             handleQuantityChange(index, value);
+                                           }}
+                                           className={cn(
+                                             "w-20",
+                                             quantityErrors[index] && "border-red-500"
+                                           )}
+                                         />
+                                       </FormControl>
+                                       {quantityErrors[index] && (
+                                         <div className="text-xs text-red-500 mt-1">
+                                           {quantityErrors[index]}
+                                         </div>
+                                       )}
+                                     </FormItem>
                                    )}
                                  />
                                </td>
-                               <td className="px-4 py-3 text-sm font-medium">{item.quantity_ordered}</td>
-                               <td className="px-4 py-3 text-sm font-medium text-blue-600">
-                                 {remainingData?.quantity_already_invoiced || 0}
+                               <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
+                                 {remainingData?.current_backorder_qty || 0}
                                </td>
-                               <td className="px-4 py-3 text-sm font-medium text-green-600">
-                                 {remainingData?.quantity_remaining || 0}
-                               </td>
-                               <td className="px-4 py-3 text-sm">
-                                 <div className="text-center">
-                                   <span className={cn(
-                                     "font-medium",
-                                     (stockLevels[item.product_id] || 0) > 0 ? "text-green-600" : "text-red-600"
-                                   )}>
-                                     {stockLevels[item.product_id] || 0}
-                                   </span>
-                                   <div className="text-xs text-muted-foreground">on hand</div>
-                                 </div>
-                               </td>
-                               <td className="px-4 py-3 text-sm">
-                                 <div className="space-y-1">
-                                   <FormField
-                                     control={form.control}
-                                     name={`items.${index}.quantity_invoiced`}
-                                     render={({ field }) => (
+                               <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">{item.unit_of_measure}</td>
+                               <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">₹{item.unit_price.toFixed(2)}</td>
+                               <td className="px-4 py-4 whitespace-nowrap">
+                                 <FormField
+                                   control={form.control}
+                                   name={`items.${index}.discount_percentage`}
+                                   render={({ field }) => (
+                                     <FormControl>
                                        <Input
                                          type="number"
+                                         min="0"
+                                         max="100"
+                                         step="0.01"
                                          {...field}
-                                         onChange={(e) => {
-                                           const value = parseFloat(e.target.value) || 0;
-                                           handleQuantityChange(index, value);
-                                         }}
-                                         className={cn(
-                                           "w-20",
-                                           quantityErrors[index] ? "border-red-500" : ""
-                                         )}
-                                         max={remainingData?.quantity_remaining || 0}
+                                         onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                                         className="w-16"
                                        />
-                                     )}
-                                   />
-                                   {quantityErrors[index] && (
-                                     <div className="text-xs text-red-500 mt-1">
-                                       {quantityErrors[index]}
-                                     </div>
+                                     </FormControl>
                                    )}
-                                 </div>
+                                 />
                                </td>
-                              <td className="px-4 py-3 text-sm font-medium text-orange-600">
-                                {remainingData?.current_backorder_qty || 0}
-                              </td>
-                              <td className="px-4 py-3 text-sm">{item.unit_of_measure}</td>
-                              <td className="px-4 py-3 text-sm">₹{item.unit_price.toFixed(2)}</td>
-                              <td className="px-4 py-3 text-sm">
-                                <FormField
-                                  control={form.control}
-                                  name={`items.${index}.discount_percentage`}
-                                  render={({ field }) => (
-                                    <Input
-                                      type="number"
-                                      {...field}
-                                      onChange={(e) => {
-                                        const value = parseFloat(e.target.value) || 0;
-                                        field.onChange(value);
-                                      }}
-                                      className="w-16"
-                                    />
-                                  )}
-                                />
-                              </td>
-                              <td className="px-4 py-3 text-sm">
-                                <FormField
-                                  control={form.control}
-                                  name={`items.${index}.cgst_rate`}
-                                  render={({ field }) => (
-                                    <Input
-                                      type="number"
-                                      {...field}
-                                      onChange={(e) => {
-                                        const value = parseFloat(e.target.value) || 0;
-                                        field.onChange(value);
-                                      }}
-                                      className="w-16"
-                                    />
-                                  )}
-                                />
-                              </td>
-                              <td className="px-4 py-3 text-sm">
-                                <FormField
-                                  control={form.control}
-                                  name={`items.${index}.sgst_rate`}
-                                  render={({ field }) => (
-                                    <Input
-                                      type="number"
-                                      {...field}
-                                      onChange={(e) => {
-                                        const value = parseFloat(e.target.value) || 0;
-                                        field.onChange(value);
-                                      }}
-                                      className="w-16"
-                                    />
-                                  )}
-                                />
-                              </td>
-                              <td className="px-4 py-3 text-sm">
-                                <FormField
-                                  control={form.control}
-                                  name={`items.${index}.igst_rate`}
-                                  render={({ field }) => (
-                                    <Input
-                                      type="number"
-                                      {...field}
-                                      onChange={(e) => {
-                                        const value = parseFloat(e.target.value) || 0;
-                                        field.onChange(value);
-                                      }}
-                                      className="w-16"
-                                    />
-                                  )}
-                                />
-                              </td>
-                              <td className="px-4 py-3 text-sm font-medium">
-                                ₹{itemTotals?.lineTotal.toFixed(2) || '0.00'}
-                              </td>
-                            </tr>
+                               <td className="px-4 py-4 whitespace-nowrap">
+                                 <FormField
+                                   control={form.control}
+                                   name={`items.${index}.cgst_rate`}
+                                   render={({ field }) => (
+                                     <FormControl>
+                                       <Input
+                                         type="number"
+                                         min="0"
+                                         max="100"
+                                         step="0.01"
+                                         {...field}
+                                         onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                                         className="w-16"
+                                       />
+                                     </FormControl>
+                                   )}
+                                 />
+                               </td>
+                               <td className="px-4 py-4 whitespace-nowrap">
+                                 <FormField
+                                   control={form.control}
+                                   name={`items.${index}.sgst_rate`}
+                                   render={({ field }) => (
+                                     <FormControl>
+                                       <Input
+                                         type="number"
+                                         min="0"
+                                         max="100"
+                                         step="0.01"
+                                         {...field}
+                                         onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                                         className="w-16"
+                                       />
+                                     </FormControl>
+                                   )}
+                                 />
+                               </td>
+                               <td className="px-4 py-4 whitespace-nowrap">
+                                 <FormField
+                                   control={form.control}
+                                   name={`items.${index}.igst_rate`}
+                                   render={({ field }) => (
+                                     <FormControl>
+                                       <Input
+                                         type="number"
+                                         min="0"
+                                         max="100"
+                                         step="0.01"
+                                         {...field}
+                                         onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                                         className="w-16"
+                                       />
+                                     </FormControl>
+                                   )}
+                                 />
+                               </td>
+                               <td className="px-4 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                                 ₹{itemTotals?.lineTotal.toFixed(2) || '0.00'}
+                               </td>
+                             </tr>
                           );
                         })}
                       </tbody>
                     </table>
                   </div>
+                  
+                  {/* Invoice Summary */}
+                  <div className="mt-8 border-t pt-4">
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                      <div className="bg-blue-50 p-3 rounded">
+                        <div className="font-medium text-blue-800">Total Ordered</div>
+                        <div className="text-lg font-bold text-blue-600">{totals.totalOrderedQty}</div>
+                      </div>
+                      <div className="bg-green-50 p-3 rounded">
+                        <div className="font-medium text-green-800">Total Invoiced</div>
+                        <div className="text-lg font-bold text-green-600">{totals.totalInvoicedQty}</div>
+                      </div>
+                      <div className="bg-orange-50 p-3 rounded">
+                        <div className="font-medium text-orange-800">Total Backorder</div>
+                        <div className="text-lg font-bold text-orange-600">{totals.totalBackorderQty}</div>
+                      </div>
+                      <div className="bg-purple-50 p-3 rounded">
+                        <div className="font-medium text-purple-800">Grand Total</div>
+                        <div className="text-lg font-bold text-purple-600">₹{totals.grandTotal.toFixed(2)}</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+              
+              {watchedItems.length === 0 && (
+                <div className="text-center py-8 text-gray-500">
+                  <Package className="mx-auto h-12 w-12 text-gray-300 mb-4" />
+                  <p>No line items available. Please select a sales order first.</p>
                 </div>
               )}
             </CardContent>
           </Card>
 
-          {/* Invoice Totals */}
+          {/* Additional Charges */}
           <Card>
             <CardHeader>
-              <CardTitle>Invoice Totals</CardTitle>
+              <CardTitle>Additional Charges</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -1183,12 +1257,10 @@ export const SalesInvoiceForm: React.FC<SalesInvoiceFormProps> = ({
                       <FormControl>
                         <Input
                           type="number"
+                          min="0"
                           step="0.01"
                           {...field}
-                          onChange={(e) => {
-                            const value = parseFloat(e.target.value) || 0;
-                            field.onChange(value);
-                          }}
+                          onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
                         />
                       </FormControl>
                       <FormMessage />
@@ -1205,12 +1277,10 @@ export const SalesInvoiceForm: React.FC<SalesInvoiceFormProps> = ({
                       <FormControl>
                         <Input
                           type="number"
+                          min="0"
                           step="0.01"
                           {...field}
-                          onChange={(e) => {
-                            const value = parseFloat(e.target.value) || 0;
-                            field.onChange(value);
-                          }}
+                          onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
                         />
                       </FormControl>
                       <FormMessage />
@@ -1229,10 +1299,7 @@ export const SalesInvoiceForm: React.FC<SalesInvoiceFormProps> = ({
                           type="number"
                           step="0.01"
                           {...field}
-                          onChange={(e) => {
-                            const value = parseFloat(e.target.value) || 0;
-                            field.onChange(value);
-                          }}
+                          onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
                         />
                       </FormControl>
                       <FormMessage />
@@ -1240,118 +1307,95 @@ export const SalesInvoiceForm: React.FC<SalesInvoiceFormProps> = ({
                   )}
                 />
               </div>
-
-              <div className="bg-gray-50 p-4 rounded-lg space-y-2">
-                <div className="flex justify-between">
-                  <span>Subtotal (before tax):</span>
-                  <span>₹{totals.subtotal.toFixed(2)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Total Discount:</span>
-                  <span>₹{totals.totalDiscount.toFixed(2)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Total Tax:</span>
-                  <span>₹{totals.totalTax.toFixed(2)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Freight Charges:</span>
-                  <span>₹{(form.getValues('freight_charges') || 0).toFixed(2)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Packing Charges:</span>
-                  <span>₹{(form.getValues('packing_charges') || 0).toFixed(2)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Round Off:</span>
-                  <span>₹{(form.getValues('round_off') || 0).toFixed(2)}</span>
-                </div>
-                <hr />
-                <div className="flex justify-between font-bold text-lg">
-                  <span>Grand Total:</span>
-                  <span>₹{totals.grandTotal.toFixed(2)}</span>
-                </div>
-                <div className="text-sm text-gray-600 mt-2">
-                  Amount in words: {numberToWords(totals.grandTotal)}
-                </div>
-              </div>
-
-              <div className="bg-blue-50 p-4 rounded-lg space-y-2">
-                <h4 className="font-medium text-blue-800">Order Summary</h4>
-                <div className="grid grid-cols-3 gap-4 text-sm">
-                  <div>
-                    <span className="font-medium">Total Ordered:</span>
-                    <br />
-                    <span className="text-lg font-bold text-blue-600">{totals.totalOrderedQty}</span>
-                  </div>
-                  <div>
-                    <span className="font-medium">Total Invoiced:</span>
-                    <br />
-                    <span className="text-lg font-bold text-green-600">{totals.totalInvoicedQty}</span>
-                  </div>
-                  <div>
-                    <span className="font-medium">Total Backorder:</span>
-                    <br />
-                    <span className="text-lg font-bold text-orange-600">{totals.totalBackorderQty}</span>
-                  </div>
-                </div>
-              </div>
             </CardContent>
           </Card>
 
-          {/* Notes */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Additional Information</CardTitle>
+          {/* Additional Information */}
+          <Card className="border-2 border-slate-100 shadow-lg">
+            <CardHeader className="bg-gradient-to-r from-slate-50 to-slate-100 border-b">
+              <CardTitle className="flex items-center gap-3 text-xl">
+                <Settings className="h-6 w-6 text-slate-600" />
+                Additional Information
+              </CardTitle>
+              <p className="text-sm text-muted-foreground mt-2">
+                Invoice status, payment terms, and additional notes
+              </p>
             </CardHeader>
-            <CardContent className="space-y-6">
-              <FormField
-                control={form.control}
-                name="status"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Invoice Status</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <FormControl>
-                        <SelectTrigger className="bg-background">
-                          <SelectValue placeholder="Select invoice status" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent className="bg-background border shadow-md z-50">
-                        <SelectItem value="draft">Draft</SelectItem>
-                        <SelectItem value="finalized">Finalize & Generate Invoice Number</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+            <CardContent className="p-8">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <FormField
+                  control={form.control}
+                  name="status"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-base font-semibold">Invoice Status</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl>
+                          <SelectTrigger className="h-12 text-base border-2 bg-background">
+                            <SelectValue placeholder="Select invoice status" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent className="bg-background border shadow-md z-50">
+                          <SelectItem value="draft">Draft</SelectItem>
+                          <SelectItem value="finalized">Finalize & Generate Invoice Number</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <div className="flex items-end">
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 w-full">
+                    <div className="flex items-center gap-2">
+                      <Info className="h-4 w-4 text-blue-600" />
+                      <span className="text-sm font-medium text-blue-700">Status Guide</span>
+                    </div>
+                    <p className="text-xs text-blue-600 mt-1">
+                      Draft: Editable, no invoice number generated<br/>
+                      Finalized: Locked, official invoice number assigned
+                    </p>
+                  </div>
+                </div>
+              </div>
 
-              <FormField
-                control={form.control}
-                name="notes"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Notes</FormLabel>
-                    <FormControl>
-                      <Textarea
-                        placeholder="Any additional notes for this invoice..."
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              <div className="mt-8">
+                <FormField
+                  control={form.control}
+                  name="notes"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-base font-semibold">Notes</FormLabel>
+                      <FormControl>
+                        <Textarea
+                          placeholder="Any additional notes for this invoice..."
+                          {...field}
+                          className="min-h-[120px] text-base resize-none"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
             </CardContent>
           </Card>
 
           {/* Form Actions */}
-          <div className="flex justify-end space-x-4">
-            <Button type="button" variant="outline" onClick={onCancel}>
+          <div className="flex justify-end space-x-4 pt-4 pb-8">
+            <Button 
+              type="button" 
+              variant="outline" 
+              onClick={onCancel}
+              className="h-12 px-8 text-base border-2"
+            >
               Cancel
             </Button>
-            <Button type="submit" disabled={loading || watchedItems.length === 0}>
+            <Button 
+              type="submit" 
+              disabled={loading || watchedItems.length === 0}
+              className="h-12 px-8 text-base bg-primary hover:bg-primary/90"
+            >
               {loading ? 'Saving...' : editingInvoice ? 'Update Invoice' : 'Create Invoice'}
             </Button>
           </div>
