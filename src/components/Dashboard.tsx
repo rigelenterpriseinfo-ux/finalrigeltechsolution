@@ -32,7 +32,7 @@ import { InventoryModule } from '@/components/modules/InventoryModule';
 import { PurchaseModule } from '@/components/modules/PurchaseModule';
 import SalesModule from '@/components/modules/SalesModule';
 import { PaymentsModule } from '@/components/modules/PaymentsModule';
-import EnhancedReportsModule from '@/components/modules/EnhancedReportsModule';
+import { EnhancedReportsModule } from '@/components/modules/EnhancedReportsModule';
 import { TrackingModule } from '@/components/modules/TrackingModule';
 import { AIAssistant } from '@/components/modules/AIAssistant';
 import { CompanyProfile } from '@/components/CompanyProfile';
