@@ -13,9 +13,11 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { format } from "date-fns";
-import { CalendarIcon, Plus, Trash2, FileText, User, MapPin, Package, Settings, Info } from "lucide-react";
+import { CalendarIcon, Plus, Trash2, FileText, User, MapPin, Package, Settings, Info, Building, ClipboardCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Checkbox } from '@/components/ui/checkbox';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Separator } from '@/components/ui/separator';
 import { toast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
 
@@ -98,6 +100,7 @@ export const SalesInvoiceForm: React.FC<SalesInvoiceFormProps> = ({
   const [stockLevels, setStockLevels] = useState<Record<string, number>>({});
   const [quantityErrors, setQuantityErrors] = useState<Record<number, string>>({});
   const [remainingQuantities, setRemainingQuantities] = useState<Record<string, any>>({});
+  const [activeTab, setActiveTab] = useState('invoice-info');
 
   const form = useForm<SalesInvoiceFormData>({
     resolver: zodResolver(salesInvoiceSchema),
@@ -130,14 +133,12 @@ export const SalesInvoiceForm: React.FC<SalesInvoiceFormProps> = ({
 
   useEffect(() => {
     if (editingInvoice) {
-      // Populate form with editing data (do not override with SO defaults)
       form.reset({
         ...editingInvoice,
         invoice_date: new Date(editingInvoice.invoice_date),
         due_date: editingInvoice.due_date ? new Date(editingInvoice.due_date) : undefined,
         items: editingInvoice.sales_invoice_items || [],
       });
-      // When editing, we avoid auto-fetching SO details to prevent overwriting invoice items
     }
   }, [editingInvoice]);
 
@@ -219,14 +220,11 @@ export const SalesInvoiceForm: React.FC<SalesInvoiceFormProps> = ({
 
   const handleWarehouseChange = (warehouseId: string) => {
     form.setValue('default_warehouse_id', warehouseId);
-    // Filter bins for selected warehouse
     const filteredBins = warehouses.filter(w => w.id === warehouseId);
     setBins(filteredBins);
-    // Reset bin selection
     form.setValue('default_bin_id', '');
   };
 
-  // Function to fetch current stock levels for products
   const fetchStockLevels = async (productIds: string[], warehouseId?: string, binId?: string) => {
     if (!company?.id || productIds.length === 0) return {};
     
@@ -256,7 +254,6 @@ export const SalesInvoiceForm: React.FC<SalesInvoiceFormProps> = ({
     }
   };
 
-  // Validate quantity constraints
   const validateQuantity = (itemIndex: number, invoicedQty: number, orderedQty: number, productId: string): string | null => {
     const stockOnHand = stockLevels[productId] || 0;
     const remainingData = remainingQuantities[productId];
@@ -283,7 +280,6 @@ export const SalesInvoiceForm: React.FC<SalesInvoiceFormProps> = ({
     return null;
   };
 
-  // Handle quantity change with validation
   const handleQuantityChange = (itemIndex: number, value: number) => {
     const items = form.getValues('items');
     const item = items[itemIndex];
@@ -296,7 +292,6 @@ export const SalesInvoiceForm: React.FC<SalesInvoiceFormProps> = ({
         [itemIndex]: error || ''
       }));
       
-      // Update the form field
       form.setValue(`items.${itemIndex}.quantity_invoiced`, value);
     }
   };
@@ -319,7 +314,6 @@ export const SalesInvoiceForm: React.FC<SalesInvoiceFormProps> = ({
       if (error) throw error;
       setSelectedSalesOrder(data);
       
-      // Fetch remaining quantities using the new database function
       const { data: remainingData, error: remainingError } = await supabase
         .rpc('get_sales_order_item_remaining_quantities', {
           p_sales_order_id: salesOrderId
@@ -330,14 +324,12 @@ export const SalesInvoiceForm: React.FC<SalesInvoiceFormProps> = ({
         throw remainingError;
       }
 
-      // Convert array to object for easy lookup
       const remainingMap: Record<string, any> = {};
       remainingData?.forEach((item: any) => {
         remainingMap[item.product_id] = item;
       });
       setRemainingQuantities(remainingMap);
       
-      // Auto-populate customer and address details
       const customer = data.customers;
       form.setValue('customer_id', customer.id);
       form.setValue('customer_name', customer.name);
@@ -348,11 +340,9 @@ export const SalesInvoiceForm: React.FC<SalesInvoiceFormProps> = ({
       form.setValue('billing_pin_code', customer.pin_code || '');
       form.setValue('billing_country', customer.country || '');
       
-      // Get warehouse and bin details from sales order items (first item's warehouse/bin)
       if (data.sales_order_items && data.sales_order_items.length > 0) {
         const firstItem = data.sales_order_items[0];
         if (firstItem.warehouse_id && firstItem.bin_id) {
-          // Fetch warehouse and bin names
           const { data: warehouseData } = await supabase
             .from('warehouse_bins')
             .select('warehouse_name, bin_name')
@@ -368,14 +358,13 @@ export const SalesInvoiceForm: React.FC<SalesInvoiceFormProps> = ({
         }
       }
       
-      // Auto-populate line items from sales order using remaining quantities data
       const items = remainingData?.map((item: any) => ({
         product_id: item.product_id,
         item_code: item.product_sku,
         item_description: item.product_name,
         hsn_sac_code: item.hsn_sac_code || '',
         quantity_ordered: item.quantity_ordered,
-        quantity_invoiced: 0, // User needs to enter this
+        quantity_invoiced: 0,
         unit_of_measure: item.unit_of_measure,
         unit_price: parseFloat(item.unit_price.toString()),
         discount_percentage: 0,
@@ -384,7 +373,6 @@ export const SalesInvoiceForm: React.FC<SalesInvoiceFormProps> = ({
         igst_rate: 0,
       })) || [];
       
-      // Fetch stock levels for these products
       const productIds = items.map((item: any) => item.product_id);
       const defaultWarehouseId = data.default_warehouse_id;
       const defaultBinId = data.default_bin_id;
@@ -479,14 +467,11 @@ export const SalesInvoiceForm: React.FC<SalesInvoiceFormProps> = ({
   };
 
   const numberToWords = (num: number): string => {
-    // Simple implementation - you might want to use a library for more comprehensive conversion
     if (num === 0) return 'Zero';
     return `Rupees ${num.toFixed(2)} only`;
   };
 
   const handleSubmit = async (data: SalesInvoiceFormData) => {
-    console.log('🚀 SalesInvoiceForm: handleSubmit called with data keys:', Object.keys(data));
-    
     setLoading(true);
     try {
       const totals = calculateGrandTotals();
@@ -505,858 +490,914 @@ export const SalesInvoiceForm: React.FC<SalesInvoiceFormProps> = ({
         }))
       };
       
-      console.log('📤 SalesInvoiceForm: Calling onSubmit...', { invoiceDataKeys: Object.keys(invoiceData) });
       await onSubmit(invoiceData);
-      console.log('✅ SalesInvoiceForm: onSubmit completed successfully');
     } catch (error) {
-      console.error('❌ SalesInvoiceForm: Error in handleSubmit:', error);
-      throw error; // Re-throw to let parent handle
+      console.error('Error in handleSubmit:', error);
+      throw error;
     } finally {
       setLoading(false);
-      console.log('🏁 SalesInvoiceForm: Submission process finished');
     }
   };
 
   const totals = calculateGrandTotals();
 
   return (
-    <div className="space-y-4 max-w-6xl mx-auto">
+    <div className="flex flex-col h-full max-w-7xl mx-auto">
       <Form {...form}>
-        <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
-          {/* Header Section */}
-          <Card className="border shadow-sm">
-            <CardContent className="p-4">
-              {/* Primary Fields Row */}
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
-                <FormField
-                  control={form.control}
-                  name="invoice_number"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="text-base font-semibold">Invoice Number</FormLabel>
-                      <FormControl>
-                        <Input 
-                          placeholder={
-                            watchedStatus === 'draft' 
-                              ? "Will be generated when finalized" 
-                              : "Auto-generated if empty"
-                          } 
-                           {...field} 
-                          disabled={!!editingInvoice || watchedStatus === 'draft'}
-                          className="h-10"
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="invoice_date"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="text-base font-semibold">Invoice Date</FormLabel>
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <FormControl>
-                            <Button
-                              variant="outline"
-                              className={cn(
-                                "h-10 pl-4 text-left font-normal border",
-                                !field.value && "text-muted-foreground"
-                              )}
-                            >
-                              {field.value ? (
-                                format(field.value, "PPP")
-                              ) : (
-                                <span>Pick a date</span>
-                              )}
-                              <CalendarIcon className="ml-auto h-5 w-5 opacity-50" />
-                            </Button>
-                          </FormControl>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0" align="start">
-                          <Calendar
-                            mode="single"
-                            selected={field.value}
-                            onSelect={field.onChange}
-                            initialFocus
-                            className="p-3 pointer-events-auto"
-                          />
-                        </PopoverContent>
-                      </Popover>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="sales_order_id"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="text-base font-semibold">Sales Order Number</FormLabel>
-                      <Select onValueChange={onSalesOrderChange} value={field.value}>
-                        <FormControl>
-                          <SelectTrigger className="h-10 border">
-                            <SelectValue placeholder="Select sales order" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {salesOrders.map((order) => (
-                            <SelectItem key={order.id} value={order.id}>
-                              {order.order_number} - {order.customers.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+        <form onSubmit={form.handleSubmit(handleSubmit)} className="flex flex-col h-full">
+          {/* Header */}
+          <div className="flex items-center justify-between p-4 border-b bg-background">
+            <div className="flex items-center gap-3">
+              <FileText className="h-6 w-6 text-primary" />
+              <div>
+                <h1 className="text-xl font-semibold">
+                  {editingInvoice ? 'Edit Sales Invoice' : 'Create Sales Invoice'}
+                </h1>
+                <p className="text-sm text-muted-foreground">
+                  {editingInvoice ? 'Update invoice details' : 'Generate invoice from sales order'}
+                </p>
               </div>
+            </div>
+          </div>
 
-              {/* Recent Invoices Reference */}
-              {recentInvoices.length > 0 && (
-                <div className="bg-muted/30 rounded-lg p-4 mb-6">
-                  <div className="flex items-center gap-2 mb-4">
-                    <Info className="h-5 w-5 text-primary" />
-                    <FormLabel className="text-base font-semibold">Recent Invoices (Reference)</FormLabel>
-                  </div>
-                  <div className="flex flex-wrap gap-3">
-                    {recentInvoices.map((invoice) => (
-                      <Badge key={invoice.invoice_number} variant="secondary" className="py-2 px-4 text-sm">
-                        {invoice.invoice_number} - ₹{invoice.total_amount}
-                      </Badge>
-                    ))}
-                  </div>
+          {/* Tab Navigation */}
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-col flex-1">
+            <TabsList className="grid w-full grid-cols-3 bg-muted/50 rounded-none border-b h-auto p-0">
+              <TabsTrigger 
+                value="invoice-info" 
+                className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-background h-12"
+              >
+                <div className="flex items-center gap-2">
+                  <FileText className="h-4 w-4" />
+                  Invoice Info
                 </div>
-              )}
+              </TabsTrigger>
+              <TabsTrigger 
+                value="items" 
+                className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-background h-12"
+              >
+                <div className="flex items-center gap-2">
+                  <Package className="h-4 w-4" />
+                  Line Items
+                </div>
+              </TabsTrigger>
+              <TabsTrigger 
+                value="review" 
+                className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-background h-12"
+              >
+                <div className="flex items-center gap-2">
+                  <ClipboardCheck className="h-4 w-4" />
+                  Review & Submit
+                </div>
+              </TabsTrigger>
+            </TabsList>
 
-              {/* Secondary Fields Row */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
-                <FormField
-                  control={form.control}
-                  name="delivery_note_number"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="text-base font-semibold">Delivery Note Number</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Optional" {...field} className="h-10" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="customer_po_reference"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="text-base font-semibold">Customer PO Reference</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Customer PO reference" {...field} className="h-10" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-
-              {/* Warehouse and Bin Section */}
-              <div className="bg-amber-50/50 border border-amber-200 rounded-lg p-4">
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="default_warehouse_id"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="text-base font-semibold">Default Warehouse *</FormLabel>
-                        <FormControl>
-                          <Input 
-                            value={warehouseName || 'Not selected'}
-                            disabled
-                            className="h-10 bg-amber-50 border-amber-200 text-amber-700"
-                          />
-                        </FormControl>
-                        <FormMessage />
-                        {!field.value && (
-                          <p className="text-sm text-amber-600 flex items-center gap-1 mt-1">
-                            <Info className="h-4 w-4" />
-                            Will be auto-filled from selected Sales Order
-                          </p>
+            {/* Invoice Info Tab */}
+            <TabsContent value="invoice-info" className="flex-1 overflow-auto m-0 p-4">
+              <div className="space-y-4">
+                {/* Header Information */}
+                <Card className="shadow-sm border-border/50">
+                  <CardHeader className="pb-2 pt-3">
+                    <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                      <FileText className="h-4 w-4 text-primary" />
+                      Header Information
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                      <FormField
+                        control={form.control}
+                        name="invoice_number"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-sm font-medium">Invoice Number</FormLabel>
+                            <FormControl>
+                              <Input 
+                                placeholder={
+                                  watchedStatus === 'draft' 
+                                    ? "Will be generated when finalized" 
+                                    : "Auto-generated if empty"
+                                } 
+                                {...field} 
+                                disabled={!!editingInvoice || watchedStatus === 'draft'}
+                                className="h-9"
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
                         )}
-                      </FormItem>
-                    )}
-                  />
+                      />
 
-                  <FormField
-                    control={form.control}
-                    name="default_bin_id"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="text-base font-semibold">Default Bin *</FormLabel>
-                        <FormControl>
-                          <Input 
-                            value={binName || 'Not selected'}
-                            disabled
-                            className="h-10 bg-amber-50 border-amber-200 text-amber-700"
-                          />
-                        </FormControl>
-                        <FormMessage />
-                        {!field.value && (
-                          <p className="text-sm text-amber-600 flex items-center gap-1 mt-1">
-                            <Info className="h-4 w-4" />
-                            Will be auto-filled from selected Sales Order
-                          </p>
+                      <FormField
+                        control={form.control}
+                        name="invoice_date"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-sm font-medium">Invoice Date</FormLabel>
+                            <Popover>
+                              <PopoverTrigger asChild>
+                                <FormControl>
+                                  <Button
+                                    variant="outline"
+                                    className={cn(
+                                      "h-9 pl-3 text-left font-normal",
+                                      !field.value && "text-muted-foreground"
+                                    )}
+                                  >
+                                    {field.value ? (
+                                      format(field.value, "PPP")
+                                    ) : (
+                                      <span>Pick a date</span>
+                                    )}
+                                    <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                  </Button>
+                                </FormControl>
+                              </PopoverTrigger>
+                              <PopoverContent className="w-auto p-0" align="start">
+                                <Calendar
+                                  mode="single"
+                                  selected={field.value}
+                                  onSelect={field.onChange}
+                                  initialFocus
+                                  className="p-3 pointer-events-auto"
+                                />
+                              </PopoverContent>
+                            </Popover>
+                            <FormMessage />
+                          </FormItem>
                         )}
-                      </FormItem>
-                    )}
-                  />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+                      />
 
-          {/* Customer and Address Section */}
-          <Card className="border shadow-sm">
-            <CardContent className="p-4">
-              {/* Customer Name */}
-              <div className="mb-6">
-                <FormField
-                  control={form.control}
-                  name="customer_name"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="text-base font-semibold">Customer Name</FormLabel>
-                      <FormControl>
-                        <Input {...field} disabled className="h-10 bg-blue-50 border-blue-200 text-blue-700" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-
-              {/* Address Section */}
-              <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-                {/* Billing Address */}
-                <div className="space-y-4 p-4 bg-green-50/50 border border-green-200 rounded-lg">
-                  <div className="flex items-center gap-2 mb-3">
-                    <MapPin className="h-5 w-5 text-green-600" />
-                    <h4 className="text-lg font-semibold text-green-800">Billing Address</h4>
-                  </div>
-                  
-                  <FormField
-                    control={form.control}
-                    name="billing_address_line1"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="font-medium">Address Line 1</FormLabel>
-                        <FormControl>
-                          <Input {...field} className="h-9" />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <FormField
-                    control={form.control}
-                    name="billing_address_line2"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="font-medium">Address Line 2</FormLabel>
-                        <FormControl>
-                           <Input {...field} className="h-9" />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <div className="grid grid-cols-2 gap-4">
-                    <FormField
-                      control={form.control}
-                      name="billing_city"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="font-medium">City</FormLabel>
-                          <FormControl>
-                           <Input {...field} className="h-9" />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="billing_pin_code"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="font-medium">Pin Code</FormLabel>
-                          <FormControl>
-                             <Input {...field} className="h-9" />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-                  
-                  <FormField
-                    control={form.control}
-                    name="billing_country"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="font-medium">Country</FormLabel>
-                        <FormControl>
-                             <Input {...field} className="h-9" />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-
-                {/* Shipping Address */}
-                <div className="space-y-4 p-4 bg-purple-50/50 border border-purple-200 rounded-lg">
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="flex items-center gap-2">
-                      <MapPin className="h-5 w-5 text-purple-600" />
-                      <h4 className="text-lg font-semibold text-purple-800">Shipping Address</h4>
+                      <FormField
+                        control={form.control}
+                        name="sales_order_id"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-sm font-medium">Sales Order Number</FormLabel>
+                            <Select onValueChange={onSalesOrderChange} value={field.value}>
+                              <FormControl>
+                                <SelectTrigger className="h-9">
+                                  <SelectValue placeholder="Select sales order" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                {salesOrders.map((order) => (
+                                  <SelectItem key={order.id} value={order.id}>
+                                    {order.order_number} - {order.customers.name}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
                     </div>
-                    <FormField
-                      control={form.control}
-                      name="same_as_billing_address"
-                      render={({ field }) => (
-                        <FormItem className="flex items-center space-x-3 space-y-0">
-                          <FormControl>
-                            <Checkbox
-                              checked={field.value}
-                              onCheckedChange={field.onChange}
-                              className="border-2"
-                            />
-                          </FormControl>
-                          <FormLabel className="text-sm font-medium cursor-pointer">Same as Billing</FormLabel>
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-                  
-                  <FormField
-                    control={form.control}
-                    name="shipping_address_line1"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="font-medium">Address Line 1</FormLabel>
-                        <FormControl>
-                          <Input 
-                            {...field} 
-                             disabled={watchedSameAsBilling} 
-                            className={cn("h-9", watchedSameAsBilling && "bg-purple-100 text-purple-600")}
+                  </CardContent>
+                </Card>
+
+                {/* Recent Invoices Reference */}
+                {recentInvoices.length > 0 && (
+                  <Card className="shadow-sm border-border/50">
+                    <CardHeader className="pb-2 pt-3">
+                      <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                        <Info className="h-4 w-4 text-primary" />
+                        Recent Invoices (Reference)
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="flex flex-wrap gap-2">
+                        {recentInvoices.map((invoice) => (
+                          <Badge key={invoice.invoice_number} variant="secondary" className="text-xs">
+                            {invoice.invoice_number} - ₹{invoice.total_amount}
+                          </Badge>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* Additional References */}
+                <Card className="shadow-sm border-border/50">
+                  <CardHeader className="pb-2 pt-3">
+                    <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                      <FileText className="h-4 w-4 text-primary" />
+                      Additional References
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                      <FormField
+                        control={form.control}
+                        name="delivery_note_number"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-sm font-medium">Delivery Note Number</FormLabel>
+                            <FormControl>
+                              <Input placeholder="Optional" {...field} className="h-9" />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name="customer_po_reference"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-sm font-medium">Customer PO Reference</FormLabel>
+                            <FormControl>
+                              <Input placeholder="Customer PO reference" {...field} className="h-9" />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Warehouse and Bin Section */}
+                <Card className="shadow-sm border-border/50">
+                  <CardHeader className="pb-2 pt-3">
+                    <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                      <Package className="h-4 w-4 text-primary" />
+                      Warehouse & Bin Configuration
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                      <FormField
+                        control={form.control}
+                        name="default_warehouse_id"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-sm font-medium">Default Warehouse</FormLabel>
+                            <FormControl>
+                              <Input 
+                                value={warehouseName || 'Not selected'}
+                                disabled
+                                className="h-9 bg-muted/30"
+                              />
+                            </FormControl>
+                            <FormMessage />
+                            {!field.value && (
+                              <p className="text-xs text-muted-foreground">
+                                Will be auto-filled from selected Sales Order
+                              </p>
+                            )}
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name="default_bin_id"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-sm font-medium">Default Bin</FormLabel>
+                            <FormControl>
+                              <Input 
+                                value={binName || 'Not selected'}
+                                disabled
+                                className="h-9 bg-muted/30"
+                              />
+                            </FormControl>
+                            <FormMessage />
+                            {!field.value && (
+                              <p className="text-xs text-muted-foreground">
+                                Will be auto-filled from selected Sales Order
+                              </p>
+                            )}
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Customer and Address Section */}
+                <Card className="shadow-sm border-border/50">
+                  <CardHeader className="pb-2 pt-3">
+                    <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                      <User className="h-4 w-4 text-primary" />
+                      Customer & Address Details
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {/* Customer Name */}
+                    <div className="mb-4">
+                      <FormField
+                        control={form.control}
+                        name="customer_name"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-sm font-medium">Customer Name</FormLabel>
+                            <FormControl>
+                              <Input {...field} disabled className="h-9 bg-muted/30" />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+
+                    {/* Address Section */}
+                    <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+                      {/* Billing Address */}
+                      <div className="space-y-3 p-3 bg-green-50/50 border border-green-200 rounded-lg">
+                        <div className="flex items-center gap-2">
+                          <MapPin className="h-4 w-4 text-green-600" />
+                          <h4 className="text-sm font-semibold text-green-800">Billing Address</h4>
+                        </div>
+                        
+                        <FormField
+                          control={form.control}
+                          name="billing_address_line1"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel className="text-xs font-medium">Address Line 1</FormLabel>
+                              <FormControl>
+                                <Input {...field} className="h-8 text-sm" />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        
+                        <FormField
+                          control={form.control}
+                          name="billing_address_line2"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel className="text-xs font-medium">Address Line 2</FormLabel>
+                              <FormControl>
+                                <Input {...field} className="h-8 text-sm" />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        
+                        <div className="grid grid-cols-2 gap-2">
+                          <FormField
+                            control={form.control}
+                            name="billing_city"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel className="text-xs font-medium">City</FormLabel>
+                                <FormControl>
+                                  <Input {...field} className="h-8 text-sm" />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
                           />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <FormField
-                    control={form.control}
-                    name="shipping_address_line2"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="font-medium">Address Line 2</FormLabel>
-                        <FormControl>
-                          <Input 
-                            {...field} 
-                             disabled={watchedSameAsBilling} 
-                            className={cn("h-9", watchedSameAsBilling && "bg-purple-100 text-purple-600")}
+                          <FormField
+                            control={form.control}
+                            name="billing_pin_code"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel className="text-xs font-medium">Pin Code</FormLabel>
+                                <FormControl>
+                                  <Input {...field} className="h-8 text-sm" />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
                           />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <div className="grid grid-cols-2 gap-4">
-                    <FormField
-                      control={form.control}
-                      name="shipping_city"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="font-medium">City</FormLabel>
-                          <FormControl>
-                            <Input 
-                              {...field} 
-                               disabled={watchedSameAsBilling} 
-                              className={cn("h-9", watchedSameAsBilling && "bg-purple-100 text-purple-600")}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="shipping_pin_code"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="font-medium">Pin Code</FormLabel>
-                          <FormControl>
-                            <Input 
-                              {...field} 
-                               disabled={watchedSameAsBilling} 
-                              className={cn("h-9", watchedSameAsBilling && "bg-purple-100 text-purple-600")}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-                  
-                  <FormField
-                    control={form.control}
-                    name="shipping_country"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="font-medium">Country</FormLabel>
-                        <FormControl>
-                          <Input 
-                            {...field} 
-                             disabled={watchedSameAsBilling} 
-                            className={cn("h-9", watchedSameAsBilling && "bg-purple-100 text-purple-600")}
+                        </div>
+                        
+                        <FormField
+                          control={form.control}
+                          name="billing_country"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel className="text-xs font-medium">Country</FormLabel>
+                              <FormControl>
+                                <Input {...field} className="h-8 text-sm" />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+
+                      {/* Shipping Address */}
+                      <div className="space-y-3 p-3 bg-purple-50/50 border border-purple-200 rounded-lg">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <MapPin className="h-4 w-4 text-purple-600" />
+                            <h4 className="text-sm font-semibold text-purple-800">Shipping Address</h4>
+                          </div>
+                          <FormField
+                            control={form.control}
+                            name="same_as_billing_address"
+                            render={({ field }) => (
+                              <FormItem className="flex items-center space-x-2 space-y-0">
+                                <FormControl>
+                                  <Checkbox
+                                    checked={field.value}
+                                    onCheckedChange={field.onChange}
+                                    className="border"
+                                  />
+                                </FormControl>
+                                <FormLabel className="text-xs font-medium cursor-pointer">Same as Billing</FormLabel>
+                              </FormItem>
+                            )}
                           />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
+                        </div>
+                        
+                        <FormField
+                          control={form.control}
+                          name="shipping_address_line1"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel className="text-xs font-medium">Address Line 1</FormLabel>
+                              <FormControl>
+                                <Input 
+                                  {...field} 
+                                  disabled={watchedSameAsBilling} 
+                                  className={cn("h-8 text-sm", watchedSameAsBilling && "bg-purple-100 text-purple-600")}
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        
+                        <FormField
+                          control={form.control}
+                          name="shipping_address_line2"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel className="text-xs font-medium">Address Line 2</FormLabel>
+                              <FormControl>
+                                <Input 
+                                  {...field} 
+                                  disabled={watchedSameAsBilling} 
+                                  className={cn("h-8 text-sm", watchedSameAsBilling && "bg-purple-100 text-purple-600")}
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        
+                        <div className="grid grid-cols-2 gap-2">
+                          <FormField
+                            control={form.control}
+                            name="shipping_city"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel className="text-xs font-medium">City</FormLabel>
+                                <FormControl>
+                                  <Input 
+                                    {...field} 
+                                    disabled={watchedSameAsBilling} 
+                                    className={cn("h-8 text-sm", watchedSameAsBilling && "bg-purple-100 text-purple-600")}
+                                  />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                          <FormField
+                            control={form.control}
+                            name="shipping_pin_code"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel className="text-xs font-medium">Pin Code</FormLabel>
+                                <FormControl>
+                                  <Input 
+                                    {...field} 
+                                    disabled={watchedSameAsBilling} 
+                                    className={cn("h-8 text-sm", watchedSameAsBilling && "bg-purple-100 text-purple-600")}
+                                  />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        </div>
+                        
+                        <FormField
+                          control={form.control}
+                          name="shipping_country"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel className="text-xs font-medium">Country</FormLabel>
+                              <FormControl>
+                                <Input 
+                                  {...field} 
+                                  disabled={watchedSameAsBilling} 
+                                  className={cn("h-8 text-sm", watchedSameAsBilling && "bg-purple-100 text-purple-600")}
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
               </div>
-            </CardContent>
-          </Card>
+            </TabsContent>
 
-          {/* Additional Details */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Additional Details</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <FormField
-                  control={form.control}
-                  name="currency"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Currency</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="INR">INR</SelectItem>
-                          <SelectItem value="USD">USD</SelectItem>
-                          <SelectItem value="EUR">EUR</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
+            {/* Items Tab */}
+            <TabsContent value="items" className="flex-1 overflow-auto m-0 p-4">
+              <Card className="shadow-sm border-border/50">
+                <CardHeader className="pb-2 pt-3">
+                  <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                    <Package className="h-4 w-4 text-primary" />
+                    Line Items
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {watchedItems.length > 0 ? (
+                    <div className="space-y-4">
+                      <div className="overflow-x-auto">
+                        <table className="min-w-full divide-y divide-gray-200">
+                          <thead className="bg-gray-50">
+                            <tr>
+                              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Item Code</th>
+                              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Description</th>
+                              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">HSN</th>
+                              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Ordered</th>
+                              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Already Invoiced</th>
+                              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Remaining</th>
+                              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Stock</th>
+                              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Invoice Qty</th>
+                              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">SO Backorder</th>
+                              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">UOM</th>
+                              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Unit Price</th>
+                              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Discount %</th>
+                              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">CGST %</th>
+                              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">SGST %</th>
+                              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">IGST %</th>
+                              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Line Total</th>
+                            </tr>
+                          </thead>
+                          <tbody className="bg-white divide-y divide-gray-200">
+                            {watchedItems.map((item, index) => {
+                              const itemTotals = calculateItemTotals(index);
+                              const remainingData = remainingQuantities[item.product_id];
+                              return (
+                                <tr key={index}>
+                                  <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">{item.item_code}</td>
+                                  <td className="px-4 py-4 text-sm text-gray-900 max-w-xs truncate">{item.item_description}</td>
+                                  <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">{item.hsn_sac_code}</td>
+                                  <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">{item.quantity_ordered}</td>
+                                  <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
+                                    {remainingData?.quantity_already_invoiced || 0}
+                                  </td>
+                                  <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
+                                    {remainingData?.quantity_remaining || 0}
+                                  </td>
+                                  <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
+                                    {stockLevels[item.product_id] || 0}
+                                  </td>
+                                  <td className="px-4 py-4 whitespace-nowrap">
+                                    <FormField
+                                      control={form.control}
+                                      name={`items.${index}.quantity_invoiced`}
+                                      render={({ field }) => (
+                                        <FormItem>
+                                          <FormControl>
+                                            <Input
+                                              type="number"
+                                              min="0"
+                                              {...field}
+                                              onChange={(e) => {
+                                                const value = parseFloat(e.target.value) || 0;
+                                                handleQuantityChange(index, value);
+                                              }}
+                                              className={cn(
+                                                "w-20",
+                                                quantityErrors[index] && "border-red-500"
+                                              )}
+                                            />
+                                          </FormControl>
+                                          {quantityErrors[index] && (
+                                            <div className="text-xs text-red-500 mt-1">
+                                              {quantityErrors[index]}
+                                            </div>
+                                          )}
+                                        </FormItem>
+                                      )}
+                                    />
+                                  </td>
+                                  <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
+                                    {remainingData?.current_backorder_qty || 0}
+                                  </td>
+                                  <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">{item.unit_of_measure}</td>
+                                  <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">₹{item.unit_price.toFixed(2)}</td>
+                                  <td className="px-4 py-4 whitespace-nowrap">
+                                    <FormField
+                                      control={form.control}
+                                      name={`items.${index}.discount_percentage`}
+                                      render={({ field }) => (
+                                        <FormControl>
+                                          <Input
+                                            type="number"
+                                            min="0"
+                                            max="100"
+                                            step="0.01"
+                                            {...field}
+                                            onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                                            className="w-16"
+                                          />
+                                        </FormControl>
+                                      )}
+                                    />
+                                  </td>
+                                  <td className="px-4 py-4 whitespace-nowrap">
+                                    <FormField
+                                      control={form.control}
+                                      name={`items.${index}.cgst_rate`}
+                                      render={({ field }) => (
+                                        <FormControl>
+                                          <Input
+                                            type="number"
+                                            min="0"
+                                            max="100"
+                                            step="0.01"
+                                            {...field}
+                                            onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                                            className="w-16"
+                                          />
+                                        </FormControl>
+                                      )}
+                                    />
+                                  </td>
+                                  <td className="px-4 py-4 whitespace-nowrap">
+                                    <FormField
+                                      control={form.control}
+                                      name={`items.${index}.sgst_rate`}
+                                      render={({ field }) => (
+                                        <FormControl>
+                                          <Input
+                                            type="number"
+                                            min="0"
+                                            max="100"
+                                            step="0.01"
+                                            {...field}
+                                            onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                                            className="w-16"
+                                          />
+                                        </FormControl>
+                                      )}
+                                    />
+                                  </td>
+                                  <td className="px-4 py-4 whitespace-nowrap">
+                                    <FormField
+                                      control={form.control}
+                                      name={`items.${index}.igst_rate`}
+                                      render={({ field }) => (
+                                        <FormControl>
+                                          <Input
+                                            type="number"
+                                            min="0"
+                                            max="100"
+                                            step="0.01"
+                                            {...field}
+                                            onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                                            className="w-16"
+                                          />
+                                        </FormControl>
+                                      )}
+                                    />
+                                  </td>
+                                  <td className="px-4 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                                    ₹{itemTotals?.lineTotal.toFixed(2) || '0.00'}
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                      
+                      {/* Invoice Summary */}
+                      <div className="mt-8 border-t pt-4">
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                          <div className="bg-blue-50 p-3 rounded">
+                            <div className="font-medium text-blue-800">Total Ordered</div>
+                            <div className="text-lg font-bold text-blue-600">{totals.totalOrderedQty}</div>
+                          </div>
+                          <div className="bg-green-50 p-3 rounded">
+                            <div className="font-medium text-green-800">Total Invoiced</div>
+                            <div className="text-lg font-bold text-green-600">{totals.totalInvoicedQty}</div>
+                          </div>
+                          <div className="bg-orange-50 p-3 rounded">
+                            <div className="font-medium text-orange-800">Total Backorder</div>
+                            <div className="text-lg font-bold text-orange-600">{totals.totalBackorderQty}</div>
+                          </div>
+                          <div className="bg-purple-50 p-3 rounded">
+                            <div className="font-medium text-purple-800">Grand Total</div>
+                            <div className="text-lg font-bold text-purple-600">₹{totals.grandTotal.toFixed(2)}</div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-center py-8 text-gray-500">
+                      <Package className="mx-auto h-12 w-12 text-gray-300 mb-4" />
+                      <p>No line items available. Please select a sales order first.</p>
+                    </div>
                   )}
-                />
+                </CardContent>
+              </Card>
+            </TabsContent>
 
-                <FormField
-                  control={form.control}
-                  name="payment_terms"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Payment Terms</FormLabel>
-                      <FormControl>
-                        <Input placeholder="e.g., Net 30" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+            {/* Review Tab */}
+            <TabsContent value="review" className="flex-1 overflow-auto m-0 p-4">
+              <div className="space-y-4">
+                {/* Additional Charges */}
+                <Card className="shadow-sm border-border/50">
+                  <CardHeader className="pb-2 pt-3">
+                    <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                      <Settings className="h-4 w-4 text-primary" />
+                      Additional Charges
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <FormField
+                        control={form.control}
+                        name="freight_charges"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-sm font-medium">Freight Charges</FormLabel>
+                            <FormControl>
+                              <Input
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                {...field}
+                                onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                                className="h-9"
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
 
-                <FormField
-                  control={form.control}
-                  name="account_manager"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Account Manager</FormLabel>
-                      <FormControl>
-                        <Input {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                      <FormField
+                        control={form.control}
+                        name="packing_charges"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-sm font-medium">Packing Charges</FormLabel>
+                            <FormControl>
+                              <Input
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                {...field}
+                                onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                                className="h-9"
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
 
-                <FormField
-                  control={form.control}
-                  name="mode_of_delivery"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Mode of Delivery</FormLabel>
-                      <FormControl>
-                        <Input placeholder="e.g., Air, Sea, Road" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-            </CardContent>
-          </Card>
+                      <FormField
+                        control={form.control}
+                        name="round_off"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-sm font-medium">Round Off</FormLabel>
+                            <FormControl>
+                              <Input
+                                type="number"
+                                step="0.01"
+                                {...field}
+                                onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                                className="h-9"
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                  </CardContent>
+                </Card>
 
-          {/* Line Items Section */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Line Items</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {watchedItems.length > 0 && (
-                <div className="space-y-4">
-                  <div className="overflow-x-auto">
-                    <table className="min-w-full divide-y divide-gray-200">
-                      <thead className="bg-gray-50">
-                          <tr>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Item Code</th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Description</th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">HSN</th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Ordered</th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Already Invoiced</th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Remaining</th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Stock</th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Invoice Qty</th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">SO Backorder</th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">UOM</th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Unit Price</th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Discount %</th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">CGST %</th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">SGST %</th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">IGST %</th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Line Total</th>
-                          </tr>
-                      </thead>
-                      <tbody className="bg-white divide-y divide-gray-200">
-                        {watchedItems.map((item, index) => {
-                          const itemTotals = calculateItemTotals(index);
-                          const remainingData = remainingQuantities[item.product_id];
-                          return (
-                             <tr key={index}>
-                               <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">{item.item_code}</td>
-                               <td className="px-4 py-4 text-sm text-gray-900 max-w-xs truncate">{item.item_description}</td>
-                               <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">{item.hsn_sac_code}</td>
-                               <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">{item.quantity_ordered}</td>
-                               <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
-                                 {remainingData?.quantity_already_invoiced || 0}
-                               </td>
-                               <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
-                                 {remainingData?.quantity_remaining || 0}
-                               </td>
-                               <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
-                                 {stockLevels[item.product_id] || 0}
-                               </td>
-                               <td className="px-4 py-4 whitespace-nowrap">
-                                 <FormField
-                                   control={form.control}
-                                   name={`items.${index}.quantity_invoiced`}
-                                   render={({ field }) => (
-                                     <FormItem>
-                                       <FormControl>
-                                         <Input
-                                           type="number"
-                                           min="0"
-                                           {...field}
-                                           onChange={(e) => {
-                                             const value = parseFloat(e.target.value) || 0;
-                                             handleQuantityChange(index, value);
-                                           }}
-                                           className={cn(
-                                             "w-20",
-                                             quantityErrors[index] && "border-red-500"
-                                           )}
-                                         />
-                                       </FormControl>
-                                       {quantityErrors[index] && (
-                                         <div className="text-xs text-red-500 mt-1">
-                                           {quantityErrors[index]}
-                                         </div>
-                                       )}
-                                     </FormItem>
-                                   )}
-                                 />
-                               </td>
-                               <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
-                                 {remainingData?.current_backorder_qty || 0}
-                               </td>
-                               <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">{item.unit_of_measure}</td>
-                               <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">₹{item.unit_price.toFixed(2)}</td>
-                               <td className="px-4 py-4 whitespace-nowrap">
-                                 <FormField
-                                   control={form.control}
-                                   name={`items.${index}.discount_percentage`}
-                                   render={({ field }) => (
-                                     <FormControl>
-                                       <Input
-                                         type="number"
-                                         min="0"
-                                         max="100"
-                                         step="0.01"
-                                         {...field}
-                                         onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
-                                         className="w-16"
-                                       />
-                                     </FormControl>
-                                   )}
-                                 />
-                               </td>
-                               <td className="px-4 py-4 whitespace-nowrap">
-                                 <FormField
-                                   control={form.control}
-                                   name={`items.${index}.cgst_rate`}
-                                   render={({ field }) => (
-                                     <FormControl>
-                                       <Input
-                                         type="number"
-                                         min="0"
-                                         max="100"
-                                         step="0.01"
-                                         {...field}
-                                         onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
-                                         className="w-16"
-                                       />
-                                     </FormControl>
-                                   )}
-                                 />
-                               </td>
-                               <td className="px-4 py-4 whitespace-nowrap">
-                                 <FormField
-                                   control={form.control}
-                                   name={`items.${index}.sgst_rate`}
-                                   render={({ field }) => (
-                                     <FormControl>
-                                       <Input
-                                         type="number"
-                                         min="0"
-                                         max="100"
-                                         step="0.01"
-                                         {...field}
-                                         onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
-                                         className="w-16"
-                                       />
-                                     </FormControl>
-                                   )}
-                                 />
-                               </td>
-                               <td className="px-4 py-4 whitespace-nowrap">
-                                 <FormField
-                                   control={form.control}
-                                   name={`items.${index}.igst_rate`}
-                                   render={({ field }) => (
-                                     <FormControl>
-                                       <Input
-                                         type="number"
-                                         min="0"
-                                         max="100"
-                                         step="0.01"
-                                         {...field}
-                                         onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
-                                         className="w-16"
-                                       />
-                                     </FormControl>
-                                   )}
-                                 />
-                               </td>
-                               <td className="px-4 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                                 ₹{itemTotals?.lineTotal.toFixed(2) || '0.00'}
-                               </td>
-                             </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
-                  
-                  {/* Invoice Summary */}
-                  <div className="mt-8 border-t pt-4">
+                {/* Invoice Settings */}
+                <Card className="shadow-sm border-border/50">
+                  <CardHeader className="pb-2 pt-3">
+                    <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                      <Settings className="h-4 w-4 text-primary" />
+                      Invoice Settings
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                      <FormField
+                        control={form.control}
+                        name="status"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-sm font-medium">Invoice Status</FormLabel>
+                            <Select onValueChange={field.onChange} value={field.value}>
+                              <FormControl>
+                                <SelectTrigger className="h-9">
+                                  <SelectValue placeholder="Select invoice status" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent className="bg-background border shadow-md z-50">
+                                <SelectItem value="draft">Draft</SelectItem>
+                                <SelectItem value="finalized">Finalize & Generate Invoice Number</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      
+                      <div className="flex items-center">
+                        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 w-full">
+                          <div className="flex items-center gap-2">
+                            <Info className="h-4 w-4 text-blue-600" />
+                            <span className="text-xs font-medium text-blue-700">Status Guide</span>
+                          </div>
+                          <p className="text-xs text-blue-600 mt-1">
+                            Draft: Editable, no invoice number generated<br/>
+                            Finalized: Locked, official invoice number assigned
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="mt-4">
+                      <FormField
+                        control={form.control}
+                        name="notes"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-sm font-medium">Notes</FormLabel>
+                            <FormControl>
+                              <Textarea
+                                placeholder="Any additional notes for this invoice..."
+                                {...field}
+                                className="min-h-[80px] resize-none"
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Final Totals Summary */}
+                <Card className="shadow-sm border-border/50">
+                  <CardHeader className="pb-2 pt-3">
+                    <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                      <ClipboardCheck className="h-4 w-4 text-primary" />
+                      Invoice Summary
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                       <div className="bg-blue-50 p-3 rounded">
-                        <div className="font-medium text-blue-800">Total Ordered</div>
-                        <div className="text-lg font-bold text-blue-600">{totals.totalOrderedQty}</div>
+                        <div className="font-medium text-blue-800">Subtotal</div>
+                        <div className="text-lg font-bold text-blue-600">₹{totals.subtotal.toFixed(2)}</div>
                       </div>
                       <div className="bg-green-50 p-3 rounded">
-                        <div className="font-medium text-green-800">Total Invoiced</div>
-                        <div className="text-lg font-bold text-green-600">{totals.totalInvoicedQty}</div>
+                        <div className="font-medium text-green-800">Tax Amount</div>
+                        <div className="text-lg font-bold text-green-600">₹{totals.totalTax.toFixed(2)}</div>
                       </div>
                       <div className="bg-orange-50 p-3 rounded">
-                        <div className="font-medium text-orange-800">Total Backorder</div>
-                        <div className="text-lg font-bold text-orange-600">{totals.totalBackorderQty}</div>
+                        <div className="font-medium text-orange-800">Discount</div>
+                        <div className="text-lg font-bold text-orange-600">₹{totals.totalDiscount.toFixed(2)}</div>
                       </div>
                       <div className="bg-purple-50 p-3 rounded">
                         <div className="font-medium text-purple-800">Grand Total</div>
                         <div className="text-lg font-bold text-purple-600">₹{totals.grandTotal.toFixed(2)}</div>
                       </div>
                     </div>
-                  </div>
-                </div>
-              )}
-              
-              {watchedItems.length === 0 && (
-                <div className="text-center py-8 text-gray-500">
-                  <Package className="mx-auto h-12 w-12 text-gray-300 mb-4" />
-                  <p>No line items available. Please select a sales order first.</p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Additional Charges */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Additional Charges</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <FormField
-                  control={form.control}
-                  name="freight_charges"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Freight Charges</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          {...field}
-                          onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="packing_charges"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Packing Charges</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          {...field}
-                          onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="round_off"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Round Off</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="number"
-                          step="0.01"
-                          {...field}
-                          onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                  </CardContent>
+                </Card>
               </div>
-            </CardContent>
-          </Card>
-
-          {/* Additional Information */}
-          <Card className="border shadow-sm">
-            <CardContent className="p-4">
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                <FormField
-                  control={form.control}
-                  name="status"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="text-base font-semibold">Invoice Status</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value}>
-                        <FormControl>
-                          <SelectTrigger className="h-10 border bg-background">
-                            <SelectValue placeholder="Select invoice status" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent className="bg-background border shadow-md z-50">
-                          <SelectItem value="draft">Draft</SelectItem>
-                          <SelectItem value="finalized">Finalize & Generate Invoice Number</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                
-                <div className="flex items-end">
-                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 w-full">
-                    <div className="flex items-center gap-2">
-                      <Info className="h-4 w-4 text-blue-600" />
-                      <span className="text-sm font-medium text-blue-700">Status Guide</span>
-                    </div>
-                    <p className="text-xs text-blue-600 mt-1">
-                      Draft: Editable, no invoice number generated<br/>
-                      Finalized: Locked, official invoice number assigned
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="mt-6">
-                <FormField
-                  control={form.control}
-                  name="notes"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="text-base font-semibold">Notes</FormLabel>
-                      <FormControl>
-                          <Textarea
-                            placeholder="Any additional notes for this invoice..."
-                            {...field}
-                            className="min-h-[80px] resize-none"
-                          />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-            </CardContent>
-          </Card>
+            </TabsContent>
+          </Tabs>
 
           {/* Form Actions */}
-          <div className="flex justify-end space-x-4 pt-4">
+          <div className="flex justify-end space-x-4 p-4 border-t bg-background">
             <Button 
               type="button" 
               variant="outline" 
               onClick={onCancel}
-              className="h-10 px-6 border"
+              className="h-10 px-6"
             >
               Cancel
             </Button>
