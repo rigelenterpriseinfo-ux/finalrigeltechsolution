@@ -15,6 +15,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { Plus, Trash2, Building, MapPin, Package, Calculator, Users, CreditCard, Truck, Calendar, AlertCircle } from 'lucide-react';
@@ -59,6 +60,12 @@ const salesOrderSchema = z.object({
   mode_of_transport: z.string().optional(),
   notes: z.string().optional(),
   same_as_registered_address: z.boolean().default(false),
+  delivery_address_line1: z.string().optional(),
+  delivery_address_line2: z.string().optional(),
+  delivery_city: z.string().optional(),
+  delivery_state: z.string().optional(),
+  delivery_country: z.string().optional(),
+  delivery_postal_code: z.string().optional(),
   default_warehouse_id: z.string().optional(),
   default_bin_id: z.string().optional(),
   items: z.array(salesOrderItemSchema).min(1, 'At least one item is required'),
@@ -91,6 +98,7 @@ export function SalesOrderForm({
   const [stockLevels, setStockLevels] = useState<Record<string, number>>({});
   const [globalGstType, setGlobalGstType] = useState<'intra' | 'inter'>('intra');
   const [activeTab, setActiveTab] = useState('order-info');
+  const [companyData, setCompanyData] = useState<any>(null);
 
   const form = useForm<SalesOrderFormData>({
     resolver: zodResolver(salesOrderSchema),
@@ -108,6 +116,12 @@ export function SalesOrderForm({
       mode_of_transport: salesOrder?.mode_of_transport || 'courier',
       notes: salesOrder?.notes || '',
       same_as_registered_address: salesOrder?.same_as_registered_address || false,
+      delivery_address_line1: salesOrder?.delivery_address_line1 || '',
+      delivery_address_line2: salesOrder?.delivery_address_line2 || '',
+      delivery_city: salesOrder?.delivery_city || '',
+      delivery_state: salesOrder?.delivery_state || '',
+      delivery_country: salesOrder?.delivery_country || '',
+      delivery_postal_code: salesOrder?.delivery_postal_code || '',
       default_warehouse_id: salesOrder?.default_warehouse_id || '',
       default_bin_id: salesOrder?.default_bin_id || '',
       items: salesOrder?.sales_order_items || [{
@@ -147,6 +161,7 @@ export function SalesOrderForm({
     fetchCustomers();
     fetchProducts();
     fetchWarehouses();
+    fetchCompanyData();
   }, []);
 
   // Effect to fetch bins when salesOrder changes (edit mode) or warehouse is initially set
@@ -277,6 +292,23 @@ export function SalesOrderForm({
     }
   };
 
+  const fetchCompanyData = async () => {
+    if (!profile?.company_id) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from('companies')
+        .select('*')
+        .eq('id', profile.company_id)
+        .single();
+
+      if (error) throw error;
+      setCompanyData(data);
+    } catch (error) {
+      console.error('Error fetching company data:', error);
+    }
+  };
+
   const handleGlobalGstTypeChange = (newGstType: 'intra' | 'inter') => {
     setGlobalGstType(newGstType);
     
@@ -297,6 +329,26 @@ export function SalesOrderForm({
       
       calculateLineAmounts(index);
     });
+  };
+
+  const handleSameAsRegisteredAddressChange = (checked: boolean) => {
+    form.setValue('same_as_registered_address', checked);
+    
+    if (checked && companyData) {
+      form.setValue('delivery_address_line1', companyData.address_line1 || companyData.address || '');
+      form.setValue('delivery_address_line2', companyData.address_line2 || '');
+      form.setValue('delivery_city', companyData.city || '');
+      form.setValue('delivery_state', companyData.state || '');
+      form.setValue('delivery_country', companyData.country || '');
+      form.setValue('delivery_postal_code', companyData.postal_code || '');
+    } else {
+      form.setValue('delivery_address_line1', '');
+      form.setValue('delivery_address_line2', '');
+      form.setValue('delivery_city', '');
+      form.setValue('delivery_state', '');
+      form.setValue('delivery_country', '');
+      form.setValue('delivery_postal_code', '');
+    }
   };
 
   const validateGSTRate = (index: number, type: string, rate: number): boolean => {
@@ -629,15 +681,15 @@ export function SalesOrderForm({
             {/* Order Info Tab */}
             <TabsContent value="order-info" className="flex-1 overflow-auto m-0 p-0">
               <div className="space-y-4">
-                {/* Basic Order Information */}
+                {/* Order Details */}
                 <Card className="shadow-sm border-border/50">
                   <CardHeader className="pb-2 pt-3">
                     <CardTitle className="text-sm font-semibold flex items-center gap-2">
-                      <Building className="h-4 w-4 text-primary" />
-                      Order Information
+                      <Calendar className="h-4 w-4 text-primary" />
+                      Order Details
                     </CardTitle>
                   </CardHeader>
-                  <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                  <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-3">
                     <FormField
                       control={form.control}
                       name="order_number"
@@ -693,15 +745,15 @@ export function SalesOrderForm({
                   </CardContent>
                 </Card>
 
-                {/* Customer & Order Details */}
+                {/* Customer Information */}
                 <Card className="shadow-sm border-border/50">
                   <CardHeader className="pb-2 pt-3">
                     <CardTitle className="text-sm font-semibold flex items-center gap-2">
                       <Users className="h-4 w-4 text-primary" />
-                      Customer & Order Details
+                      Customer Information
                     </CardTitle>
                   </CardHeader>
-                  <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                  <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     <FormField
                       control={form.control}
                       name="customer_id"
@@ -741,7 +793,18 @@ export function SalesOrderForm({
                         </FormItem>
                       )}
                     />
+                  </CardContent>
+                </Card>
 
+                {/* Order Configuration */}
+                <Card className="shadow-sm border-border/50">
+                  <CardHeader className="pb-2 pt-3">
+                    <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                      <Building className="h-4 w-4 text-primary" />
+                      Order Configuration
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-3">
                     <FormField
                       control={form.control}
                       name="order_type"
@@ -791,6 +854,31 @@ export function SalesOrderForm({
 
                     <FormField
                       control={form.control}
+                      name="expected_delivery_date"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-sm">Expected Delivery</FormLabel>
+                          <FormControl>
+                            <Input type="date" {...field} disabled={readOnly} className="h-8" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </CardContent>
+                </Card>
+
+                {/* Payment & Terms */}
+                <Card className="shadow-sm border-border/50">
+                  <CardHeader className="pb-2 pt-3">
+                    <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                      <CreditCard className="h-4 w-4 text-primary" />
+                      Payment & Terms
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <FormField
+                      control={form.control}
                       name="payment_terms"
                       render={({ field }) => (
                         <FormItem>
@@ -805,12 +893,12 @@ export function SalesOrderForm({
 
                     <FormField
                       control={form.control}
-                      name="expected_delivery_date"
+                      name="account_manager"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel className="text-sm">Expected Delivery Date</FormLabel>
+                          <FormLabel className="text-sm">Account Manager</FormLabel>
                           <FormControl>
-                            <Input type="date" {...field} disabled={readOnly} className="h-8" />
+                            <Input placeholder="Manager name" {...field} disabled={readOnly} className="h-8" />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -898,6 +986,159 @@ export function SalesOrderForm({
                         </FormItem>
                       )}
                     />
+                  </CardContent>
+                </Card>
+
+                {/* Delivery Address */}
+                <Card className="shadow-sm border-border/50">
+                  <CardHeader className="pb-2 pt-3">
+                    <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                      <MapPin className="h-4 w-4 text-primary" />
+                      Delivery Address
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <FormField
+                      control={form.control}
+                      name="same_as_registered_address"
+                      render={({ field }) => (
+                        <FormItem className="flex flex-row items-center space-x-3 space-y-0">
+                          <FormControl>
+                            <Checkbox
+                              checked={field.value}
+                              onCheckedChange={(checked) => {
+                                field.onChange(checked);
+                                handleSameAsRegisteredAddressChange(checked as boolean);
+                              }}
+                              disabled={readOnly}
+                            />
+                          </FormControl>
+                          <FormLabel className="text-sm font-normal">
+                            Same as registered address
+                          </FormLabel>
+                        </FormItem>
+                      )}
+                    />
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <FormField
+                        control={form.control}
+                        name="delivery_address_line1"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-sm">Address Line 1</FormLabel>
+                            <FormControl>
+                              <Input 
+                                placeholder="Street address" 
+                                {...field} 
+                                disabled={readOnly || form.watch('same_as_registered_address')} 
+                                className="h-8" 
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name="delivery_address_line2"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-sm">Address Line 2</FormLabel>
+                            <FormControl>
+                              <Input 
+                                placeholder="Apartment, suite, etc." 
+                                {...field} 
+                                disabled={readOnly || form.watch('same_as_registered_address')} 
+                                className="h-8" 
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <FormField
+                        control={form.control}
+                        name="delivery_city"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-sm">City</FormLabel>
+                            <FormControl>
+                              <Input 
+                                placeholder="City" 
+                                {...field} 
+                                disabled={readOnly || form.watch('same_as_registered_address')} 
+                                className="h-8" 
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name="delivery_state"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-sm">State</FormLabel>
+                            <FormControl>
+                              <Input 
+                                placeholder="State" 
+                                {...field} 
+                                disabled={readOnly || form.watch('same_as_registered_address')} 
+                                className="h-8" 
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <FormField
+                        control={form.control}
+                        name="delivery_country"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-sm">Country</FormLabel>
+                            <FormControl>
+                              <Input 
+                                placeholder="Country" 
+                                {...field} 
+                                disabled={readOnly || form.watch('same_as_registered_address')} 
+                                className="h-8" 
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name="delivery_postal_code"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-sm">Postal Code</FormLabel>
+                            <FormControl>
+                              <Input 
+                                placeholder="PIN Code" 
+                                {...field} 
+                                disabled={readOnly || form.watch('same_as_registered_address')} 
+                                className="h-8" 
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
                   </CardContent>
                 </Card>
 

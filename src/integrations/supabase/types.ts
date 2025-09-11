@@ -2685,6 +2685,7 @@ export type Database = {
           delivery_country: string | null
           delivery_date: string | null
           delivery_pin_code: string | null
+          delivery_postal_code: string | null
           delivery_state: string | null
           discount_amount: number
           expected_delivery_date: string | null
@@ -2727,6 +2728,7 @@ export type Database = {
           delivery_country?: string | null
           delivery_date?: string | null
           delivery_pin_code?: string | null
+          delivery_postal_code?: string | null
           delivery_state?: string | null
           discount_amount?: number
           expected_delivery_date?: string | null
@@ -2769,6 +2771,7 @@ export type Database = {
           delivery_country?: string | null
           delivery_date?: string | null
           delivery_pin_code?: string | null
+          delivery_postal_code?: string | null
           delivery_state?: string | null
           discount_amount?: number
           expected_delivery_date?: string | null
