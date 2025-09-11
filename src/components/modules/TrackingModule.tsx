@@ -368,21 +368,7 @@ export function TrackingModule() {
     }
 
     try {
-      // First check if the document exists by making a HEAD request
-      const checkResponse = await fetch(podUrl, { method: 'HEAD' });
-      
-      if (!checkResponse.ok) {
-        if (checkResponse.status === 404 || checkResponse.status === 400) {
-          toast({
-            title: 'Document Not Found',
-            description: 'POD document is not available or the storage bucket is not configured.',
-            variant: 'destructive',
-          });
-          return;
-        }
-      }
-      
-      // Open POD document in new tab
+      // Open POD document in new tab - bucket is now public
       const newTab = window.open(podUrl, '_blank', 'noopener,noreferrer');
       if (!newTab) {
         toast({
@@ -392,10 +378,10 @@ export function TrackingModule() {
         });
       }
     } catch (error) {
-      console.error('Error checking POD document:', error);
+      console.error('Error opening POD document:', error);
       toast({
         title: 'Error',
-        description: 'Unable to access POD document. The storage may not be properly configured.',
+        description: 'Unable to open POD document.',
         variant: 'destructive',
       });
     }
@@ -419,14 +405,6 @@ export function TrackingModule() {
 
       const response = await fetch(podUrl);
       if (!response.ok) {
-        if (response.status === 404 || response.status === 400) {
-          toast({
-            title: 'Document Not Found',
-            description: 'POD document is not available or the storage bucket is not configured.',
-            variant: 'destructive',
-          });
-          return;
-        }
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
       
@@ -452,7 +430,7 @@ export function TrackingModule() {
       console.error('Download error:', error);
       toast({
         title: 'Error',
-        description: 'Failed to download POD document. The storage may not be properly configured.',
+        description: 'Failed to download POD document.',
         variant: 'destructive',
       });
     }
