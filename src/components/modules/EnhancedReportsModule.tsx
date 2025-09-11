@@ -1009,7 +1009,7 @@ export function EnhancedReportsModule() {
                                 <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
                               ))}
                             </Pie>
-                            <Tooltip formatter={(value) => [`$${value.toLocaleString()}`, 'Amount']} />
+                            <Tooltip formatter={(value) => [`₹${Number(value).toLocaleString('en-IN')}`, 'Amount']} />
                           </PieChart>
                         ) : selectedReport.includes('sales') || selectedReport.includes('purchase') ? (
                           <AreaChart data={chartData}>
@@ -1017,7 +1017,7 @@ export function EnhancedReportsModule() {
                             <XAxis dataKey="month" />
                             <YAxis />
                             <Tooltip formatter={(value, name) => [
-                              name === 'revenue' ? `$${value.toLocaleString()}` : value,
+                              name === 'revenue' ? `₹${Number(value).toLocaleString('en-IN')}` : value,
                               name === 'revenue' ? 'Revenue' : 'Orders'
                             ]} />
                             <Area type="monotone" dataKey="revenue" stackId="1" stroke="#0ea5e9" fill="#0ea5e9" fillOpacity={0.6} />
@@ -1043,7 +1043,7 @@ export function EnhancedReportsModule() {
                       <div className="grid grid-cols-2 gap-4">
                         <div className="p-4 rounded-lg bg-muted">
                           <div className="text-2xl font-bold text-primary">
-                            {selectedReport.includes('aging') ? '$' + chartData.reduce((sum, item) => sum + item.value, 0).toLocaleString() : reportData.length}
+                            {selectedReport.includes('aging') ? '₹' + Number(chartData.reduce((sum, item) => sum + item.value, 0)).toLocaleString('en-IN') : reportData.length}
                           </div>
                           <div className="text-sm text-muted-foreground">
                             {selectedReport.includes('aging') ? 'Total Outstanding' : 'Total Records'}
@@ -1088,8 +1088,8 @@ export function EnhancedReportsModule() {
                           <tr key={index} className="border-b hover:bg-muted/50">
                             {Object.entries(row).map(([key, value]) => (
                               <td key={key} className="p-3">
-                                {typeof value === 'number' && key.toLowerCase().includes('amount') || key.toLowerCase().includes('total') || key.toLowerCase().includes('value') ? 
-                                  `$${value.toLocaleString()}` : 
+                                {typeof value === 'number' && (key.toLowerCase().includes('amount') || key.toLowerCase().includes('total') || key.toLowerCase().includes('value')) ? 
+                                  `₹${Number(value).toLocaleString('en-IN')}` : 
                                   key === 'status' ? (
                                     <Badge variant={
                                       value === 'Delivered' ? 'default' :
