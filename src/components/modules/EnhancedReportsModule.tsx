@@ -903,10 +903,16 @@ export function EnhancedReportsModule() {
   // Update state when query data changes
   useEffect(() => {
     if (reportResult) {
-      setReportData(reportResult.tableData);
-      setChartData(reportResult.chartData);
+      // Handle GSTR-1 specific data structure
+      if (selectedReport === 'gstr1' && 'gstr1Sections' in reportResult && 'summary' in reportResult) {
+        setReportData(reportResult as any); // Set the full GSTR-1 result object
+        setChartData(reportResult.chartData);
+      } else {
+        setReportData(reportResult.tableData);
+        setChartData(reportResult.chartData);
+      }
     }
-  }, [reportResult]);
+  }, [reportResult, selectedReport]);
 
   const toggleCategory = (categoryId: string) => {
     setOpenCategories(prev => 
