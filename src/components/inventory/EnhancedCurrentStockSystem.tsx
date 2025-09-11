@@ -360,13 +360,6 @@ export const EnhancedCurrentStockSystem = () => {
         </Card>
       </div>
 
-      {/* Stock Analysis Panel */}
-      <StockAnalysisPanel 
-        stockData={filteredStockData}
-        loading={loading}
-        selectedItem={selectedItem}
-        selectedLocation={selectedLocation}
-      />
 
       {/* Open Transactions Table - Show when specific item + warehouse + bin are selected */}
       {hasSpecificSelection && (
