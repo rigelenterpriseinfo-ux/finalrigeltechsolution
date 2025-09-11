@@ -837,7 +837,7 @@ export function TrackingModule() {
       </CardHeader>
       <CardContent>
         <div className="w-full overflow-x-auto">
-          <Table className="text-sm">
+          <Table className="text-sm min-w-[1200px]">
             <TableHeader>
               <TableRow>
                 <TableHead className="w-[140px]">
@@ -862,7 +862,7 @@ export function TrackingModule() {
                     {getSortIcon('customer_name')}
                   </Button>
                 </TableHead>
-                <TableHead className="w-[100px] hidden md:table-cell">
+                <TableHead className="w-[120px]">
                   <Button
                     variant="ghost"
                     size="sm"
@@ -873,7 +873,7 @@ export function TrackingModule() {
                     {getSortIcon('destination')}
                   </Button>
                 </TableHead>
-                <TableHead className="w-[80px] hidden lg:table-cell text-center">
+                <TableHead className="w-[80px] text-center">
                   <Button
                     variant="ghost"
                     size="sm"
@@ -895,8 +895,8 @@ export function TrackingModule() {
                     {getSortIcon('total_amount')}
                   </Button>
                 </TableHead>
-                <TableHead className="w-[120px] hidden xl:table-cell">E-way Bill No</TableHead>
-                <TableHead className="w-[100px] hidden xl:table-cell">
+                <TableHead className="w-[120px]">E-way Bill No</TableHead>
+                <TableHead className="w-[120px]">
                   <Button
                     variant="ghost"
                     size="sm"
@@ -907,8 +907,8 @@ export function TrackingModule() {
                     {getSortIcon('eway_bill_date')}
                   </Button>
                 </TableHead>
-                <TableHead className="w-[140px] hidden xl:table-cell">Carrier/Transporter</TableHead>
-                <TableHead className="w-[100px] hidden 2xl:table-cell">AWB No</TableHead>
+                <TableHead className="w-[160px]">Carrier/Transporter</TableHead>
+                <TableHead className="w-[120px]">AWB No</TableHead>
                 <TableHead className="w-[120px]">Actions</TableHead>
               </TableRow>
             </TableHeader>
@@ -935,25 +935,25 @@ export function TrackingModule() {
                     <TableCell className="truncate max-w-[160px]" title={item.customer_name || item.supplier_name}>
                       {item.customer_name || item.supplier_name}
                     </TableCell>
-                    <TableCell className="hidden md:table-cell truncate max-w-[100px]" title={item.destination || item.delivery_city}>
+                    <TableCell className="truncate max-w-[120px]" title={item.destination || item.delivery_city}>
                       {item.destination || item.delivery_city || '-'}
                     </TableCell>
-                    <TableCell className="hidden lg:table-cell text-center">
+                    <TableCell className="text-center">
                       {item.item_count || '-'}
                     </TableCell>
                     <TableCell className="font-medium tabular-nums">
                       ₹{item.total_amount.toLocaleString('en-IN')}
                     </TableCell>
-                    <TableCell className="hidden xl:table-cell truncate max-w-[120px]" title={item.eway_bill_no}>
+                    <TableCell className="truncate max-w-[120px]" title={item.eway_bill_no}>
                       {item.eway_bill_no || '-'}
                     </TableCell>
-                    <TableCell className="hidden xl:table-cell">
+                    <TableCell>
                       {item.eway_bill_date ? format(new Date(item.eway_bill_date), 'dd/MM/yy') : '-'}
                     </TableCell>
-                    <TableCell className="hidden xl:table-cell truncate max-w-[140px]" title={item.carrier_transporter}>
+                    <TableCell className="truncate max-w-[160px]" title={item.carrier_transporter}>
                       {item.carrier_transporter || '-'}
                     </TableCell>
-                    <TableCell className="hidden 2xl:table-cell truncate max-w-[100px]" title={item.awb_no}>
+                    <TableCell className="truncate max-w-[120px]" title={item.awb_no}>
                       {item.awb_no || '-'}
                     </TableCell>
                     <TableCell>
