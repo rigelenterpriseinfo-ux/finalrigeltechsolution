@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Truck, Package, CheckCircle, Clock, Edit, FileText, Search, Eye, Download, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Truck, Package, CheckCircle, Clock, Edit, FileText, Search, Eye, Download, ChevronLeft, ChevronRight, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
 import { useBusinessAuth } from '@/hooks/useBusinessAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
@@ -95,6 +95,10 @@ export function TrackingModule() {
   const [orderDetailDialogOpen, setOrderDetailDialogOpen] = useState(false);
   const [selectedOrderForDetails, setSelectedOrderForDetails] = useState<DetailedOrder | null>(null);
   const [loadingOrderDetails, setLoadingOrderDetails] = useState(false);
+  const [sortConfig, setSortConfig] = useState<{
+    key: string;
+    direction: 'asc' | 'desc';
+  } | null>(null);
 
   const fetchTrackableOrders = async () => {
     try {
@@ -690,6 +694,62 @@ export function TrackingModule() {
     </Dialog>
   );
 
+  const handleSort = (key: string) => {
+    let direction: 'asc' | 'desc' = 'asc';
+    if (sortConfig && sortConfig.key === key && sortConfig.direction === 'asc') {
+      direction = 'desc';
+    }
+    setSortConfig({ key, direction });
+  };
+
+  const getSortIcon = (columnKey: string) => {
+    if (!sortConfig || sortConfig.key !== columnKey) {
+      return <ArrowUpDown className="h-4 w-4 ml-1 text-muted-foreground" />;
+    }
+    return sortConfig.direction === 'asc' 
+      ? <ArrowUp className="h-4 w-4 ml-1 text-primary" />
+      : <ArrowDown className="h-4 w-4 ml-1 text-primary" />;
+  };
+
+  const sortData = (data: TrackableOrder[]) => {
+    if (!sortConfig) return data;
+    
+    return [...data].sort((a, b) => {
+      let aValue = a[sortConfig.key as keyof TrackableOrder];
+      let bValue = b[sortConfig.key as keyof TrackableOrder];
+      
+      // Handle different data types
+      if (aValue === null || aValue === undefined) aValue = '';
+      if (bValue === null || bValue === undefined) bValue = '';
+      
+      // For numbers
+      if (sortConfig.key === 'total_amount' || sortConfig.key === 'item_count') {
+        aValue = Number(aValue) || 0;
+        bValue = Number(bValue) || 0;
+      }
+      
+      // For dates
+      if (sortConfig.key === 'order_date' || sortConfig.key === 'eway_bill_date' || sortConfig.key === 'dispatch_date' || sortConfig.key === 'delivery_date' || sortConfig.key === 'eta') {
+        aValue = aValue ? new Date(aValue as string).getTime() : 0;
+        bValue = bValue ? new Date(bValue as string).getTime() : 0;
+      }
+      
+      // For strings
+      if (typeof aValue === 'string' && typeof bValue === 'string') {
+        aValue = aValue.toLowerCase();
+        bValue = bValue.toLowerCase();
+      }
+      
+      if (aValue < bValue) {
+        return sortConfig.direction === 'asc' ? -1 : 1;
+      }
+      if (aValue > bValue) {
+        return sortConfig.direction === 'asc' ? 1 : -1;
+      }
+      return 0;
+    });
+  };
+
   useEffect(() => {
     const initializeTracking = async () => {
       if (hasAccess && hasAccess('tracking')) {
@@ -741,7 +801,7 @@ export function TrackingModule() {
     }
   };
 
-  const filteredOrders = orders.filter(order => {
+  const filteredOrders = sortData(orders.filter(order => {
     const matchesSearch = order.order_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (order.customer_name && order.customer_name.toLowerCase().includes(searchTerm.toLowerCase())) ||
       (order.awb_no && order.awb_no.toLowerCase().includes(searchTerm.toLowerCase())) ||
@@ -750,9 +810,9 @@ export function TrackingModule() {
     const matchesStatus = statusFilter === 'all' || order.tracking_status === statusFilter;
     
     return matchesSearch && matchesStatus;
-  });
+  }));
 
-  const filteredDebitNotes = debitNotes.filter(note => {
+  const filteredDebitNotes = sortData(debitNotes.filter(note => {
     const matchesSearch = note.order_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (note.supplier_name && note.supplier_name.toLowerCase().includes(searchTerm.toLowerCase())) ||
       (note.awb_no && note.awb_no.toLowerCase().includes(searchTerm.toLowerCase())) ||
@@ -761,7 +821,7 @@ export function TrackingModule() {
     const matchesStatus = statusFilter === 'all' || note.tracking_status === statusFilter;
     
     return matchesSearch && matchesStatus;
-  });
+  }));
 
   const renderTrackingTable = (data: TrackableOrder[], title: string) => {
     // Pagination logic
@@ -780,26 +840,72 @@ export function TrackingModule() {
           <Table className="min-w-full">
             <TableHeader>
               <TableRow>
-                <TableHead className="min-w-[120px]">Order Number</TableHead>
-                <TableHead className="min-w-[150px]">Customer/Supplier</TableHead>
-                <TableHead className="min-w-[120px]">Destination</TableHead>
-                <TableHead className="min-w-[100px]">Item Count</TableHead>
+                <TableHead className="min-w-[120px]">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-auto p-0 font-semibold hover:bg-transparent"
+                    onClick={() => handleSort('order_number')}
+                  >
+                    Order Number
+                    {getSortIcon('order_number')}
+                  </Button>
+                </TableHead>
+                <TableHead className="min-w-[150px]">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-auto p-0 font-semibold hover:bg-transparent"
+                    onClick={() => handleSort('customer_name')}
+                  >
+                    Customer/Supplier
+                    {getSortIcon('customer_name')}
+                  </Button>
+                </TableHead>
+                <TableHead className="min-w-[120px]">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-auto p-0 font-semibold hover:bg-transparent"
+                    onClick={() => handleSort('destination')}
+                  >
+                    Destination
+                    {getSortIcon('destination')}
+                  </Button>
+                </TableHead>
+                <TableHead className="min-w-[100px]">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-auto p-0 font-semibold hover:bg-transparent"
+                    onClick={() => handleSort('item_count')}
+                  >
+                    Item Count
+                    {getSortIcon('item_count')}
+                  </Button>
+                </TableHead>
+                <TableHead className="min-w-[120px]">Amount</TableHead>
                 <TableHead className="min-w-[120px]">E-way Bill No</TableHead>
-                <TableHead className="min-w-[120px]">E-way Bill Date</TableHead>
+                <TableHead className="min-w-[120px]">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-auto p-0 font-semibold hover:bg-transparent"
+                    onClick={() => handleSort('eway_bill_date')}
+                  >
+                    E-way Bill Date
+                    {getSortIcon('eway_bill_date')}
+                  </Button>
+                </TableHead>
                 <TableHead className="min-w-[150px]">Carrier/Transporter</TableHead>
                 <TableHead className="min-w-[100px]">AWB No</TableHead>
-                <TableHead className="min-w-[100px]">ETA</TableHead>
-                <TableHead className="min-w-[100px]">Status</TableHead>
-                <TableHead className="min-w-[120px]">Dispatch Date</TableHead>
-                <TableHead className="min-w-[120px]">Delivery Date</TableHead>
-                <TableHead className="min-w-[80px]">POD</TableHead>
-                <TableHead className="min-w-[200px] sticky right-0 bg-background border-l">Actions</TableHead>
+                <TableHead className="min-w-[100px]">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {paginatedData.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={14} className="text-center py-8">
+                  <TableCell colSpan={10} className="text-center py-8">
                     <Package className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
                     <p className="text-muted-foreground">No {title.toLowerCase()} to track</p>
                   </TableCell>
@@ -819,6 +925,7 @@ export function TrackingModule() {
                     <TableCell>{item.customer_name || item.supplier_name}</TableCell>
                     <TableCell>{item.destination || item.delivery_city || '-'}</TableCell>
                     <TableCell>{item.item_count || '-'}</TableCell>
+                    <TableCell className="font-medium">₹{item.total_amount.toLocaleString()}</TableCell>
                     <TableCell>{item.eway_bill_no || '-'}</TableCell>
                     <TableCell>
                       {item.eway_bill_date ? format(new Date(item.eway_bill_date), 'dd/MM/yyyy') : '-'}
@@ -826,31 +933,6 @@ export function TrackingModule() {
                     <TableCell>{item.carrier_transporter || '-'}</TableCell>
                     <TableCell>{item.awb_no || '-'}</TableCell>
                     <TableCell>
-                      {item.eta ? format(new Date(item.eta), 'dd/MM/yyyy') : '-'}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={getStatusColor(item.tracking_status || 'pending')}>
-                        {(item.tracking_status || 'pending').replace('_', ' ').toUpperCase()}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      {item.dispatch_date ? format(new Date(item.dispatch_date), 'dd/MM/yyyy') : '-'}
-                    </TableCell>
-                    <TableCell>
-                      {item.delivery_date ? format(new Date(item.delivery_date), 'dd/MM/yyyy') : '-'}
-                    </TableCell>
-                    <TableCell>
-                      {item.pod_document_url ? (
-                        <Button size="sm" variant="outline" asChild>
-                          <a href={item.pod_document_url} target="_blank" rel="noopener noreferrer" title="View POD">
-                            <FileText className="h-4 w-4" />
-                          </a>
-                        </Button>
-                      ) : (
-                        '-'
-                      )}
-                    </TableCell>
-                    <TableCell className="sticky right-0 bg-background border-l">
                       <div className="flex gap-1">
                         <Dialog open={isDialogOpen && editingOrder?.id === item.id} onOpenChange={setIsDialogOpen}>
                           <DialogTrigger asChild>
@@ -982,7 +1064,12 @@ export function TrackingModule() {
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-        <Card>
+        <Card 
+          className={`cursor-pointer transition-all duration-200 ${
+            statusFilter === 'pending' ? 'ring-2 ring-primary bg-primary/5' : 'hover:bg-muted/50'
+          }`}
+          onClick={() => setStatusFilter(statusFilter === 'pending' ? 'all' : 'pending')}
+        >
           <CardContent className="p-4 flex items-center space-x-2">
             <Clock className="h-8 w-8 text-orange-500" />
             <div>
@@ -993,7 +1080,12 @@ export function TrackingModule() {
             </div>
           </CardContent>
         </Card>
-        <Card>
+        <Card 
+          className={`cursor-pointer transition-all duration-200 ${
+            statusFilter === 'dispatched' ? 'ring-2 ring-primary bg-primary/5' : 'hover:bg-muted/50'
+          }`}
+          onClick={() => setStatusFilter(statusFilter === 'dispatched' ? 'all' : 'dispatched')}
+        >
           <CardContent className="p-4 flex items-center space-x-2">
             <Package className="h-8 w-8 text-blue-600" />
             <div>
@@ -1004,7 +1096,12 @@ export function TrackingModule() {
             </div>
           </CardContent>
         </Card>
-        <Card>
+        <Card 
+          className={`cursor-pointer transition-all duration-200 ${
+            statusFilter === 'in_transit' ? 'ring-2 ring-primary bg-primary/5' : 'hover:bg-muted/50'
+          }`}
+          onClick={() => setStatusFilter(statusFilter === 'in_transit' ? 'all' : 'in_transit')}
+        >
           <CardContent className="p-4 flex items-center space-x-2">
             <Truck className="h-8 w-8 text-blue-500" />
             <div>
@@ -1015,7 +1112,12 @@ export function TrackingModule() {
             </div>
           </CardContent>
         </Card>
-        <Card>
+        <Card 
+          className={`cursor-pointer transition-all duration-200 ${
+            statusFilter === 'delivered' ? 'ring-2 ring-primary bg-primary/5' : 'hover:bg-muted/50'
+          }`}
+          onClick={() => setStatusFilter(statusFilter === 'delivered' ? 'all' : 'delivered')}
+        >
           <CardContent className="p-4 flex items-center space-x-2">
             <CheckCircle className="h-8 w-8 text-green-500" />
             <div>
@@ -1026,7 +1128,12 @@ export function TrackingModule() {
             </div>
           </CardContent>
         </Card>
-        <Card>
+        <Card 
+          className={`cursor-pointer transition-all duration-200 ${
+            statusFilter === 'all' ? 'ring-2 ring-primary bg-primary/5' : 'hover:bg-muted/50'
+          }`}
+          onClick={() => setStatusFilter('all')}
+        >
           <CardContent className="p-4 flex items-center space-x-2">
             <Package className="h-8 w-8 text-purple-500" />
             <div>
