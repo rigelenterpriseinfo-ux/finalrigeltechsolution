@@ -672,17 +672,6 @@ export function SalesOrderForm({
             <TabsList className="grid w-full grid-cols-2 mb-4 bg-muted/30 h-12">
               <TabsTrigger value="order-info" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground flex items-center gap-2">
                 <Building className="h-4 w-4" />
-                Order Info
-              </TabsTrigger>
-              <TabsTrigger value="items" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground flex items-center gap-2">
-                <Package className="h-4 w-4" />
-                Items & Summary
-              </TabsTrigger>
-            </TabsList>
-
-            <TabsList className="grid w-full grid-cols-2 mb-4 bg-muted/30 h-12">
-              <TabsTrigger value="order-info" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground flex items-center gap-2">
-                <Building className="h-4 w-4" />
                 {(() => {
                   const selectedCustomerId = form.watch('customer_id');
                   const selectedCustomer = customers.find(c => c.id === selectedCustomerId);
