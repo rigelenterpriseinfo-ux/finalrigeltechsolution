@@ -1144,6 +1144,193 @@ export function EnhancedReportsModule() {
     };
   };
 
+  const fetchQuotationComparisonData = async (filters: FilterState) => {
+    // Get purchase order line items with supplier and product information
+    const { data: purchaseItems, error } = await supabase
+      .from('purchase_order_items')
+      .select(`
+        *,
+        purchase_orders!inner(
+          supplier_id,
+          order_date,
+          status,
+          po_number
+        ),
+        products(
+          name,
+          sku
+        )
+      `)
+      .in('purchase_orders.status', ['confirmed', 'partially_received', 'closed'])
+      .gte('purchase_orders.order_date', format(filters.dateRange.from, 'yyyy-MM-dd'))
+      .lte('purchase_orders.order_date', format(filters.dateRange.to, 'yyyy-MM-dd'));
+
+    if (error) throw error;
+
+    // Get supplier information
+    const supplierIds = [...new Set(purchaseItems?.map(item => item.purchase_orders.supplier_id).filter(Boolean))];
+    let suppliers: any[] = [];
+    
+    if (supplierIds.length > 0) {
+      const { data: supplierData } = await supabase
+        .from('suppliers')
+        .select('id, name, supplier_ref')
+        .in('id', supplierIds);
+      
+      suppliers = supplierData || [];
+    }
+
+    const supplierMap = suppliers.reduce((acc: Record<string, any>, supplier) => {
+      acc[supplier.id] = supplier;
+      return acc;
+    }, {});
+
+    // Group by product and show vendor pricing
+    const productComparisons: Record<string, any> = {};
+
+    purchaseItems?.forEach(item => {
+      const productKey = item.product_id;
+      const productName = item.products?.name || item.item_description || 'Unknown Product';
+      const productSku = item.products?.sku || 'N/A';
+      const supplierId = item.purchase_orders.supplier_id;
+      const supplierName = supplierMap[supplierId]?.name || `Supplier ${supplierId?.slice(0, 8)}`;
+
+      if (!productComparisons[productKey]) {
+        productComparisons[productKey] = {
+          productId: productKey,
+          productName,
+          productSku,
+          vendors: {},
+          minPrice: Infinity,
+          maxPrice: 0,
+          avgPrice: 0,
+          vendorCount: 0,
+          bestVendor: '',
+          worstVendor: '',
+          priceVariance: 0
+        };
+      }
+
+      const vendorKey = `${supplierId}-${supplierName}`;
+      if (!productComparisons[productKey].vendors[vendorKey]) {
+        productComparisons[productKey].vendors[vendorKey] = {
+          supplierId,
+          supplierName,
+          prices: [],
+          avgPrice: 0,
+          totalQuantity: 0,
+          orderCount: 0,
+          lastOrderDate: item.purchase_orders.order_date
+        };
+      }
+
+      // Add this price point
+      productComparisons[productKey].vendors[vendorKey].prices.push(item.unit_price);
+      productComparisons[productKey].vendors[vendorKey].totalQuantity += item.quantity;
+      productComparisons[productKey].vendors[vendorKey].orderCount += 1;
+      
+      // Update last order date if more recent
+      if (new Date(item.purchase_orders.order_date) > new Date(productComparisons[productKey].vendors[vendorKey].lastOrderDate)) {
+        productComparisons[productKey].vendors[vendorKey].lastOrderDate = item.purchase_orders.order_date;
+      }
+    });
+
+    // Calculate averages and comparisons
+    Object.values(productComparisons).forEach((product: any) => {
+      const vendorPrices: number[] = [];
+      let totalSpending = 0;
+      let totalQuantity = 0;
+
+      Object.values(product.vendors).forEach((vendor: any) => {
+        // Calculate weighted average price for this vendor
+        const totalValue = vendor.prices.reduce((sum: number, price: number, index: number) => sum + price, 0);
+        vendor.avgPrice = vendor.prices.length > 0 ? totalValue / vendor.prices.length : 0;
+        vendorPrices.push(vendor.avgPrice);
+        
+        totalSpending += totalValue;
+        totalQuantity += vendor.totalQuantity;
+      });
+
+      product.minPrice = Math.min(...vendorPrices);
+      product.maxPrice = Math.max(...vendorPrices);
+      product.avgPrice = vendorPrices.length > 0 ? vendorPrices.reduce((a, b) => a + b, 0) / vendorPrices.length : 0;
+      product.vendorCount = Object.keys(product.vendors).length;
+      product.priceVariance = product.maxPrice - product.minPrice;
+      product.savingsPotential = totalQuantity * product.priceVariance;
+
+      // Find best and worst vendors
+      const sortedVendors = Object.values(product.vendors).sort((a: any, b: any) => a.avgPrice - b.avgPrice);
+      if (sortedVendors.length > 0) {
+        product.bestVendor = (sortedVendors[0] as any).supplierName;
+        product.worstVendor = (sortedVendors[sortedVendors.length - 1] as any).supplierName;
+      }
+    });
+
+    // Filter products that have multiple vendors for comparison
+    const comparableProducts = Object.values(productComparisons).filter((product: any) => product.vendorCount > 1);
+    
+    // Convert to table format showing vendor breakdown
+    const tableData: any[] = [];
+    comparableProducts.forEach((product: any) => {
+      Object.values(product.vendors).forEach((vendor: any, index: number) => {
+        tableData.push({
+          productName: index === 0 ? product.productName : '', // Only show product name for first vendor
+          productSku: index === 0 ? product.productSku : '',
+          supplierName: vendor.supplierName,
+          avgPrice: vendor.avgPrice,
+          orderCount: vendor.orderCount,
+          totalQuantity: vendor.totalQuantity,
+          lastOrderDate: vendor.lastOrderDate,
+          priceRank: index === 0 ? 'Best' : index === Object.keys(product.vendors).length - 1 ? 'Highest' : 'Mid',
+          savingsVsBest: vendor.avgPrice - product.minPrice,
+          priceVariance: product.priceVariance,
+          totalVendors: product.vendorCount
+        });
+      });
+      
+      // Add separator row between products
+      if (comparableProducts.indexOf(product) < comparableProducts.length - 1) {
+        tableData.push({
+          productName: '---',
+          productSku: '---',
+          supplierName: '---',
+          avgPrice: 0,
+          orderCount: 0,
+          totalQuantity: 0,
+          lastOrderDate: '',
+          priceRank: '---',
+          savingsVsBest: 0,
+          priceVariance: 0,
+          totalVendors: 0
+        });
+      }
+    });
+
+    // Chart data - top products with highest savings potential
+    const chartData = comparableProducts
+      .sort((a: any, b: any) => b.savingsPotential - a.savingsPotential)
+      .slice(0, 10)
+      .map((product: any) => ({
+        name: product.productName.length > 25 ? product.productName.substring(0, 25) + '...' : product.productName,
+        potentialSavings: product.savingsPotential,
+        priceVariance: product.priceVariance,
+        vendorCount: product.vendorCount,
+        bestPrice: product.minPrice,
+        worstPrice: product.maxPrice
+      }));
+
+    return { 
+      tableData, 
+      chartData,
+      summary: {
+        totalProducts: comparableProducts.length,
+        totalVendors: suppliers.length,
+        avgPriceVariance: comparableProducts.reduce((sum: number, p: any) => sum + p.priceVariance, 0) / Math.max(1, comparableProducts.length),
+        totalSavingsPotential: comparableProducts.reduce((sum: number, p: any) => sum + p.savingsPotential, 0)
+      }
+    };
+  };
+
   const generateReportData = async (reportId: string, filters: FilterState) => {
     try {
       switch (reportId) {
@@ -1173,6 +1360,8 @@ export function EnhancedReportsModule() {
           return await fetchItemWiseSalesData(filters);
         case 'item_wise_purchase':
           return await fetchItemWisePurchaseData(filters);
+        case 'quotation_comparison':
+          return await fetchQuotationComparisonData(filters);
         default:
           return { tableData: [], chartData: [] };
       }
