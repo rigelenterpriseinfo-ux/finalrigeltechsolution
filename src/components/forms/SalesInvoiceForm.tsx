@@ -520,23 +520,14 @@ export const SalesInvoiceForm: React.FC<SalesInvoiceFormProps> = ({
   const totals = calculateGrandTotals();
 
   return (
-    <div className="space-y-8 max-w-7xl mx-auto">
+    <div className="space-y-4 max-w-6xl mx-auto">
       <Form {...form}>
-        <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-8">
+        <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
           {/* Header Section */}
-          <Card className="border-2 border-primary/10 shadow-lg">
-            <CardHeader className="bg-gradient-to-r from-primary/5 to-primary/10 border-b">
-              <CardTitle className="flex items-center gap-3 text-xl">
-                <FileText className="h-6 w-6 text-primary" />
-                Sales Invoice - Header Information
-              </CardTitle>
-              <p className="text-sm text-muted-foreground mt-2">
-                Configure the basic invoice details and reference information
-              </p>
-            </CardHeader>
-            <CardContent className="p-8">
+          <Card className="border shadow-sm">
+            <CardContent className="p-4">
               {/* Primary Fields Row */}
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
                 <FormField
                   control={form.control}
                   name="invoice_number"
@@ -550,9 +541,9 @@ export const SalesInvoiceForm: React.FC<SalesInvoiceFormProps> = ({
                               ? "Will be generated when finalized" 
                               : "Auto-generated if empty"
                           } 
-                          {...field} 
+                           {...field} 
                           disabled={!!editingInvoice || watchedStatus === 'draft'}
-                          className="h-12 text-base"
+                          className="h-10"
                         />
                       </FormControl>
                       <FormMessage />
@@ -572,7 +563,7 @@ export const SalesInvoiceForm: React.FC<SalesInvoiceFormProps> = ({
                             <Button
                               variant="outline"
                               className={cn(
-                                "h-12 text-base pl-4 text-left font-normal border-2",
+                                "h-10 pl-4 text-left font-normal border",
                                 !field.value && "text-muted-foreground"
                               )}
                             >
@@ -608,7 +599,7 @@ export const SalesInvoiceForm: React.FC<SalesInvoiceFormProps> = ({
                       <FormLabel className="text-base font-semibold">Sales Order Number</FormLabel>
                       <Select onValueChange={onSalesOrderChange} value={field.value}>
                         <FormControl>
-                          <SelectTrigger className="h-12 text-base border-2">
+                          <SelectTrigger className="h-10 border">
                             <SelectValue placeholder="Select sales order" />
                           </SelectTrigger>
                         </FormControl>
@@ -628,7 +619,7 @@ export const SalesInvoiceForm: React.FC<SalesInvoiceFormProps> = ({
 
               {/* Recent Invoices Reference */}
               {recentInvoices.length > 0 && (
-                <div className="bg-muted/30 rounded-lg p-6 mb-8">
+                <div className="bg-muted/30 rounded-lg p-4 mb-6">
                   <div className="flex items-center gap-2 mb-4">
                     <Info className="h-5 w-5 text-primary" />
                     <FormLabel className="text-base font-semibold">Recent Invoices (Reference)</FormLabel>
@@ -644,7 +635,7 @@ export const SalesInvoiceForm: React.FC<SalesInvoiceFormProps> = ({
               )}
 
               {/* Secondary Fields Row */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
                 <FormField
                   control={form.control}
                   name="delivery_note_number"
@@ -652,7 +643,7 @@ export const SalesInvoiceForm: React.FC<SalesInvoiceFormProps> = ({
                     <FormItem>
                       <FormLabel className="text-base font-semibold">Delivery Note Number</FormLabel>
                       <FormControl>
-                        <Input placeholder="Optional" {...field} className="h-12 text-base" />
+                        <Input placeholder="Optional" {...field} className="h-10" />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -666,7 +657,7 @@ export const SalesInvoiceForm: React.FC<SalesInvoiceFormProps> = ({
                     <FormItem>
                       <FormLabel className="text-base font-semibold">Customer PO Reference</FormLabel>
                       <FormControl>
-                        <Input placeholder="Customer PO reference" {...field} className="h-12 text-base" />
+                        <Input placeholder="Customer PO reference" {...field} className="h-10" />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -675,12 +666,8 @@ export const SalesInvoiceForm: React.FC<SalesInvoiceFormProps> = ({
               </div>
 
               {/* Warehouse and Bin Section */}
-              <div className="bg-amber-50/50 border border-amber-200 rounded-lg p-6">
-                <div className="flex items-center gap-2 mb-4">
-                  <Package className="h-5 w-5 text-amber-600" />
-                  <h4 className="text-base font-semibold text-amber-800">Warehouse & Bin Configuration</h4>
-                </div>
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div className="bg-amber-50/50 border border-amber-200 rounded-lg p-4">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                   <FormField
                     control={form.control}
                     name="default_warehouse_id"
@@ -691,7 +678,7 @@ export const SalesInvoiceForm: React.FC<SalesInvoiceFormProps> = ({
                           <Input 
                             value={warehouseName || 'Not selected'}
                             disabled
-                            className="h-12 text-base bg-amber-50 border-amber-200 text-amber-700"
+                            className="h-10 bg-amber-50 border-amber-200 text-amber-700"
                           />
                         </FormControl>
                         <FormMessage />
@@ -715,7 +702,7 @@ export const SalesInvoiceForm: React.FC<SalesInvoiceFormProps> = ({
                           <Input 
                             value={binName || 'Not selected'}
                             disabled
-                            className="h-12 text-base bg-amber-50 border-amber-200 text-amber-700"
+                            className="h-10 bg-amber-50 border-amber-200 text-amber-700"
                           />
                         </FormControl>
                         <FormMessage />
@@ -734,19 +721,10 @@ export const SalesInvoiceForm: React.FC<SalesInvoiceFormProps> = ({
           </Card>
 
           {/* Customer and Address Section */}
-          <Card className="border-2 border-blue-100 shadow-lg">
-            <CardHeader className="bg-gradient-to-r from-blue-50 to-blue-100 border-b">
-              <CardTitle className="flex items-center gap-3 text-xl">
-                <User className="h-6 w-6 text-blue-600" />
-                Customer & Address Details
-              </CardTitle>
-              <p className="text-sm text-muted-foreground mt-2">
-                Customer information and billing/shipping addresses
-              </p>
-            </CardHeader>
-            <CardContent className="p-8">
+          <Card className="border shadow-sm">
+            <CardContent className="p-4">
               {/* Customer Name */}
-              <div className="mb-8">
+              <div className="mb-6">
                 <FormField
                   control={form.control}
                   name="customer_name"
@@ -754,7 +732,7 @@ export const SalesInvoiceForm: React.FC<SalesInvoiceFormProps> = ({
                     <FormItem>
                       <FormLabel className="text-base font-semibold">Customer Name</FormLabel>
                       <FormControl>
-                        <Input {...field} disabled className="h-12 text-base bg-blue-50 border-blue-200 text-blue-700" />
+                        <Input {...field} disabled className="h-10 bg-blue-50 border-blue-200 text-blue-700" />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -763,10 +741,10 @@ export const SalesInvoiceForm: React.FC<SalesInvoiceFormProps> = ({
               </div>
 
               {/* Address Section */}
-              <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
+              <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
                 {/* Billing Address */}
-                <div className="space-y-6 p-6 bg-green-50/50 border border-green-200 rounded-lg">
-                  <div className="flex items-center gap-2 mb-4">
+                <div className="space-y-4 p-4 bg-green-50/50 border border-green-200 rounded-lg">
+                  <div className="flex items-center gap-2 mb-3">
                     <MapPin className="h-5 w-5 text-green-600" />
                     <h4 className="text-lg font-semibold text-green-800">Billing Address</h4>
                   </div>
@@ -778,7 +756,7 @@ export const SalesInvoiceForm: React.FC<SalesInvoiceFormProps> = ({
                       <FormItem>
                         <FormLabel className="font-medium">Address Line 1</FormLabel>
                         <FormControl>
-                          <Input {...field} className="h-11" />
+                          <Input {...field} className="h-9" />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -792,7 +770,7 @@ export const SalesInvoiceForm: React.FC<SalesInvoiceFormProps> = ({
                       <FormItem>
                         <FormLabel className="font-medium">Address Line 2</FormLabel>
                         <FormControl>
-                          <Input {...field} className="h-11" />
+                           <Input {...field} className="h-9" />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -807,7 +785,7 @@ export const SalesInvoiceForm: React.FC<SalesInvoiceFormProps> = ({
                         <FormItem>
                           <FormLabel className="font-medium">City</FormLabel>
                           <FormControl>
-                            <Input {...field} className="h-11" />
+                           <Input {...field} className="h-9" />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -820,7 +798,7 @@ export const SalesInvoiceForm: React.FC<SalesInvoiceFormProps> = ({
                         <FormItem>
                           <FormLabel className="font-medium">Pin Code</FormLabel>
                           <FormControl>
-                            <Input {...field} className="h-11" />
+                             <Input {...field} className="h-9" />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -835,7 +813,7 @@ export const SalesInvoiceForm: React.FC<SalesInvoiceFormProps> = ({
                       <FormItem>
                         <FormLabel className="font-medium">Country</FormLabel>
                         <FormControl>
-                          <Input {...field} className="h-11" />
+                             <Input {...field} className="h-9" />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -844,8 +822,8 @@ export const SalesInvoiceForm: React.FC<SalesInvoiceFormProps> = ({
                 </div>
 
                 {/* Shipping Address */}
-                <div className="space-y-6 p-6 bg-purple-50/50 border border-purple-200 rounded-lg">
-                  <div className="flex items-center justify-between mb-4">
+                <div className="space-y-4 p-4 bg-purple-50/50 border border-purple-200 rounded-lg">
+                  <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center gap-2">
                       <MapPin className="h-5 w-5 text-purple-600" />
                       <h4 className="text-lg font-semibold text-purple-800">Shipping Address</h4>
@@ -877,8 +855,8 @@ export const SalesInvoiceForm: React.FC<SalesInvoiceFormProps> = ({
                         <FormControl>
                           <Input 
                             {...field} 
-                            disabled={watchedSameAsBilling} 
-                            className={cn("h-11", watchedSameAsBilling && "bg-purple-100 text-purple-600")}
+                             disabled={watchedSameAsBilling} 
+                            className={cn("h-9", watchedSameAsBilling && "bg-purple-100 text-purple-600")}
                           />
                         </FormControl>
                         <FormMessage />
@@ -895,8 +873,8 @@ export const SalesInvoiceForm: React.FC<SalesInvoiceFormProps> = ({
                         <FormControl>
                           <Input 
                             {...field} 
-                            disabled={watchedSameAsBilling} 
-                            className={cn("h-11", watchedSameAsBilling && "bg-purple-100 text-purple-600")}
+                             disabled={watchedSameAsBilling} 
+                            className={cn("h-9", watchedSameAsBilling && "bg-purple-100 text-purple-600")}
                           />
                         </FormControl>
                         <FormMessage />
@@ -914,8 +892,8 @@ export const SalesInvoiceForm: React.FC<SalesInvoiceFormProps> = ({
                           <FormControl>
                             <Input 
                               {...field} 
-                              disabled={watchedSameAsBilling} 
-                              className={cn("h-11", watchedSameAsBilling && "bg-purple-100 text-purple-600")}
+                               disabled={watchedSameAsBilling} 
+                              className={cn("h-9", watchedSameAsBilling && "bg-purple-100 text-purple-600")}
                             />
                           </FormControl>
                           <FormMessage />
@@ -931,8 +909,8 @@ export const SalesInvoiceForm: React.FC<SalesInvoiceFormProps> = ({
                           <FormControl>
                             <Input 
                               {...field} 
-                              disabled={watchedSameAsBilling} 
-                              className={cn("h-11", watchedSameAsBilling && "bg-purple-100 text-purple-600")}
+                               disabled={watchedSameAsBilling} 
+                              className={cn("h-9", watchedSameAsBilling && "bg-purple-100 text-purple-600")}
                             />
                           </FormControl>
                           <FormMessage />
@@ -950,8 +928,8 @@ export const SalesInvoiceForm: React.FC<SalesInvoiceFormProps> = ({
                         <FormControl>
                           <Input 
                             {...field} 
-                            disabled={watchedSameAsBilling} 
-                            className={cn("h-11", watchedSameAsBilling && "bg-purple-100 text-purple-600")}
+                             disabled={watchedSameAsBilling} 
+                            className={cn("h-9", watchedSameAsBilling && "bg-purple-100 text-purple-600")}
                           />
                         </FormControl>
                         <FormMessage />
@@ -1311,18 +1289,9 @@ export const SalesInvoiceForm: React.FC<SalesInvoiceFormProps> = ({
           </Card>
 
           {/* Additional Information */}
-          <Card className="border-2 border-slate-100 shadow-lg">
-            <CardHeader className="bg-gradient-to-r from-slate-50 to-slate-100 border-b">
-              <CardTitle className="flex items-center gap-3 text-xl">
-                <Settings className="h-6 w-6 text-slate-600" />
-                Additional Information
-              </CardTitle>
-              <p className="text-sm text-muted-foreground mt-2">
-                Invoice status, payment terms, and additional notes
-              </p>
-            </CardHeader>
-            <CardContent className="p-8">
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          <Card className="border shadow-sm">
+            <CardContent className="p-4">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 <FormField
                   control={form.control}
                   name="status"
@@ -1331,7 +1300,7 @@ export const SalesInvoiceForm: React.FC<SalesInvoiceFormProps> = ({
                       <FormLabel className="text-base font-semibold">Invoice Status</FormLabel>
                       <Select onValueChange={field.onChange} value={field.value}>
                         <FormControl>
-                          <SelectTrigger className="h-12 text-base border-2 bg-background">
+                          <SelectTrigger className="h-10 border bg-background">
                             <SelectValue placeholder="Select invoice status" />
                           </SelectTrigger>
                         </FormControl>
@@ -1359,7 +1328,7 @@ export const SalesInvoiceForm: React.FC<SalesInvoiceFormProps> = ({
                 </div>
               </div>
 
-              <div className="mt-8">
+              <div className="mt-6">
                 <FormField
                   control={form.control}
                   name="notes"
@@ -1367,11 +1336,11 @@ export const SalesInvoiceForm: React.FC<SalesInvoiceFormProps> = ({
                     <FormItem>
                       <FormLabel className="text-base font-semibold">Notes</FormLabel>
                       <FormControl>
-                        <Textarea
-                          placeholder="Any additional notes for this invoice..."
-                          {...field}
-                          className="min-h-[120px] text-base resize-none"
-                        />
+                          <Textarea
+                            placeholder="Any additional notes for this invoice..."
+                            {...field}
+                            className="min-h-[80px] resize-none"
+                          />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -1382,19 +1351,19 @@ export const SalesInvoiceForm: React.FC<SalesInvoiceFormProps> = ({
           </Card>
 
           {/* Form Actions */}
-          <div className="flex justify-end space-x-4 pt-4 pb-8">
+          <div className="flex justify-end space-x-4 pt-4">
             <Button 
               type="button" 
               variant="outline" 
               onClick={onCancel}
-              className="h-12 px-8 text-base border-2"
+              className="h-10 px-6 border"
             >
               Cancel
             </Button>
             <Button 
               type="submit" 
               disabled={loading || watchedItems.length === 0}
-              className="h-12 px-8 text-base bg-primary hover:bg-primary/90"
+              className="h-10 px-6 bg-primary hover:bg-primary/90"
             >
               {loading ? 'Saving...' : editingInvoice ? 'Update Invoice' : 'Create Invoice'}
             </Button>
