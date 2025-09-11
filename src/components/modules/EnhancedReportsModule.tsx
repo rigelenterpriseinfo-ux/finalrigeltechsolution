@@ -647,6 +647,132 @@ export function EnhancedReportsModule() {
     return { tableData, chartData };
   };
 
+  const fetchNetARAPData = async (filters: FilterState) => {
+    // Fetch AR data from sales invoices
+    const { data: arData, error: arError } = await supabase
+      .from('sales_invoices')
+      .select(`
+        id, invoice_number, customer_name, total_amount, 
+        invoice_date, status, customer_id,
+        payments(amount, payment_date)
+      `)
+      .eq('status', 'finalized')
+      .gte('invoice_date', format(filters.dateRange.from, 'yyyy-MM-dd'))
+      .lte('invoice_date', format(filters.dateRange.to, 'yyyy-MM-dd'));
+
+    if (arError) throw arError;
+
+    // Fetch AP data from GRNs (actual goods received that need payment)
+    const { data: apData, error: apError } = await supabase
+      .from('grn_header')
+      .select(`
+        id, grn_number, total_amount, 
+        grn_date, status, supplier_name, supplier_id,
+        purchase_order_id
+      `)
+      .in('status', ['received', 'partially_received'])
+      .gte('grn_date', format(filters.dateRange.from, 'yyyy-MM-dd'))
+      .lte('grn_date', format(filters.dateRange.to, 'yyyy-MM-dd'));
+
+    if (apError) throw apError;
+
+    // Get payment data for both AR and AP
+    const invoiceIds = arData?.map(inv => inv.id) || [];
+    const grnIds = apData?.map(grn => grn.id) || [];
+    const purchaseOrderIds = apData?.map(grn => grn.purchase_order_id).filter(Boolean) || [];
+    
+    let arPayments: any[] = [];
+    let apPayments: any[] = [];
+    
+    if (invoiceIds.length > 0) {
+      const { data: arPaymentData } = await supabase
+        .from('payments')
+        .select('*')
+        .in('sales_invoice_id', invoiceIds);
+      arPayments = arPaymentData || [];
+    }
+    
+    if (grnIds.length > 0 || purchaseOrderIds.length > 0) {
+      const { data: apPaymentData } = await supabase
+        .from('payments')
+        .select('*')
+        .or(`grn_id.in.(${grnIds.join(',')}),purchase_order_id.in.(${purchaseOrderIds.join(',')})`);
+      apPayments = apPaymentData || [];
+    }
+
+    // Calculate AR outstanding
+    const arOutstanding = arData?.map(invoice => {
+      const relatedPayments = arPayments.filter(p => p.sales_invoice_id === invoice.id);
+      const totalPaid = relatedPayments.reduce((sum, payment) => sum + payment.amount, 0);
+      return {
+        type: 'Accounts Receivable',
+        customer: invoice.customer_name,
+        reference: invoice.invoice_number,
+        date: invoice.invoice_date,
+        totalAmount: invoice.total_amount,
+        paidAmount: totalPaid,
+        outstandingAmount: invoice.total_amount - totalPaid
+      };
+    }).filter(item => item.outstandingAmount > 0) || [];
+
+    // Calculate AP outstanding
+    const apOutstanding = apData?.map(grn => {
+      const relatedPayments = apPayments.filter(p => 
+        p.grn_id === grn.id || p.purchase_order_id === grn.purchase_order_id
+      );
+      const totalPaid = relatedPayments.reduce((sum, payment) => sum + payment.amount, 0);
+      return {
+        type: 'Accounts Payable',
+        vendor: grn.supplier_name,
+        reference: grn.grn_number,
+        date: grn.grn_date,
+        totalAmount: grn.total_amount,
+        paidAmount: totalPaid,
+        outstandingAmount: grn.total_amount - totalPaid
+      };
+    }).filter(item => item.outstandingAmount > 0) || [];
+
+    // Combine and calculate net position
+    const tableData = [
+      ...arOutstanding,
+      ...apOutstanding
+    ];
+
+    const totalAR = arOutstanding.reduce((sum, item) => sum + item.outstandingAmount, 0);
+    const totalAP = apOutstanding.reduce((sum, item) => sum + item.outstandingAmount, 0);
+    const netPosition = totalAR - totalAP;
+
+    // Chart data for visualization
+    const chartData = [
+      { name: 'Accounts Receivable', value: totalAR, type: 'AR' },
+      { name: 'Accounts Payable', value: totalAP, type: 'AP' },
+      { name: 'Net Position', value: Math.abs(netPosition), type: netPosition >= 0 ? 'Positive' : 'Negative' }
+    ];
+
+    return { 
+      tableData: [
+        ...tableData,
+        // Add summary row
+        {
+          type: 'Summary',
+          customer: '',
+          vendor: '',
+          reference: 'Net AR/AP Position',
+          date: '',
+          totalAmount: 0,
+          paidAmount: 0,
+          outstandingAmount: netPosition
+        }
+      ], 
+      chartData,
+      summary: {
+        totalAR,
+        totalAP,
+        netPosition
+      }
+    };
+  };
+
   const generateReportData = async (reportId: string, filters: FilterState) => {
     try {
       switch (reportId) {
@@ -654,6 +780,8 @@ export function EnhancedReportsModule() {
           return await fetchARAgingData(filters);
         case 'ap_aging':
           return await fetchAPAgingData(filters);
+        case 'net_arap':
+          return await fetchNetARAPData(filters);
         case 'sales_orders':
           return await fetchSalesOrdersData(filters);
         case 'current_stock':
