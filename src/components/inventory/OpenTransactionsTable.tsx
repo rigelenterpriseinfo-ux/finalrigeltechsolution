@@ -24,7 +24,7 @@ import { format } from 'date-fns';
 
 interface OpenTransaction {
   id: string;
-  transaction_type: 'sales_order' | 'return_order' | 'purchase_order' | 'debit_note';
+  transaction_type: 'sales_order' | 'return_order' | 'purchase_order' | 'debit_note' | 'backorder';
   reference_number: string;
   customer_supplier_name: string;
   date: string;
@@ -32,6 +32,7 @@ interface OpenTransaction {
   return_qty: number;
   po_qty: number;
   debit_note_qty: number;
+  backorder_qty: number;
   status: string;
   expected_date?: string;
 }
@@ -45,6 +46,7 @@ interface OpenTransactionSummary {
   in_transit_qty: number;
   return_order_qty: number;
   debit_note_qty: number;
+  backorder_qty: number;
 }
 
 interface OpenTransactionsTableProps {
@@ -180,14 +182,38 @@ export const OpenTransactionsTable = ({
           .filter(Boolean);
       }
 
-      // Get customer names for sales orders
-      const customerIds = [...new Set((salesOrders || []).map(so => so.sales_orders.customer_id))];
+      // Fetch backorder items
+      const { data: backorderItems, error: backorderError } = await supabase
+        .from('backorder_items')
+        .select(`
+          id,
+          quantity_backordered,
+          unit_price,
+          created_at,
+          status,
+          customer_id
+        `)
+        .eq('product_id', selectedProductId)
+        .eq('warehouse_id', selectedWarehouseId)
+        .eq('company_id', company.id)
+        .eq('status', 'pending')
+        .gt('quantity_backordered', 0);
+
+      if (backorderError) throw backorderError;
+
+      // Get customer names for sales orders and backorders
+      const allCustomerIds = [
+        ...new Set([
+          ...(salesOrders || []).map(so => so.sales_orders.customer_id),
+          ...(backorderItems || []).map(bo => bo.customer_id)
+        ])
+      ];
       let customerMap = new Map();
-      if (customerIds.length > 0) {
+      if (allCustomerIds.length > 0) {
         const { data: customers, error: customerError } = await supabase
           .from('customers')
           .select('id, name')
-          .in('id', customerIds);
+          .in('id', allCustomerIds);
 
         if (customerError) throw customerError;
         customerMap = new Map((customers || []).map(c => [c.id, c.name]));
@@ -206,6 +232,7 @@ export const OpenTransactionsTable = ({
           return_qty: 0,
           po_qty: 0,
           debit_note_qty: 0,
+          backorder_qty: 0,
           status: so.sales_orders.status,
         })),
         
@@ -220,6 +247,7 @@ export const OpenTransactionsTable = ({
           return_qty: 0,
           po_qty: po.pending_quantity || 0,
           debit_note_qty: 0,
+          backorder_qty: 0,
           status: po.purchase_orders.status,
           expected_date: po.purchase_orders.expected_date,
         })),
@@ -235,6 +263,7 @@ export const OpenTransactionsTable = ({
           return_qty: cn.pending_return_qty || 0,
           po_qty: 0,
           debit_note_qty: 0,
+          backorder_qty: 0,
           status: cn.credit_notes.status,
         })),
         
@@ -249,7 +278,23 @@ export const OpenTransactionsTable = ({
           return_qty: 0,
           po_qty: 0,
           debit_note_qty: dn.pending_quantity || 0,
+          backorder_qty: 0,
           status: dn.debit_notes.status,
+        })),
+
+        // Backorder Items
+        ...(backorderItems || []).map(bo => ({
+          id: bo.id,
+          transaction_type: 'backorder' as const,
+          reference_number: `BO-${bo.id.slice(0, 8)}`,
+          customer_supplier_name: customerMap.get(bo.customer_id) || 'Unknown Customer',
+          date: bo.created_at,
+          sales_qty: 0,
+          return_qty: 0,
+          po_qty: 0,
+          debit_note_qty: 0,
+          backorder_qty: bo.quantity_backordered || 0,
+          status: bo.status,
         })),
       ];
 
@@ -257,6 +302,7 @@ export const OpenTransactionsTable = ({
       const totalInTransit = allTransactions.reduce((sum, t) => sum + t.po_qty, 0);
       const totalReturnOrder = allTransactions.reduce((sum, t) => sum + t.return_qty, 0);
       const totalDebitNote = allTransactions.reduce((sum, t) => sum + t.debit_note_qty, 0);
+      const totalBackorder = allTransactions.reduce((sum, t) => sum + t.backorder_qty, 0);
       const totalAllocated = allTransactions.reduce((sum, t) => sum + t.sales_qty, 0);
 
       // Get current stock for available to pick calculation
@@ -282,6 +328,7 @@ export const OpenTransactionsTable = ({
         in_transit_qty: totalInTransit,
         return_order_qty: totalReturnOrder,
         debit_note_qty: totalDebitNote,
+        backorder_qty: totalBackorder,
       });
 
       setTransactions(allTransactions);
@@ -317,6 +364,8 @@ export const OpenTransactionsTable = ({
         return <Package className="h-4 w-4 text-success" />;
       case 'debit_note':
         return <AlertCircle className="h-4 w-4 text-destructive" />;
+      case 'backorder':
+        return <AlertCircle className="h-4 w-4 text-orange-500" />;
       default:
         return <FileText className="h-4 w-4" />;
     }
@@ -332,6 +381,8 @@ export const OpenTransactionsTable = ({
         return <Badge variant="outline" className="border-success text-success">Purchase Order</Badge>;
       case 'debit_note':
         return <Badge variant="destructive">Debit Note</Badge>;
+      case 'backorder':
+        return <Badge variant="outline" className="border-orange-500 text-orange-500">Backorder</Badge>;
       default:
         return <Badge variant="outline">{type}</Badge>;
     }
@@ -389,7 +440,7 @@ export const OpenTransactionsTable = ({
       <CardContent className="space-y-6">
         {/* Summary Section */}
         {summary && (
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
             <div className="text-center p-4 bg-primary/10 border border-primary/20 rounded-lg">
               <div className="text-2xl font-bold text-primary">{summary.total_stock_on_hand}</div>
               <div className="text-xs text-muted-foreground">Total Stock on Hand</div>
@@ -410,6 +461,10 @@ export const OpenTransactionsTable = ({
               <div className="text-2xl font-bold text-destructive">{summary.debit_note_qty}</div>
               <div className="text-xs text-muted-foreground">Debit Note Qty</div>
             </div>
+            <div className="text-center p-4 bg-orange-100 border border-orange-300 rounded-lg">
+              <div className="text-2xl font-bold text-orange-600">{summary.backorder_qty}</div>
+              <div className="text-xs text-muted-foreground">Back Order Qty</div>
+            </div>
           </div>
         )}
 
@@ -425,13 +480,14 @@ export const OpenTransactionsTable = ({
                 <TableHead className="text-center">Return Qty</TableHead>
                 <TableHead className="text-center">PO Qty</TableHead>
                 <TableHead className="text-center">Debit Note Qty</TableHead>
+                <TableHead className="text-center">Back Order Qty</TableHead>
                 <TableHead>Date</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {transactions.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
                     No open transactions found for this item at the selected location
                   </TableCell>
                 </TableRow>
@@ -471,6 +527,11 @@ export const OpenTransactionsTable = ({
                     <TableCell className="text-center">
                       <span className={transaction.debit_note_qty > 0 ? "font-semibold text-destructive" : "text-muted-foreground"}>
                         {transaction.debit_note_qty > 0 ? transaction.debit_note_qty : '-'}
+                      </span>
+                    </TableCell>
+                    <TableCell className="text-center">
+                      <span className={transaction.backorder_qty > 0 ? "font-semibold text-orange-600" : "text-muted-foreground"}>
+                        {transaction.backorder_qty > 0 ? transaction.backorder_qty : '-'}
                       </span>
                     </TableCell>
                     <TableCell>
