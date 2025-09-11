@@ -35,6 +35,7 @@ interface TrackableOrder {
   tracking_status?: string;
   dispatch_date?: string;
   delivery_date?: string;
+  customers?: { name: string };
 }
 
 export function TrackingModule() {
@@ -220,7 +221,7 @@ export function TrackingModule() {
     };
     
     initializeTracking();
-  }, []); // Empty dependency to run only once
+  }, []);
 
   // Early return for access check
   if (typeof hasAccess !== 'function') {
@@ -289,141 +290,144 @@ export function TrackingModule() {
         <CardTitle>{title}</CardTitle>
       </CardHeader>
       <CardContent>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Order Number</TableHead>
-              <TableHead>Customer/Supplier</TableHead>
-              <TableHead>Destination</TableHead>
-              <TableHead>Item Count</TableHead>
-              <TableHead>E-way Bill No</TableHead>
-              <TableHead>E-way Bill Date</TableHead>
-              <TableHead>Carrier/Transporter</TableHead>
-              <TableHead>AWB No</TableHead>
-              <TableHead>ETA</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Dispatch Date</TableHead>
-              <TableHead>Delivery Date</TableHead>
-              <TableHead>POD</TableHead>
-              <TableHead>Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {data.length === 0 ? (
+        <div className="w-full overflow-x-auto">
+          <Table className="min-w-full">
+            <TableHeader>
               <TableRow>
-                <TableCell colSpan={14} className="text-center py-8">
-                  <Package className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                  <p className="text-muted-foreground">No {title.toLowerCase()} to track</p>
-                </TableCell>
+                <TableHead className="min-w-[120px]">Order Number</TableHead>
+                <TableHead className="min-w-[150px]">Customer/Supplier</TableHead>
+                <TableHead className="min-w-[120px]">Destination</TableHead>
+                <TableHead className="min-w-[100px]">Item Count</TableHead>
+                <TableHead className="min-w-[120px]">E-way Bill No</TableHead>
+                <TableHead className="min-w-[120px]">E-way Bill Date</TableHead>
+                <TableHead className="min-w-[150px]">Carrier/Transporter</TableHead>
+                <TableHead className="min-w-[100px]">AWB No</TableHead>
+                <TableHead className="min-w-[100px]">ETA</TableHead>
+                <TableHead className="min-w-[100px]">Status</TableHead>
+                <TableHead className="min-w-[120px]">Dispatch Date</TableHead>
+                <TableHead className="min-w-[120px]">Delivery Date</TableHead>
+                <TableHead className="min-w-[80px]">POD</TableHead>
+                <TableHead className="min-w-[150px] sticky right-0 bg-background border-l">Actions</TableHead>
               </TableRow>
-            ) : (
-              data.map((item) => (
-                <TableRow key={item.id}>
-                  <TableCell className="font-medium">{item.order_number}</TableCell>
-                  <TableCell>{item.customer_name || item.supplier_name}</TableCell>
-                  <TableCell>{item.destination || '-'}</TableCell>
-                  <TableCell>{item.item_count || '-'}</TableCell>
-                  <TableCell>{item.eway_bill_no || '-'}</TableCell>
-                  <TableCell>
-                    {item.eway_bill_date ? format(new Date(item.eway_bill_date), 'dd/MM/yyyy') : '-'}
-                  </TableCell>
-                  <TableCell>{item.carrier_transporter || '-'}</TableCell>
-                  <TableCell>{item.awb_no || '-'}</TableCell>
-                  <TableCell>
-                    {item.eta ? format(new Date(item.eta), 'dd/MM/yyyy') : '-'}
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant={getStatusColor(item.tracking_status || 'pending')}>
-                      {(item.tracking_status || 'pending').replace('_', ' ').toUpperCase()}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    {item.dispatch_date ? format(new Date(item.dispatch_date), 'dd/MM/yyyy') : '-'}
-                  </TableCell>
-                  <TableCell>
-                    {item.delivery_date ? format(new Date(item.delivery_date), 'dd/MM/yyyy') : '-'}
-                  </TableCell>
-                  <TableCell>
-                    {item.pod_document_url ? (
-                      <Button size="sm" variant="outline" asChild>
-                        <a href={item.pod_document_url} target="_blank" rel="noopener noreferrer">
-                          <FileText className="h-4 w-4" />
-                        </a>
-                      </Button>
-                    ) : (
-                      '-'
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex gap-2">
-                      <Dialog open={isDialogOpen && editingOrder?.id === item.id} onOpenChange={setIsDialogOpen}>
-                        <DialogTrigger asChild>
-                          <Button 
-                            size="sm" 
-                            variant="outline"
-                            onClick={() => setEditingOrder(item)}
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                        </DialogTrigger>
-                        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-                          <DialogHeader>
-                            <DialogTitle>Update Tracking Information - {item.order_number}</DialogTitle>
-                          </DialogHeader>
-                          <TrackingUpdateForm
-                            orderId={item.id}
-                            orderType={item.type}
-                            initialData={{
-                              destination: item.destination,
-                              item_count: item.item_count,
-                              eway_bill_no: item.eway_bill_no,
-                              eway_bill_date: item.eway_bill_date ? new Date(item.eway_bill_date) : undefined,
-                              carrier_transporter: item.carrier_transporter,
-                              awb_no: item.awb_no,
-                              eta: item.eta ? new Date(item.eta) : undefined,
-                              tracking_status: item.tracking_status as any,
-                              dispatch_date: item.dispatch_date ? new Date(item.dispatch_date) : undefined,
-                              delivery_date: item.delivery_date ? new Date(item.delivery_date) : undefined,
-                              pod_document_url: item.pod_document_url,
-                            }}
-                            onSuccess={handleTrackingUpdate}
-                            onCancel={() => setIsDialogOpen(false)}
-                          />
-                        </DialogContent>
-                      </Dialog>
-                      
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <Button size="sm" variant="outline">
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>Clear Tracking Information</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              Are you sure you want to clear all tracking information for order {item.order_number}? 
-                              This action cannot be undone.
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>Cancel</AlertDialogCancel>
-                            <AlertDialogAction
-                              onClick={() => handleDeleteTracking(item.id, item.type)}
-                              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                            >
-                              Clear Tracking
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
-                    </div>
+            </TableHeader>
+            <TableBody>
+              {data.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={14} className="text-center py-8">
+                    <Package className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                    <p className="text-muted-foreground">No {title.toLowerCase()} to track</p>
                   </TableCell>
                 </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
+              ) : (
+                data.map((item) => (
+                  <TableRow key={item.id}>
+                    <TableCell className="font-medium">{item.order_number}</TableCell>
+                    <TableCell>{item.customer_name || item.supplier_name}</TableCell>
+                    <TableCell>{item.destination || '-'}</TableCell>
+                    <TableCell>{item.item_count || '-'}</TableCell>
+                    <TableCell>{item.eway_bill_no || '-'}</TableCell>
+                    <TableCell>
+                      {item.eway_bill_date ? format(new Date(item.eway_bill_date), 'dd/MM/yyyy') : '-'}
+                    </TableCell>
+                    <TableCell>{item.carrier_transporter || '-'}</TableCell>
+                    <TableCell>{item.awb_no || '-'}</TableCell>
+                    <TableCell>
+                      {item.eta ? format(new Date(item.eta), 'dd/MM/yyyy') : '-'}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={getStatusColor(item.tracking_status || 'pending')}>
+                        {(item.tracking_status || 'pending').replace('_', ' ').toUpperCase()}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      {item.dispatch_date ? format(new Date(item.dispatch_date), 'dd/MM/yyyy') : '-'}
+                    </TableCell>
+                    <TableCell>
+                      {item.delivery_date ? format(new Date(item.delivery_date), 'dd/MM/yyyy') : '-'}
+                    </TableCell>
+                    <TableCell>
+                      {item.pod_document_url ? (
+                        <Button size="sm" variant="outline" asChild>
+                          <a href={item.pod_document_url} target="_blank" rel="noopener noreferrer" title="View POD">
+                            <FileText className="h-4 w-4" />
+                          </a>
+                        </Button>
+                      ) : (
+                        '-'
+                      )}
+                    </TableCell>
+                    <TableCell className="sticky right-0 bg-background border-l">
+                      <div className="flex gap-1">
+                        <Dialog open={isDialogOpen && editingOrder?.id === item.id} onOpenChange={setIsDialogOpen}>
+                          <DialogTrigger asChild>
+                            <Button 
+                              size="sm" 
+                              variant="outline"
+                              onClick={() => setEditingOrder(item)}
+                              title="Edit Tracking"
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                          </DialogTrigger>
+                          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+                            <DialogHeader>
+                              <DialogTitle>Update Tracking Information - {item.order_number}</DialogTitle>
+                            </DialogHeader>
+                            <TrackingUpdateForm
+                              orderId={item.id}
+                              orderType={item.type}
+                              initialData={{
+                                destination: item.destination,
+                                item_count: item.item_count,
+                                eway_bill_no: item.eway_bill_no,
+                                eway_bill_date: item.eway_bill_date ? new Date(item.eway_bill_date) : undefined,
+                                carrier_transporter: item.carrier_transporter,
+                                awb_no: item.awb_no,
+                                eta: item.eta ? new Date(item.eta) : undefined,
+                                tracking_status: item.tracking_status as any,
+                                dispatch_date: item.dispatch_date ? new Date(item.dispatch_date) : undefined,
+                                delivery_date: item.delivery_date ? new Date(item.delivery_date) : undefined,
+                                pod_document_url: item.pod_document_url,
+                              }}
+                              onSuccess={handleTrackingUpdate}
+                              onCancel={() => setIsDialogOpen(false)}
+                            />
+                          </DialogContent>
+                        </Dialog>
+                        
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button size="sm" variant="outline" title="Clear Tracking">
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Clear Tracking Information</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Are you sure you want to clear all tracking information for order {item.order_number}? 
+                                This action cannot be undone.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction
+                                onClick={() => handleDeleteTracking(item.id, item.type)}
+                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                              >
+                                Clear Tracking
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </div>
       </CardContent>
     </Card>
   );
