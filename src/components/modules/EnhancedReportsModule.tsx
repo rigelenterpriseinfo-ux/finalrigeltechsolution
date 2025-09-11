@@ -66,7 +66,7 @@ const reportCategories = [
 ];
 
 export default function EnhancedReportsModule() {
-  const { profile } = useBusinessAuth();
+  const { businessUser } = useBusinessAuth();
   const [selectedReport, setSelectedReport] = useState<string>('ar_aging');
   const [selectedCategory, setSelectedCategory] = useState<string>('finance');
   const [openCategories, setOpenCategories] = useState<string[]>(['finance']);
@@ -207,7 +207,7 @@ export default function EnhancedReportsModule() {
   const { data: reportResult, isLoading } = useQuery({
     queryKey: ['report', selectedReport, filters],
     queryFn: () => generateReportData(selectedReport, filters),
-    enabled: !!selectedReport && !!profile
+    enabled: !!selectedReport && !!businessUser
   });
 
   // Update state when query data changes
@@ -219,10 +219,10 @@ export default function EnhancedReportsModule() {
       setChartData(Array.isArray(reportResult.chartData) ? reportResult.chartData : []);
       
       // Store complex data structures for special reports
-      if (selectedReport === 'gstr1' && reportResult.gstr1Sections) {
+      if (selectedReport === 'gstr1' && (reportResult as any).gstr1Sections) {
         (window as any).gstr1Data = reportResult;
       }
-      if (selectedReport === 'gstr3b' && reportResult.summary) {
+      if (selectedReport === 'gstr3b' && (reportResult as any).summary) {
         (window as any).gstr3bData = reportResult;
       }
     }
@@ -246,7 +246,7 @@ export default function EnhancedReportsModule() {
     setSelectedCategory(categoryId);
   };
 
-  if (!profile) {
+  if (!businessUser) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="text-muted-foreground">Access denied. Admin privileges required.</div>
