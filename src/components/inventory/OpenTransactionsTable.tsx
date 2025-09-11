@@ -93,6 +93,7 @@ export const OpenTransactionsTable = ({
         .from('sales_order_items')
         .select(`
           quantity,
+          back_order_quantity,
           sales_orders!inner(
             id,
             order_number,
@@ -232,7 +233,7 @@ export const OpenTransactionsTable = ({
           return_qty: 0,
           po_qty: 0,
           debit_note_qty: 0,
-          backorder_qty: 0,
+          backorder_qty: so.back_order_quantity || 0,
           status: so.sales_orders.status,
         })),
         
