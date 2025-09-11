@@ -311,176 +311,52 @@ export const EnhancedCurrentStockSystem = () => {
   }, [filteredStockData]);
 
   return (
-    <div className="space-y-8 p-6">
-      {/* Enhanced Summary Dashboard */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        <Card className="bg-gradient-to-br from-primary/5 to-primary/10 border-primary/20 hover:shadow-lg transition-all duration-300">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Total Products</p>
-                <p className="text-2xl font-bold text-primary">{summaryData.totalProducts}</p>
-              </div>
-              <div className="p-3 bg-primary/10 rounded-full">
-                <Package className="h-6 w-6 text-primary" />
-              </div>
-            </div>
+    <div className="space-y-6 p-6">
+
+      {/* Search Interface */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <Card className="card-elevated">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Package className="h-5 w-5 text-primary" />
+              Item Search
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ItemSearchBox
+              value={selectedItem}
+              onChange={setSelectedItem}
+              onRefresh={handleRefresh}
+            />
           </CardContent>
         </Card>
 
-        <Card className="bg-gradient-to-br from-secondary/5 to-secondary/10 border-secondary/20 hover:shadow-lg transition-all duration-300">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Locations</p>
-                <p className="text-2xl font-bold text-secondary">{summaryData.totalLocations}</p>
-              </div>
-              <div className="p-3 bg-secondary/10 rounded-full">
-                <MapPin className="h-6 w-6 text-secondary" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-gradient-to-br from-green-500/5 to-green-500/10 border-green-500/20 hover:shadow-lg transition-all duration-300">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Total Stock</p>
-                <p className="text-2xl font-bold text-green-600">{summaryData.totalStock.toLocaleString()}</p>
-                <p className="text-xs text-muted-foreground">units</p>
-              </div>
-              <div className="p-3 bg-green-500/10 rounded-full">
-                <TrendingUp className="h-6 w-6 text-green-600" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-gradient-to-br from-accent/5 to-accent/10 border-accent/20 hover:shadow-lg transition-all duration-300">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Total Value</p>
-                <p className="text-2xl font-bold text-accent">₹{(summaryData.totalValue / 100000).toFixed(1)}L</p>
-                <p className="text-xs text-muted-foreground">inventory value</p>
-              </div>
-              <div className="p-3 bg-accent/10 rounded-full">
-                <Package className="h-6 w-6 text-accent" />
-              </div>
-            </div>
+        <Card className="card-elevated">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-lg flex items-center gap-2">
+              <MapPin className="h-5 w-5 text-secondary" />
+              Location Search
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <LocationSearchBox
+              value={selectedLocation}
+              onChange={setSelectedLocation}
+              onRefresh={handleRefresh}
+            />
           </CardContent>
         </Card>
       </div>
 
-      {/* Enhanced Search Interface */}
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
-        {/* Item Search Section */}
-        <div className="space-y-4">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="p-2 bg-primary/10 rounded-lg">
-              <Package className="h-6 w-6 text-primary" />
-            </div>
-            <div>
-              <h2 className="text-xl font-semibold">Item Search</h2>
-              <p className="text-sm text-muted-foreground">Find products by name, SKU, or barcode</p>
-            </div>
-          </div>
-          <Card className="border-l-4 border-l-primary bg-gradient-to-r from-primary/5 to-transparent hover:shadow-md transition-all duration-300">
-            <CardContent className="p-6">
-              <ItemSearchBox
-                value={selectedItem}
-                onChange={setSelectedItem}
-                onRefresh={handleRefresh}
-              />
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Location Search Section */}
-        <div className="space-y-4">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="p-2 bg-secondary/10 rounded-lg">
-              <MapPin className="h-6 w-6 text-secondary" />
-            </div>
-            <div>
-              <h2 className="text-xl font-semibold">Location Search</h2>
-              <p className="text-sm text-muted-foreground">Select warehouse and bin locations</p>
-            </div>
-          </div>
-          <Card className="border-l-4 border-l-secondary bg-gradient-to-r from-secondary/5 to-transparent hover:shadow-md transition-all duration-300">
-            <CardContent className="p-6">
-              <LocationSearchBox
-                value={selectedLocation}
-                onChange={setSelectedLocation}
-                onRefresh={handleRefresh}
-              />
-            </CardContent>
-          </Card>
-        </div>
-      </div>
-
-      {/* Stock Status Overview */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mt-8">
-        <Card className="bg-gradient-to-br from-blue-500/5 to-blue-500/10 border-blue-500/20">
-          <CardContent className="p-4">
-            <div className="text-center">
-              <p className="text-2xl font-bold text-blue-600">{summaryData.availableToPick.toLocaleString()}</p>
-              <p className="text-sm text-muted-foreground">Available to Pick</p>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-gradient-to-br from-orange-500/5 to-orange-500/10 border-orange-500/20">
-          <CardContent className="p-4">
-            <div className="text-center">
-              <p className="text-2xl font-bold text-orange-600">{summaryData.allocatedStock.toLocaleString()}</p>
-              <p className="text-sm text-muted-foreground">Allocated Stock</p>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-gradient-to-br from-purple-500/5 to-purple-500/10 border-purple-500/20">
-          <CardContent className="p-4">
-            <div className="text-center">
-              <p className="text-2xl font-bold text-purple-600">{summaryData.inTransitQty.toLocaleString()}</p>
-              <p className="text-sm text-muted-foreground">In Transit</p>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-gradient-to-br from-red-500/5 to-red-500/10 border-red-500/20">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-center gap-2">
-              <AlertTriangle className="h-5 w-5 text-red-500" />
-              <div className="text-center">
-                <p className="text-xl font-bold text-red-600">{summaryData.lowStockItems}</p>
-                <p className="text-sm text-muted-foreground">Low Stock Items</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
 
       {/* Open Transactions Table - Show when specific item + warehouse + bin are selected */}
       {hasSpecificSelection && (
-        <div className="mt-8">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="p-2 bg-accent/10 rounded-lg">
-              <Package className="h-6 w-6 text-accent" />
-            </div>
-            <div>
-              <h2 className="text-xl font-semibold">Transaction Details</h2>
-              <p className="text-sm text-muted-foreground">Open transactions for selected item and location</p>
-            </div>
-          </div>
-          <OpenTransactionsTable
-            selectedProductId={selectedItem}
-            selectedWarehouseId={selectedLocation.warehouse}
-            selectedBinId={selectedLocation.bin}
-            loading={loading}
-          />
-        </div>
+        <OpenTransactionsTable
+          selectedProductId={selectedItem}
+          selectedWarehouseId={selectedLocation.warehouse}
+          selectedBinId={selectedLocation.bin}
+          loading={loading}
+        />
       )}
     </div>
   );
