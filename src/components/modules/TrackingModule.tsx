@@ -837,79 +837,79 @@ export function TrackingModule() {
       </CardHeader>
       <CardContent>
         <div className="w-full overflow-x-auto">
-          <Table className="min-w-full">
+          <Table className="text-sm">
             <TableHeader>
               <TableRow>
-                <TableHead className="min-w-[120px]">
+                <TableHead className="w-[140px]">
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="h-auto p-0 font-semibold hover:bg-transparent"
+                    className="h-auto p-0 font-semibold hover:bg-transparent text-xs"
                     onClick={() => handleSort('order_number')}
                   >
                     Order Number
                     {getSortIcon('order_number')}
                   </Button>
                 </TableHead>
-                <TableHead className="min-w-[150px]">
+                <TableHead className="w-[160px]">
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="h-auto p-0 font-semibold hover:bg-transparent"
+                    className="h-auto p-0 font-semibold hover:bg-transparent text-xs"
                     onClick={() => handleSort('customer_name')}
                   >
                     Customer/Supplier
                     {getSortIcon('customer_name')}
                   </Button>
                 </TableHead>
-                <TableHead className="min-w-[120px]">
+                <TableHead className="w-[100px] hidden md:table-cell">
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="h-auto p-0 font-semibold hover:bg-transparent"
+                    className="h-auto p-0 font-semibold hover:bg-transparent text-xs"
                     onClick={() => handleSort('destination')}
                   >
                     Destination
                     {getSortIcon('destination')}
                   </Button>
                 </TableHead>
-                <TableHead className="min-w-[100px]">
+                <TableHead className="w-[80px] hidden lg:table-cell text-center">
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="h-auto p-0 font-semibold hover:bg-transparent"
+                    className="h-auto p-0 font-semibold hover:bg-transparent text-xs"
                     onClick={() => handleSort('item_count')}
                   >
-                    Item Count
+                    Items
                     {getSortIcon('item_count')}
                   </Button>
                 </TableHead>
-                <TableHead className="min-w-[120px]">
+                <TableHead className="w-[120px]">
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="h-auto p-0 font-semibold hover:bg-transparent"
+                    className="h-auto p-0 font-semibold hover:bg-transparent text-xs"
                     onClick={() => handleSort('total_amount')}
                   >
                     Amount
                     {getSortIcon('total_amount')}
                   </Button>
                 </TableHead>
-                <TableHead className="min-w-[120px]">E-way Bill No</TableHead>
-                <TableHead className="min-w-[120px]">
+                <TableHead className="w-[120px] hidden xl:table-cell">E-way Bill No</TableHead>
+                <TableHead className="w-[100px] hidden xl:table-cell">
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="h-auto p-0 font-semibold hover:bg-transparent"
+                    className="h-auto p-0 font-semibold hover:bg-transparent text-xs"
                     onClick={() => handleSort('eway_bill_date')}
                   >
-                    E-way Bill Date
+                    E-way Date
                     {getSortIcon('eway_bill_date')}
                   </Button>
                 </TableHead>
-                <TableHead className="min-w-[150px]">Carrier/Transporter</TableHead>
-                <TableHead className="min-w-[100px]">AWB No</TableHead>
-                <TableHead className="min-w-[100px]">Actions</TableHead>
+                <TableHead className="w-[140px] hidden xl:table-cell">Carrier/Transporter</TableHead>
+                <TableHead className="w-[100px] hidden 2xl:table-cell">AWB No</TableHead>
+                <TableHead className="w-[120px]">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -922,26 +922,40 @@ export function TrackingModule() {
                 </TableRow>
               ) : (
                 paginatedData.map((item) => (
-                  <TableRow key={item.id}>
+                  <TableRow key={item.id} className="hover:bg-muted/50">
                     <TableCell className="font-medium">
                       <Button 
                         variant="link" 
-                        className="p-0 h-auto text-primary hover:underline"
+                        className="p-0 h-auto text-primary hover:underline text-xs font-medium"
                         onClick={() => handleOrderClick(item)}
                       >
                         {item.order_number}
                       </Button>
                     </TableCell>
-                    <TableCell>{item.customer_name || item.supplier_name}</TableCell>
-                    <TableCell>{item.destination || item.delivery_city || '-'}</TableCell>
-                    <TableCell>{item.item_count || '-'}</TableCell>
-                    <TableCell className="font-medium">₹{item.total_amount.toLocaleString()}</TableCell>
-                    <TableCell>{item.eway_bill_no || '-'}</TableCell>
-                    <TableCell>
-                      {item.eway_bill_date ? format(new Date(item.eway_bill_date), 'dd/MM/yyyy') : '-'}
+                    <TableCell className="truncate max-w-[160px]" title={item.customer_name || item.supplier_name}>
+                      {item.customer_name || item.supplier_name}
                     </TableCell>
-                    <TableCell>{item.carrier_transporter || '-'}</TableCell>
-                    <TableCell>{item.awb_no || '-'}</TableCell>
+                    <TableCell className="hidden md:table-cell truncate max-w-[100px]" title={item.destination || item.delivery_city}>
+                      {item.destination || item.delivery_city || '-'}
+                    </TableCell>
+                    <TableCell className="hidden lg:table-cell text-center">
+                      {item.item_count || '-'}
+                    </TableCell>
+                    <TableCell className="font-medium tabular-nums">
+                      ₹{item.total_amount.toLocaleString('en-IN')}
+                    </TableCell>
+                    <TableCell className="hidden xl:table-cell truncate max-w-[120px]" title={item.eway_bill_no}>
+                      {item.eway_bill_no || '-'}
+                    </TableCell>
+                    <TableCell className="hidden xl:table-cell">
+                      {item.eway_bill_date ? format(new Date(item.eway_bill_date), 'dd/MM/yy') : '-'}
+                    </TableCell>
+                    <TableCell className="hidden xl:table-cell truncate max-w-[140px]" title={item.carrier_transporter}>
+                      {item.carrier_transporter || '-'}
+                    </TableCell>
+                    <TableCell className="hidden 2xl:table-cell truncate max-w-[100px]" title={item.awb_no}>
+                      {item.awb_no || '-'}
+                    </TableCell>
                     <TableCell>
                       <div className="flex gap-1">
                         <Dialog open={isDialogOpen && editingOrder?.id === item.id} onOpenChange={setIsDialogOpen}>
@@ -951,8 +965,9 @@ export function TrackingModule() {
                               variant="outline"
                               onClick={() => setEditingOrder(item)}
                               title="Edit Tracking"
+                              className="h-8 w-8 p-0"
                             >
-                              <Edit className="h-4 w-4" />
+                              <Edit className="h-3 w-3" />
                             </Button>
                           </DialogTrigger>
                           <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
@@ -988,8 +1003,9 @@ export function TrackingModule() {
                               variant="outline"
                               onClick={() => handleViewPOD(item.pod_document_url!)}
                               title="View POD"
+                              className="h-8 w-8 p-0"
                             >
-                              <Eye className="h-4 w-4" />
+                              <Eye className="h-3 w-3" />
                             </Button>
                             
                             <Button 
@@ -997,8 +1013,9 @@ export function TrackingModule() {
                               variant="outline"
                               onClick={() => handleDownloadPOD(item.pod_document_url!, item.order_number)}
                               title="Download POD"
+                              className="h-8 w-8 p-0"
                             >
-                              <Download className="h-4 w-4" />
+                              <Download className="h-3 w-3" />
                             </Button>
                           </>
                         )}
