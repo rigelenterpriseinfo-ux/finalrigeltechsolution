@@ -41,6 +41,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Area, AreaChart } from 'recharts';
 import { toast } from "sonner";
 import { ProductSelector } from '@/components/ui/product-selector';
+import { fetchGSTINOptions, getCompanyPlaceOfSupply, type GSTINOption } from '@/lib/gstinUtils';
 
 interface ReportCategory {
   id: string;
@@ -137,11 +138,39 @@ export function EnhancedReportsModule() {
   const [chartData, setChartData] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [gstinOptions, setGstinOptions] = useState<GSTINOption[]>([]);
+  const [isLoadingGSTIN, setIsLoadingGSTIN] = useState(false);
+  const [companyPlaceOfSupply, setCompanyPlaceOfSupply] = useState<string>('29-Karnataka');
+
+  // Load GSTIN data when needed
+  const loadGSTINData = async () => {
+    setIsLoadingGSTIN(true);
+    try {
+      const [gstins, placeOfSupply] = await Promise.all([
+        fetchGSTINOptions(),
+        getCompanyPlaceOfSupply()
+      ]);
+      setGstinOptions(gstins);
+      setCompanyPlaceOfSupply(placeOfSupply);
+    } catch (error) {
+      console.error('Error loading GSTIN data:', error);
+      toast.error("Failed to load GSTIN data. Please try again.");
+    } finally {
+      setIsLoadingGSTIN(false);
+    }
+  };
 
   // Get current report
   const currentReport = reportCategories
     .flatMap(cat => cat.reports)
     .find(report => report.id === selectedReport);
+
+  // Load GSTIN data when reports requiring GSTIN are selected
+  useEffect(() => {
+    if (currentReport && ['gstr1', 'gstr3b', 'hsnSummary'].includes(currentReport.id)) {
+      loadGSTINData();
+    }
+  }, [currentReport]);
 
   // Use React Query for real-time data fetching
   const { data: reportResult, isLoading, error, refetch } = useQuery({
@@ -478,7 +507,7 @@ export function EnhancedReportsModule() {
           invoiceNumber: invoice.invoice_number,
           invoiceDate: format(new Date(invoice.invoice_date), 'dd-MMM-yyyy'),
           invoiceValue: invoiceValue,
-          placeOfSupply: '29-Karnataka', // Default - should come from customer data
+          placeOfSupply: companyPlaceOfSupply,
           reverseCharge: 'N',
           invoiceType: 'Regular',
           ecommerceGSTIN: '',
@@ -494,7 +523,7 @@ export function EnhancedReportsModule() {
           invoiceNumber: invoice.invoice_number,
           invoiceDate: format(new Date(invoice.invoice_date), 'dd-MMM-yyyy'),
           invoiceValue: invoiceValue,
-          placeOfSupply: '29-Karnataka',
+          placeOfSupply: companyPlaceOfSupply,
           taxableValue: taxableValue,
           cgstAmount: invoice.sales_invoice_items?.reduce((sum: number, item: any) => sum + (item.cgst_amount || 0), 0) || 0,
           sgstAmount: invoice.sales_invoice_items?.reduce((sum: number, item: any) => sum + (item.sgst_amount || 0), 0) || 0,
@@ -503,7 +532,7 @@ export function EnhancedReportsModule() {
         });
       } else {
         // B2C Small - Below 2.5L
-        const placeOfSupply = '29-Karnataka'; // Should come from customer data
+        const placeOfSupply = companyPlaceOfSupply;
         if (!b2cSmallSupplies[placeOfSupply]) {
           b2cSmallSupplies[placeOfSupply] = {
             placeOfSupply,
@@ -1694,14 +1723,26 @@ export function EnhancedReportsModule() {
             {currentReport?.requiresFilters?.includes('gstin') && (
               <div className="flex-1 min-w-[200px]">
                 <label className="text-sm font-medium mb-2 block">GSTIN / State</label>
-                <Select value={filters.gstin} onValueChange={(value) => setFilters(prev => ({ ...prev, gstin: value }))}>
+                <Select 
+                  value={filters.gstin} 
+                  onValueChange={(value) => setFilters(prev => ({ ...prev, gstin: value }))}
+                  disabled={isLoadingGSTIN}
+                >
                   <SelectTrigger>
-                    <SelectValue placeholder="Select GSTIN..." />
+                    <SelectValue placeholder={isLoadingGSTIN ? "Loading GSTINs..." : "Select GSTIN..."} />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All States</SelectItem>
-                    <SelectItem value="29ABCDE1234F1Z5">29ABCDE1234F1Z5 (Karnataka)</SelectItem>
-                    <SelectItem value="27ABCDE1234F1Z5">27ABCDE1234F1Z5 (Maharashtra)</SelectItem>
+                    {gstinOptions.map((option) => (
+                      <SelectItem key={option.gstin} value={option.gstin}>
+                        {option.displayText}
+                      </SelectItem>
+                    ))}
+                    {gstinOptions.length === 0 && !isLoadingGSTIN && (
+                      <SelectItem value="" disabled>
+                        No GSTINs found in database
+                      </SelectItem>
+                    )}
                   </SelectContent>
                 </Select>
               </div>
