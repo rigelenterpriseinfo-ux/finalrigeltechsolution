@@ -148,9 +148,22 @@ export function PaymentsModule() {
   useEffect(() => {
     fetchAccountPayable();
     fetchAccountReceivable();
-    fetchTopAPVendors();
-    fetchTopARCustomers();
+    fetchOverdueVendors();
+    fetchOverdueCustomers();
   }, []);
+
+  // Separate useEffect to calculate top vendors/customers after data is loaded
+  useEffect(() => {
+    if (accountPayable.length > 0) {
+      fetchTopAPVendors();
+    }
+  }, [accountPayable]);
+
+  useEffect(() => {
+    if (accountReceivable.length > 0) {
+      fetchTopARCustomers();
+    }
+  }, [accountReceivable]);
 
   const fetchAccountPayable = async () => {
     try {
@@ -261,9 +274,6 @@ export function PaymentsModule() {
       });
 
       setAccountPayable(transformedData);
-      
-      // Recalculate top AP vendors after data is updated
-      setTimeout(() => fetchTopAPVendors(), 100);
     } catch (error) {
       console.error('Error fetching account payable:', error);
       toast({
@@ -381,9 +391,6 @@ export function PaymentsModule() {
       });
 
       setAccountReceivable(transformedData);
-      
-      // Recalculate top AR customers after data is updated
-      setTimeout(() => fetchTopARCustomers(), 100);
     } catch (error) {
       console.error('Error fetching account receivable:', error);
       toast({
