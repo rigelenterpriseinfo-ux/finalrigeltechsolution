@@ -386,7 +386,29 @@ const UserManagement = () => {
       subtitle="Manage your team members and their access permissions"
       activeView="users"
       onNavigate={(view) => {
-        if (view === 'dashboard') navigate('/dashboard');
+        // Handle navigation to different sections
+        switch (view) {
+          case 'dashboard':
+            navigate('/dashboard');
+            break;
+          case 'users':
+            // Already on user management page, no action needed
+            break;
+          case 'inventory':
+          case 'purchase':
+          case 'sales':
+          case 'returns':
+          case 'payments':
+          case 'reports':
+          case 'tracking':
+          case 'ai':
+          case 'profile':
+            // Navigate to dashboard with the specific module as URL parameter
+            navigate(`/dashboard?module=${view}`);
+            break;
+          default:
+            navigate('/dashboard');
+        }
       }}
       headerActions={
         <Button onClick={() => navigate('/dashboard')} variant="outline">

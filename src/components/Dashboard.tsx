@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useSearchParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useBusinessAuth } from '@/hooks/useBusinessAuth';
 import { Button } from '@/components/ui/button';
@@ -58,6 +58,8 @@ export default function Dashboard() {
   const { user, profile, company, signOut, loading } = useAuth();
   // Call all hooks unconditionally at the top to preserve hook order
   const { hasAccess, isOwnerOrAdmin } = useBusinessAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
   const [activeModule, setActiveModule] = useState<ActiveModule>('dashboard');
   const [inventoryStats, setInventoryStats] = useState({
     totalSKUs: 0,
@@ -65,11 +67,30 @@ export default function Dashboard() {
     totalCost: 0
   });
 
+  // Check for module parameter on component mount and when URL changes
+  useEffect(() => {
+    const moduleParam = searchParams.get('module');
+    if (moduleParam && (moduleParam === 'dashboard' || moduleParam === 'inventory' || moduleParam === 'purchase' || 
+        moduleParam === 'sales' || moduleParam === 'returns' || moduleParam === 'payments' || 
+        moduleParam === 'reports' || moduleParam === 'tracking' || moduleParam === 'ai' || 
+        moduleParam === 'users' || moduleParam === 'profile')) {
+      setActiveModule(moduleParam as ActiveModule);
+      // Clear the URL parameter after setting the module
+      setSearchParams({});
+    }
+  }, [searchParams, setSearchParams]);
+
   // Navigation handler to convert string to ActiveModule
   const handleNavigation = (view: string) => {
+    if (view === 'users') {
+      // Navigate to user management page for users module
+      navigate('/user-management');
+      return;
+    }
+    
     if (view === 'dashboard' || view === 'inventory' || view === 'purchase' || view === 'sales' || 
         view === 'returns' || view === 'payments' || view === 'reports' || view === 'tracking' || 
-        view === 'ai' || view === 'users' || view === 'profile') {
+        view === 'ai' || view === 'profile') {
       setActiveModule(view as ActiveModule);
     }
   };
