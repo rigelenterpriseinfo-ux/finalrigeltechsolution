@@ -19,6 +19,7 @@ import { useBusinessAuth } from '@/hooks/useBusinessAuth';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { AuditLogViewer } from '@/components/AuditLogViewer';
 import { CompanyProfile } from '@/components/CompanyProfile';
+import { PermissionErrorBoundary } from '@/components/ui/PermissionErrorBoundary';
 import { useNavigate } from 'react-router-dom';
 
 interface BusinessUser {
@@ -39,7 +40,7 @@ interface BusinessUser {
 
 const UserManagement = () => {
   const { company, profile, user } = useAuth();
-  const { businessUser, canManageCompany, hasEditAccess, isOwnerOrAdmin, updateSectionPermissions } = useBusinessAuth();
+  const { businessUser, canManageCompany, hasEditAccess, isOwnerOrAdmin, updateSectionPermissions, getEffectiveRole } = useBusinessAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
   const [users, setUsers] = useState<BusinessUser[]>([]);
@@ -47,6 +48,7 @@ const UserManagement = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<BusinessUser | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [activeTab, setActiveTab] = useState('users');
 
   const [formData, setFormData] = useState({
     name: '',
@@ -68,6 +70,49 @@ const UserManagement = () => {
     { key: 'ai', label: 'AI Assistant', icon: Bot, description: 'Access AI-powered business insights and automation' },
     { key: 'company_profile', label: 'Company Profile', icon: Building2, description: 'Manage company information and business settings' }
   ];
+
+  // Enhanced permission checker that provides fallback access
+  const hasTabAccess = (tab: string): boolean => {
+    const role = getEffectiveRole();
+    
+    switch (tab) {
+      case 'users':
+        return isOwnerOrAdmin();
+      case 'company':
+        // Allow company profile access for owners, admins, and those with explicit permission
+        return ['OWNER', 'ADMIN'].includes(role) || hasEditAccess('company_profile');
+      case 'audit':
+        return isOwnerOrAdmin();
+      default:
+        return false;
+    }
+  };
+
+  // Auto-switch to accessible tab if current tab is not accessible
+  useEffect(() => {
+    if (!hasTabAccess(activeTab)) {
+      // Find first accessible tab
+      const accessibleTabs = ['users', 'company', 'audit'].filter(hasTabAccess);
+      if (accessibleTabs.length > 0) {
+        setActiveTab(accessibleTabs[0]);
+      }
+    }
+  }, [activeTab, businessUser, profile]);
+
+  // Debug current permissions (remove in production)
+  useEffect(() => {
+    if (process.env.NODE_ENV === 'development') {
+      console.debug('UserManagement Debug:', {
+        activeTab,
+        role: getEffectiveRole(),
+        canAccessUsers: hasTabAccess('users'),
+        canAccessCompany: hasTabAccess('company'),
+        canAccessAudit: hasTabAccess('audit'),
+        hasCompanyProfileEdit: hasEditAccess('company_profile'),
+        isOwnerOrAdmin: isOwnerOrAdmin()
+      });
+    }
+  }, [activeTab, businessUser, profile]);
 
 
   useEffect(() => {
@@ -350,17 +395,29 @@ const UserManagement = () => {
         </Button>
       }
       >
-        <Tabs defaultValue="users" className="w-full">
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="users" className="flex items-center gap-2">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <TabsList className="grid w-full grid-cols-3 bg-background border rounded-lg p-1">
+            <TabsTrigger 
+              value="users" 
+              className="flex items-center gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground transition-all duration-200"
+              disabled={!isOwnerOrAdmin()}
+            >
               <Users className="h-4 w-4" />
               Team Members
             </TabsTrigger>
-            <TabsTrigger value="company" className="flex items-center gap-2">
+            <TabsTrigger 
+              value="company" 
+              className="flex items-center gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground transition-all duration-200"
+              disabled={!hasEditAccess('company_profile') && !isOwnerOrAdmin()}
+            >
               <Building2 className="h-4 w-4" />
               Company Profile
             </TabsTrigger>
-            <TabsTrigger value="audit" className="flex items-center gap-2">
+            <TabsTrigger 
+              value="audit" 
+              className="flex items-center gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground transition-all duration-200"
+              disabled={!isOwnerOrAdmin()}
+            >
               <Clock className="h-4 w-4" />
               Audit Logs
             </TabsTrigger>
@@ -492,36 +549,62 @@ const UserManagement = () => {
           </TabsContent>
 
             <TabsContent value="company" className="space-y-6">
-              <div className="space-y-4">
-                <div className="flex justify-between items-center">
-                  <div>
-                    <h2 className="text-2xl font-bold">Company Profile</h2>
-                    <p className="text-muted-foreground">
-                      {canManageCompany() ? 'View and edit company information' : 'View company information'}
-                    </p>
+              <PermissionErrorBoundary>
+                {!hasEditAccess('company_profile') && !isOwnerOrAdmin() ? (
+                  <div className="flex items-center justify-center h-96">
+                    <div className="text-center">
+                      <Shield className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                      <h2 className="text-2xl font-bold text-muted-foreground mb-2">Access Denied</h2>
+                      <p className="text-muted-foreground">You don't have permission to access the company profile.</p>
+                    </div>
                   </div>
-                  {!canManageCompany() && (
-                    <Badge variant="secondary" className="flex items-center gap-2">
-                      <Eye className="h-4 w-4" />
-                      Read Only
-                    </Badge>
-                  )}
-                </div>
-                <CompanyProfile readonly={!canManageCompany()} />
-              </div>
+                ) : (
+                  <div className="space-y-4">
+                    <div className="flex justify-between items-center">
+                      <div>
+                        <h2 className="text-2xl font-bold">Company Profile</h2>
+                        <p className="text-muted-foreground">
+                          {canManageCompany() ? 'View and edit company information' : 'View company information'}
+                        </p>
+                      </div>
+                      {!canManageCompany() && (
+                        <Badge variant="secondary" className="flex items-center gap-2">
+                          <Eye className="h-4 w-4" />
+                          Read Only
+                        </Badge>
+                      )}
+                    </div>
+                    <CompanyProfile readonly={!canManageCompany()} />
+                  </div>
+                )}
+              </PermissionErrorBoundary>
             </TabsContent>
-          <TabsContent value="audit" className="space-y-6">
-            <div className="flex justify-between items-center">
-              <div>
-                <h2 className="text-2xl font-bold">Transaction Audit Log</h2>
-                <p className="text-muted-foreground">
-                  Track all user actions and system changes with timestamps
-                </p>
-              </div>
-            </div>
-            
-            <AuditLogViewer />
-          </TabsContent>
+
+            <TabsContent value="audit" className="space-y-6">
+              <PermissionErrorBoundary>
+                {!isOwnerOrAdmin() ? (
+                  <div className="flex items-center justify-center h-96">
+                    <div className="text-center">
+                      <Shield className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                      <h2 className="text-2xl font-bold text-muted-foreground mb-2">Access Denied</h2>
+                      <p className="text-muted-foreground">You don't have permission to view audit logs.</p>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <div className="flex justify-between items-center">
+                      <div>
+                        <h2 className="text-2xl font-bold">Transaction Audit Log</h2>
+                        <p className="text-muted-foreground">
+                          Track all user actions and system changes with timestamps
+                        </p>
+                      </div>
+                    </div>
+                    <AuditLogViewer />
+                  </>
+                )}
+              </PermissionErrorBoundary>
+            </TabsContent>
         </Tabs>
 
         <Dialog open={isDialogOpen} onOpenChange={handleCloseDialog}>

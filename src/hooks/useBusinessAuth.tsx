@@ -97,6 +97,11 @@ export const useBusinessAuth = () => {
     // Managers have access but may be restricted in some sections
     if (effectiveRole === 'MANAGER') return true;
     
+    // Special case for company_profile - allow broader access
+    if (section === 'company_profile') {
+      return ['OWNER', 'ADMIN', 'MANAGER'].includes(effectiveRole);
+    }
+    
     // Regular users need explicit section permissions
     return sectionPermissions[section] === 'read' || sectionPermissions[section] === 'edit';
   };
@@ -115,6 +120,11 @@ export const useBusinessAuth = () => {
         return false; // Managers cannot edit these sections
       }
       return true;
+    }
+    
+    // Special case for company_profile - allow broader edit access for managers
+    if (section === 'company_profile') {
+      return ['OWNER', 'ADMIN', 'MANAGER'].includes(effectiveRole);
     }
     
     // Regular users need explicit edit permissions
