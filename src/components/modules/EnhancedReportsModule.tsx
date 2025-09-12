@@ -482,34 +482,27 @@ export function EnhancedReportsModule() {
       .gte('invoice_date', format(filters.dateRange.from, 'yyyy-MM-dd'))
       .lte('invoice_date', format(filters.dateRange.to, 'yyyy-MM-dd'));
 
-    // Apply GSTIN filter if specific GSTIN is selected
-    if (filters.gstin && filters.gstin !== 'all') {
-      query = query.or(`customers.gstin.eq.${filters.gstin}`);
-    }
-
     const { data: invoices, error } = await query;
 
     if (error) throw error;
 
-    // Filter additional based on company GSTIN if needed
+    // Filter invoices based on selected GSTIN after fetching
     let filteredInvoices = invoices;
     if (filters.gstin && filters.gstin !== 'all') {
-      // Get company data to check if selected GSTIN belongs to company
+      // Check if selected GSTIN belongs to company
       const { data: company } = await supabase
         .from('companies')
         .select('gstn')
         .eq('gstn', filters.gstin)
-        .single();
+        .maybeSingle();
 
-      if (company) {
-        // If selected GSTIN is company GSTIN, show all invoices
-        filteredInvoices = invoices;
-      } else {
-        // If selected GSTIN is customer GSTIN, filter by that customer
+      if (!company) {
+        // If selected GSTIN is not company GSTIN, filter by customer GSTIN
         filteredInvoices = invoices?.filter(invoice => 
           invoice.customers?.gstin === filters.gstin
         ) || [];
       }
+      // If it is company GSTIN, show all invoices (no additional filtering needed)
     }
 
     const b2bSupplies: any[] = [];
