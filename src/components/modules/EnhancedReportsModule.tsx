@@ -470,18 +470,47 @@ export function EnhancedReportsModule() {
   };
 
   const fetchGSTR1Data = async (filters: FilterState) => {
-    const { data: invoices, error } = await supabase
+    // Build query with proper GSTIN filtering
+    let query = supabase
       .from('sales_invoices')
       .select(`
         *, 
         sales_invoice_items(*),
-        customers(gstin)
+        customers(gstin, customer_type)
       `)
       .eq('status', 'finalized')
       .gte('invoice_date', format(filters.dateRange.from, 'yyyy-MM-dd'))
       .lte('invoice_date', format(filters.dateRange.to, 'yyyy-MM-dd'));
 
+    // Apply GSTIN filter if specific GSTIN is selected
+    if (filters.gstin && filters.gstin !== 'all') {
+      query = query.or(`customers.gstin.eq.${filters.gstin}`);
+    }
+
+    const { data: invoices, error } = await query;
+
     if (error) throw error;
+
+    // Filter additional based on company GSTIN if needed
+    let filteredInvoices = invoices;
+    if (filters.gstin && filters.gstin !== 'all') {
+      // Get company data to check if selected GSTIN belongs to company
+      const { data: company } = await supabase
+        .from('companies')
+        .select('gstn')
+        .eq('gstn', filters.gstin)
+        .single();
+
+      if (company) {
+        // If selected GSTIN is company GSTIN, show all invoices
+        filteredInvoices = invoices;
+      } else {
+        // If selected GSTIN is customer GSTIN, filter by that customer
+        filteredInvoices = invoices?.filter(invoice => 
+          invoice.customers?.gstin === filters.gstin
+        ) || [];
+      }
+    }
 
     const b2bSupplies: any[] = [];
     const b2cLargeSupplies: any[] = [];
@@ -490,19 +519,24 @@ export function EnhancedReportsModule() {
     let totalTaxableValue = 0;
     let totalTaxAmount = 0;
 
-    invoices?.forEach(invoice => {
+    filteredInvoices?.forEach(invoice => {
       const customerGSTIN = invoice.customers?.gstin;
+      const customerType = invoice.customers?.customer_type;
       const invoiceValue = invoice.total_amount;
       const taxableValue = invoice.subtotal_amount;
       
       totalTaxableValue += taxableValue;
       totalTaxAmount += invoice.tax_amount;
 
-      // Categorize supplies
-      if (customerGSTIN && customerGSTIN.trim() !== '') {
-        // B2B Supply - Registered customer
+      // Determine B2B/B2C classification
+      // Business customer OR customer with GSTIN = B2B
+      // Individual customer without GSTIN = B2C
+      const isB2B = (customerType === 'Business' || (customerGSTIN && customerGSTIN.trim() !== ''));
+      
+      if (isB2B) {
+        // B2B Supply - Business customer or customer with GSTIN
         b2bSupplies.push({
-          gstin: customerGSTIN,
+          gstin: customerGSTIN || 'N/A',
           customerName: invoice.customer_name,
           invoiceNumber: invoice.invoice_number,
           invoiceDate: format(new Date(invoice.invoice_date), 'dd-MMM-yyyy'),
@@ -515,10 +549,11 @@ export function EnhancedReportsModule() {
           cgstAmount: invoice.sales_invoice_items?.reduce((sum: number, item: any) => sum + (item.cgst_amount || 0), 0) || 0,
           sgstAmount: invoice.sales_invoice_items?.reduce((sum: number, item: any) => sum + (item.sgst_amount || 0), 0) || 0,
           igstAmount: invoice.sales_invoice_items?.reduce((sum: number, item: any) => sum + (item.igst_amount || 0), 0) || 0,
-          totalTax: invoice.tax_amount
+          totalTax: invoice.tax_amount,
+          customerType: customerType || 'Business'
         });
       } else if (invoiceValue > 250000) {
-        // B2C Large - Above 2.5L
+        // B2C Large - Individual customer above 2.5L
         b2cLargeSupplies.push({
           invoiceNumber: invoice.invoice_number,
           invoiceDate: format(new Date(invoice.invoice_date), 'dd-MMM-yyyy'),
@@ -528,10 +563,11 @@ export function EnhancedReportsModule() {
           cgstAmount: invoice.sales_invoice_items?.reduce((sum: number, item: any) => sum + (item.cgst_amount || 0), 0) || 0,
           sgstAmount: invoice.sales_invoice_items?.reduce((sum: number, item: any) => sum + (item.sgst_amount || 0), 0) || 0,
           igstAmount: invoice.sales_invoice_items?.reduce((sum: number, item: any) => sum + (item.igst_amount || 0), 0) || 0,
-          ecommerceGSTIN: ''
+          ecommerceGSTIN: '',
+          customerType: customerType || 'Individual'
         });
       } else {
-        // B2C Small - Below 2.5L
+        // B2C Small - Individual customer below 2.5L
         const placeOfSupply = companyPlaceOfSupply;
         if (!b2cSmallSupplies[placeOfSupply]) {
           b2cSmallSupplies[placeOfSupply] = {
@@ -539,7 +575,8 @@ export function EnhancedReportsModule() {
             taxableValue: 0,
             cgstAmount: 0,
             sgstAmount: 0,
-            igstAmount: 0
+            igstAmount: 0,
+            customerType: 'Individual'
           };
         }
         b2cSmallSupplies[placeOfSupply].taxableValue += taxableValue;
@@ -597,7 +634,7 @@ export function EnhancedReportsModule() {
         hsnSummary: Object.values(hsnSummary)
       },
       summary: {
-        totalInvoices: invoices?.length || 0,
+        totalInvoices: filteredInvoices?.length || 0,
         totalTaxableValue,
         totalTaxAmount,
         b2bCount: b2bSupplies.length,
