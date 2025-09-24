@@ -11,14 +11,13 @@ import { Switch } from '@/components/ui/switch';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Loader2, Plus, Edit, Trash2, Users, Shield, Eye, ArrowLeft, Clock, CheckCircle, User, Settings, Database, FileText, CreditCard, MapPin, Bot, Package, Building2, RotateCcw } from 'lucide-react';
+import { Loader2, Plus, Edit, Trash2, Users, Shield, Eye, ArrowLeft, Clock, CheckCircle, User, Settings, Database, FileText, CreditCard, MapPin, Bot, Package, RotateCcw } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useBusinessAuth } from '@/hooks/useBusinessAuth';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { AuditLogViewer } from '@/components/AuditLogViewer';
-import { CompanyProfile } from '@/components/CompanyProfile';
 import { PermissionErrorBoundary } from '@/components/ui/PermissionErrorBoundary';
 import { useNavigate } from 'react-router-dom';
 
@@ -67,8 +66,7 @@ const UserManagement = () => {
     { key: 'reports', label: 'Reports & Analytics', icon: Settings, description: 'View business reports and analytics dashboards' },
     { key: 'payments', label: 'Payment Processing', icon: CreditCard, description: 'Process payments and manage financial transactions' },
     { key: 'tracking', label: 'Order Tracking', icon: MapPin, description: 'Track order status and delivery management' },
-    { key: 'ai', label: 'AI Assistant', icon: Bot, description: 'Access AI-powered business insights and automation' },
-    { key: 'company_profile', label: 'Company Profile', icon: Building2, description: 'Manage company information and business settings' }
+    { key: 'ai', label: 'AI Assistant', icon: Bot, description: 'Access AI-powered business insights and automation' }
   ];
 
   // Enhanced permission checker that provides fallback access
@@ -78,9 +76,6 @@ const UserManagement = () => {
     switch (tab) {
       case 'users':
         return isOwnerOrAdmin();
-      case 'company':
-        // Allow company profile access for owners, admins, and those with explicit permission
-        return ['OWNER', 'ADMIN'].includes(role) || hasEditAccess('company_profile');
       case 'audit':
         return isOwnerOrAdmin();
       default:
@@ -92,7 +87,7 @@ const UserManagement = () => {
   useEffect(() => {
     if (!hasTabAccess(activeTab)) {
       // Find first accessible tab
-      const accessibleTabs = ['users', 'company', 'audit'].filter(hasTabAccess);
+      const accessibleTabs = ['users', 'audit'].filter(hasTabAccess);
       if (accessibleTabs.length > 0) {
         setActiveTab(accessibleTabs[0]);
       }
@@ -106,9 +101,7 @@ const UserManagement = () => {
         activeTab,
         role: getEffectiveRole(),
         canAccessUsers: hasTabAccess('users'),
-        canAccessCompany: hasTabAccess('company'),
         canAccessAudit: hasTabAccess('audit'),
-        hasCompanyProfileEdit: hasEditAccess('company_profile'),
         isOwnerOrAdmin: isOwnerOrAdmin()
       });
     }
@@ -418,7 +411,7 @@ const UserManagement = () => {
       }
       >
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-3 bg-background border rounded-lg p-1">
+          <TabsList className="grid w-full grid-cols-2 bg-background border rounded-lg p-1">
             <TabsTrigger 
               value="users" 
               className="flex items-center gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground transition-all duration-200"
@@ -426,14 +419,6 @@ const UserManagement = () => {
             >
               <Users className="h-4 w-4" />
               Team Members
-            </TabsTrigger>
-            <TabsTrigger 
-              value="company" 
-              className="flex items-center gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground transition-all duration-200"
-              disabled={!hasEditAccess('company_profile') && !isOwnerOrAdmin()}
-            >
-              <Building2 className="h-4 w-4" />
-              Company Profile
             </TabsTrigger>
             <TabsTrigger 
               value="audit" 
@@ -570,39 +555,7 @@ const UserManagement = () => {
             </Card>
           </TabsContent>
 
-            <TabsContent value="company" className="space-y-6">
-              <PermissionErrorBoundary>
-                {!hasEditAccess('company_profile') && !isOwnerOrAdmin() ? (
-                  <div className="flex items-center justify-center h-96">
-                    <div className="text-center">
-                      <Shield className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                      <h2 className="text-2xl font-bold text-muted-foreground mb-2">Access Denied</h2>
-                      <p className="text-muted-foreground">You don't have permission to access the company profile.</p>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    <div className="flex justify-between items-center">
-                      <div>
-                        <h2 className="text-2xl font-bold">Company Profile</h2>
-                        <p className="text-muted-foreground">
-                          {canManageCompany() ? 'View and edit company information' : 'View company information'}
-                        </p>
-                      </div>
-                      {!canManageCompany() && (
-                        <Badge variant="secondary" className="flex items-center gap-2">
-                          <Eye className="h-4 w-4" />
-                          Read Only
-                        </Badge>
-                      )}
-                    </div>
-                    <CompanyProfile readonly={!canManageCompany()} />
-                  </div>
-                )}
-              </PermissionErrorBoundary>
-            </TabsContent>
-
-            <TabsContent value="audit" className="space-y-6">
+          <TabsContent value="audit" className="space-y-6">
               <PermissionErrorBoundary>
                 {!isOwnerOrAdmin() ? (
                   <div className="flex items-center justify-center h-96">
