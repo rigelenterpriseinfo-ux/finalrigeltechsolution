@@ -30,6 +30,7 @@ interface DocumentFormatDialogProps {
 
 const DOCUMENT_TYPES = [
   { value: 'purchase_order', label: 'Purchase Order' },
+  { value: 'sales_order', label: 'Sales Order' },
   { value: 'invoice', label: 'Invoice' },
   { value: 'debit_note', label: 'Debit Note' },
   { value: 'credit_note', label: 'Credit Note' },

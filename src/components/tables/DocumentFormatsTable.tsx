@@ -22,6 +22,7 @@ interface DocumentFormatConfig {
 
 const DOCUMENT_TYPE_LABELS = {
   purchase_order: 'Purchase Order',
+  sales_order: 'Sales Order',
   invoice: 'Invoice',
   debit_note: 'Debit Note',
   credit_note: 'Credit Note',
