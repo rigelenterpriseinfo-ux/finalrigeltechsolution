@@ -640,8 +640,8 @@ const UserManagement = () => {
         </Tabs>
 
         <Dialog open={isDialogOpen} onOpenChange={handleCloseDialog}>
-          <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden">
-            <DialogHeader className="border-b border-border pb-4">
+          <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col">
+            <DialogHeader className="border-b border-border pb-4 flex-shrink-0">
               <DialogTitle className="flex items-center gap-2 text-xl">
                 <UserPlus className="h-5 w-5 text-primary" />
                 {editingUser ? 'Edit Team Member' : 'Add New Team Member'}
@@ -683,8 +683,8 @@ const UserManagement = () => {
               </div>
             </DialogHeader>
 
-            <form onSubmit={handleSubmit} className="flex flex-col h-full">
-              <div className="flex-1 overflow-y-auto p-6">
+            <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
+              <div className="flex-1 overflow-y-auto p-6 space-y-4">
                 {/* Step 1: Basic Information & Security */}
                 {wizardStep === 1 && (
                   <div className="space-y-4 animate-in slide-in-from-right-5">
@@ -947,7 +947,7 @@ const UserManagement = () => {
               </div>
 
               {/* Navigation Footer */}
-              <div className="border-t border-border p-6">
+              <div className="border-t border-border p-6 flex-shrink-0">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     {wizardStep > 1 && (
