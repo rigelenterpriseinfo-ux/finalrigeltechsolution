@@ -29,7 +29,7 @@ interface BusinessUser {
   full_name?: string;
   email: string;
   access_type: 'OWNER' | 'ADMIN' | 'USER';
-  access_sections: Record<string, 'read' | 'edit'>;
+  access_sections: Record<string, 'read' | 'edit' | 'none'>;
   is_active: boolean;
   password_hash?: string;
   created_by?: string;
@@ -54,19 +54,21 @@ const UserManagement = () => {
     email: '',
     password: '',
     confirmPassword: '',
-    access_sections: {} as Record<string, 'read' | 'edit'>,
+    access_sections: {} as Record<string, 'read' | 'edit' | 'none'>,
     is_active: true
   });
 
   const availableSections = [
     { key: 'inventory', label: 'Inventory Management', icon: Package, description: 'Manage products, stock levels, and warehouse operations' },
+    { key: 'purchases', label: 'Purchase Management', icon: Database, description: 'Handle purchase orders, supplier invoices, and procurement' },
     { key: 'sales', label: 'Sales Orders', icon: FileText, description: 'Create and manage sales orders and customer invoices' },
     { key: 'returns', label: 'Returns & Credit Notes', icon: RotateCcw, description: 'Manage product returns and customer credit notes' },
-    { key: 'purchases', label: 'Purchase Management', icon: Database, description: 'Handle purchase orders, supplier invoices, and procurement' },
-    { key: 'reports', label: 'Reports & Analytics', icon: Settings, description: 'View business reports and analytics dashboards' },
     { key: 'payments', label: 'Payment Processing', icon: CreditCard, description: 'Process payments and manage financial transactions' },
-    { key: 'tracking', label: 'Order Tracking', icon: MapPin, description: 'Track order status and delivery management' },
-    { key: 'ai', label: 'AI Assistant', icon: Bot, description: 'Access AI-powered business insights and automation' }
+    { key: 'reports', label: 'Reports & Analytics', icon: Settings, description: 'View business reports and analytics dashboards' },
+    { key: 'tracking', label: 'Track & Trace', icon: MapPin, description: 'Track order status and delivery management' },
+    { key: 'ai', label: 'AI Assistant', icon: Bot, description: 'Access AI-powered business insights and automation' },
+    { key: 'team_management', label: 'Team Management', icon: Users, description: 'Manage team members and user permissions' },
+    { key: 'settings', label: 'Settings', icon: Settings, description: 'Configure system settings and preferences' }
   ];
 
   // Enhanced permission checker that provides fallback access
@@ -238,9 +240,16 @@ const UserManagement = () => {
           throw new Error(inviteData?.error || 'Failed to create user');
         }
 
-          if (Object.keys(formData.access_sections).length > 0) {
-            await updateSectionPermissions(formData.email, formData.access_sections);
+        if (Object.keys(formData.access_sections).length > 0) {
+          // Filter out 'none' permissions since they mean no access
+          const validPermissions = Object.fromEntries(
+            Object.entries(formData.access_sections).filter(([_, permission]) => permission !== 'none')
+          ) as Record<string, 'read' | 'edit'>;
+          
+          if (Object.keys(validPermissions).length > 0) {
+            await updateSectionPermissions(formData.email, validPermissions);
           }
+        }
 
         toast({
           title: "User created successfully",
@@ -269,7 +278,14 @@ const UserManagement = () => {
 
         // Update section permissions for this user
         if (Object.keys(formData.access_sections).length > 0) {
-          await updateSectionPermissions(formData.email, formData.access_sections);
+          // Filter out 'none' permissions since they mean no access
+          const validPermissions = Object.fromEntries(
+            Object.entries(formData.access_sections).filter(([_, permission]) => permission !== 'none')
+          ) as Record<string, 'read' | 'edit'>;
+          
+          if (Object.keys(validPermissions).length > 0) {
+            await updateSectionPermissions(formData.email, validPermissions);
+          }
         }
 
         // Update the Auth user via Edge Function if password changed
@@ -336,7 +352,7 @@ const UserManagement = () => {
     }
   };
 
-  const handleSectionPermission = (sectionKey: string, permission: 'read' | 'edit') => {
+  const handleSectionPermission = (sectionKey: string, permission: 'read' | 'edit' | 'none') => {
     setFormData(prev => ({
       ...prev,
       access_sections: {
@@ -687,7 +703,8 @@ const UserManagement = () => {
                 
                 <div className="grid gap-4">
                   {availableSections.map((section) => {
-                    const hasAccess = formData.access_sections[section.key];
+                    const accessLevel = formData.access_sections[section.key];
+                    const hasAccess = accessLevel && accessLevel !== 'none';
                     const SectionIcon = section.icon;
                     
                     return (
@@ -701,12 +718,12 @@ const UserManagement = () => {
                                 <p className="text-xs text-muted-foreground">{section.description}</p>
                               </div>
                             </div>
-                            {hasAccess && (
+                            {accessLevel && accessLevel !== 'none' && (
                               <Button 
                                 type="button" 
                                 variant="ghost" 
                                 size="sm"
-                                onClick={() => removeSectionAccess(section.key)}
+                                onClick={() => handleSectionPermission(section.key, 'none')}
                                 className="h-8 w-8 p-0 text-destructive hover:text-destructive"
                               >
                                 <Trash2 className="h-3 w-3" />
@@ -715,10 +732,16 @@ const UserManagement = () => {
                           </div>
                           
                           <RadioGroup
-                            value={hasAccess || ''}
-                            onValueChange={(value: 'read' | 'edit') => handleSectionPermission(section.key, value)}
+                            value={accessLevel || 'none'}
+                            onValueChange={(value: 'read' | 'edit' | 'none') => handleSectionPermission(section.key, value)}
                             className="flex gap-6"
                           >
+                            <div className="flex items-center space-x-2">
+                              <RadioGroupItem value="none" id={`${section.key}-none`} />
+                              <Label htmlFor={`${section.key}-none`} className="text-sm font-medium">
+                                No Access
+                              </Label>
+                            </div>
                             <div className="flex items-center space-x-2">
                               <RadioGroupItem value="read" id={`${section.key}-read`} />
                               <Label htmlFor={`${section.key}-read`} className="text-sm font-medium">
@@ -741,6 +764,7 @@ const UserManagement = () => {
                 <div className="bg-muted/50 rounded-lg p-4">
                   <h4 className="text-sm font-medium mb-2">Permission Levels:</h4>
                   <div className="text-xs text-muted-foreground space-y-1">
+                    <div>• <strong>No Access:</strong> User cannot see or access this section in the ERP</div>
                     <div>• <strong>Read Only:</strong> View data, reports, and information without making changes</div>
                     <div>• <strong>Full Access:</strong> Complete access to create, read, update, and delete records</div>
                   </div>
