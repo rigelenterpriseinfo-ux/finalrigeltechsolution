@@ -182,14 +182,16 @@ const UserManagement = () => {
   const handleOpenDialog = (user?: BusinessUser) => {
     console.log('Opening dialog for user:', user);
     
-    // Reset bulk permission state
+    // Reset all state first to prevent any conflicts
+    setIsSubmitting(false);
     setBulkPermission(null);
+    setWizardStep(1);
     
     if (user) {
       setEditingUser(user);
       
-      // Ensure we have proper data
-      const userName = user.name || user.full_name || '';
+      // Ensure we have proper data with better fallbacks
+      const userName = user.full_name || user.name || '';
       const userEmail = user.email || '';
       const userSections = user.access_sections || {};
       
@@ -200,18 +202,20 @@ const UserManagement = () => {
         userSections
       });
       
-      const initialFormData = {
-        name: userName,
-        email: userEmail,
-        password: '',
-        confirmPassword: '',
-        access_sections: userSections,
-        is_active: user.is_active ?? true
-      };
-      
-      console.log('Setting initial form data for edit:', initialFormData);
-      setFormData(initialFormData);
-      setWizardStep(1);
+      // Set form data with a slight delay to ensure state is clean
+      setTimeout(() => {
+        const initialFormData = {
+          name: userName,
+          email: userEmail,
+          password: '',
+          confirmPassword: '',
+          access_sections: userSections,
+          is_active: user.is_active ?? true
+        };
+        
+        console.log('Setting initial form data for edit:', initialFormData);
+        setFormData(initialFormData);
+      }, 10);
     } else {
       resetForm();
     }
@@ -234,9 +238,26 @@ const UserManagement = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    e.stopPropagation();
+    
+    console.log('Form submit triggered, isSubmitting:', isSubmitting);
+    
+    if (isSubmitting) {
+      console.log('Already submitting, ignoring');
+      return;
+    }
+    
     setIsSubmitting(true);
 
     try {
+      console.log('Starting form submission with data:', {
+        name: formData.name,
+        email: formData.email,
+        hasPassword: !!formData.password,
+        isEditing: !!editingUser,
+        accessSectionsCount: Object.keys(formData.access_sections).length
+      });
+
       // Validation
       if (!editingUser && (!formData.password || formData.password.length < 8)) {
         throw new Error('Password must be at least 8 characters long');
@@ -248,6 +269,7 @@ const UserManagement = () => {
 
       // For new users, create in Supabase Auth first, then sync to company_users
       if (!editingUser) {
+        console.log('Creating new user...');
         // Create Auth user and company_user via Edge Function
         const { data: inviteData, error: inviteError } = await supabase.functions.invoke('invite-business-user', {
           body: {
@@ -293,6 +315,7 @@ const UserManagement = () => {
           description: `${formData.name} has been added to your team and can now log in with their email and password.`
         });
       } else {
+        console.log('Updating existing user...');
         // For existing users, update company_users and optionally Auth user
         const userData: any = {
           username: formData.email,
@@ -350,9 +373,11 @@ const UserManagement = () => {
         });
       }
 
+      console.log('Form submission completed successfully');
       handleCloseDialog();
       fetchUsers();
     } catch (error: any) {
+      console.error('Form submission error:', error);
       toast({
         title: editingUser ? "Error updating user" : "Error creating user",
         description: error.message,
@@ -412,33 +437,45 @@ const UserManagement = () => {
   };
 
   const nextStep = () => {
-    if (wizardStep < 2) setWizardStep(wizardStep + 1);
+    console.log('nextStep called, current step:', wizardStep, 'canProceed:', canProceedToNextStep());
+    if (wizardStep < 2 && canProceedToNextStep()) {
+      setWizardStep(wizardStep + 1);
+      console.log('Advanced to step:', wizardStep + 1);
+    }
   };
 
   const prevStep = () => {
-    if (wizardStep > 1) setWizardStep(wizardStep - 1);
+    console.log('prevStep called, current step:', wizardStep);
+    if (wizardStep > 1) {
+      setWizardStep(wizardStep - 1);
+      console.log('Went back to step:', wizardStep - 1);
+    }
   };
 
   const canProceedToNextStep = () => {
     switch (wizardStep) {
       case 1:
-        // Basic validation: name and email are required
-        const basicInfoValid = formData.name && formData.email;
+        // Basic validation: name and email are required and non-empty
+        const hasName = formData.name && formData.name.trim().length > 0;
+        const hasEmail = formData.email && formData.email.trim().length > 0;
+        const basicInfoValid = hasName && hasEmail;
         
         // Debug logging for troubleshooting
         console.log('Step 1 validation:', {
+          hasName,
+          hasEmail,
           basicInfoValid,
           editingUser: !!editingUser,
-          password: formData.password,
-          confirmPassword: formData.confirmPassword,
+          password: formData.password ? '[SET]' : '[NOT SET]',
+          confirmPassword: formData.confirmPassword ? '[SET]' : '[NOT SET]',
           passwordsMatch: formData.password === formData.confirmPassword
         });
         
         // Password validation
         if (editingUser) {
-          // For editing: password is optional, but if provided, must match confirmation
-          const hasPassword = formData.password && formData.password.length > 0;
-          const hasConfirmPassword = formData.confirmPassword && formData.confirmPassword.length > 0;
+          // For editing: password is optional, but if provided, must match confirmation and be valid
+          const hasPassword = formData.password && formData.password.trim().length > 0;
+          const hasConfirmPassword = formData.confirmPassword && formData.confirmPassword.trim().length > 0;
           
           let passwordValid = true;
           if (hasPassword || hasConfirmPassword) {
@@ -450,14 +487,16 @@ const UserManagement = () => {
           // If no password fields have content, that's valid (keeping existing password)
           
           const result = basicInfoValid && passwordValid;
-          console.log('Edit user validation result:', result, { basicInfoValid, passwordValid });
+          console.log('Edit user validation result:', result, { basicInfoValid, passwordValid, hasPassword, hasConfirmPassword });
           return result;
         } else {
           // For new users: password is required and must match confirmation
-          const passwordValid = formData.password && formData.confirmPassword && 
-            formData.password === formData.confirmPassword && formData.password.length >= 8;
+          const hasPassword = formData.password && formData.password.trim().length >= 8;
+          const hasConfirmPassword = formData.confirmPassword && formData.confirmPassword.trim().length > 0;
+          const passwordValid = hasPassword && hasConfirmPassword && formData.password === formData.confirmPassword;
+          
           const result = basicInfoValid && passwordValid;
-          console.log('New user validation result:', result, { basicInfoValid, passwordValid });
+          console.log('New user validation result:', result, { basicInfoValid, passwordValid, hasPassword, hasConfirmPassword });
           return result;
         }
       case 2:
@@ -894,7 +933,11 @@ const UserManagement = () => {
                               type="button"
                               variant={bulkPermission === 'none' ? 'default' : 'outline'}
                               size="sm"
-                              onClick={() => applyBulkPermissions('none')}
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                applyBulkPermissions('none');
+                              }}
                             >
                               No Access
                             </Button>
@@ -902,7 +945,11 @@ const UserManagement = () => {
                               type="button"
                               variant={bulkPermission === 'read' ? 'default' : 'outline'}
                               size="sm"
-                              onClick={() => applyBulkPermissions('read')}
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                applyBulkPermissions('read');
+                              }}
                             >
                               Read Only
                             </Button>
@@ -910,7 +957,11 @@ const UserManagement = () => {
                               type="button"
                               variant={bulkPermission === 'edit' ? 'default' : 'outline'}
                               size="sm"
-                              onClick={() => applyBulkPermissions('edit')}
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                applyBulkPermissions('edit');
+                              }}
                             >
                               Full Access
                             </Button>
