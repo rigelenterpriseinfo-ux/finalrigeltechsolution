@@ -181,19 +181,37 @@ const UserManagement = () => {
 
   const handleOpenDialog = (user?: BusinessUser) => {
     console.log('Opening dialog for user:', user);
+    
+    // Reset bulk permission state
+    setBulkPermission(null);
+    
     if (user) {
       setEditingUser(user);
+      
+      // Ensure we have proper data
+      const userName = user.name || user.full_name || '';
+      const userEmail = user.email || '';
+      const userSections = user.access_sections || {};
+      
+      console.log('User data for edit:', {
+        originalUser: user,
+        userName,
+        userEmail,
+        userSections
+      });
+      
       const initialFormData = {
-        name: user.name,
-        email: user.email,
+        name: userName,
+        email: userEmail,
         password: '',
         confirmPassword: '',
-        access_sections: user.access_sections || {},
-        is_active: user.is_active
+        access_sections: userSections,
+        is_active: user.is_active ?? true
       };
+      
       console.log('Setting initial form data for edit:', initialFormData);
       setFormData(initialFormData);
-      setWizardStep(1); // Start from first step for editing too
+      setWizardStep(1);
     } else {
       resetForm();
     }
@@ -928,9 +946,10 @@ const UserManagement = () => {
                                 
                                 <Select
                                   value={accessLevel}
-                                  onValueChange={(value: 'none' | 'read' | 'edit') => 
-                                    handleSectionPermission(section.key, value)
-                                  }
+                                  onValueChange={(value: 'none' | 'read' | 'edit') => {
+                                    console.log('Permission change:', section.key, value);
+                                    handleSectionPermission(section.key, value);
+                                  }}
                                 >
                                   <SelectTrigger className="w-28 h-8 text-xs">
                                     <SelectValue />
