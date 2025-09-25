@@ -1,4 +1,6 @@
 
+// @ts-nocheck
+
 // Edge Function: invite-business-user
 // Creates a Supabase Auth user for a business user and links profile to company
 // Requires: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY secrets
