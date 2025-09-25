@@ -11,7 +11,7 @@ import { Switch } from '@/components/ui/switch';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Loader2, Plus, Edit, Trash2, Users, Shield, Eye, ArrowLeft, Clock, CheckCircle, User, Settings, Database, FileText, CreditCard, MapPin, Bot, Package, RotateCcw } from 'lucide-react';
+import { Loader2, Plus, Edit, Trash2, Users, Shield, Eye, ArrowLeft, Clock, CheckCircle, User, Settings, Database, FileText, CreditCard, MapPin, Bot, Package, RotateCcw, ChevronRight, ChevronLeft, UserPlus, Lock, Globe } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -20,6 +20,7 @@ import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { AuditLogViewer } from '@/components/AuditLogViewer';
 import { PermissionErrorBoundary } from '@/components/ui/PermissionErrorBoundary';
 import { useNavigate } from 'react-router-dom';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 interface BusinessUser {
   id: string;
@@ -48,6 +49,8 @@ const UserManagement = () => {
   const [editingUser, setEditingUser] = useState<BusinessUser | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [activeTab, setActiveTab] = useState('users');
+  const [wizardStep, setWizardStep] = useState(1);
+  const [bulkPermission, setBulkPermission] = useState<'none' | 'read' | 'edit' | null>(null);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -171,6 +174,8 @@ const UserManagement = () => {
       is_active: true
     });
     setEditingUser(null);
+    setWizardStep(1);
+    setBulkPermission(null);
   };
 
   const handleOpenDialog = (user?: BusinessUser) => {
@@ -184,6 +189,7 @@ const UserManagement = () => {
         access_sections: user.access_sections || {},
         is_active: user.is_active
       });
+      setWizardStep(1); // Start from first step for editing too
     } else {
       resetForm();
     }
@@ -362,15 +368,37 @@ const UserManagement = () => {
     }));
   };
 
-  const removeSectionAccess = (sectionKey: string) => {
-    setFormData(prev => {
-      const newSections = { ...prev.access_sections };
-      delete newSections[sectionKey];
-      return {
-        ...prev,
-        access_sections: newSections
-      };
+  const applyBulkPermissions = (permission: 'none' | 'read' | 'edit') => {
+    const newPermissions = {} as Record<string, 'read' | 'edit' | 'none'>;
+    availableSections.forEach(section => {
+      newPermissions[section.key] = permission;
     });
+    setFormData(prev => ({
+      ...prev,
+      access_sections: newPermissions
+    }));
+    setBulkPermission(permission);
+  };
+
+  const nextStep = () => {
+    if (wizardStep < 3) setWizardStep(wizardStep + 1);
+  };
+
+  const prevStep = () => {
+    if (wizardStep > 1) setWizardStep(wizardStep - 1);
+  };
+
+  const canProceedToNextStep = () => {
+    switch (wizardStep) {
+      case 1:
+        return formData.name && formData.email;
+      case 2:
+        return editingUser || (formData.password && formData.confirmPassword && formData.password === formData.confirmPassword);
+      case 3:
+        return true; // Can always proceed from permissions
+      default:
+        return false;
+    }
   };
 
   if (!isOwnerOrAdmin()) {
@@ -599,10 +627,10 @@ const UserManagement = () => {
         </Tabs>
 
         <Dialog open={isDialogOpen} onOpenChange={handleCloseDialog}>
-          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
+          <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden">
+            <DialogHeader className="border-b border-border pb-4">
               <DialogTitle className="flex items-center gap-2 text-xl">
-                <User className="h-5 w-5" />
+                <UserPlus className="h-5 w-5 text-primary" />
                 {editingUser ? 'Edit Team Member' : 'Add New Team Member'}
               </DialogTitle>
               <DialogDescription>
@@ -611,205 +639,364 @@ const UserManagement = () => {
                   : 'Create a new team member with appropriate role and access permissions'
                 }
               </DialogDescription>
+              
+              {/* Progress Steps */}
+              <div className="flex items-center justify-center mt-4">
+                {[1, 2, 3].map((step) => (
+                  <div key={step} className="flex items-center">
+                    <div className={`
+                      flex items-center justify-center w-8 h-8 rounded-full border-2 text-sm font-medium
+                      ${wizardStep >= step 
+                        ? 'bg-primary text-primary-foreground border-primary' 
+                        : 'bg-background text-muted-foreground border-muted-foreground'
+                      }
+                    `}>
+                      {step}
+                    </div>
+                    {step < 3 && (
+                      <div className={`
+                        w-16 h-0.5 mx-2
+                        ${wizardStep > step ? 'bg-primary' : 'bg-muted-foreground'}
+                      `} />
+                    )}
+                  </div>
+                ))}
+              </div>
+              
+              {/* Step Labels */}
+              <div className="flex justify-between text-xs text-muted-foreground mt-2 px-4">
+                <span className={wizardStep === 1 ? 'text-primary font-medium' : ''}>Basic Info</span>
+                <span className={wizardStep === 2 ? 'text-primary font-medium' : ''}>Security</span>
+                <span className={wizardStep === 3 ? 'text-primary font-medium' : ''}>Permissions</span>
+              </div>
             </DialogHeader>
 
-            <form onSubmit={handleSubmit} className="space-y-6">
-              {/* Basic Information Section */}
-              <div className="space-y-4">
-                <div className="flex items-center gap-2 pb-2 border-b border-border">
-                  <User className="h-4 w-4 text-primary" />
-                  <h3 className="text-lg font-semibold">Basic Information</h3>
-                </div>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="name">Full Name *</Label>
-                    <Input
-                      id="name"
-                      value={formData.name}
-                      onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                      placeholder="Enter full name"
-                      required
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="email">Email Address (Login ID) *</Label>
-                    <Input
-                      id="email"
-                      type="email"
-                      value={formData.email}
-                      onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
-                      placeholder="user@company.com"
-                      disabled={!!editingUser}
-                      required
-                    />
-                    {editingUser && (
-                      <p className="text-xs text-muted-foreground">Email cannot be changed after creation</p>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {/* Password Section */}
-              <div className="space-y-4">
-                <div className="flex items-center gap-2 pb-2 border-b border-border">
-                  <Shield className="h-4 w-4 text-primary" />
-                  <h3 className="text-lg font-semibold">Security</h3>
-                </div>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="password">Password {!editingUser && '*'}</Label>
-                    <Input
-                      id="password"
-                      type="password"
-                      value={formData.password}
-                      onChange={(e) => setFormData(prev => ({ ...prev, password: e.target.value }))}
-                      placeholder={editingUser ? "Leave blank to keep current" : "Enter password"}
-                      required={!editingUser}
-                      minLength={8}
-                    />
-                    {!editingUser && (
-                      <p className="text-xs text-muted-foreground">Must be at least 8 characters long</p>
-                    )}
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="confirmPassword">Confirm Password {!editingUser && '*'}</Label>
-                    <Input
-                      id="confirmPassword"
-                      type="password"
-                      value={formData.confirmPassword}
-                      onChange={(e) => setFormData(prev => ({ ...prev, confirmPassword: e.target.value }))}
-                      placeholder={editingUser ? "Confirm new password" : "Confirm password"}
-                      required={!editingUser || (editingUser && !!formData.password)}
-                    />
-                  </div>
-                </div>
-              </div>
-
-
-              {/* Section Permissions */}
-              <div className="space-y-4">
-                <div className="flex items-center gap-2 pb-2 border-b border-border">
-                  <Eye className="h-4 w-4 text-primary" />
-                  <h3 className="text-lg font-semibold">Section Access Permissions</h3>
-                </div>
-                
-                <div className="text-sm text-muted-foreground mb-4">
-                  Configure which sections this user can access and their permission level for each section.
-                </div>
-                
-                <div className="grid gap-4">
-                  {availableSections.map((section) => {
-                    const accessLevel = formData.access_sections[section.key];
-                    const hasAccess = accessLevel && accessLevel !== 'none';
-                    const SectionIcon = section.icon;
+            <form onSubmit={handleSubmit} className="flex flex-col h-full">
+              <div className="flex-1 overflow-y-auto p-6">
+                {/* Step 1: Basic Information */}
+                {wizardStep === 1 && (
+                  <div className="space-y-6 animate-in slide-in-from-right-5">
+                    <div className="text-center mb-6">
+                      <div className="mx-auto w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mb-4">
+                        <User className="h-8 w-8 text-primary" />
+                      </div>
+                      <h3 className="text-lg font-semibold">Basic Information</h3>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        Let's start with the essential details for the new team member
+                      </p>
+                    </div>
                     
-                    return (
-                      <Card key={section.key} className={`transition-all duration-200 ${hasAccess ? 'ring-2 ring-primary/20 bg-primary/5' : ''}`}>
-                        <CardContent className="p-4">
-                          <div className="flex items-start justify-between mb-3">
-                            <div className="flex items-start gap-3">
-                              <SectionIcon className="h-5 w-5 text-primary mt-0.5" />
-                              <div>
-                                <h4 className="font-medium text-sm">{section.label}</h4>
-                                <p className="text-xs text-muted-foreground">{section.description}</p>
-                              </div>
-                            </div>
-                            {accessLevel && accessLevel !== 'none' && (
-                              <Button 
-                                type="button" 
-                                variant="ghost" 
-                                size="sm"
-                                onClick={() => handleSectionPermission(section.key, 'none')}
-                                className="h-8 w-8 p-0 text-destructive hover:text-destructive"
-                              >
-                                <Trash2 className="h-3 w-3" />
-                              </Button>
+                    <Card className="border-dashed">
+                      <CardContent className="p-6">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                          <div className="space-y-2">
+                            <Label htmlFor="name" className="text-sm font-medium">
+                              Full Name <span className="text-destructive">*</span>
+                            </Label>
+                            <Input
+                              id="name"
+                              value={formData.name}
+                              onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                              placeholder="Enter full name"
+                              className="h-11"
+                              required
+                            />
+                          </div>
+
+                          <div className="space-y-2">
+                            <Label htmlFor="email" className="text-sm font-medium">
+                              Email Address (Login ID) <span className="text-destructive">*</span>
+                            </Label>
+                            <Input
+                              id="email"
+                              type="email"
+                              value={formData.email}
+                              onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
+                              placeholder="user@company.com"
+                              className="h-11"
+                              disabled={!!editingUser}
+                              required
+                            />
+                            {editingUser && (
+                              <p className="text-xs text-muted-foreground">Email cannot be changed after creation</p>
                             )}
                           </div>
-                          
-                          <RadioGroup
-                            value={accessLevel || 'none'}
-                            onValueChange={(value: 'read' | 'edit' | 'none') => handleSectionPermission(section.key, value)}
-                            className="flex gap-6"
-                          >
-                            <div className="flex items-center space-x-2">
-                              <RadioGroupItem value="none" id={`${section.key}-none`} />
-                              <Label htmlFor={`${section.key}-none`} className="text-sm font-medium">
-                                No Access
+                        </div>
+
+                        <div className="mt-6 p-4 bg-muted/50 rounded-lg">
+                          <div className="flex items-center gap-3">
+                            <Switch
+                              id="is_active"
+                              checked={formData.is_active}
+                              onCheckedChange={(checked) => 
+                                setFormData(prev => ({ ...prev, is_active: checked }))
+                              }
+                            />
+                            <div>
+                              <Label htmlFor="is_active" className="text-sm font-medium">
+                                Account Status
                               </Label>
+                              <p className="text-xs text-muted-foreground">
+                                {formData.is_active ? 'User can log in and access assigned sections' : 'User cannot log in or access the system'}
+                              </p>
                             </div>
-                            <div className="flex items-center space-x-2">
-                              <RadioGroupItem value="read" id={`${section.key}-read`} />
-                              <Label htmlFor={`${section.key}-read`} className="text-sm font-medium">
-                                Read Only
-                              </Label>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </div>
+                )}
+
+                {/* Step 2: Security */}
+                {wizardStep === 2 && (
+                  <div className="space-y-6 animate-in slide-in-from-right-5">
+                    <div className="text-center mb-6">
+                      <div className="mx-auto w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mb-4">
+                        <Lock className="h-8 w-8 text-primary" />
+                      </div>
+                      <h3 className="text-lg font-semibold">Security Setup</h3>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        {editingUser ? 'Update password (leave blank to keep current)' : 'Create a secure password for the new user'}
+                      </p>
+                    </div>
+                    
+                    <Card className="border-dashed">
+                      <CardContent className="p-6">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                          <div className="space-y-2">
+                            <Label htmlFor="password" className="text-sm font-medium">
+                              Password {!editingUser && <span className="text-destructive">*</span>}
+                            </Label>
+                            <Input
+                              id="password"
+                              type="password"
+                              value={formData.password}
+                              onChange={(e) => setFormData(prev => ({ ...prev, password: e.target.value }))}
+                              placeholder={editingUser ? "Leave blank to keep current" : "Enter password"}
+                              className="h-11"
+                              required={!editingUser}
+                              minLength={8}
+                            />
+                            {!editingUser && (
+                              <p className="text-xs text-muted-foreground">Must be at least 8 characters long</p>
+                            )}
+                          </div>
+
+                          <div className="space-y-2">
+                            <Label htmlFor="confirmPassword" className="text-sm font-medium">
+                              Confirm Password {!editingUser && <span className="text-destructive">*</span>}
+                            </Label>
+                            <Input
+                              id="confirmPassword"
+                              type="password"
+                              value={formData.confirmPassword}
+                              onChange={(e) => setFormData(prev => ({ ...prev, confirmPassword: e.target.value }))}
+                              placeholder={editingUser ? "Confirm new password" : "Confirm password"}
+                              className="h-11"
+                              required={!editingUser || (editingUser && !!formData.password)}
+                            />
+                          </div>
+                        </div>
+
+                        {formData.password && formData.confirmPassword && formData.password !== formData.confirmPassword && (
+                          <div className="mt-4 p-3 bg-destructive/10 border border-destructive/20 rounded-lg">
+                            <p className="text-sm text-destructive">Passwords do not match</p>
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  </div>
+                )}
+
+                {/* Step 3: Permissions */}
+                {wizardStep === 3 && (
+                  <div className="space-y-6 animate-in slide-in-from-right-5">
+                    <div className="text-center mb-6">
+                      <div className="mx-auto w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mb-4">
+                        <Globe className="h-8 w-8 text-primary" />
+                      </div>
+                      <h3 className="text-lg font-semibold">Access Permissions</h3>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        Configure which sections this user can access and their permission level
+                      </p>
+                    </div>
+
+                    {/* Bulk Permission Controls */}
+                    <Card className="bg-gradient-to-r from-primary/5 via-primary/3 to-primary/5 border-primary/20">
+                      <CardContent className="p-4">
+                        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                          <div>
+                            <h4 className="font-medium text-sm">Quick Setup</h4>
+                            <p className="text-xs text-muted-foreground">Apply the same permission to all sections, then customize individually</p>
+                          </div>
+                          <div className="flex gap-2">
+                            <Button
+                              type="button"
+                              variant={bulkPermission === 'none' ? 'default' : 'outline'}
+                              size="sm"
+                              onClick={() => applyBulkPermissions('none')}
+                            >
+                              No Access
+                            </Button>
+                            <Button
+                              type="button"
+                              variant={bulkPermission === 'read' ? 'default' : 'outline'}
+                              size="sm"
+                              onClick={() => applyBulkPermissions('read')}
+                            >
+                              Read Only
+                            </Button>
+                            <Button
+                              type="button"
+                              variant={bulkPermission === 'edit' ? 'default' : 'outline'}
+                              size="sm"
+                              onClick={() => applyBulkPermissions('edit')}
+                            >
+                              Full Access
+                            </Button>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+
+                    {/* Individual Permissions */}
+                    <div className="grid gap-3">
+                      {availableSections.map((section, index) => {
+                        const accessLevel = formData.access_sections[section.key] || 'none';
+                        const SectionIcon = section.icon;
+                        
+                        return (
+                          <Card key={section.key} className={`transition-all duration-200 hover:shadow-md ${
+                            accessLevel !== 'none' ? 'ring-1 ring-primary/30 bg-primary/5' : 'hover:bg-muted/30'
+                          }`}>
+                            <CardContent className="p-4">
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-3 flex-1">
+                                  <div className={`
+                                    flex items-center justify-center w-10 h-10 rounded-lg
+                                    ${accessLevel !== 'none' ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}
+                                  `}>
+                                    <SectionIcon className="h-5 w-5" />
+                                  </div>
+                                  <div className="flex-1">
+                                    <h4 className="font-medium text-sm">{section.label}</h4>
+                                    <p className="text-xs text-muted-foreground">{section.description}</p>
+                                  </div>
+                                </div>
+                                
+                                <Select
+                                  value={accessLevel}
+                                  onValueChange={(value: 'none' | 'read' | 'edit') => 
+                                    handleSectionPermission(section.key, value)
+                                  }
+                                >
+                                  <SelectTrigger className="w-32">
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="none">No Access</SelectItem>
+                                    <SelectItem value="read">Read Only</SelectItem>
+                                    <SelectItem value="edit">Full Access</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        );
+                      })}
+                    </div>
+
+                    {/* Permission Legend */}
+                    <Card className="bg-muted/30">
+                      <CardContent className="p-4">
+                        <h4 className="text-sm font-medium mb-3">Permission Levels:</h4>
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+                          <div className="flex items-center gap-2">
+                            <div className="w-3 h-3 rounded-full bg-muted-foreground"></div>
+                            <div>
+                              <div className="font-medium">No Access</div>
+                              <div className="text-muted-foreground">Cannot see this section</div>
                             </div>
-                            <div className="flex items-center space-x-2">
-                              <RadioGroupItem value="edit" id={`${section.key}-edit`} />
-                              <Label htmlFor={`${section.key}-edit`} className="text-sm font-medium">
-                                Full Access
-                              </Label>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <div className="w-3 h-3 rounded-full bg-blue-500"></div>
+                            <div>
+                              <div className="font-medium">Read Only</div>
+                              <div className="text-muted-foreground">View data only</div>
                             </div>
-                          </RadioGroup>
-                        </CardContent>
-                      </Card>
-                    );
-                  })}
-                </div>
-                
-                <div className="bg-muted/50 rounded-lg p-4">
-                  <h4 className="text-sm font-medium mb-2">Permission Levels:</h4>
-                  <div className="text-xs text-muted-foreground space-y-1">
-                    <div>• <strong>No Access:</strong> User cannot see or access this section in the ERP</div>
-                    <div>• <strong>Read Only:</strong> View data, reports, and information without making changes</div>
-                    <div>• <strong>Full Access:</strong> Complete access to create, read, update, and delete records</div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <div className="w-3 h-3 rounded-full bg-green-500"></div>
+                            <div>
+                              <div className="font-medium">Full Access</div>
+                              <div className="text-muted-foreground">Create, edit, delete</div>
+                            </div>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </div>
+                )}
+              </div>
+
+              {/* Navigation Footer */}
+              <div className="border-t border-border p-6">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    {wizardStep > 1 && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={prevStep}
+                        className="gap-2"
+                      >
+                        <ChevronLeft className="h-4 w-4" />
+                        Previous
+                      </Button>
+                    )}
+                  </div>
+
+                  <div className="text-sm text-muted-foreground">
+                    Step {wizardStep} of 3
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <Button type="button" variant="ghost" onClick={handleCloseDialog}>
+                      Cancel
+                    </Button>
+                    
+                    {wizardStep < 3 ? (
+                      <Button
+                        type="button"
+                        onClick={nextStep}
+                        disabled={!canProceedToNextStep()}
+                        className="gap-2"
+                      >
+                        Next
+                        <ChevronRight className="h-4 w-4" />
+                      </Button>
+                    ) : (
+                      <Button 
+                        type="submit" 
+                        disabled={isSubmitting || !canProceedToNextStep()} 
+                        className="gap-2 bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70"
+                      >
+                        {isSubmitting ? (
+                          <>
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                            {editingUser ? 'Updating...' : 'Creating...'}
+                          </>
+                        ) : (
+                          <>
+                            <CheckCircle className="h-4 w-4" />
+                            {editingUser ? 'Update User' : 'Create User'}
+                          </>
+                        )}
+                      </Button>
+                    )}
                   </div>
                 </div>
               </div>
-
-              {/* Account Status */}
-              <div className="space-y-4">
-                <div className="flex items-center gap-2 pb-2 border-b border-border">
-                  <CheckCircle className="h-4 w-4 text-primary" />
-                  <h3 className="text-lg font-semibold">Account Status</h3>
-                </div>
-                
-                <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg">
-                  <div>
-                    <Label htmlFor="is_active" className="text-sm font-medium">Account Status</Label>
-                    <p className="text-xs text-muted-foreground">
-                      {formData.is_active ? 'User can log in and access assigned sections' : 'User cannot log in or access the system'}
-                    </p>
-                  </div>
-                  <Switch
-                    id="is_active"
-                    checked={formData.is_active}
-                    onCheckedChange={(checked) => 
-                      setFormData(prev => ({ ...prev, is_active: checked }))
-                    }
-                  />
-                </div>
-              </div>
-
-              <DialogFooter>
-                <Button type="button" variant="outline" onClick={handleCloseDialog}>
-                  Cancel
-                </Button>
-                <Button type="submit" disabled={isSubmitting} className="btn-gradient">
-                  {isSubmitting ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      {editingUser ? 'Updating...' : 'Creating...'}
-                    </>
-                  ) : (
-                    editingUser ? 'Update User' : 'Create User'
-                  )}
-                </Button>
-              </DialogFooter>
             </form>
           </DialogContent>
         </Dialog>
