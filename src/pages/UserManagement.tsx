@@ -180,16 +180,19 @@ const UserManagement = () => {
   };
 
   const handleOpenDialog = (user?: BusinessUser) => {
+    console.log('Opening dialog for user:', user);
     if (user) {
       setEditingUser(user);
-      setFormData({
+      const initialFormData = {
         name: user.name,
         email: user.email,
         password: '',
         confirmPassword: '',
         access_sections: user.access_sections || {},
         is_active: user.is_active
-      });
+      };
+      console.log('Setting initial form data for edit:', initialFormData);
+      setFormData(initialFormData);
       setWizardStep(1); // Start from first step for editing too
     } else {
       resetForm();
@@ -404,17 +407,40 @@ const UserManagement = () => {
         // Basic validation: name and email are required
         const basicInfoValid = formData.name && formData.email;
         
+        // Debug logging for troubleshooting
+        console.log('Step 1 validation:', {
+          basicInfoValid,
+          editingUser: !!editingUser,
+          password: formData.password,
+          confirmPassword: formData.confirmPassword,
+          passwordsMatch: formData.password === formData.confirmPassword
+        });
+        
         // Password validation
         if (editingUser) {
           // For editing: password is optional, but if provided, must match confirmation
-          const passwordValid = !formData.password || 
-            (formData.password && formData.confirmPassword && formData.password === formData.confirmPassword);
-          return basicInfoValid && passwordValid;
+          const hasPassword = formData.password && formData.password.length > 0;
+          const hasConfirmPassword = formData.confirmPassword && formData.confirmPassword.length > 0;
+          
+          let passwordValid = true;
+          if (hasPassword || hasConfirmPassword) {
+            // If either password field has content, both must match and be valid
+            passwordValid = hasPassword && hasConfirmPassword && 
+              formData.password === formData.confirmPassword && 
+              formData.password.length >= 8;
+          }
+          // If no password fields have content, that's valid (keeping existing password)
+          
+          const result = basicInfoValid && passwordValid;
+          console.log('Edit user validation result:', result, { basicInfoValid, passwordValid });
+          return result;
         } else {
           // For new users: password is required and must match confirmation
           const passwordValid = formData.password && formData.confirmPassword && 
             formData.password === formData.confirmPassword && formData.password.length >= 8;
-          return basicInfoValid && passwordValid;
+          const result = basicInfoValid && passwordValid;
+          console.log('New user validation result:', result, { basicInfoValid, passwordValid });
+          return result;
         }
       case 2:
         return true; // Can always proceed from permissions
