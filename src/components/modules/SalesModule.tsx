@@ -669,11 +669,13 @@ export default function SalesModule() {
         orderData.order_type = 'standard'; // Default to 'standard' if invalid or missing
       }
       
-      // Convert empty date strings to null
+      // Convert empty strings to null for UUID and date fields
       const processedOrderData = {
         ...orderData,
         expected_delivery_date: orderData.expected_delivery_date || null,
         delivery_date: orderData.delivery_date || null,
+        default_warehouse_id: orderData.default_warehouse_id || null,
+        default_bin_id: orderData.default_bin_id || null,
         order_type: orderData.order_type, // Ensure order_type is included
       };
       
@@ -737,8 +739,8 @@ export default function SalesModule() {
           sgst_amount: item.sgst_amount,
           igst_amount: item.igst_amount,
           total_price: item.total_price,
-          warehouse_id: orderData.default_warehouse_id,
-          bin_id: orderData.default_bin_id,
+          warehouse_id: orderData.default_warehouse_id || null,
+          bin_id: orderData.default_bin_id || null,
         }));
 
         const { error: itemsError } = await supabase
