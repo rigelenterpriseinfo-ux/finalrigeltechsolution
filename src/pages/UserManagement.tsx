@@ -392,7 +392,21 @@ const UserManagement = () => {
   const canProceedToNextStep = () => {
     switch (wizardStep) {
       case 1:
-        return formData.name && formData.email && (editingUser || (formData.password && formData.confirmPassword && formData.password === formData.confirmPassword));
+        // Basic validation: name and email are required
+        const basicInfoValid = formData.name && formData.email;
+        
+        // Password validation
+        if (editingUser) {
+          // For editing: password is optional, but if provided, must match confirmation
+          const passwordValid = !formData.password || 
+            (formData.password && formData.confirmPassword && formData.password === formData.confirmPassword);
+          return basicInfoValid && passwordValid;
+        } else {
+          // For new users: password is required and must match confirmation
+          const passwordValid = formData.password && formData.confirmPassword && 
+            formData.password === formData.confirmPassword && formData.password.length >= 8;
+          return basicInfoValid && passwordValid;
+        }
       case 2:
         return true; // Can always proceed from permissions
       default:
