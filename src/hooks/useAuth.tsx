@@ -76,10 +76,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => {
     console.log('Auth effect started');
-    // Set up auth state listener
+    // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         console.log('Auth state changed:', { event, session: !!session, user: !!session?.user });
+        
+        // Set session and user state immediately
         setSession(session);
         setUser(session?.user ?? null);
 
@@ -88,7 +90,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           // Clear any pending verification email since user is now authenticated
           sessionStorage.removeItem('pendingVerificationEmail');
           
-          // Fetch user profile and company data
+          // Use setTimeout to ensure proper context
           setTimeout(async () => {
             try {
               const { data: profileData, error: profileError } = await supabase

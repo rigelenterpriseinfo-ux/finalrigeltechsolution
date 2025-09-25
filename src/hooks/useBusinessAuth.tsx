@@ -23,21 +23,26 @@ export const useBusinessAuth = () => {
 
   useEffect(() => {
     if (user?.email && company?.id) {
+      console.log('BusinessAuth: Fetching data for user:', user.email, 'company:', company.id);
       fetchBusinessUser();
       fetchSectionPermissions();
     } else {
+      console.log('BusinessAuth: Missing user email or company id', { userEmail: user?.email, companyId: company?.id });
       setLoading(false);
     }
   }, [user?.email, company?.id]);
 
   const fetchBusinessUser = async () => {
     try {
+      console.log('BusinessAuth: About to fetch business user');
       const { data, error } = await supabase
         .from('company_users')
         .select('*')
         .eq('email', user?.email)
         .eq('company_id', company?.id)
         .single();
+
+      console.log('BusinessAuth: Company users query result:', { data, error });
 
       if (error && error.code !== 'PGRST116') { // Not found error
         console.error('Error fetching business user:', error);
