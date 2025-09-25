@@ -11,7 +11,7 @@ import { Switch } from '@/components/ui/switch';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Loader2, Plus, Edit, Trash2, Users, Shield, Eye, ArrowLeft, Clock, CheckCircle, User, Settings, Database, FileText, CreditCard, MapPin, Bot, Package, RotateCcw, ChevronRight, ChevronLeft, UserPlus, Lock, Globe } from 'lucide-react';
+import { Loader2, Plus, Edit, Trash2, Users, Shield, Eye, ArrowLeft, Clock, CheckCircle, User, Settings, Database, FileText, CreditCard, MapPin, Bot, Package, RotateCcw, ChevronRight, ChevronLeft, UserPlus, Lock, Globe, BarChart3, ShoppingCart, TrendingUp } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -62,15 +62,16 @@ const UserManagement = () => {
   });
 
   const availableSections = [
+    { key: 'dashboard', label: 'Dashboard', icon: BarChart3, description: 'View business overview and key metrics' },
     { key: 'inventory', label: 'Inventory Management', icon: Package, description: 'Manage products, stock levels, and warehouse operations' },
-    { key: 'purchases', label: 'Purchase Management', icon: Database, description: 'Handle purchase orders, supplier invoices, and procurement' },
+    { key: 'purchase', label: 'Purchase Management', icon: ShoppingCart, description: 'Handle purchase orders, supplier invoices, and procurement' },
     { key: 'sales', label: 'Sales Orders', icon: FileText, description: 'Create and manage sales orders and customer invoices' },
     { key: 'returns', label: 'Returns & Credit Notes', icon: RotateCcw, description: 'Manage product returns and customer credit notes' },
     { key: 'payments', label: 'Payment Processing', icon: CreditCard, description: 'Process payments and manage financial transactions' },
-    { key: 'reports', label: 'Reports & Analytics', icon: Settings, description: 'View business reports and analytics dashboards' },
+    { key: 'reports', label: 'Reports & Analytics', icon: TrendingUp, description: 'View business reports and analytics dashboards' },
     { key: 'tracking', label: 'Track & Trace', icon: MapPin, description: 'Track order status and delivery management' },
     { key: 'ai', label: 'AI Assistant', icon: Bot, description: 'Access AI-powered business insights and automation' },
-    { key: 'team_management', label: 'Team Management', icon: Users, description: 'Manage team members and user permissions' },
+    { key: 'users', label: 'Team Management', icon: Users, description: 'Manage team members and user permissions' },
     { key: 'settings', label: 'Settings', icon: Settings, description: 'Configure system settings and preferences' }
   ];
 
@@ -381,7 +382,7 @@ const UserManagement = () => {
   };
 
   const nextStep = () => {
-    if (wizardStep < 3) setWizardStep(wizardStep + 1);
+    if (wizardStep < 2) setWizardStep(wizardStep + 1);
   };
 
   const prevStep = () => {
@@ -391,10 +392,8 @@ const UserManagement = () => {
   const canProceedToNextStep = () => {
     switch (wizardStep) {
       case 1:
-        return formData.name && formData.email;
+        return formData.name && formData.email && (editingUser || (formData.password && formData.confirmPassword && formData.password === formData.confirmPassword));
       case 2:
-        return editingUser || (formData.password && formData.confirmPassword && formData.password === formData.confirmPassword);
-      case 3:
         return true; // Can always proceed from permissions
       default:
         return false;
@@ -642,10 +641,10 @@ const UserManagement = () => {
               
               {/* Progress Steps */}
               <div className="flex items-center justify-center mt-4">
-                {[1, 2, 3].map((step) => (
+                {[1, 2].map((step) => (
                   <div key={step} className="flex items-center">
                     <div className={`
-                      flex items-center justify-center w-8 h-8 rounded-full border-2 text-sm font-medium
+                      flex items-center justify-center w-7 h-7 rounded-full border-2 text-sm font-medium
                       ${wizardStep >= step 
                         ? 'bg-primary text-primary-foreground border-primary' 
                         : 'bg-background text-muted-foreground border-muted-foreground'
@@ -653,7 +652,7 @@ const UserManagement = () => {
                     `}>
                       {step}
                     </div>
-                    {step < 3 && (
+                    {step < 2 && (
                       <div className={`
                         w-16 h-0.5 mx-2
                         ${wizardStep > step ? 'bg-primary' : 'bg-muted-foreground'}
@@ -664,31 +663,35 @@ const UserManagement = () => {
               </div>
               
               {/* Step Labels */}
-              <div className="flex justify-between text-xs text-muted-foreground mt-2 px-4">
-                <span className={wizardStep === 1 ? 'text-primary font-medium' : ''}>Basic Info</span>
-                <span className={wizardStep === 2 ? 'text-primary font-medium' : ''}>Security</span>
-                <span className={wizardStep === 3 ? 'text-primary font-medium' : ''}>Permissions</span>
+              <div className="flex justify-between text-xs text-muted-foreground mt-2 px-8">
+                <span className={wizardStep === 1 ? 'text-primary font-medium' : ''}>Basic Info & Security</span>
+                <span className={wizardStep === 2 ? 'text-primary font-medium' : ''}>Permissions</span>
               </div>
             </DialogHeader>
 
             <form onSubmit={handleSubmit} className="flex flex-col h-full">
               <div className="flex-1 overflow-y-auto p-6">
-                {/* Step 1: Basic Information */}
+                {/* Step 1: Basic Information & Security */}
                 {wizardStep === 1 && (
-                  <div className="space-y-6 animate-in slide-in-from-right-5">
-                    <div className="text-center mb-6">
-                      <div className="mx-auto w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mb-4">
-                        <User className="h-8 w-8 text-primary" />
+                  <div className="space-y-4 animate-in slide-in-from-right-5">
+                    <div className="text-center mb-4">
+                      <div className="mx-auto w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mb-3">
+                        <User className="h-6 w-6 text-primary" />
                       </div>
-                      <h3 className="text-lg font-semibold">Basic Information</h3>
-                      <p className="text-sm text-muted-foreground mt-1">
-                        Let's start with the essential details for the new team member
+                      <h3 className="text-base font-semibold">Basic Information & Security</h3>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Enter the essential details and security credentials for the team member
                       </p>
                     </div>
                     
+                    {/* Basic Information */}
                     <Card className="border-dashed">
-                      <CardContent className="p-6">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <CardContent className="p-4">
+                        <h4 className="text-sm font-medium mb-3 flex items-center gap-2">
+                          <User className="h-4 w-4" />
+                          Personal Details
+                        </h4>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           <div className="space-y-2">
                             <Label htmlFor="name" className="text-sm font-medium">
                               Full Name <span className="text-destructive">*</span>
@@ -698,7 +701,7 @@ const UserManagement = () => {
                               value={formData.name}
                               onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
                               placeholder="Enter full name"
-                              className="h-11"
+                              className="h-9"
                               required
                             />
                           </div>
@@ -713,7 +716,7 @@ const UserManagement = () => {
                               value={formData.email}
                               onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
                               placeholder="user@company.com"
-                              className="h-11"
+                              className="h-9"
                               disabled={!!editingUser}
                               required
                             />
@@ -722,8 +725,59 @@ const UserManagement = () => {
                             )}
                           </div>
                         </div>
+                      </CardContent>
+                    </Card>
+                    
+                    {/* Security Settings */}
+                    <Card className="border-dashed">
+                      <CardContent className="p-4">
+                        <h4 className="text-sm font-medium mb-3 flex items-center gap-2">
+                          <Lock className="h-4 w-4" />
+                          Security Settings
+                        </h4>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <Label htmlFor="password" className="text-sm font-medium">
+                              Password {!editingUser && <span className="text-destructive">*</span>}
+                            </Label>
+                            <Input
+                              id="password"
+                              type="password"
+                              value={formData.password}
+                              onChange={(e) => setFormData(prev => ({ ...prev, password: e.target.value }))}
+                              placeholder={editingUser ? "Leave blank to keep current" : "Enter password"}
+                              className="h-9"
+                              required={!editingUser}
+                              minLength={8}
+                            />
+                            {!editingUser && (
+                              <p className="text-xs text-muted-foreground">Must be at least 8 characters long</p>
+                            )}
+                          </div>
 
-                        <div className="mt-6 p-4 bg-muted/50 rounded-lg">
+                          <div className="space-y-2">
+                            <Label htmlFor="confirmPassword" className="text-sm font-medium">
+                              Confirm Password {!editingUser && <span className="text-destructive">*</span>}
+                            </Label>
+                            <Input
+                              id="confirmPassword"
+                              type="password"
+                              value={formData.confirmPassword}
+                              onChange={(e) => setFormData(prev => ({ ...prev, confirmPassword: e.target.value }))}
+                              placeholder={editingUser ? "Confirm new password" : "Confirm password"}
+                              className="h-9"
+                              required={!editingUser || (editingUser && !!formData.password)}
+                            />
+                          </div>
+                        </div>
+
+                        {formData.password && formData.confirmPassword && formData.password !== formData.confirmPassword && (
+                          <div className="mt-3 p-2 bg-destructive/10 border border-destructive/20 rounded-lg">
+                            <p className="text-xs text-destructive">Passwords do not match</p>
+                          </div>
+                        )}
+
+                        <div className="mt-4 p-3 bg-muted/50 rounded-lg">
                           <div className="flex items-center gap-3">
                             <Switch
                               id="is_active"
@@ -747,86 +801,25 @@ const UserManagement = () => {
                   </div>
                 )}
 
-                {/* Step 2: Security */}
+                {/* Step 2: Permissions */}
                 {wizardStep === 2 && (
-                  <div className="space-y-6 animate-in slide-in-from-right-5">
-                    <div className="text-center mb-6">
-                      <div className="mx-auto w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mb-4">
-                        <Lock className="h-8 w-8 text-primary" />
+                  <div className="space-y-4 animate-in slide-in-from-right-5">
+                    <div className="text-center mb-4">
+                      <div className="mx-auto w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mb-3">
+                        <Globe className="h-6 w-6 text-primary" />
                       </div>
-                      <h3 className="text-lg font-semibold">Security Setup</h3>
-                      <p className="text-sm text-muted-foreground mt-1">
-                        {editingUser ? 'Update password (leave blank to keep current)' : 'Create a secure password for the new user'}
-                      </p>
-                    </div>
-                    
-                    <Card className="border-dashed">
-                      <CardContent className="p-6">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                          <div className="space-y-2">
-                            <Label htmlFor="password" className="text-sm font-medium">
-                              Password {!editingUser && <span className="text-destructive">*</span>}
-                            </Label>
-                            <Input
-                              id="password"
-                              type="password"
-                              value={formData.password}
-                              onChange={(e) => setFormData(prev => ({ ...prev, password: e.target.value }))}
-                              placeholder={editingUser ? "Leave blank to keep current" : "Enter password"}
-                              className="h-11"
-                              required={!editingUser}
-                              minLength={8}
-                            />
-                            {!editingUser && (
-                              <p className="text-xs text-muted-foreground">Must be at least 8 characters long</p>
-                            )}
-                          </div>
-
-                          <div className="space-y-2">
-                            <Label htmlFor="confirmPassword" className="text-sm font-medium">
-                              Confirm Password {!editingUser && <span className="text-destructive">*</span>}
-                            </Label>
-                            <Input
-                              id="confirmPassword"
-                              type="password"
-                              value={formData.confirmPassword}
-                              onChange={(e) => setFormData(prev => ({ ...prev, confirmPassword: e.target.value }))}
-                              placeholder={editingUser ? "Confirm new password" : "Confirm password"}
-                              className="h-11"
-                              required={!editingUser || (editingUser && !!formData.password)}
-                            />
-                          </div>
-                        </div>
-
-                        {formData.password && formData.confirmPassword && formData.password !== formData.confirmPassword && (
-                          <div className="mt-4 p-3 bg-destructive/10 border border-destructive/20 rounded-lg">
-                            <p className="text-sm text-destructive">Passwords do not match</p>
-                          </div>
-                        )}
-                      </CardContent>
-                    </Card>
-                  </div>
-                )}
-
-                {/* Step 3: Permissions */}
-                {wizardStep === 3 && (
-                  <div className="space-y-6 animate-in slide-in-from-right-5">
-                    <div className="text-center mb-6">
-                      <div className="mx-auto w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mb-4">
-                        <Globe className="h-8 w-8 text-primary" />
-                      </div>
-                      <h3 className="text-lg font-semibold">Access Permissions</h3>
-                      <p className="text-sm text-muted-foreground mt-1">
+                      <h3 className="text-base font-semibold">Access Permissions</h3>
+                      <p className="text-xs text-muted-foreground mt-1">
                         Configure which sections this user can access and their permission level
                       </p>
                     </div>
 
                     {/* Bulk Permission Controls */}
                     <Card className="bg-gradient-to-r from-primary/5 via-primary/3 to-primary/5 border-primary/20">
-                      <CardContent className="p-4">
-                        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                      <CardContent className="p-3">
+                        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
                           <div>
-                            <h4 className="font-medium text-sm">Quick Setup</h4>
+                            <h4 className="font-medium text-xs">Quick Setup</h4>
                             <p className="text-xs text-muted-foreground">Apply the same permission to all sections, then customize individually</p>
                           </div>
                           <div className="flex gap-2">
@@ -860,7 +853,7 @@ const UserManagement = () => {
                     </Card>
 
                     {/* Individual Permissions */}
-                    <div className="grid gap-3">
+                    <div className="grid gap-2">
                       {availableSections.map((section, index) => {
                         const accessLevel = formData.access_sections[section.key] || 'none';
                         const SectionIcon = section.icon;
@@ -869,18 +862,18 @@ const UserManagement = () => {
                           <Card key={section.key} className={`transition-all duration-200 hover:shadow-md ${
                             accessLevel !== 'none' ? 'ring-1 ring-primary/30 bg-primary/5' : 'hover:bg-muted/30'
                           }`}>
-                            <CardContent className="p-4">
+                            <CardContent className="p-3">
                               <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-3 flex-1">
+                                <div className="flex items-center gap-2 flex-1">
                                   <div className={`
-                                    flex items-center justify-center w-10 h-10 rounded-lg
+                                    flex items-center justify-center w-8 h-8 rounded-lg
                                     ${accessLevel !== 'none' ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}
                                   `}>
-                                    <SectionIcon className="h-5 w-5" />
+                                    <SectionIcon className="h-4 w-4" />
                                   </div>
-                                  <div className="flex-1">
-                                    <h4 className="font-medium text-sm">{section.label}</h4>
-                                    <p className="text-xs text-muted-foreground">{section.description}</p>
+                                  <div className="flex-1 min-w-0">
+                                    <h4 className="font-medium text-xs truncate">{section.label}</h4>
+                                    <p className="text-xs text-muted-foreground truncate">{section.description}</p>
                                   </div>
                                 </div>
                                 
@@ -890,7 +883,7 @@ const UserManagement = () => {
                                     handleSectionPermission(section.key, value)
                                   }
                                 >
-                                  <SelectTrigger className="w-32">
+                                  <SelectTrigger className="w-28 h-8 text-xs">
                                     <SelectValue />
                                   </SelectTrigger>
                                   <SelectContent>
@@ -908,25 +901,25 @@ const UserManagement = () => {
 
                     {/* Permission Legend */}
                     <Card className="bg-muted/30">
-                      <CardContent className="p-4">
-                        <h4 className="text-sm font-medium mb-3">Permission Levels:</h4>
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+                      <CardContent className="p-3">
+                        <h4 className="text-xs font-medium mb-2">Permission Levels:</h4>
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
                           <div className="flex items-center gap-2">
-                            <div className="w-3 h-3 rounded-full bg-muted-foreground"></div>
+                            <div className="w-2 h-2 rounded-full bg-muted-foreground"></div>
                             <div>
                               <div className="font-medium">No Access</div>
                               <div className="text-muted-foreground">Cannot see this section</div>
                             </div>
                           </div>
                           <div className="flex items-center gap-2">
-                            <div className="w-3 h-3 rounded-full bg-blue-500"></div>
+                            <div className="w-2 h-2 rounded-full bg-blue-500"></div>
                             <div>
                               <div className="font-medium">Read Only</div>
                               <div className="text-muted-foreground">View data only</div>
                             </div>
                           </div>
                           <div className="flex items-center gap-2">
-                            <div className="w-3 h-3 rounded-full bg-green-500"></div>
+                            <div className="w-2 h-2 rounded-full bg-green-500"></div>
                             <div>
                               <div className="font-medium">Full Access</div>
                               <div className="text-muted-foreground">Create, edit, delete</div>
@@ -957,7 +950,7 @@ const UserManagement = () => {
                   </div>
 
                   <div className="text-sm text-muted-foreground">
-                    Step {wizardStep} of 3
+                    Step {wizardStep} of 2
                   </div>
 
                   <div className="flex items-center gap-2">
@@ -965,7 +958,7 @@ const UserManagement = () => {
                       Cancel
                     </Button>
                     
-                    {wizardStep < 3 ? (
+                    {wizardStep < 2 ? (
                       <Button
                         type="button"
                         onClick={nextStep}
