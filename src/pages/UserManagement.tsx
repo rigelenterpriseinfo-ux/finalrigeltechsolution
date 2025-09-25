@@ -202,20 +202,18 @@ const UserManagement = () => {
         userSections
       });
       
-      // Set form data with a slight delay to ensure state is clean
-      setTimeout(() => {
-        const initialFormData = {
-          name: userName,
-          email: userEmail,
-          password: '',
-          confirmPassword: '',
-          access_sections: userSections,
-          is_active: user.is_active ?? true
-        };
-        
-        console.log('Setting initial form data for edit:', initialFormData);
-        setFormData(initialFormData);
-      }, 10);
+      // Set form data immediately without delay to prevent race conditions
+      const initialFormData = {
+        name: userName,
+        email: userEmail,
+        password: '',
+        confirmPassword: '',
+        access_sections: userSections,
+        is_active: user.is_active ?? true
+      };
+      
+      console.log('Setting initial form data for edit:', initialFormData);
+      setFormData(initialFormData);
     } else {
       resetForm();
     }
@@ -424,7 +422,10 @@ const UserManagement = () => {
     }));
   };
 
-  const applyBulkPermissions = (permission: 'none' | 'read' | 'edit') => {
+  const applyBulkPermissions = (e: React.MouseEvent, permission: 'none' | 'read' | 'edit') => {
+    e.preventDefault();
+    e.stopPropagation();
+    
     const newPermissions = {} as Record<string, 'read' | 'edit' | 'none'>;
     availableSections.forEach(section => {
       newPermissions[section.key] = permission;
@@ -455,13 +456,15 @@ const UserManagement = () => {
   const canProceedToNextStep = () => {
     switch (wizardStep) {
       case 1:
-        // Basic validation: name and email are required and non-empty
-        const hasName = formData.name && formData.name.trim().length > 0;
-        const hasEmail = formData.email && formData.email.trim().length > 0;
+        // Basic validation: name and email are required and non-empty (fix empty string issue)
+        const hasName = formData.name && formData.name.trim() !== '';
+        const hasEmail = formData.email && formData.email.trim() !== '' && formData.email.includes('@');
         const basicInfoValid = hasName && hasEmail;
         
         // Debug logging for troubleshooting
         console.log('Step 1 validation:', {
+          name: formData.name,
+          email: formData.email,
           hasName,
           hasEmail,
           basicInfoValid,
@@ -474,8 +477,8 @@ const UserManagement = () => {
         // Password validation
         if (editingUser) {
           // For editing: password is optional, but if provided, must match confirmation and be valid
-          const hasPassword = formData.password && formData.password.trim().length > 0;
-          const hasConfirmPassword = formData.confirmPassword && formData.confirmPassword.trim().length > 0;
+          const hasPassword = formData.password && formData.password.trim() !== '';
+          const hasConfirmPassword = formData.confirmPassword && formData.confirmPassword.trim() !== '';
           
           let passwordValid = true;
           if (hasPassword || hasConfirmPassword) {
@@ -775,7 +778,7 @@ const UserManagement = () => {
               </div>
             </DialogHeader>
 
-            <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
+            <div className="flex flex-col flex-1 min-h-0">
               <div className="flex-1 overflow-y-auto p-6 space-y-4">
                 {/* Step 1: Basic Information & Security */}
                 {wizardStep === 1 && (
@@ -806,6 +809,14 @@ const UserManagement = () => {
                               id="name"
                               value={formData.name}
                               onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                  e.preventDefault();
+                                  if (canProceedToNextStep()) {
+                                    nextStep();
+                                  }
+                                }
+                              }}
                               placeholder="Enter full name"
                               className="h-9"
                               required
@@ -821,6 +832,14 @@ const UserManagement = () => {
                               type="email"
                               value={formData.email}
                               onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                  e.preventDefault();
+                                  if (canProceedToNextStep()) {
+                                    nextStep();
+                                  }
+                                }
+                              }}
                               placeholder="user@company.com"
                               className="h-9"
                               disabled={!!editingUser}
@@ -936,7 +955,7 @@ const UserManagement = () => {
                               onClick={(e) => {
                                 e.preventDefault();
                                 e.stopPropagation();
-                                applyBulkPermissions('none');
+                                applyBulkPermissions(e, 'none');
                               }}
                             >
                               No Access
@@ -948,7 +967,7 @@ const UserManagement = () => {
                               onClick={(e) => {
                                 e.preventDefault();
                                 e.stopPropagation();
-                                applyBulkPermissions('read');
+                                applyBulkPermissions(e, 'read');
                               }}
                             >
                               Read Only
@@ -960,7 +979,7 @@ const UserManagement = () => {
                               onClick={(e) => {
                                 e.preventDefault();
                                 e.stopPropagation();
-                                applyBulkPermissions('edit');
+                                applyBulkPermissions(e, 'edit');
                               }}
                             >
                               Full Access
@@ -1088,11 +1107,12 @@ const UserManagement = () => {
                         <ChevronRight className="h-4 w-4" />
                       </Button>
                     ) : (
-                      <Button 
-                        type="submit" 
-                        disabled={isSubmitting || !canProceedToNextStep()} 
-                        className="gap-2 bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70"
-                      >
+                       <Button 
+                         type="button" 
+                         onClick={handleSubmit}
+                         disabled={isSubmitting || !canProceedToNextStep()} 
+                         className="gap-2 bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70"
+                       >
                         {isSubmitting ? (
                           <>
                             <Loader2 className="h-4 w-4 animate-spin" />
@@ -1109,7 +1129,7 @@ const UserManagement = () => {
                   </div>
                 </div>
               </div>
-            </form>
+            </div>
           </DialogContent>
         </Dialog>
       </DashboardLayout>
