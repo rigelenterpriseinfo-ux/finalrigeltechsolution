@@ -27,6 +27,7 @@ import {
   Activity,
   Plus,
   RotateCcw,
+  Settings,
 } from 'lucide-react';
 import { InventoryModule } from '@/components/modules/InventoryModule';
 import { PurchaseModule } from '@/components/modules/PurchaseModule';
@@ -37,6 +38,7 @@ import { TrackingModule } from '@/components/modules/TrackingModule';
 import { AIAssistant } from '@/components/modules/AIAssistant';
 import { CompanyProfile } from '@/components/CompanyProfile';
 import { ReturnsModule } from '@/components/modules/ReturnsModule';
+import { SettingsModule } from '@/components/modules/SettingsModule';
 
 const menuItems: Array<{ id: ActiveModule; icon: any; label: string; description: string; restricted?: boolean; section?: string }> = [
   { id: 'dashboard', icon: BarChart3, label: 'Welcome back, Girish!', description: "Here's what's happening with your business today" },
@@ -50,9 +52,10 @@ const menuItems: Array<{ id: ActiveModule; icon: any; label: string; description
   { id: 'ai', icon: Bot, label: 'AI Assistant', description: 'Business Insights', section: 'ai' },
   { id: 'users', icon: Users, label: 'Team Management', description: 'Manage Users & Access', restricted: true },
   { id: 'profile', icon: Building2, label: 'Company Profile', description: 'Edit Company Details', section: 'company_profile' },
+  { id: 'settings', icon: Settings, label: 'Settings', description: 'System Configuration', section: 'settings' },
 ];
 
-type ActiveModule = 'dashboard' | 'inventory' | 'purchase' | 'sales' | 'returns' | 'payments' | 'reports' | 'tracking' | 'ai' | 'users' | 'profile';
+type ActiveModule = 'dashboard' | 'inventory' | 'purchase' | 'sales' | 'returns' | 'payments' | 'reports' | 'tracking' | 'ai' | 'users' | 'profile' | 'settings';
 
 export default function Dashboard() {
   const { user, profile, company, signOut, loading } = useAuth();
@@ -73,7 +76,7 @@ export default function Dashboard() {
     if (moduleParam && (moduleParam === 'dashboard' || moduleParam === 'inventory' || moduleParam === 'purchase' || 
         moduleParam === 'sales' || moduleParam === 'returns' || moduleParam === 'payments' || 
         moduleParam === 'reports' || moduleParam === 'tracking' || moduleParam === 'ai' || 
-        moduleParam === 'users' || moduleParam === 'profile')) {
+        moduleParam === 'users' || moduleParam === 'profile' || moduleParam === 'settings')) {
       setActiveModule(moduleParam as ActiveModule);
       // Clear the URL parameter after setting the module
       setSearchParams({});
@@ -90,7 +93,7 @@ export default function Dashboard() {
     
     if (view === 'dashboard' || view === 'inventory' || view === 'purchase' || view === 'sales' || 
         view === 'returns' || view === 'payments' || view === 'reports' || view === 'tracking' || 
-        view === 'ai' || view === 'profile') {
+        view === 'ai' || view === 'profile' || view === 'settings') {
       setActiveModule(view as ActiveModule);
     }
   };
@@ -307,6 +310,22 @@ export default function Dashboard() {
             }
           >
             <CompanyProfile />
+          </DashboardLayout>
+        );
+      case 'settings':
+        return (
+          <DashboardLayout
+            title="Settings"
+            subtitle="Configure system settings and preferences"
+            activeView="settings"
+            onNavigate={handleNavigation}
+            headerActions={
+              <Button onClick={() => setActiveModule('dashboard')} variant="outline">
+                Back to Dashboard
+              </Button>
+            }
+          >
+            <SettingsModule />
           </DashboardLayout>
         );
       default:

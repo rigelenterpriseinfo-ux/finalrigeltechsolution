@@ -11,7 +11,8 @@ import {
   MapPin, 
   Bot, 
   Users, 
-  Building2 
+  Building2,
+  Settings
 } from 'lucide-react';
 
 interface NavigationSidebarProps {
@@ -38,6 +39,7 @@ const navigationItems: NavigationItem[] = [
   { id: 'ai', label: 'AI Assistant', icon: Bot },
   { id: 'users', label: 'Team Management', icon: Users },
   { id: 'profile', label: 'Company Profile', icon: Building2 },
+  { id: 'settings', label: 'Settings', icon: Settings },
 ];
 
 export const NavigationSidebar: React.FC<NavigationSidebarProps> = ({

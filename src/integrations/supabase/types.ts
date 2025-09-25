@@ -917,6 +917,42 @@ export type Database = {
           },
         ]
       }
+      document_format_configs: {
+        Row: {
+          company_id: string
+          created_at: string
+          current_counter: number
+          document_type: string
+          id: string
+          is_active: boolean
+          prefix: string
+          suffix: string
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          current_counter?: number
+          document_type: string
+          id?: string
+          is_active?: boolean
+          prefix?: string
+          suffix?: string
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          current_counter?: number
+          document_type?: string
+          id?: string
+          is_active?: boolean
+          prefix?: string
+          suffix?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       email_confirmations: {
         Row: {
           consumed_at: string | null
