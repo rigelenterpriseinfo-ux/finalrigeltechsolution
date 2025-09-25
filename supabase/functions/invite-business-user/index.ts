@@ -162,7 +162,10 @@ serve(async (req) => {
       // User created successfully
       authUserId = created.user.id;
       console.log(`Created new auth user: ${authUserId} for email: ${email}`);
-    } else if (createErr?.message?.includes('already registered') || createErr?.message?.includes('User already registered')) {
+    } else if (createErr?.message?.includes('already registered') || 
+               createErr?.message?.includes('User already registered') ||
+               createErr?.message?.includes('email address has already been registered') ||
+               createErr?.code === 'email_exists') {
       // User already exists, find them by listing users and matching email
       console.log(`User already exists for email: ${email}, searching for existing user`);
       

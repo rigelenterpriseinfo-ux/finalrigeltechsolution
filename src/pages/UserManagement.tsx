@@ -240,7 +240,16 @@ const UserManagement = () => {
 
         if (inviteError) {
           console.error('Error creating user:', inviteError);
-          throw new Error(inviteError.message || 'Failed to create user');
+          
+          // Handle specific error cases with user-friendly messages
+          let errorMessage = inviteError.message || 'Failed to create user';
+          
+          if (errorMessage.includes('email address has already been registered') || 
+              errorMessage.includes('already registered')) {
+            errorMessage = 'A user with this email address already exists. Please use a different email address or contact your administrator if you believe this is an error.';
+          }
+          
+          throw new Error(errorMessage);
         }
 
         if (!inviteData?.success) {
