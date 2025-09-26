@@ -40,8 +40,8 @@ serve(async (req) => {
     // Execute the appropriate database query based on the analysis
     if (queryAnalysis.queryType === 'sales_orders') {
       queryResult = await executeQuery(supabase, companyId, queryAnalysis, 'sales_orders');
-    } else if (queryAnalysis.queryType === 'purchase_invoices') {
-      queryResult = await executeQuery(supabase, companyId, queryAnalysis, 'purchase_invoices');
+  } else if (queryAnalysis.queryType === 'purchase_invoices') {
+      queryResult = await executeQuery(supabase, companyId, queryAnalysis, 'sales_invoices');
     } else if (queryAnalysis.queryType === 'customers') {
       queryResult = await executeQuery(supabase, companyId, queryAnalysis, 'customers');
     } else if (queryAnalysis.queryType === 'suppliers') {
@@ -233,7 +233,7 @@ async function executeQuery(supabase: any, companyId: string, analysis: any, tab
   // Apply timeframe filter
   if (analysis.timeframe) {
     const dateField = table === 'sales_orders' ? 'order_date' : 
-                     table === 'purchase_invoices' ? 'purchase_invoice_date' : 'created_at';
+                     table === 'sales_invoices' ? 'invoice_date' : 'created_at';
     const date = new Date();
     date.setDate(date.getDate() - analysis.timeframe);
     query = query.gte(dateField, date.toISOString().split('T')[0]);
@@ -320,7 +320,7 @@ async function executeAnalyticsQuery(supabase: any, companyId: string, analysis:
   // Get comprehensive analytics data
   const [salesStats, purchaseStats, customerStats, productStats] = await Promise.all([
     supabase.from('sales_orders').select('total_amount, status, order_date').eq('company_id', companyId),
-    supabase.from('purchase_invoices').select('total_amount, status, purchase_invoice_date').eq('company_id', companyId),
+    supabase.from('sales_invoices').select('total_amount, status, invoice_date').eq('company_id', companyId),
     supabase.from('customers').select('id, name, is_active').eq('company_id', companyId),
     supabase.from('products').select('stock_quantity, unit_price, cost_price').eq('company_id', companyId)
   ]);
@@ -328,7 +328,7 @@ async function executeAnalyticsQuery(supabase: any, companyId: string, analysis:
   return {
     data: {
       sales_analytics: salesStats.data || [],
-      purchase_analytics: purchaseStats.data || [],
+      invoice_analytics: purchaseStats.data || [],
       customer_analytics: customerStats.data || [],
       product_analytics: productStats.data || []
     },
@@ -351,7 +351,7 @@ async function getEnhancedBusinessInsights(supabase: any, companyId: string) {
   // Get comprehensive business data with analytics
   const [salesResult, purchaseResult, customerResult, productResult, paymentResult] = await Promise.all([
     supabase.from('sales_orders').select('id, total_amount, status, order_date').eq('company_id', companyId).order('order_date', { ascending: false }).limit(10),
-    supabase.from('purchase_invoices').select('id, total_amount, status, purchase_invoice_date').eq('company_id', companyId).order('purchase_invoice_date', { ascending: false }).limit(10),
+    supabase.from('sales_invoices').select('id, total_amount, status, invoice_date').eq('company_id', companyId).order('invoice_date', { ascending: false }).limit(10),
     supabase.from('customers').select('id, name, is_active, credit_limit').eq('company_id', companyId).limit(10),
     supabase.from('products').select('id, name, stock_quantity, min_stock_level, unit_price').eq('company_id', companyId).limit(10),
     supabase.from('payments').select('id, amount, payment_date, payment_method').eq('company_id', companyId).order('payment_date', { ascending: false }).limit(5)
@@ -369,7 +369,7 @@ async function getEnhancedBusinessInsights(supabase: any, companyId: string) {
   return {
     data: {
       sales_orders: salesData,
-      purchase_invoices: purchaseData,
+      sales_invoices: purchaseData,
       customers: customerResult.data || [],
       products: productData,
       payments: paymentResult.data || [],
