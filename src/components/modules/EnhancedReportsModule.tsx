@@ -501,6 +501,289 @@ export function EnhancedReportsModule() {
     return { tableData, chartData };
   };
 
+  const fetchGSTR3BData = async (filters: FilterState) => {
+    console.log('=== fetchGSTR3BData START ===');
+    console.log('Filters received:', filters);
+
+    if (!authLoading && !hasAccess('reports')) {
+      throw new Error('Access denied');
+    }
+
+    // Get company information for GSTIN and place of supply  
+    const { data: companyData, error: companyError } = await supabase
+      .from('companies')
+      .select('name, gstn, state')
+      .limit(1)
+      .single();
+
+    if (companyError) {
+      console.error('Error fetching company data:', companyError);
+      throw companyError;
+    }
+
+    const companyGSTIN = companyData?.gstn || '';
+    const companyState = companyData?.state || '';
+
+    // Fetch Sales Invoices for outward supplies
+    const { data: salesInvoices, error: salesError } = await supabase
+      .from('sales_invoices')
+      .select(`
+        *,
+        sales_invoice_items(
+          *
+        ),
+        customers(name, customer_type, gstin, state)
+      `)
+      .eq('status', 'finalized')
+      .gte('invoice_date', format(filters.dateRange.from, 'yyyy-MM-dd'))
+      .lte('invoice_date', format(filters.dateRange.to, 'yyyy-MM-dd'));
+
+    if (salesError) {
+      console.error('Error fetching sales invoices:', salesError);
+      throw salesError;
+    }
+
+    // Fetch Purchase Orders (for input tax credit approximation)
+    const { data: purchaseOrders, error: purchaseError } = await supabase
+      .from('purchase_orders')
+      .select(`
+        *,
+        purchase_order_items(*),
+        suppliers(name, gst_number, state)
+      `)
+      .gte('order_date', format(filters.dateRange.from, 'yyyy-MM-dd'))
+      .lte('order_date', format(filters.dateRange.to, 'yyyy-MM-dd'));
+
+    if (purchaseError) {
+      console.error('Error fetching purchase orders:', purchaseError);
+      throw purchaseError;
+    }
+
+    // Initialize GSTR-3B sections
+    let table3_1_taxableSupplies = 0;
+    let table3_1_integratedTax = 0;
+    let table3_1_centralTax = 0;
+    let table3_1_stateTax = 0;
+    let table3_1_cessAmount = 0;
+
+    let table3_2_reverseChargeSupplies = 0;
+    let table3_2_integratedTax = 0;
+    let table3_2_centralTax = 0;
+    let table3_2_stateTax = 0;
+
+    let table4A_itcAvailed_igst = 0;
+    let table4A_itcAvailed_cgst = 0;
+    let table4A_itcAvailed_sgst = 0;
+    let table4A_itcAvailed_cess = 0;
+
+    let table5_nilRatedSupplies = 0;
+    let table5_exemptSupplies = 0;
+    let table5_nonGSTSupplies = 0;
+
+    // Process Sales Invoices (Outward Supplies)
+    salesInvoices?.forEach(invoice => {
+      // Calculate invoice totals from line items
+      let invoiceTaxableValue = 0;
+      let invoiceCGST = 0;
+      let invoiceSGST = 0;
+      let invoiceIGST = 0;
+      let invoiceCESS = 0;
+      let hasAnyTax = false;
+
+      invoice.sales_invoice_items?.forEach((item: any) => {
+        const itemTaxableValue = (item.unit_price * item.quantity_invoiced) - (item.discount_amount || 0);
+        invoiceTaxableValue += itemTaxableValue;
+        invoiceCGST += item.cgst_amount || 0;
+        invoiceSGST += item.sgst_amount || 0;
+        invoiceIGST += item.igst_amount || 0;
+        
+        if ((item.cgst_amount || 0) > 0 || (item.sgst_amount || 0) > 0 || (item.igst_amount || 0) > 0) {
+          hasAnyTax = true;
+        }
+      });
+
+      // Check if it's inter-state or intra-state
+      const customerState = invoice.customers?.state || '';
+      const isInterState = customerState !== companyState;
+
+      if (hasAnyTax) {
+        // Regular taxable supplies (Table 3.1)
+        table3_1_taxableSupplies += invoiceTaxableValue;
+        
+        if (isInterState) {
+          table3_1_integratedTax += invoiceIGST;
+        } else {
+          table3_1_centralTax += invoiceCGST;
+          table3_1_stateTax += invoiceSGST;
+        }
+        table3_1_cessAmount += invoiceCESS;
+      } else {
+        // No tax - classify as exempt/nil/non-GST
+        const invoiceValue = invoice.total_amount || 0;
+        
+        // Simple classification - you may want to enhance this logic
+        if (invoice.customers?.customer_type === 'Business') {
+          table5_exemptSupplies += invoiceValue;
+        } else {
+          table5_nilRatedSupplies += invoiceValue;
+        }
+      }
+    });
+
+    // Process Purchase Orders (Approximate ITC - in real scenario use purchase invoices/bills)
+    purchaseOrders?.forEach(order => {
+      // Note: This is an approximation since we don't have actual purchase bills
+      // In practice, you would calculate ITC from actual purchase invoices received
+      
+      const estimatedTaxRate = 0.18; // 18% GST assumption
+      const taxableValue = order.subtotal_amount || 0;
+      const estimatedTax = taxableValue * estimatedTaxRate;
+
+        // For simplification, assume 50-50 split between CGST/SGST for intra-state
+        const supplierState = order.suppliers?.state || '';
+        const isInterState = supplierState !== companyState;
+
+      if (isInterState) {
+        table4A_itcAvailed_igst += estimatedTax;
+      } else {
+        table4A_itcAvailed_cgst += estimatedTax / 2;
+        table4A_itcAvailed_sgst += estimatedTax / 2;
+      }
+    });
+
+    // Calculate net tax liability (Table 6)
+    const netIGST = table3_1_integratedTax + table3_2_integratedTax - table4A_itcAvailed_igst;
+    const netCGST = table3_1_centralTax + table3_2_centralTax - table4A_itcAvailed_cgst;
+    const netSGST = table3_1_stateTax + table3_2_stateTax - table4A_itcAvailed_sgst;
+    const netCess = table3_1_cessAmount - table4A_itcAvailed_cess;
+
+    // Prepare GSTR-3B table data
+    const tableData = [
+      // Table 3.1 - Outward taxable supplies
+      {
+        section: '3.1',
+        description: 'Outward taxable supplies (other than zero rated, nil rated and exempted)',
+        natureOfSupplies: 'Taxable',
+        totalTaxableValue: table3_1_taxableSupplies,
+        integratedTax: table3_1_integratedTax,
+        centralTax: table3_1_centralTax,
+        stateTax: table3_1_stateTax,
+        cess: table3_1_cessAmount
+      },
+      // Table 3.2 - Inward supplies liable to reverse charge
+      {
+        section: '3.2',
+        description: 'Inward supplies liable to reverse charge (other than 1, 2, 3 & 4 above)',
+        natureOfSupplies: 'Reverse Charge',
+        totalTaxableValue: table3_2_reverseChargeSupplies,
+        integratedTax: table3_2_integratedTax,
+        centralTax: table3_2_centralTax,
+        stateTax: table3_2_stateTax,
+        cess: 0
+      },
+      // Table 4A - ITC Availed
+      {
+        section: '4A',
+        description: 'ITC availed - All other ITC',
+        natureOfSupplies: 'ITC Availed',
+        totalTaxableValue: 0,
+        integratedTax: table4A_itcAvailed_igst,
+        centralTax: table4A_itcAvailed_cgst,
+        stateTax: table4A_itcAvailed_sgst,
+        cess: table4A_itcAvailed_cess
+      },
+      // Table 5 - Exempt supplies
+      {
+        section: '5A',
+        description: 'From a supplier under composition scheme, Exempt and Nil rated supply',
+        natureOfSupplies: 'Nil/Exempt',
+        totalTaxableValue: table5_nilRatedSupplies + table5_exemptSupplies,
+        integratedTax: 0,
+        centralTax: 0,
+        stateTax: 0,
+        cess: 0
+      },
+      {
+        section: '5B',
+        description: 'Non GST supply',
+        natureOfSupplies: 'Non-GST',
+        totalTaxableValue: table5_nonGSTSupplies,
+        integratedTax: 0,
+        centralTax: 0,
+        stateTax: 0,
+        cess: 0
+      },
+      // Table 6 - Net Tax Liability
+      {
+        section: '6.1',
+        description: 'Net tax liability',
+        natureOfSupplies: 'Net Tax Payable',
+        totalTaxableValue: 0,
+        integratedTax: Math.max(0, netIGST),
+        centralTax: Math.max(0, netCGST),
+        stateTax: Math.max(0, netSGST),
+        cess: Math.max(0, netCess)
+      }
+    ];
+
+    // Create summary chart data
+    const chartData = [
+      { name: 'Outward Supplies', value: table3_1_taxableSupplies, type: 'Taxable' },
+      { name: 'Reverse Charge', value: table3_2_reverseChargeSupplies, type: 'Liability' },
+      { name: 'ITC Availed', value: table4A_itcAvailed_igst + table4A_itcAvailed_cgst + table4A_itcAvailed_sgst, type: 'Credit' },
+      { name: 'Exempt/Nil Rated', value: table5_nilRatedSupplies + table5_exemptSupplies, type: 'Exempt' },
+      { name: 'Non-GST', value: table5_nonGSTSupplies, type: 'Non-GST' }
+    ];
+
+    console.log('GSTR-3B data processed:', { tableData, chartData });
+
+    return { 
+      tableData,
+      chartData,
+      gstr3bSections: {
+        outwardSupplies: {
+          taxableValue: table3_1_taxableSupplies,
+          igst: table3_1_integratedTax,
+          cgst: table3_1_centralTax,
+          sgst: table3_1_stateTax,
+          cess: table3_1_cessAmount
+        },
+        reverseChargeSupplies: {
+          taxableValue: table3_2_reverseChargeSupplies,
+          igst: table3_2_integratedTax,
+          cgst: table3_2_centralTax,
+          sgst: table3_2_stateTax
+        },
+        itcAvailed: {
+          igst: table4A_itcAvailed_igst,
+          cgst: table4A_itcAvailed_cgst,
+          sgst: table4A_itcAvailed_sgst,
+          cess: table4A_itcAvailed_cess
+        },
+        exemptSupplies: {
+          nilRated: table5_nilRatedSupplies,
+          exempt: table5_exemptSupplies,
+          nonGST: table5_nonGSTSupplies
+        },
+        netTaxLiability: {
+          igst: Math.max(0, netIGST),
+          cgst: Math.max(0, netCGST),
+          sgst: Math.max(0, netSGST),
+          cess: Math.max(0, netCess)
+        }
+      },
+      summary: {
+        totalOutwardSupplies: salesInvoices?.length || 0,
+        totalInwardSupplies: purchaseOrders?.length || 0,
+        totalTaxableValue: table3_1_taxableSupplies,
+        totalTaxLiability: Math.max(0, netIGST) + Math.max(0, netCGST) + Math.max(0, netSGST),
+        totalITCAvailed: table4A_itcAvailed_igst + table4A_itcAvailed_cgst + table4A_itcAvailed_sgst,
+        gstin: companyGSTIN,
+        filingPeriod: `${format(filters.dateRange.from, 'MMM yyyy')} to ${format(filters.dateRange.to, 'MMM yyyy')}`
+      }
+    };
+  };
+
   const fetchGSTR1Data = async (filters: FilterState) => {
     // Build query with proper GSTIN filtering
     let query = supabase
@@ -1481,6 +1764,8 @@ export function EnhancedReportsModule() {
           return await fetchCustomerSalesData(filters);
         case 'gstr1':
           return await fetchGSTR1Data(filters);
+        case 'gstr3b':
+          return await fetchGSTR3BData(filters);
         case 'purchase_orders':
           return await fetchPurchaseOrdersData(filters);
         case 'vendor_purchases':
