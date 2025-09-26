@@ -3062,33 +3062,78 @@ export function EnhancedReportsModule() {
                     </CardHeader>
                     <CardContent>
                       <div className="space-y-4">
-                        <div className="p-4 rounded-lg bg-gradient-to-r from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 border border-blue-200 dark:border-blue-800">
-                          <div className="text-sm font-medium text-blue-700 dark:text-blue-300 mb-1">
-                            {selectedReport.includes('aging') ? 'Total Outstanding' : 'Total Records'}
-                          </div>
-                          <div className="text-xl font-bold text-blue-900 dark:text-blue-100 break-all">
-                            {selectedReport.includes('aging') ? 
-                              `₹${Number(chartData.reduce((sum, item) => sum + item.value, 0)).toLocaleString('en-IN', { maximumFractionDigits: 0 })}` : 
-                              reportData.length
-                            }
-                          </div>
-                        </div>
-                        
-                        {selectedReport.includes('aging') && chartData.length > 0 && (
-                          <div className="grid grid-cols-2 gap-3">
-                            <div className="p-3 rounded-lg bg-gradient-to-r from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/20 border border-green-200 dark:border-green-800">
-                              <div className="text-xs font-medium text-green-700 dark:text-green-300 mb-1">Current (0 days)</div>
-                              <div className="text-lg font-bold text-green-900 dark:text-green-100">
-                                {chartData[0]?.percentage || 0}%
+                        {selectedReport === 'net_arap' ? (
+                          // Net AR/AP Position Key Metrics
+                          <>
+                            <div className="p-4 rounded-lg bg-gradient-to-r from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/20 border border-green-200 dark:border-green-800">
+                              <div className="text-sm font-medium text-green-700 dark:text-green-300 mb-1">
+                                Accounts Receivable (AR)
+                              </div>
+                              <div className="text-xl font-bold text-green-900 dark:text-green-100">
+                                ₹{Number((reportResult as any)?.summary?.totalAR || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
                               </div>
                             </div>
-                            <div className="p-3 rounded-lg bg-gradient-to-r from-orange-50 to-orange-100 dark:from-orange-900/20 dark:to-orange-800/20 border border-orange-200 dark:border-orange-800">
-                              <div className="text-xs font-medium text-orange-700 dark:text-orange-300 mb-1">Overdue (90+ days)</div>
-                              <div className="text-lg font-bold text-orange-900 dark:text-orange-100">
-                                {chartData[4]?.percentage || 0}%
+
+                            <div className="p-4 rounded-lg bg-gradient-to-r from-red-50 to-red-100 dark:from-red-900/20 dark:to-red-800/20 border border-red-200 dark:border-red-800">
+                              <div className="text-sm font-medium text-red-700 dark:text-red-300 mb-1">
+                                Accounts Payable (AP)
+                              </div>
+                              <div className="text-xl font-bold text-red-900 dark:text-red-100">
+                                ₹{Number((reportResult as any)?.summary?.totalAP || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
                               </div>
                             </div>
-                          </div>
+
+                            <div className="p-4 rounded-lg bg-gradient-to-r from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 border border-blue-200 dark:border-blue-800">
+                              <div className="text-sm font-medium text-blue-700 dark:text-blue-300 mb-1">
+                                Net AR/AP Position
+                              </div>
+                              <div className={`text-xl font-bold ${((reportResult as any)?.summary?.netPosition || 0) >= 0 ? 'text-green-900 dark:text-green-100' : 'text-red-900 dark:text-red-100'}`}>
+                                {((reportResult as any)?.summary?.netPosition || 0) >= 0 ? '+' : ''}₹{Number((reportResult as any)?.summary?.netPosition || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                              </div>
+                              <div className="text-xs text-blue-600 dark:text-blue-400 mt-1">
+                                {((reportResult as any)?.summary?.netPosition || 0) >= 0 ? 'Positive (More receivables)' : 'Negative (More payables)'}
+                              </div>
+                            </div>
+
+                            <div className="p-3 rounded-lg bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-900/20 dark:to-gray-800/20 border border-gray-200 dark:border-gray-800">
+                              <div className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Total Records</div>
+                              <div className="text-lg font-bold text-gray-900 dark:text-gray-100">
+                                {reportData.length - 1} {/* Subtract 1 to exclude the summary row */}
+                              </div>
+                            </div>
+                          </>
+                        ) : (
+                          // Default Key Metrics for other reports
+                          <>
+                            <div className="p-4 rounded-lg bg-gradient-to-r from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 border border-blue-200 dark:border-blue-800">
+                              <div className="text-sm font-medium text-blue-700 dark:text-blue-300 mb-1">
+                                {selectedReport.includes('aging') ? 'Total Outstanding' : 'Total Records'}
+                              </div>
+                              <div className="text-xl font-bold text-blue-900 dark:text-blue-100 break-all">
+                                {selectedReport.includes('aging') ? 
+                                  `₹${Number(chartData.reduce((sum, item) => sum + item.value, 0)).toLocaleString('en-IN', { maximumFractionDigits: 0 })}` : 
+                                  reportData.length
+                                }
+                              </div>
+                            </div>
+                            
+                            {selectedReport.includes('aging') && chartData.length > 0 && (
+                              <div className="grid grid-cols-2 gap-3">
+                                <div className="p-3 rounded-lg bg-gradient-to-r from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/20 border border-green-200 dark:border-green-800">
+                                  <div className="text-xs font-medium text-green-700 dark:text-green-300 mb-1">Current (0 days)</div>
+                                  <div className="text-lg font-bold text-green-900 dark:text-green-100">
+                                    {chartData[0]?.percentage || 0}%
+                                  </div>
+                                </div>
+                                <div className="p-3 rounded-lg bg-gradient-to-r from-orange-50 to-orange-100 dark:from-orange-900/20 dark:to-orange-800/20 border border-orange-200 dark:border-orange-800">
+                                  <div className="text-xs font-medium text-orange-700 dark:text-orange-300 mb-1">Overdue (90+ days)</div>
+                                  <div className="text-lg font-bold text-orange-900 dark:text-orange-100">
+                                    {chartData[4]?.percentage || 0}%
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+                          </>
                         )}
                       </div>
                     </CardContent>
