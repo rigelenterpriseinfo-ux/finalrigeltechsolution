@@ -44,6 +44,18 @@ interface TopValueItem {
   value: number;
 }
 
+interface SalesTrendItem {
+  month: string;
+  qty: number;
+  value: number;
+}
+
+interface BackorderData {
+  warehouse_name: string;
+  total_qty: number;
+  total_value: number;
+}
+
 interface Widget {
   id: string;
   title: string;
@@ -62,6 +74,8 @@ export const DraggableWidgets: React.FC<DraggableWidgetsProps> = ({ onNavigate }
   const [damageStockData, setDamageStockData] = useState<StockData[]>([]);
   const [lowStockItems, setLowStockItems] = useState<LowStockItem[]>([]);
   const [topValueItems, setTopValueItems] = useState<TopValueItem[]>([]);
+  const [salesTrendData, setSalesTrendData] = useState<SalesTrendItem[]>([]);
+  const [backorderData, setBackorderData] = useState<BackorderData[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Fetch warehouse and bin wise good stock data
@@ -168,6 +182,98 @@ export const DraggableWidgets: React.FC<DraggableWidgetsProps> = ({ onNavigate }
     }
   };
 
+  // Fetch sales trend data for last 12 months
+  const fetchSalesTrendData = async () => {
+    if (!profile?.company_id) return;
+    
+    try {
+      const { data } = await supabase
+        .from('sales_invoices')
+        .select(`
+          invoice_date,
+          total_amount,
+          sales_invoice_items!inner(quantity_invoiced)
+        `)
+        .eq('company_id', profile.company_id)
+        .eq('status', 'finalized')
+        .gte('invoice_date', new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0])
+        .order('invoice_date', { ascending: false });
+
+      if (data) {
+        const monthlyData: { [key: string]: { qty: number; value: number } } = {};
+        
+        data.forEach((invoice: any) => {
+          const monthKey = new Date(invoice.invoice_date).toLocaleDateString('en-US', { 
+            month: 'short', 
+            year: '2-digit' 
+          });
+          
+          if (!monthlyData[monthKey]) {
+            monthlyData[monthKey] = { qty: 0, value: 0 };
+          }
+          
+          const totalQty = invoice.sales_invoice_items?.reduce((sum: number, item: any) => 
+            sum + (item.quantity_invoiced || 0), 0) || 0;
+          
+          monthlyData[monthKey].qty += totalQty;
+          monthlyData[monthKey].value += invoice.total_amount || 0;
+        });
+        
+        const trendArray = Object.entries(monthlyData)
+          .map(([month, data]) => ({
+            month,
+            qty: data.qty,
+            value: data.value
+          }))
+          .slice(0, 6); // Show last 6 months for space
+        
+        setSalesTrendData(trendArray);
+      }
+    } catch (error) {
+      console.error('Error fetching sales trend data:', error);
+    }
+  };
+
+  // Fetch backorder data by warehouse
+  const fetchBackorderData = async () => {
+    if (!profile?.company_id) return;
+    
+    try {
+      const { data } = await supabase
+        .from('backorder_items')
+        .select(`
+          quantity_backordered,
+          unit_price,
+          warehouse_id
+        `)
+        .eq('company_id', profile.company_id)
+        .eq('status', 'pending');
+
+      if (data) {
+        const warehouseData: { [key: string]: BackorderData } = {};
+        
+        data.forEach((item: any) => {
+          const warehouseName = `WH-${item.warehouse_id?.toString().slice(-3) || '001'}`;
+          
+          if (!warehouseData[warehouseName]) {
+            warehouseData[warehouseName] = {
+              warehouse_name: warehouseName,
+              total_qty: 0,
+              total_value: 0
+            };
+          }
+          
+          warehouseData[warehouseName].total_qty += item.quantity_backordered || 0;
+          warehouseData[warehouseName].total_value += (item.quantity_backordered || 0) * (item.unit_price || 0);
+        });
+        
+        setBackorderData(Object.values(warehouseData).slice(0, 3));
+      }
+    } catch (error) {
+      console.error('Error fetching backorder data:', error);
+    }
+  };
+
   // Fetch all data on component mount
   useEffect(() => {
     const fetchAllData = async () => {
@@ -176,7 +282,9 @@ export const DraggableWidgets: React.FC<DraggableWidgetsProps> = ({ onNavigate }
         fetchGoodStockData(),
         fetchDamageStockData(),
         fetchLowStockItems(),
-        fetchTopValueItems()
+        fetchTopValueItems(),
+        fetchSalesTrendData(),
+        fetchBackorderData()
       ]);
       setLoading(false);
     };
@@ -287,6 +395,60 @@ export const DraggableWidgets: React.FC<DraggableWidgetsProps> = ({ onNavigate }
                   <div key={idx} className="flex justify-between">
                     <span className="truncate text-xs">{item.name}</span>
                     <span className="text-xs">₹{item.value.toFixed(0)}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        );
+
+      case 'sales':
+        return (
+          <div className="h-full flex flex-col">
+            <div className="flex items-center gap-2 mb-2">
+              <div className={cn("p-1 rounded", widget.color)}>
+                <Icon className="h-4 w-4" />
+              </div>
+              <span className="text-xs font-medium">{widget.title}</span>
+            </div>
+            {loading ? (
+              <div className="text-xs text-muted-foreground">Loading...</div>
+            ) : (
+              <div className="space-y-1 text-xs">
+                {salesTrendData.slice(0, 3).map((item, idx) => (
+                  <div key={idx} className="space-y-0.5">
+                    <div className="font-medium text-xs">{item.month}</div>
+                    <div className="flex justify-between text-xs">
+                      <span>Qty: {item.qty}</span>
+                      <span>₹{item.value.toFixed(0)}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        );
+
+      case 'dashboard':
+        return (
+          <div className="h-full flex flex-col">
+            <div className="flex items-center gap-2 mb-2">
+              <div className={cn("p-1 rounded", widget.color)}>
+                <Icon className="h-4 w-4" />
+              </div>
+              <span className="text-xs font-medium">Backorders</span>
+            </div>
+            {loading ? (
+              <div className="text-xs text-muted-foreground">Loading...</div>
+            ) : (
+              <div className="space-y-1 text-xs">
+                {backorderData.slice(0, 2).map((item, idx) => (
+                  <div key={idx} className="space-y-0.5">
+                    <div className="font-medium text-xs">{item.warehouse_name}</div>
+                    <div className="flex justify-between text-xs">
+                      <span>Qty: {item.total_qty}</span>
+                      <span>₹{item.total_value.toFixed(0)}</span>
+                    </div>
                   </div>
                 ))}
               </div>
