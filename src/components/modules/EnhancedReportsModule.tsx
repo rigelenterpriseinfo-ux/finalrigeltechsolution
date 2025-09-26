@@ -129,8 +129,8 @@ export function EnhancedReportsModule() {
   const [openCategories, setOpenCategories] = useState<string[]>(['finance']);
   const [filters, setFilters] = useState<FilterState>({
     dateRange: {
-      from: startOfMonth(new Date()),
-      to: endOfMonth(new Date())
+      from: new Date('2025-09-01'),
+      to: new Date('2025-09-30')
     },
     product: 'all'
   });
@@ -1359,6 +1359,8 @@ export function EnhancedReportsModule() {
       .lte('invoice_date', format(filters.dateRange.to, 'yyyy-MM-dd'));
 
     const { data: invoices, error } = await query;
+
+    if (error) throw error;
 
     if (error) throw error;
 
