@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Loader2, Filter, Download, Clock, User, Database } from 'lucide-react';
+import { Loader2, Filter, Download, Clock, User, Database, ChevronUp, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -33,7 +33,11 @@ export const AuditLogViewer: React.FC<AuditLogViewerProps> = ({ className }) => 
   const { company, profile } = useAuth();
   const { toast } = useToast();
   const [logs, setLogs] = useState<AuditLog[]>([]);
+  const [totalLogs, setTotalLogs] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [sortBy, setSortBy] = useState<string>('created_at');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [filters, setFilters] = useState({
     table_name: 'all',
     action: 'all',
@@ -41,6 +45,8 @@ export const AuditLogViewer: React.FC<AuditLogViewerProps> = ({ className }) => 
     date_from: '',
     date_to: ''
   });
+
+  const itemsPerPage = 25;
 
   const actionColors = {
     INSERT: 'bg-green-100 text-green-800',
@@ -50,35 +56,73 @@ export const AuditLogViewer: React.FC<AuditLogViewerProps> = ({ className }) => 
 
   const tableDisplayNames = {
     customers: 'Customers',
-    suppliers: 'Suppliers',
+    suppliers: 'Suppliers', 
     products: 'Products',
     sales_orders: 'Sales Orders',
     purchase_orders: 'Purchase Orders',
+    sales_invoices: 'Sales Invoices',
     purchase_invoices: 'Purchase Invoices',
     performa_invoices: 'Performa Invoices',
-    payments: 'Payments'
+    payments: 'Payments',
+    grn_header: 'GRN Headers',
+    grn_line_items: 'GRN Line Items',
+    inventory_adjustments: 'Inventory Adjustments',
+    inventory_transactions: 'Inventory Transactions',
+    debit_notes: 'Debit Notes',
+    credit_notes: 'Credit Notes',
+    backorder_items: 'Backorder Items',
+    bom_headers: 'BOM Headers',
+    company_users: 'Company Users',
+    profiles: 'User Profiles'
   };
 
   useEffect(() => {
     if (company?.id && (profile?.role === 'owner' || profile?.role === 'admin')) {
       fetchAuditLogs();
     }
-  }, [company?.id, profile?.role]);
+  }, [company?.id, profile?.role, currentPage, sortBy, sortOrder, filters]);
 
   const fetchAuditLogs = async () => {
     try {
       setIsLoading(true);
+      
+      // Build base query with filters
+      let baseQuery = supabase
+        .from('transaction_audit_log')
+        .select('*', { count: 'exact' })
+        .eq('company_id', company?.id);
+
+      // Apply filters to base query
+      if (filters.table_name && filters.table_name !== 'all') {
+        baseQuery = baseQuery.eq('table_name', filters.table_name);
+      }
+      if (filters.action && filters.action !== 'all') {
+        baseQuery = baseQuery.eq('action', filters.action);
+      }
+      if (filters.user_id) {
+        baseQuery = baseQuery.eq('user_id', filters.user_id);
+      }
+      if (filters.date_from) {
+        baseQuery = baseQuery.gte('created_at', filters.date_from);
+      }
+      if (filters.date_to) {
+        baseQuery = baseQuery.lte('created_at', filters.date_to + 'T23:59:59');
+      }
+
+      // Get total count first
+      const { count } = await baseQuery;
+      setTotalLogs(count || 0);
+
+      // Now get paginated data with profiles
       let query = supabase
         .from('transaction_audit_log')
         .select(`
           *,
           profiles!inner(first_name, last_name)
         `)
-        .eq('company_id', company?.id)
-        .order('created_at', { ascending: false })
-        .limit(100);
+        .eq('company_id', company?.id);
 
-      // Apply filters
+      // Apply same filters
       if (filters.table_name && filters.table_name !== 'all') {
         query = query.eq('table_name', filters.table_name);
       }
@@ -94,6 +138,11 @@ export const AuditLogViewer: React.FC<AuditLogViewerProps> = ({ className }) => 
       if (filters.date_to) {
         query = query.lte('created_at', filters.date_to + 'T23:59:59');
       }
+
+      // Apply sorting and pagination
+      query = query
+        .order(sortBy, { ascending: sortOrder === 'asc' })
+        .range((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage - 1);
 
       const { data, error } = await query;
 
@@ -117,13 +166,31 @@ export const AuditLogViewer: React.FC<AuditLogViewerProps> = ({ className }) => 
   };
 
   const clearFilters = () => {
-    setFilters({
+    const newFilters = {
       table_name: 'all',
       action: 'all',
       user_id: '',
       date_from: '',
       date_to: ''
-    });
+    };
+    setFilters(newFilters);
+    setCurrentPage(1);
+  };
+
+  const handleSort = (column: string) => {
+    if (sortBy === column) {
+      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortBy(column);
+      setSortOrder('desc');
+    }
+    setCurrentPage(1);
+  };
+
+  const totalPages = Math.ceil(totalLogs / itemsPerPage);
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
   };
 
   const exportLogs = () => {
@@ -169,14 +236,14 @@ export const AuditLogViewer: React.FC<AuditLogViewerProps> = ({ className }) => 
   return (
     <div className={className}>
       <Card>
-        <CardHeader>
+        <CardHeader className="pb-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <Clock className="h-5 w-5" />
-              <CardTitle>Transaction Audit Log</CardTitle>
+              <Clock className="h-5 w-5 text-primary" />
+              <span className="text-sm text-muted-foreground">Track all user actions and system changes with timestamps</span>
             </div>
             <div className="flex gap-2">
-              <Button variant="outline" size="sm" onClick={exportLogs}>
+              <Button variant="outline" size="sm" onClick={exportLogs} disabled={logs.length === 0}>
                 <Download className="h-4 w-4 mr-2" />
                 Export CSV
               </Button>
@@ -185,142 +252,243 @@ export const AuditLogViewer: React.FC<AuditLogViewerProps> = ({ className }) => 
         </CardHeader>
         <CardContent>
           {/* Filters */}
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6 p-4 border rounded-lg">
-            <div className="space-y-2">
-              <Label>Table</Label>
-              <Select 
-                value={filters.table_name} 
-                onValueChange={(value) => setFilters(prev => ({ ...prev, table_name: value }))}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="All tables" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All tables</SelectItem>
-                  {Object.entries(tableDisplayNames).map(([key, label]) => (
-                    <SelectItem key={key} value={key}>{label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+          <div className="bg-muted/50 rounded-lg p-4 mb-6">
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">Table</Label>
+                <Select 
+                  value={filters.table_name} 
+                  onValueChange={(value) => setFilters(prev => ({ ...prev, table_name: value }))}
+                >
+                  <SelectTrigger className="h-9">
+                    <SelectValue placeholder="All tables" />
+                  </SelectTrigger>
+                  <SelectContent className="max-h-60">
+                    <SelectItem value="all">All tables</SelectItem>
+                    {Object.entries(tableDisplayNames).map(([key, label]) => (
+                      <SelectItem key={key} value={key}>{label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
 
-            <div className="space-y-2">
-              <Label>Action</Label>
-              <Select 
-                value={filters.action} 
-                onValueChange={(value) => setFilters(prev => ({ ...prev, action: value }))}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="All actions" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All actions</SelectItem>
-                  <SelectItem value="INSERT">Created</SelectItem>
-                  <SelectItem value="UPDATE">Updated</SelectItem>
-                  <SelectItem value="DELETE">Deleted</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">Action</Label>
+                <Select 
+                  value={filters.action} 
+                  onValueChange={(value) => setFilters(prev => ({ ...prev, action: value }))}
+                >
+                  <SelectTrigger className="h-9">
+                    <SelectValue placeholder="All actions" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All actions</SelectItem>
+                    <SelectItem value="INSERT">Created</SelectItem>
+                    <SelectItem value="UPDATE">Updated</SelectItem>
+                    <SelectItem value="DELETE">Deleted</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
 
-            <div className="space-y-2">
-              <Label>From Date</Label>
-              <Input
-                type="date"
-                value={filters.date_from}
-                onChange={(e) => setFilters(prev => ({ ...prev, date_from: e.target.value }))}
-              />
-            </div>
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">From Date</Label>
+                <Input
+                  type="date"
+                  className="h-9"
+                  value={filters.date_from}
+                  onChange={(e) => setFilters(prev => ({ ...prev, date_from: e.target.value }))}
+                />
+              </div>
 
-            <div className="space-y-2">
-              <Label>To Date</Label>
-              <Input
-                type="date"
-                value={filters.date_to}
-                onChange={(e) => setFilters(prev => ({ ...prev, date_to: e.target.value }))}
-              />
-            </div>
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">To Date</Label>
+                <Input
+                  type="date"
+                  className="h-9"
+                  value={filters.date_to}
+                  onChange={(e) => setFilters(prev => ({ ...prev, date_to: e.target.value }))}
+                />
+              </div>
 
-            <div className="space-y-2 flex flex-col justify-end">
-              <Button onClick={fetchAuditLogs} className="w-full">
-                <Filter className="h-4 w-4 mr-2" />
-                Apply Filters
-              </Button>
-              <Button variant="outline" onClick={clearFilters} className="w-full">
-                Clear
-              </Button>
+              <div className="space-y-2 flex flex-col justify-end">
+                <Button onClick={() => { setCurrentPage(1); fetchAuditLogs(); }} size="sm" className="h-9">
+                  <Filter className="h-4 w-4 mr-2" />
+                  Apply Filters
+                </Button>
+                <Button variant="outline" onClick={clearFilters} size="sm" className="h-9">
+                  Clear
+                </Button>
+              </div>
             </div>
           </div>
 
           {/* Audit Log Table */}
           {isLoading ? (
             <div className="flex justify-center items-center h-64">
-              <Loader2 className="h-8 w-8 animate-spin" />
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
             </div>
           ) : logs.length === 0 ? (
-            <div className="text-center py-12">
-              <Database className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+            <div className="text-center py-16">
+              <Database className="h-16 w-16 text-muted-foreground mx-auto mb-4 opacity-50" />
               <h3 className="text-lg font-semibold mb-2">No audit logs found</h3>
-              <p className="text-muted-foreground">
-                Transaction logs will appear here as users perform actions
+              <p className="text-muted-foreground max-w-md mx-auto">
+                Transaction logs will appear here as users perform actions. Try adjusting your filters to see more results.
               </p>
             </div>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Date/Time</TableHead>
-                  <TableHead>User</TableHead>
-                  <TableHead>Action</TableHead>
-                  <TableHead>Table</TableHead>
-                  <TableHead>Record ID</TableHead>
-                  <TableHead>Changes</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {logs.map((log) => (
-                  <TableRow key={log.id}>
-                    <TableCell className="font-mono text-xs">
-                      {format(new Date(log.created_at), 'MMM dd, yyyy HH:mm:ss')}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <User className="h-4 w-4" />
-                        <span className="text-sm">{log.user_name}</span>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge 
-                        className={actionColors[log.action as keyof typeof actionColors] || 'bg-gray-100 text-gray-800'}
-                      >
-                        {log.action}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      {tableDisplayNames[log.table_name as keyof typeof tableDisplayNames] || log.table_name}
-                    </TableCell>
-                    <TableCell className="font-mono text-xs">
-                      {log.record_id.split('-')[0]}...
-                    </TableCell>
-                    <TableCell>
-                      <div className="max-w-xs truncate text-xs text-muted-foreground">
-                        {log.action === 'DELETE' 
-                          ? `Deleted record` 
-                          : log.new_values 
-                            ? Object.keys(log.new_values).join(', ')
-                            : 'No changes recorded'
-                        }
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
+            <>
+              <div className="border rounded-lg overflow-hidden">
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="bg-muted/50">
+                        <TableHead 
+                          className="cursor-pointer hover:bg-muted/80 transition-colors"
+                          onClick={() => handleSort('created_at')}
+                        >
+                          <div className="flex items-center gap-1">
+                            Date/Time
+                            {sortBy === 'created_at' && (
+                              sortOrder === 'asc' ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />
+                            )}
+                          </div>
+                        </TableHead>
+                        <TableHead 
+                          className="cursor-pointer hover:bg-muted/80 transition-colors"
+                          onClick={() => handleSort('user_id')}
+                        >
+                          <div className="flex items-center gap-1">
+                            User
+                            {sortBy === 'user_id' && (
+                              sortOrder === 'asc' ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />
+                            )}
+                          </div>
+                        </TableHead>
+                        <TableHead 
+                          className="cursor-pointer hover:bg-muted/80 transition-colors"
+                          onClick={() => handleSort('action')}
+                        >
+                          <div className="flex items-center gap-1">
+                            Action
+                            {sortBy === 'action' && (
+                              sortOrder === 'asc' ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />
+                            )}
+                          </div>
+                        </TableHead>
+                        <TableHead 
+                          className="cursor-pointer hover:bg-muted/80 transition-colors"
+                          onClick={() => handleSort('table_name')}
+                        >
+                          <div className="flex items-center gap-1">
+                            Table
+                            {sortBy === 'table_name' && (
+                              sortOrder === 'asc' ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />
+                            )}
+                          </div>
+                        </TableHead>
+                        <TableHead className="w-32">Record ID</TableHead>
+                        <TableHead className="min-w-48">Changes</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {logs.map((log) => (
+                        <TableRow key={log.id} className="hover:bg-muted/30 transition-colors">
+                          <TableCell className="font-mono text-xs whitespace-nowrap">
+                            {format(new Date(log.created_at), 'MMM dd, yyyy HH:mm:ss')}
+                          </TableCell>
+                          <TableCell className="min-w-32">
+                            <div className="flex items-center gap-2">
+                              <User className="h-4 w-4 text-muted-foreground" />
+                              <span className="text-sm truncate">{log.user_name}</span>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <Badge 
+                              variant={log.action === 'INSERT' ? 'default' : log.action === 'UPDATE' ? 'secondary' : 'destructive'}
+                              className="text-xs"
+                            >
+                              {log.action}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-sm">
+                            {tableDisplayNames[log.table_name as keyof typeof tableDisplayNames] || log.table_name}
+                          </TableCell>
+                          <TableCell className="font-mono text-xs text-muted-foreground">
+                            {log.record_id.split('-')[0]}...
+                          </TableCell>
+                          <TableCell>
+                            <div className="max-w-xs truncate text-xs text-muted-foreground">
+                              {log.action === 'DELETE' 
+                                ? `Deleted record` 
+                                : log.new_values 
+                                  ? Object.keys(log.new_values).slice(0, 5).join(', ') + (Object.keys(log.new_values).length > 5 ? '...' : '')
+                                  : 'No changes recorded'
+                              }
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
 
-          {logs.length > 0 && (
-            <div className="mt-4 text-sm text-muted-foreground text-center">
-              Showing {logs.length} most recent audit entries
-            </div>
+              {/* Pagination */}
+              <div className="flex items-center justify-between mt-6">
+                <div className="text-sm text-muted-foreground">
+                  Showing {((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, totalLogs)} of {totalLogs} entries
+                </div>
+                
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handlePageChange(currentPage - 1)}
+                    disabled={currentPage === 1}
+                  >
+                    <ChevronLeft className="h-4 w-4 mr-1" />
+                    Previous
+                  </Button>
+                  
+                  <div className="flex items-center gap-1">
+                    {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                      let pageNum;
+                      if (totalPages <= 5) {
+                        pageNum = i + 1;
+                      } else if (currentPage <= 3) {
+                        pageNum = i + 1;
+                      } else if (currentPage >= totalPages - 2) {
+                        pageNum = totalPages - 4 + i;
+                      } else {
+                        pageNum = currentPage - 2 + i;
+                      }
+                      
+                      return (
+                        <Button
+                          key={pageNum}
+                          variant={currentPage === pageNum ? "default" : "outline"}
+                          size="sm"
+                          className="w-9 h-9"
+                          onClick={() => handlePageChange(pageNum)}
+                        >
+                          {pageNum}
+                        </Button>
+                      );
+                    })}
+                  </div>
+                  
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handlePageChange(currentPage + 1)}
+                    disabled={currentPage === totalPages}
+                  >
+                    Next
+                    <ChevronRight className="h-4 w-4 ml-1" />
+                  </Button>
+                </div>
+              </div>
+            </>
           )}
         </CardContent>
       </Card>
