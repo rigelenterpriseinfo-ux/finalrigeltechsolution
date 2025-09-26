@@ -385,53 +385,52 @@ async function getEnhancedBusinessInsights(supabase: any, companyId: string) {
 }
 
 async function generateGeminiResponse(message: string, data: any, analysis: any) {
-  // Enhanced business context for better AI responses
-  const businessContext = `You are an expert business intelligence assistant specialized in ERP and business management. 
-  You help business owners and managers understand their data, identify trends, and make informed decisions.
+  // Enhanced business context for more concise responses
+  const businessContext = `You are a concise business data assistant. Provide direct, brief answers to user questions.
+  
+  IMPORTANT RESPONSE GUIDELINES:
+  - Give SHORT, DIRECT answers unless user specifically asks for "detailed analysis", "comprehensive report", or "insights"  
+  - Only provide the requested data/information
+  - Skip business recommendations, insights, and analysis unless explicitly requested
+  - Use simple, clear language
+  - For data requests, show the data in a clean, organized way
+  - Avoid lengthy explanations or business advice unless asked
   
   Your expertise includes:
-  - Sales order management and analysis
-  - Purchase order and invoice tracking
-  - Inventory management and stock optimization
-  - Customer relationship insights
-  - Supplier performance evaluation
-  - Financial analytics and cash flow
-  - Business performance metrics and KPIs
-  
-  Always provide:
-  1. Direct, actionable answers
-  2. Data-driven insights
-  3. Business recommendations
-  4. Industry best practices where relevant
-  5. Specific metrics and trends when available`;
+  - Sales and purchase data
+  - Inventory and stock information  
+  - Customer and supplier data
+  - Financial information
+  - Business metrics`;
 
   let enhancedPrompt = `${businessContext}
   
   User Question: "${message}"
-  Query Type: ${analysis.queryType}
   
-  Business Data Analysis:
+  Business Data:
   ${JSON.stringify(data, null, 2)}
   
-  Please provide a comprehensive business intelligence response that includes:
-  
-  1. **Direct Answer**: Address the specific question asked
-  2. **Key Insights**: Highlight important patterns, trends, or metrics from the data
-  3. **Business Impact**: Explain what this means for the business
-  4. **Actionable Recommendations**: Suggest specific next steps or improvements
-  5. **Industry Context**: Add relevant business best practices if applicable
-  
-  Format your response to be professional, insightful, and actionable for business decision-making.`;
+  Provide a brief, direct answer to the user's question using the data above. Keep it concise and factual.`;
 
-  // Add specific context based on query type
+  // Add specific context based on query type - but keep it brief
   if (analysis.queryType === 'inventory' && analysis.stockLevel === 'low') {
-    enhancedPrompt += `\n\nNote: Focus on inventory management best practices, reorder points, and supply chain optimization.`;
+    enhancedPrompt += `\n\nNote: Show low stock items simply and clearly.`;
   } else if (analysis.queryType === 'sales_orders') {
-    enhancedPrompt += `\n\nNote: Include sales performance analysis, customer trends, and revenue insights.`;
+    enhancedPrompt += `\n\nNote: Show sales data simply and clearly.`;
+  } else if (analysis.queryType === 'purchase_invoices') {
+    enhancedPrompt += `\n\nNote: Show purchase data simply and clearly.`;
+  } else if (analysis.queryType === 'customers') {
+    enhancedPrompt += `\n\nNote: Show customer information simply and clearly.`;
+  } else if (analysis.queryType === 'suppliers') {
+    enhancedPrompt += `\n\nNote: Show supplier information simply and clearly.`;
+  } else if (analysis.queryType === 'inventory') {
+    enhancedPrompt += `\n\nNote: Show inventory data simply and clearly.`;
+  } else if (analysis.queryType === 'payments') {
+    enhancedPrompt += `\n\nNote: Show payment data simply and clearly.`;
   } else if (analysis.queryType === 'analytics') {
-    enhancedPrompt += `\n\nNote: Provide comprehensive KPI analysis, trend identification, and performance benchmarking.`;
+    enhancedPrompt += `\n\nNote: Show key metrics simply and clearly.`;
   } else if (analysis.queryType === 'actions') {
-    enhancedPrompt += `\n\nNote: Provide guidance on business process automation and workflow optimization.`;
+    enhancedPrompt += `\n\nNote: Provide brief guidance only.`;
   }
 
   const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`, {
