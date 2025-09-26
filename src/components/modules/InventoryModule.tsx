@@ -14,7 +14,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { useBusinessAuth } from '@/hooks/useBusinessAuth';
 import { useIsMobile } from '@/hooks/use-mobile';
-import { Plus, Search, Package, AlertTriangle, Edit, Trash2, Eye, Download, Upload, ArrowUpDown, ArrowUp, ArrowDown, ChevronLeft, ChevronRight, MapPin, TrendingUp, ClipboardList, ArrowRightLeft, CheckCircle, XCircle, RotateCcw } from 'lucide-react';
+import { Plus, Search, Package, AlertTriangle, Edit, Trash2, Eye, Download, ArrowUpDown, ArrowUp, ArrowDown, ChevronLeft, ChevronRight, MapPin, TrendingUp, ClipboardList, ArrowRightLeft, CheckCircle, XCircle, RotateCcw } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { WarehouseBinForm } from '@/components/forms/WarehouseBinForm';
 import { WarehouseBinTable } from '@/components/tables/WarehouseBinTable';
@@ -27,7 +27,6 @@ import { EnhancedCurrentStockSystem } from '@/components/inventory/EnhancedCurre
 import { BOMModule } from '@/components/modules/BOMModule';
 import { ProductViewDialog } from '@/components/dialogs/ProductViewDialog';
 import { EditProductDialog } from '@/components/dialogs/EditProductDialog';
-import { BulkUploadDialog } from '@/components/dialogs/BulkUploadDialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import * as XLSX from 'xlsx';
 
@@ -48,33 +47,32 @@ interface Product {
   width_cm: number | null;
   height_cm: number | null;
   volume_cubic_cm: number | null;
-  bin_name: string | null;
   barcode: string | null;
   min_stock_level: number;
   max_stock_level: number | null;
-  stock_quantity: number;
   is_active: boolean;
   company_id: string;
   category_id: string | null;
-  product_type: string;
-  product_category: string;
+  product_type: 'goods' | 'service';
+  product_category: 'raw_material' | 'finished_goods' | 'consumables' | 'assets' | 'others';
   created_at: string;
   updated_at: string;
 }
 
-export default function InventoryModule() {
-  const { user } = useAuth();
-  const { businessUser } = useBusinessAuth();
+export function InventoryModule() {
+  const { profile } = useAuth();
   const { toast } = useToast();
+  const { hasEditAccess } = useBusinessAuth();
   const isMobile = useIsMobile();
-
-  // State management
+  const canEdit = hasEditAccess('inventory');
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
+  const [productsWithTransactions, setProductsWithTransactions] = useState<Set<string>>(new Set());
   const [searchTerm, setSearchTerm] = useState('');
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [showViewDialog, setShowViewDialog] = useState(false);
+  const [showBOMDialog, setShowBOMDialog] = useState(false);
   const [showBinDialog, setShowBinDialog] = useState(false);
   const [showAdjustmentDialog, setShowAdjustmentDialog] = useState(false);
   const [showTransferDialog, setShowTransferDialog] = useState(false);
@@ -90,9 +88,6 @@ export default function InventoryModule() {
   } | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 5;
-  
-  // Bulk upload states
-  const [showBulkUpload, setShowBulkUpload] = useState(false);
   
   // Form state for auto-calculations and conditional display
   const [isTaxable, setIsTaxable] = useState(true);
@@ -139,10 +134,6 @@ export default function InventoryModule() {
     return l > 0 && w > 0 && h > 0 ? (l * w * h).toFixed(2) : '';
   };
 
-  // Check permissions
-  const canEdit = businessUser?.access_type === 'OWNER' || businessUser?.access_type === 'ADMIN';
-  const canDelete = canEdit;
-
   // Debounced SKU validation
   const validateSKU = useCallback(async (sku: string) => {
     if (!sku.trim()) {
@@ -150,39 +141,37 @@ export default function InventoryModule() {
       return;
     }
 
-    setSkuValidation({ status: 'checking', message: 'Checking SKU availability...' });
+    setSkuValidation({ status: 'checking', message: 'Checking availability...' });
 
     try {
       const { data, error } = await supabase
         .from('products')
         .select('id, sku, name, is_active')
-        .eq('company_id', businessUser?.company_id)
+        .eq('company_id', profile?.company_id)
         .eq('sku', sku.trim())
         .maybeSingle();
 
       if (error) throw error;
 
-      if (data) {
-        if (data.is_active) {
-          setSkuValidation({ 
-            status: 'duplicate', 
-            message: `SKU "${sku}" is already in use by "${data.name}"` 
-          });
-        } else {
-          setSkuValidation({ 
-            status: 'inactive_found', 
-            message: `Found inactive product "${data.name}" with this SKU`,
-            inactiveProduct: data
-          });
-        }
-      } else {
+      if (!data) {
         setSkuValidation({ status: 'valid', message: 'SKU is available' });
+      } else if (data.is_active) {
+        setSkuValidation({ 
+          status: 'duplicate', 
+          message: `SKU already exists for "${data.name}"` 
+        });
+      } else {
+        setSkuValidation({ 
+          status: 'inactive_found', 
+          message: `Inactive product "${data.name}" uses this SKU`,
+          inactiveProduct: data 
+        });
       }
     } catch (error) {
       console.error('Error validating SKU:', error);
       setSkuValidation({ status: 'idle', message: '' });
     }
-  }, [businessUser?.company_id]);
+  }, [profile?.company_id]);
 
   // Debounce the SKU validation
   useEffect(() => {
@@ -195,87 +184,45 @@ export default function InventoryModule() {
     return () => clearTimeout(timeoutId);
   }, [skuValue, validateSKU]);
 
-  // Track products with inventory transactions
-  const [productsWithTransactions, setProductsWithTransactions] = useState<Set<string>>(new Set());
+  // Handle SKU reactivation
+  const handleReactivateProduct = async () => {
+    if (!skuValidation.inactiveProduct) return;
 
-  useEffect(() => {
-    // When products are deleted, clear them from the form state
-    if (deletingProduct) {
-      setEditingProduct(null);
-      setViewingProduct(null);
-    }
-  }, [deletingProduct]);
-
-  useEffect(() => {
-    const calculateBinStats = () => {
-      const stats = warehouseBins.map(bin => {
-        // Count products assigned to this bin
-        const productsInBin = products.filter(product => 
-          product.bin_name && product.bin_name.toLowerCase() === bin.bin_name.toLowerCase()
-        ).length;
-
-        return {
-          ...bin,
-          products_count: productsInBin
-        };
-      });
-      
-      setWarehouseBinStats(stats);
-    };
-
-    if (warehouseBins.length > 0 && products.length > 0) {
-      calculateBinStats();
-    }
-  }, [warehouseBins, products]);
-
-  // Check for products with inventory transactions
-  const checkProductsWithTransactions = async () => {
     try {
-      const { data, error } = await supabase
-        .from('inventory_transactions')
-        .select('product_id')
-        .eq('company_id', businessUser?.company_id);
+      const { error } = await supabase
+        .from('products')
+        .update({ is_active: true })
+        .eq('id', skuValidation.inactiveProduct.id);
 
       if (error) throw error;
-      
-      const productIdsWithTransactions = new Set(data?.map(t => t.product_id) || []);
-      setProductsWithTransactions(productIdsWithTransactions);
+
+      toast({
+        title: "Success",
+        description: `Product "${skuValidation.inactiveProduct.name}" has been reactivated`,
+      });
+
+      setShowAddDialog(false);
+      fetchProducts();
+      setSkuValue('');
+      setSkuValidation({ status: 'idle', message: '' });
     } catch (error) {
-      console.error('Error checking products with transactions:', error);
+      console.error('Error reactivating product:', error);
+      toast({
+        title: "Error",
+        description: "Failed to reactivate product",
+        variant: "destructive",
+      });
     }
   };
 
-  const calculateWarehouseBinStats = () => {
-    const stats = warehouseBins.map(bin => {
-      // Count products assigned to this bin
-      const productsInBin = products.filter(product => 
-        product.bin_name && product.bin_name.toLowerCase() === bin.bin_name.toLowerCase()
-      ).length;
-      
-      // Calculate total value of products in this bin
-      const totalValue = products
-        .filter(product => 
-          product.bin_name && product.bin_name.toLowerCase() === bin.bin_name.toLowerCase()
-        )
-        .reduce((sum, product) => sum + (product.unit_price * (product.stock_quantity || 0)), 0);
-
-      return {
-        ...bin,
-        products_count: productsInBin,
-        total_value: totalValue
-      };
-    });
-    
-    setWarehouseBinStats(stats);
-  };
-
+  // Fetch warehouse bins
   const fetchWarehouseBins = async () => {
     try {
       const { data, error } = await supabase
         .from('warehouse_bins')
         .select('*')
-        .eq('company_id', businessUser?.company_id)
-        .order('bin_name');
+        .eq('is_active', true)
+        .order('wh_bin_code', { ascending: true });
 
       if (error) throw error;
       setWarehouseBins(data || []);
@@ -284,32 +231,48 @@ export default function InventoryModule() {
     }
   };
 
-  useEffect(() => {
-    fetchProducts();
-    fetchWarehouseBins();
-    if (businessUser?.company_id) {
-      checkProductsWithTransactions();
-    }
-  }, [businessUser?.company_id]);
+  // Check for products with transactions
+  const checkProductsWithTransactions = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('inventory_transactions')
+        .select('product_id')
+        .eq('company_id', profile?.company_id);
 
-  useEffect(() => {
-    if (warehouseBins.length > 0 && products.length > 0) {
-      calculateWarehouseBinStats();
+      if (error) throw error;
+      
+      const productIdsWithTransactions = new Set(data?.map(t => t.product_id) || []);
+      setProductsWithTransactions(productIdsWithTransactions);
+    } catch (error) {
+      console.error('Error checking product transactions:', error);
     }
-  }, [warehouseBins, products]);
+  };
 
-  // Fetch products
+  // Calculate warehouse bin statistics
+  const calculateWarehouseBinStats = () => {
+    const binStats = warehouseBins.map(bin => {
+      return {
+        binCode: bin.wh_bin_code,
+        binName: bin.bin_name,
+        totalUnits: 0,
+        totalValue: 0
+      };
+    });
+    setWarehouseBinStats(binStats);
+  };
+
+  // Fetch products from Supabase
   const fetchProducts = async () => {
     try {
       setLoading(true);
       const { data, error } = await supabase
         .from('products')
         .select('*')
-        .eq('company_id', businessUser?.company_id)
-        .order('created_at', { ascending: false });
+        .eq('is_active', true)
+        .order('name', { ascending: true });
 
       if (error) throw error;
-      setProducts(data || []);
+      setProducts(data as Product[] || []);
     } catch (error) {
       console.error('Error fetching products:', error);
       toast({
@@ -322,53 +285,133 @@ export default function InventoryModule() {
     }
   };
 
-  // Handle product creation
-  const handleAddProduct = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    if (!businessUser?.company_id) {
+  useEffect(() => {
+    fetchProducts();
+    fetchWarehouseBins();
+    if (profile?.company_id) {
+      checkProductsWithTransactions();
+    }
+  }, [profile?.company_id]);
+
+  useEffect(() => {
+    if (warehouseBins.length > 0 && products.length > 0) {
+      calculateWarehouseBinStats();
+    }
+  }, [warehouseBins, products]);
+
+  // Handle sorting
+  const handleSort = (key: string) => {
+    let direction: 'asc' | 'desc' = 'asc';
+    if (sortConfig && sortConfig.key === key && sortConfig.direction === 'asc') {
+      direction = 'desc';
+    }
+    setSortConfig({ key, direction });
+  };
+
+  // Get sort icon
+  const getSortIcon = (key: string) => {
+    if (!sortConfig || sortConfig.key !== key) {
+      return <ArrowUpDown className="w-4 h-4" />;
+    }
+    return sortConfig.direction === 'asc' ? 
+      <ArrowUp className="w-4 h-4" /> : 
+      <ArrowDown className="w-4 h-4" />;
+  };
+
+  // Handle add product
+  const handleAddProduct = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!canEdit) {
       toast({
-        title: "Error",
-        description: "Company information not found",
+        title: "Access Denied",
+        description: "You don't have permission to create products",
         variant: "destructive",
       });
       return;
     }
 
-    // Check if SKU is valid
+    // Prevent submission if SKU validation failed
     if (skuValidation.status === 'duplicate') {
       toast({
-        title: "Invalid SKU",
-        description: "Please use a different SKU as this one is already in use.",
+        title: "Validation Error",
+        description: "SKU already exists. Please use a different SKU.",
         variant: "destructive",
       });
       return;
     }
 
+    if (isSubmitting) return;
     setIsSubmitting(true);
 
     try {
-      const formData = new FormData(event.currentTarget);
+      const formData = new FormData(e.currentTarget);
+      const form = e.currentTarget;
+      
+      // Enhanced validation
+      const costPrice = parseFloat(formData.get('cost_price') as string || '0');
+      const sellingPrice = parseFloat(formData.get('unit_price') as string || '0');
+      const mrp = formData.get('mrp') ? parseFloat(formData.get('mrp') as string) : null;
+      const gstPercentage = parseFloat(formData.get('gst_percentage') as string || '0');
+      const minStock = parseInt(formData.get('min_stock_level') as string || '0');
+      const maxStock = formData.get('max_stock_level') ? parseInt(formData.get('max_stock_level') as string) : null;
+      
+      // Validation checks
+      if (costPrice < 0 || sellingPrice < 0 || (mrp && mrp < 0)) {
+        toast({
+          title: "Validation Error", 
+          description: "Prices must be greater than or equal to 0",
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      if (mrp && mrp < sellingPrice) {
+        toast({
+          title: "Validation Error",
+          description: "MRP cannot be less than Selling Price",
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      if (gstPercentage < 0 || gstPercentage > 28) {
+        toast({
+          title: "Validation Error",
+          description: "GST percentage must be between 0-28%",
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      if (minStock < 0 || (maxStock && maxStock < 0)) {
+        toast({
+          title: "Validation Error",
+          description: "Stock levels must be non-negative integers",
+          variant: "destructive",
+        });
+        return;
+      }
 
       // Calculate volume if dimensions are provided
-      const length = parseFloat(formData.get('length_cm') as string) || null;
-      const width = parseFloat(formData.get('width_cm') as string) || null;
-      const height = parseFloat(formData.get('height_cm') as string) || null;
+      const length = formData.get('length_cm') ? parseFloat(formData.get('length_cm') as string) : null;
+      const width = formData.get('width_cm') ? parseFloat(formData.get('width_cm') as string) : null;
+      const height = formData.get('height_cm') ? parseFloat(formData.get('height_cm') as string) : null;
       const volumeCubicCm = (length && width && height) ? length * width * height : null;
 
       const productData = {
-        sku: formData.get('sku') as string,
         name: formData.get('name') as string,
-        description: formData.get('description') as string || null,
-        unit: formData.get('unit') as string || null,
-        cost_price: parseFloat(formData.get('cost_price') as string) || 0,
-        unit_price: parseFloat(formData.get('unit_price') as string) || 0,
-        mrp: parseFloat(formData.get('mrp') as string) || null,
-        hsn_code: formData.get('hsn_code') as string || null,
-        gst_percentage: parseFloat(formData.get('gst_percentage') as string) || 0,
+        description: formData.get('description') as string,
+        sku: formData.get('sku') as string,
+        unit: formData.get('unit') as string,
+        cost_price: costPrice,
+        unit_price: sellingPrice,
+        mrp: mrp,
+        min_stock_level: minStock,
+        max_stock_level: maxStock,
+        hsn_code: formData.get('hsn_code') as string,
+        gst_percentage: gstPercentage,
         is_taxable: formData.get('is_taxable') === 'on',
-        min_stock_level: parseInt(formData.get('min_stock_level') as string) || 0,
-        max_stock_level: parseInt(formData.get('max_stock_level') as string) || null,
-        weight_kg: parseFloat(formData.get('weight_kg') as string) || null,
+        weight_kg: formData.get('weight_kg') ? parseFloat(formData.get('weight_kg') as string) : null,
         length_cm: length,
         width_cm: width,
         height_cm: height,
@@ -376,7 +419,7 @@ export default function InventoryModule() {
         barcode: formData.get('barcode') as string || null,
         product_type: formData.get('product_type') as 'goods' | 'service',
         product_category: formData.get('product_category') as 'raw_material' | 'finished_goods' | 'consumables' | 'assets' | 'others',
-        company_id: businessUser?.company_id,
+        company_id: profile?.company_id,
         is_active: formData.get('is_active') !== 'off' // Default to true unless explicitly turned off
       };
 
@@ -404,19 +447,17 @@ export default function InventoryModule() {
 
       setShowAddDialog(false);
       fetchProducts();
-      
-      // Reset form validation state
+      // Reset form and state
+      form.reset();
+      setIsTaxable(true);
+      setDimensions({ length: '', width: '', height: '' });
       setSkuValue('');
       setSkuValidation({ status: 'idle', message: '' });
-      
-      // Reset form
-      event.currentTarget.reset();
-
     } catch (error) {
       console.error('Error adding product:', error);
       toast({
         title: "Error",
-        description: "Failed to add product",
+        description: "Failed to add product. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -424,13 +465,76 @@ export default function InventoryModule() {
     }
   };
 
-  // Handle product deletion
-  const handleDeleteProduct = async (product: Product) => {
-    // Check if product has inventory transactions
-    if (productsWithTransactions.has(product.id)) {
+  // Handle update product
+  const handleUpdateProduct = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!canEdit || !editingProduct) {
       toast({
-        title: "Cannot Delete Product",
-        description: "This product has inventory transactions and cannot be deleted. Consider marking it as inactive instead.",
+        title: "Access Denied",
+        description: "You don't have permission to update products",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      const formData = new FormData(e.currentTarget);
+      const productData = {
+        name: formData.get('name') as string,
+        description: formData.get('description') as string,
+        sku: formData.get('sku') as string,
+        unit: formData.get('unit') as string,
+        cost_price: parseFloat(formData.get('cost_price') as string),
+        unit_price: parseFloat(formData.get('unit_price') as string),
+        min_stock_level: parseInt(formData.get('min_stock_level') as string),
+        max_stock_level: formData.get('max_stock_level') ? parseInt(formData.get('max_stock_level') as string) : null,
+        hsn_code: formData.get('hsn_code') as string,
+        gst_percentage: parseFloat(formData.get('gst_percentage') as string),
+        weight_kg: formData.get('weight_kg') ? parseFloat(formData.get('weight_kg') as string) : null,
+        length_cm: formData.get('length_cm') ? parseFloat(formData.get('length_cm') as string) : null,
+        width_cm: formData.get('width_cm') ? parseFloat(formData.get('width_cm') as string) : null,
+        height_cm: formData.get('height_cm') ? parseFloat(formData.get('height_cm') as string) : null,
+        product_type: formData.get('product_type') as 'goods' | 'service',
+        product_category: formData.get('product_category') as 'raw_material' | 'finished_goods' | 'consumables' | 'assets',
+      };
+
+      const { error } = await supabase
+        .from('products')
+        .update(productData)
+        .eq('id', editingProduct.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: "Product updated successfully",
+      });
+
+      setShowEditDialog(false);
+      setEditingProduct(null);
+      fetchProducts();
+    } catch (error) {
+      console.error('Error updating product:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update product",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Handle edit product
+  const handleEditProduct = (product: Product) => {
+    setEditingProduct(product);
+    setShowEditDialog(true);
+  };
+
+  // Handle delete product
+  const handleDeleteProduct = async (productId: string) => {
+    if (!canEdit) {
+      toast({
+        title: "Access Denied",
+        description: "You don't have permission to delete products",
         variant: "destructive",
       });
       return;
@@ -439,8 +543,8 @@ export default function InventoryModule() {
     try {
       const { error } = await supabase
         .from('products')
-        .delete()
-        .eq('id', product.id);
+        .update({ is_active: false })
+        .eq('id', productId);
 
       if (error) throw error;
 
@@ -450,7 +554,6 @@ export default function InventoryModule() {
       });
 
       fetchProducts();
-      setDeletingProduct(null);
     } catch (error) {
       console.error('Error deleting product:', error);
       toast({
@@ -461,44 +564,6 @@ export default function InventoryModule() {
     }
   };
 
-  // Toggle product active status
-  const toggleProductStatus = async (product: Product) => {
-    try {
-      const { error } = await supabase
-        .from('products')
-        .update({ is_active: !product.is_active })
-        .eq('id', product.id);
-
-      if (error) throw error;
-
-      toast({
-        title: "Success",
-        description: `Product ${!product.is_active ? 'activated' : 'deactivated'} successfully`,
-      });
-
-      fetchProducts();
-    } catch (error) {
-      console.error('Error updating product status:', error);
-      toast({
-        title: "Error",
-        description: "Failed to update product status",
-        variant: "destructive",
-      });
-    }
-  };
-
-  // Sorting function
-  const handleSort = (key: string) => {
-    let direction: 'asc' | 'desc' = 'asc';
-    
-    if (sortConfig && sortConfig.key === key && sortConfig.direction === 'asc') {
-      direction = 'desc';
-    }
-    
-    setSortConfig({ key, direction });
-    setCurrentPage(1);
-  };
-
   // Filter and sort products
   const filteredProducts = useMemo(() => {
     let filtered = products.filter(product =>
@@ -507,24 +572,17 @@ export default function InventoryModule() {
       (product.description && product.description.toLowerCase().includes(searchTerm.toLowerCase()))
     );
 
-    if (sortConfig !== null) {
+    if (sortConfig) {
       filtered.sort((a, b) => {
         const aValue = a[sortConfig.key as keyof Product];
         const bValue = b[sortConfig.key as keyof Product];
-
-        if (aValue === null || aValue === undefined) return 1;
-        if (bValue === null || bValue === undefined) return -1;
-
-        if (typeof aValue === 'string' && typeof bValue === 'string') {
-          return sortConfig.direction === 'asc' 
-            ? aValue.localeCompare(bValue)
-            : bValue.localeCompare(aValue);
+        
+        if (aValue < bValue) {
+          return sortConfig.direction === 'asc' ? -1 : 1;
         }
-
-        if (typeof aValue === 'number' && typeof bValue === 'number') {
-          return sortConfig.direction === 'asc' ? aValue - bValue : bValue - aValue;
+        if (aValue > bValue) {
+          return sortConfig.direction === 'asc' ? 1 : -1;
         }
-
         return 0;
       });
     }
@@ -590,296 +648,456 @@ export default function InventoryModule() {
                 onOpenChange={(open) => {
                   setShowAddDialog(open);
                   if (!open) {
+                    // Reset form state when dialog closes
+                    setIsTaxable(true);
+                    setDimensions({ length: '', width: '', height: '' });
                     setSkuValue('');
                     setSkuValidation({ status: 'idle', message: '' });
+                    setIsSubmitting(false);
                   }
                 }}
               >
                 <DialogTrigger asChild>
-                  <Button className="bg-blue-500 hover:bg-blue-600 text-white">
+                  <Button>
                     <Plus className="w-4 h-4 mr-2" />
                     Add Product
                   </Button>
                 </DialogTrigger>
-                <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-                  <DialogHeader>
-                    <DialogTitle>Add New Product</DialogTitle>
-                    <DialogDescription>
-                      Create a new product with detailed information
+                <DialogContent className="max-w-6xl max-h-[90vh] sm:max-h-[95vh] overflow-y-auto">
+                  <DialogHeader className="pb-3">
+                    <DialogTitle className="text-base sm:text-xl">Add New Product</DialogTitle>
+                    <DialogDescription className="text-xs sm:text-sm">
+                      Enter the product details below
                     </DialogDescription>
                   </DialogHeader>
-                  <form onSubmit={handleAddProduct} className="space-y-4">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="sku">SKU *</Label>
-                        <Input
-                          id="sku"
-                          name="sku"
-                          placeholder="Product SKU"
-                          required
-                          value={skuValue}
-                          onChange={(e) => setSkuValue(e.target.value)}
-                          className={`${
-                            skuValidation.status === 'valid' ? 'border-green-500' :
-                            skuValidation.status === 'duplicate' ? 'border-red-500' :
-                            skuValidation.status === 'inactive_found' ? 'border-yellow-500' : ''
-                          }`}
-                        />
-                        {skuValidation.message && (
-                          <p className={`text-xs ${
-                            skuValidation.status === 'valid' ? 'text-green-600' :
-                            skuValidation.status === 'duplicate' ? 'text-red-600' :
-                            skuValidation.status === 'inactive_found' ? 'text-yellow-600' :
-                            'text-gray-500'
-                          }`}>
-                            {skuValidation.message}
-                          </p>
-                        )}
+                  <form onSubmit={handleAddProduct} className="space-y-4 animate-fade-in">
+                    <div className="grid grid-cols-1 gap-4 sm:gap-6 xl:grid-cols-3">
+                      {/* Column 1: Basic Information */}
+                      <div className="space-y-3">
+                        <h3 className="text-sm font-semibold text-primary border-b pb-1 flex items-center gap-2">
+                          <Package className="h-4 w-4" />
+                          Basic Information
+                        </h3>
+                        <div className="space-y-2.5">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            <div>
+                              <Label htmlFor="name" className="text-xs font-medium text-muted-foreground">Product Name *</Label>
+                              <Input id="name" name="name" required className="mobile-touch-target text-xs transition-all focus:scale-[1.02]" placeholder="Enter product name" />
+                            </div>
+                            <div>
+                              <Label htmlFor="sku" className="text-xs font-medium text-muted-foreground">SKU *</Label>
+                              <div className="relative">
+                                <Input 
+                                  id="sku" 
+                                  name="sku" 
+                                  required 
+                                  value={skuValue}
+                                  onChange={(e) => setSkuValue(e.target.value)}
+                                  className={`mobile-touch-target text-xs transition-all focus:scale-[1.02] pr-8 ${
+                                    skuValidation.status === 'valid' ? 'border-green-500' :
+                                    skuValidation.status === 'duplicate' ? 'border-red-500' :
+                                    skuValidation.status === 'inactive_found' ? 'border-yellow-500' : ''
+                                  }`}
+                                  placeholder="Product SKU" 
+                                />
+                                <div className="absolute right-2 top-1/2 -translate-y-1/2">
+                                  {skuValidation.status === 'checking' && (
+                                    <div className="animate-spin rounded-full h-3 w-3 border-b border-primary"></div>
+                                  )}
+                                  {skuValidation.status === 'valid' && (
+                                    <CheckCircle className="h-3 w-3 text-green-500" />
+                                  )}
+                                  {skuValidation.status === 'duplicate' && (
+                                    <XCircle className="h-3 w-3 text-red-500" />
+                                  )}
+                                  {skuValidation.status === 'inactive_found' && (
+                                    <AlertTriangle className="h-3 w-3 text-yellow-500" />
+                                  )}
+                                </div>
+                              </div>
+                              {skuValidation.message && (
+                                <div className={`text-xs mt-1 flex items-center gap-1 ${
+                                  skuValidation.status === 'valid' ? 'text-green-600' :
+                                  skuValidation.status === 'duplicate' ? 'text-red-600' :
+                                  skuValidation.status === 'inactive_found' ? 'text-yellow-600' :
+                                  'text-muted-foreground'
+                                }`}>
+                                  {skuValidation.message}
+                                  {skuValidation.status === 'inactive_found' && (
+                                    <Button
+                                      type="button"
+                                      variant="link"
+                                      size="sm"
+                                      onClick={handleReactivateProduct}
+                                      className="h-auto p-0 ml-2 text-xs text-blue-600 hover:text-blue-800"
+                                    >
+                                      <RotateCcw className="h-3 w-3 mr-1" />
+                                      Reactivate
+                                    </Button>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                          <div>
+                            <Label htmlFor="description" className="text-xs font-medium text-muted-foreground">Description</Label>
+                            <Textarea id="description" name="description" className="mt-0.5 min-h-[50px] resize-none text-xs transition-all focus:scale-[1.01]" placeholder="Product description..." />
+                          </div>
+                          <div className="grid grid-cols-2 gap-2">
+                            <div>
+                              <Label htmlFor="product_type" className="text-xs font-medium text-muted-foreground">Type *</Label>
+                              <Select name="product_type" required>
+                                <SelectTrigger className="mt-0.5 h-8 text-xs">
+                                  <SelectValue placeholder="Select type" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="goods">Goods</SelectItem>
+                                  <SelectItem value="service">Service</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <div>
+                              <Label htmlFor="unit" className="text-xs font-medium text-muted-foreground">Unit</Label>
+                              <Input id="unit" name="unit" placeholder="pcs, kg, ltr" className="mt-0.5 h-8 text-xs transition-all focus:scale-[1.02]" />
+                            </div>
+                          </div>
+                          <div>
+                            <Label htmlFor="product_category" className="text-xs font-medium text-muted-foreground">Category *</Label>
+                            <Select name="product_category" required>
+                              <SelectTrigger className="mt-0.5 h-8 text-xs">
+                                <SelectValue placeholder="Select category" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="raw_material">Raw Material</SelectItem>
+                                <SelectItem value="finished_goods">Finished Goods</SelectItem>
+                                <SelectItem value="consumables">Consumables</SelectItem>
+                                <SelectItem value="assets">Assets</SelectItem>
+                                <SelectItem value="others">Others / Miscellaneous</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div>
+                            <Label htmlFor="barcode" className="text-xs font-medium text-muted-foreground">Barcode</Label>
+                            <Input id="barcode" name="barcode" placeholder="Enter barcode (optional)" className="mt-0.5 h-8 text-xs transition-all focus:scale-[1.02]" />
+                          </div>
+                        </div>
                       </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="name">Product Name *</Label>
-                        <Input
-                          id="name"
-                          name="name"
-                          placeholder="Product name"
-                          required
-                        />
+
+                      {/* Column 2: Pricing & Tax */}
+                      <div className="space-y-3">
+                        <h3 className="text-sm font-semibold text-primary border-b pb-1 flex items-center gap-2">
+                          <TrendingUp className="h-4 w-4" />
+                          Pricing & Tax
+                        </h3>
+                        <div className="space-y-2.5">
+                          <div className="grid grid-cols-2 gap-2">
+                            <div>
+                              <Label htmlFor="cost_price" className="text-xs font-medium text-muted-foreground">Cost Price *</Label>
+                              <Input 
+                                id="cost_price" 
+                                name="cost_price" 
+                                type="number" 
+                                step="0.01" 
+                                min="0"
+                                required 
+                                className="mt-0.5 h-8 text-xs transition-all focus:scale-[1.02]" 
+                                placeholder="0.00"
+                              />
+                            </div>
+                            <div>
+                              <Label htmlFor="unit_price" className="text-xs font-medium text-muted-foreground">Selling Price *</Label>
+                              <Input 
+                                id="unit_price" 
+                                name="unit_price" 
+                                type="number" 
+                                step="0.01" 
+                                min="0"
+                                required 
+                                className="mt-0.5 h-8 text-xs transition-all focus:scale-[1.02]" 
+                                placeholder="0.00"
+                              />
+                            </div>
+                          </div>
+                          <div>
+                            <Label htmlFor="mrp" className="text-xs font-medium text-muted-foreground">MRP</Label>
+                            <Input 
+                              id="mrp" 
+                              name="mrp" 
+                              type="number" 
+                              step="0.01" 
+                              min="0"
+                              placeholder="Maximum Retail Price (optional)" 
+                              className="mt-0.5 h-8 text-xs transition-all focus:scale-[1.02]" 
+                            />
+                          </div>
+                          <div className="bg-muted/30 p-2 rounded-md border">
+                            <div className="flex items-center justify-between mb-2">
+                              <Label htmlFor="is_taxable" className="text-xs font-medium">Taxable Item</Label>
+                              <Switch 
+                                id="is_taxable"
+                                name="is_taxable"
+                                checked={isTaxable}
+                                onCheckedChange={setIsTaxable}
+                                className="scale-75"
+                              />
+                            </div>
+                            {isTaxable && (
+                              <div className="space-y-2 animate-fade-in">
+                                <div>
+                                  <Label htmlFor="hsn_code" className="text-xs font-medium text-muted-foreground">HSN Code</Label>
+                                  <Input id="hsn_code" name="hsn_code" className="mt-0.5 h-7 text-xs" placeholder="HSN/SAC Code" />
+                                </div>
+                                <div>
+                                  <Label htmlFor="gst_percentage" className="text-xs font-medium text-muted-foreground">GST Rate</Label>
+                                  <Select name="gst_percentage" defaultValue="0">
+                                    <SelectTrigger className="mt-0.5 h-7 text-xs">
+                                      <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      <SelectItem value="0">0%</SelectItem>
+                                      <SelectItem value="5">5%</SelectItem>
+                                      <SelectItem value="12">12%</SelectItem>
+                                      <SelectItem value="18">18%</SelectItem>
+                                      <SelectItem value="28">28%</SelectItem>
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </div>
                       </div>
-                      <div className="space-y-2 col-span-2">
-                        <Label htmlFor="description">Description</Label>
-                        <Textarea
-                          id="description"
-                          name="description"
-                          placeholder="Product description"
-                          rows={3}
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="product_type">Product Type *</Label>
-                        <Select name="product_type" defaultValue="goods">
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="goods">Goods</SelectItem>
-                            <SelectItem value="service">Service</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="product_category">Category *</Label>
-                        <Select name="product_category" defaultValue="raw_material">
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="raw_material">Raw Material</SelectItem>
-                            <SelectItem value="finished_goods">Finished Goods</SelectItem>
-                            <SelectItem value="consumables">Consumables</SelectItem>
-                            <SelectItem value="assets">Assets</SelectItem>
-                            <SelectItem value="others">Others</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="unit">Unit</Label>
-                        <Input
-                          id="unit"
-                          name="unit"
-                          placeholder="e.g., pcs, kg, meters"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="cost_price">Cost Price *</Label>
-                        <Input
-                          id="cost_price"
-                          name="cost_price"
-                          type="number"
-                          step="0.01"
-                          placeholder="0.00"
-                          required
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="unit_price">Selling Price *</Label>
-                        <Input
-                          id="unit_price"
-                          name="unit_price"
-                          type="number"
-                          step="0.01"
-                          placeholder="0.00"
-                          required
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="mrp">MRP</Label>
-                        <Input
-                          id="mrp"
-                          name="mrp"
-                          type="number"
-                          step="0.01"
-                          placeholder="0.00"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="hsn_code">HSN Code</Label>
-                        <Input
-                          id="hsn_code"
-                          name="hsn_code"
-                          placeholder="HSN/SAC Code"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="gst_percentage">GST %</Label>
-                        <Input
-                          id="gst_percentage"
-                          name="gst_percentage"
-                          type="number"
-                          step="0.01"
-                          placeholder="0.00"
-                          disabled={!isTaxable}
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="min_stock_level">Min Stock Level</Label>
-                        <Input
-                          id="min_stock_level"
-                          name="min_stock_level"
-                          type="number"
-                          placeholder="0"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="max_stock_level">Max Stock Level</Label>
-                        <Input
-                          id="max_stock_level"
-                          name="max_stock_level"
-                          type="number"
-                          placeholder="0"
-                        />
+
+                      {/* Column 3: Stock & Dimensions */}
+                      <div className="space-y-3">
+                        <h3 className="text-sm font-semibold text-primary border-b pb-1 flex items-center gap-2">
+                          <ClipboardList className="h-4 w-4" />
+                          Stock & Dimensions
+                        </h3>
+                        <div className="space-y-2.5">
+                          <div className="grid grid-cols-2 gap-2">
+                            <div>
+                              <Label htmlFor="min_stock_level" className="text-xs font-medium text-muted-foreground">Min Stock *</Label>
+                              <Input 
+                                id="min_stock_level" 
+                                name="min_stock_level" 
+                                type="number" 
+                                min="0"
+                                defaultValue="0"
+                                required 
+                                className="mt-0.5 h-8 text-xs transition-all focus:scale-[1.02]" 
+                              />
+                            </div>
+                            <div>
+                              <Label htmlFor="max_stock_level" className="text-xs font-medium text-muted-foreground">Max Stock</Label>
+                              <Input 
+                                id="max_stock_level" 
+                                name="max_stock_level" 
+                                type="number" 
+                                min="0"
+                                className="mt-0.5 h-8 text-xs transition-all focus:scale-[1.02]" 
+                                placeholder="Optional"
+                              />
+                            </div>
+                          </div>
+                          <div>
+                            <Label htmlFor="weight_kg" className="text-xs font-medium text-muted-foreground">Weight (kg)</Label>
+                            <Input 
+                              id="weight_kg" 
+                              name="weight_kg" 
+                              type="number" 
+                              step="0.01" 
+                              min="0"
+                              className="mt-0.5 h-8 text-xs transition-all focus:scale-[1.02]" 
+                              placeholder="0.00"
+                            />
+                          </div>
+                          <div>
+                            <Label className="text-xs font-medium text-muted-foreground">Dimensions (L × W × H)</Label>
+                            <div className="grid grid-cols-3 gap-1 mt-0.5">
+                              <Input 
+                                id="length_cm" 
+                                name="length_cm" 
+                                type="number" 
+                                step="0.01" 
+                                min="0"
+                                value={dimensions.length}
+                                onChange={(e) => setDimensions(prev => ({ ...prev, length: e.target.value }))}
+                                className="h-8 text-xs transition-all focus:scale-[1.02]" 
+                                placeholder="L"
+                              />
+                              <Input 
+                                id="width_cm" 
+                                name="width_cm" 
+                                type="number" 
+                                step="0.01" 
+                                min="0"
+                                value={dimensions.width}
+                                onChange={(e) => setDimensions(prev => ({ ...prev, width: e.target.value }))}
+                                className="h-8 text-xs transition-all focus:scale-[1.02]" 
+                                placeholder="W"
+                              />
+                              <Input 
+                                id="height_cm" 
+                                name="height_cm" 
+                                type="number" 
+                                step="0.01" 
+                                min="0"
+                                value={dimensions.height}
+                                onChange={(e) => setDimensions(prev => ({ ...prev, height: e.target.value }))}
+                                className="h-8 text-xs transition-all focus:scale-[1.02]" 
+                                placeholder="H"
+                              />
+                            </div>
+                          </div>
+                          {calculateVolume(dimensions.length, dimensions.width, dimensions.height) && (
+                            <div className="animate-fade-in">
+                              <Label className="text-xs font-medium text-muted-foreground">Volume</Label>
+                              <div className="mt-0.5 p-2 bg-muted/50 rounded border text-xs text-center font-mono">
+                                {calculateVolume(dimensions.length, dimensions.width, dimensions.height)} cm³
+                              </div>
+                            </div>
+                          )}
+                        </div>
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="weight_kg">Weight (kg)</Label>
-                        <Input
-                          id="weight_kg"
-                          name="weight_kg"
-                          type="number"
-                          step="0.001"
-                          placeholder="0.000"
-                        />
+                    {/* Bottom Actions Bar */}
+                    <div className="flex items-center justify-between pt-3 border-t mt-4 bg-muted/20 p-3 rounded-md">
+                      <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-2">
+                          <Switch 
+                            id="is_active"
+                            name="is_active"
+                            defaultChecked={true}
+                            className="scale-90"
+                          />
+                          <Label htmlFor="is_active" className="text-xs font-medium cursor-pointer">Active Product</Label>
+                        </div>
                       </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="length_cm">Length (cm)</Label>
-                        <Input
-                          id="length_cm"
-                          name="length_cm"
-                          type="number"
-                          step="0.1"
-                          placeholder="0.0"
-                          value={dimensions.length}
-                          onChange={(e) => setDimensions(prev => ({ ...prev, length: e.target.value }))}
-                        />
+                      
+                      <div className="flex gap-2">
+                        <Button 
+                          type="button" 
+                          variant="outline" 
+                          onClick={() => setShowAddDialog(false)} 
+                          className="h-8 px-4 text-xs hover-scale"
+                        >
+                          Cancel
+                        </Button>
+                        <Button 
+                          type="submit" 
+                          disabled={skuValidation.status === 'duplicate' || isSubmitting}
+                          className="h-8 px-4 text-xs hover-scale bg-gradient-to-r from-primary to-primary/80"
+                        >
+                          {isSubmitting ? (
+                            <>
+                              <div className="animate-spin rounded-full h-3 w-3 border-b border-white mr-1"></div>
+                              Adding...
+                            </>
+                          ) : (
+                            <>
+                              <Plus className="h-3 w-3 mr-1" />
+                              Add Product
+                            </>
+                          )}
+                        </Button>
                       </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="width_cm">Width (cm)</Label>
-                        <Input
-                          id="width_cm"
-                          name="width_cm"
-                          type="number"
-                          step="0.1"
-                          placeholder="0.0"
-                          value={dimensions.width}
-                          onChange={(e) => setDimensions(prev => ({ ...prev, width: e.target.value }))}
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="height_cm">Height (cm)</Label>
-                        <Input
-                          id="height_cm"
-                          name="height_cm"
-                          type="number"
-                          step="0.1"
-                          placeholder="0.0"
-                          value={dimensions.height}
-                          onChange={(e) => setDimensions(prev => ({ ...prev, height: e.target.value }))}
-                        />
-                      </div>
-                    </div>
-
-                    {dimensions.length && dimensions.width && dimensions.height && (
-                      <div className="p-3 bg-blue-50 rounded-lg">
-                        <p className="text-sm text-blue-700">
-                          Calculated Volume: {calculateVolume(dimensions.length, dimensions.width, dimensions.height)} cubic cm
-                        </p>
-                      </div>
-                    )}
-
-                    <div className="space-y-2">
-                      <Label htmlFor="barcode">Barcode</Label>
-                      <Input
-                        id="barcode"
-                        name="barcode"
-                        placeholder="Product barcode"
-                      />
-                    </div>
-
-                    <div className="flex items-center space-x-2">
-                      <Switch
-                        id="is_taxable"
-                        name="is_taxable"
-                        checked={isTaxable}
-                        onCheckedChange={setIsTaxable}
-                      />
-                      <Label htmlFor="is_taxable">Taxable Product</Label>
-                    </div>
-
-                    <div className="flex items-center space-x-2">
-                      <Switch
-                        id="is_active"
-                        name="is_active"
-                        defaultChecked
-                      />
-                      <Label htmlFor="is_active">Active Product</Label>
-                    </div>
-
-                    <div className="flex justify-end space-x-2 pt-4">
-                      <Button type="button" variant="outline" onClick={() => setShowAddDialog(false)}>
-                        Cancel
-                      </Button>
-                      <Button 
-                        type="submit" 
-                        disabled={isSubmitting || skuValidation.status === 'duplicate'}
-                      >
-                        {isSubmitting ? 'Adding...' : 'Add Product'}
-                      </Button>
                     </div>
                   </form>
                 </DialogContent>
               </Dialog>
+
+              {/* Create BOM Dialog */}
+              <Dialog open={showBOMDialog} onOpenChange={setShowBOMDialog}>
+                <DialogContent className="max-w-7xl max-h-[95vh] overflow-hidden">
+                  <DialogHeader>
+                    <DialogTitle></DialogTitle>
+                    <DialogDescription>
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="flex-1 overflow-hidden">
+                    <BOMModule />
+                  </div>
+                </DialogContent>
+              </Dialog>
+
+              {canEdit && (
+                <Button 
+                  className="bg-green-600 hover:bg-green-700 text-white"
+                  onClick={() => setShowBOMDialog(true)}
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  Create BOM
+                </Button>
+              )}
+
               <Button 
-                onClick={() => setShowBinDialog(true)} 
-                className="bg-green-500 hover:bg-green-600 text-white"
+                className="bg-purple-600 hover:bg-purple-700 text-white"
+                onClick={() => setShowBinDialog(true)}
               >
                 <Plus className="w-4 h-4 mr-2" />
                 Create Warehouse BIN
               </Button>
-              <Button 
-                onClick={() => setShowAdjustmentDialog(true)} 
-                className="bg-orange-500 hover:bg-orange-600 text-white"
-              >
-                <Plus className="w-4 h-4 mr-2" />
-                Inventory Adjustment
-              </Button>
-              <Button 
-                onClick={() => setShowTransferDialog(true)} 
-                className="bg-green-500 hover:bg-green-600 text-white"
-              >
-                <Plus className="w-4 h-4 mr-2" />
-                Inventory Transfer
-              </Button>
+
+              <Dialog open={showAdjustmentDialog} onOpenChange={setShowAdjustmentDialog}>
+                <DialogTrigger asChild>
+                  <Button className="bg-orange-600 hover:bg-orange-700 text-white">
+                    <Plus className="w-4 h-4 mr-2" />
+                    Inventory Adjustment
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+                  <DialogHeader>
+                    <DialogTitle>Create Inventory Adjustment</DialogTitle>
+                    <DialogDescription>
+                      Adjust stock levels with proper tracking and validation
+                    </DialogDescription>
+                  </DialogHeader>
+                  <InventoryAdjustmentForm
+                    onSuccess={() => {
+                      setShowAdjustmentDialog(false);
+                      setAdjustmentRefreshTrigger(prev => prev + 1);
+                      fetchProducts(); // Refresh products to show updated stock
+                    }}
+                    onCancel={() => setShowAdjustmentDialog(false)}
+                  />
+                </DialogContent>
+              </Dialog>
+
+              <Dialog open={showTransferDialog} onOpenChange={setShowTransferDialog}>
+                <DialogTrigger asChild>
+                  <Button className="bg-teal-600 hover:bg-teal-700 text-white">
+                    <Plus className="w-4 h-4 mr-2" />
+                    Inventory Transfer
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+                  <DialogHeader>
+                    <DialogTitle>Create Inventory Transfer</DialogTitle>
+                    <DialogDescription>
+                      Transfer stock between warehouses and bins
+                    </DialogDescription>
+                  </DialogHeader>
+                  <InventoryTransferForm
+                    onSuccess={() => {
+                      setShowTransferDialog(false);
+                      setAdjustmentRefreshTrigger(prev => prev + 1);
+                      fetchProducts(); // Refresh products to show updated stock
+                    }}
+                    onCancel={() => setShowTransferDialog(false)}
+                  />
+                </DialogContent>
+              </Dialog>
+
+              <WarehouseBinForm 
+                open={showBinDialog}
+                onOpenChange={setShowBinDialog}
+                onSuccess={() => {
+                  setShowBinDialog(false);
+                  fetchWarehouseBins();
+                }}
+              />
             </>
           )}
         </div>
@@ -894,70 +1112,41 @@ export default function InventoryModule() {
             Products
           </TabsTrigger>
           <TabsTrigger 
-            value="bins" 
-            className="data-[state=active]:bg-purple-500 data-[state=active]:text-white"
+            value="bom"
+            className="data-[state=active]:bg-yellow-500 data-[state=active]:text-white"
+          >
+            BOM
+          </TabsTrigger>
+          <TabsTrigger 
+            value="bins"
+            className="data-[state=active]:bg-green-500 data-[state=active]:text-white"
           >
             Warehouse BINs
           </TabsTrigger>
           <TabsTrigger 
-            value="adjustments" 
-            className="data-[state=active]:bg-orange-500 data-[state=active]:text-white"
+            value="adjustments"
+            className="data-[state=active]:bg-green-500 data-[state=active]:text-white"
           >
             Adjustments
           </TabsTrigger>
           <TabsTrigger 
-            value="transactions" 
-            className="data-[state=active]:bg-red-500 data-[state=active]:text-white"
+            value="transactions"
+            className="data-[state=active]:bg-green-500 data-[state=active]:text-white"
           >
             Transactions
           </TabsTrigger>
           <TabsTrigger 
-            value="current_stock" 
-            className="data-[state=active]:bg-teal-500 data-[state=active]:text-white"
+            value="stock"
+            className="data-[state=active]:bg-green-500 data-[state=active]:text-white"
           >
             Current Stock
           </TabsTrigger>
-          <TabsTrigger 
-            value="bom" 
-            className="data-[state=active]:bg-indigo-500 data-[state=active]:text-white"
-          >
-            BOM
-          </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="products" className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Total Products</CardTitle>
-                <Package className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{totalProducts}</div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Total Value</CardTitle>
-                <TrendingUp className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">₹{totalValue.toLocaleString()}</div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Low Stock Alert</CardTitle>
-                <AlertTriangle className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-red-600">{lowStockCount}</div>
-              </CardContent>
-            </Card>
-          </div>
+        <TabsContent value="products" className="space-y-6">
 
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
+          {/* Search and Export */}
+            <div className="flex justify-between items-center">
               <div className="relative w-72">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
                 <Input
@@ -968,17 +1157,12 @@ export default function InventoryModule() {
                 />
               </div>
               <div className="flex items-center gap-2">
-                <Button variant="outline" onClick={() => setShowBulkUpload(true)}>
-                  <Upload className="w-4 h-4 mr-2" />
-                  Bulk Upload
-                </Button>
                 <Button variant="outline" onClick={exportToExcel}>
                   <Download className="w-4 h-4 mr-2" />
                   Export to Excel
                 </Button>
               </div>
             </div>
-          </div>
 
           {/* Products Table */}
           <Card>
@@ -989,17 +1173,13 @@ export default function InventoryModule() {
                     <TableHead className="cursor-pointer" onClick={() => handleSort('sku')}>
                       <div className="flex items-center space-x-2">
                         <span>SKU</span>
-                        {sortConfig?.key === 'sku' && (
-                          sortConfig.direction === 'asc' ? <ArrowUp className="w-4 h-4" /> : <ArrowDown className="w-4 h-4" />
-                        )}
+                        {getSortIcon('sku')}
                       </div>
                     </TableHead>
                     <TableHead className="cursor-pointer" onClick={() => handleSort('name')}>
                       <div className="flex items-center space-x-2">
                         <span>Name</span>
-                        {sortConfig?.key === 'name' && (
-                          sortConfig.direction === 'asc' ? <ArrowUp className="w-4 h-4" /> : <ArrowDown className="w-4 h-4" />
-                        )}
+                        {getSortIcon('name')}
                       </div>
                     </TableHead>
                     <TableHead>Type</TableHead>
@@ -1007,115 +1187,117 @@ export default function InventoryModule() {
                     <TableHead className="cursor-pointer" onClick={() => handleSort('unit_price')}>
                       <div className="flex items-center space-x-2">
                         <span>Unit Price</span>
-                        {sortConfig?.key === 'unit_price' && (
-                          sortConfig.direction === 'asc' ? <ArrowUp className="w-4 h-4" /> : <ArrowDown className="w-4 h-4" />
-                        )}
+                        {getSortIcon('unit_price')}
                       </div>
                     </TableHead>
                     <TableHead>Unit</TableHead>
                     <TableHead>Status</TableHead>
-                    <TableHead>Actions</TableHead>
+                    {canEdit && <TableHead>Actions</TableHead>}
                   </TableRow>
                 </TableHeader>
-                <TableBody>
-                  {currentProducts.map((product) => (
-                    <TableRow key={product.id}>
-                      <TableCell className="font-mono text-sm">{product.sku}</TableCell>
-                      <TableCell>
-                        <div>
-                          <div className="font-medium">{product.name}</div>
-                          {product.description && (
-                            <div className="text-sm text-muted-foreground truncate max-w-xs">
-                              {product.description}
-                            </div>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant={product.product_type === 'goods' ? 'default' : 'secondary'}>
-                          {product.product_type === 'goods' ? 'Goods' : 'Service'}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <span className="capitalize">
-                          {product.product_category.replace('_', ' ')}
-                        </span>
-                      </TableCell>
-                      <TableCell>₹{product.unit_price.toLocaleString()}</TableCell>
-                      <TableCell>{product.unit || '-'}</TableCell>
-                      <TableCell>
-                        <div className="flex items-center space-x-2">
-                          <Badge variant={product.is_active ? 'default' : 'secondary'}>
-                            {product.is_active ? 'Active' : 'Inactive'}
-                          </Badge>
-                          {canEdit && (
-                            <Switch
-                              checked={product.is_active}
-                            onCheckedChange={() => toggleProductStatus(product)}
-                          />
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center space-x-2">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => {
-                              setViewingProduct(product);
-                              setShowViewDialog(true);
-                            }}
-                          >
-                            <Eye className="w-4 h-4" />
-                          </Button>
-                          {canEdit && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => {
-                                setEditingProduct(product);
-                                setShowEditDialog(true);
-                              }}
-                            >
-                              <Edit className="w-4 h-4" />
-                            </Button>
-                          )}
-                          {canDelete && (
-                            <AlertDialog>
-                              <AlertDialogTrigger asChild>
+                 <TableBody>
+                   {currentProducts.length === 0 ? (
+                     <TableRow>
+                       <TableCell colSpan={canEdit ? 8 : 7} className="text-center py-8 text-muted-foreground">
+                         {searchTerm ? 'No products found matching your search.' : 'No products available.'}
+                       </TableCell>
+                     </TableRow>
+                   ) : (
+                     currentProducts.map((product) => (
+                       <TableRow key={product.id}>
+                         <TableCell className="font-medium">{product.sku}</TableCell>
+                         <TableCell>
+                           <div>
+                             <div className="font-medium">{product.name}</div>
+                             {product.description && (
+                               <div className="text-sm text-muted-foreground">{product.description}</div>
+                             )}
+                           </div>
+                         </TableCell>
+                         <TableCell>
+                           <Badge variant={product.product_type === 'goods' ? 'default' : 'secondary'}>
+                             {product.product_type === 'goods' ? 'Goods' : 'Service'}
+                           </Badge>
+                         </TableCell>
+                         <TableCell>
+                           <Badge variant="outline">
+                             {product.product_category.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                           </Badge>
+                         </TableCell>
+                         <TableCell>₹{product.unit_price.toLocaleString()}</TableCell>
+                         <TableCell>{product.unit || 'N/A'}</TableCell>
+                         <TableCell>
+                           <Badge variant={product.is_active ? 'default' : 'secondary'}>
+                             {product.is_active ? 'Active' : 'Inactive'}
+                           </Badge>
+                         </TableCell>
+                         {canEdit && (
+                            <TableCell>
+                              <div className="flex space-x-2">
                                 <Button
-                                  variant="ghost"
+                                  variant="outline"
                                   size="sm"
-                                  onClick={() => setDeletingProduct(product)}
-                                  disabled={productsWithTransactions.has(product.id)}
+                                  onClick={() => {
+                                    setViewingProduct(product);
+                                    setShowViewDialog(true);
+                                  }}
+                                  className="hover:bg-green-50 hover:text-green-600"
+                                  title="View Details"
                                 >
-                                  <Trash2 className="w-4 h-4" />
+                                  <Eye className="w-4 h-4" />
                                 </Button>
-                              </AlertDialogTrigger>
-                              <AlertDialogContent>
-                                <AlertDialogHeader>
-                                  <AlertDialogTitle>Delete Product</AlertDialogTitle>
-                                  <AlertDialogDescription>
-                                    Are you sure you want to delete "{product.name}"? This action cannot be undone.
-                                  </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                  <AlertDialogAction
-                                    onClick={() => handleDeleteProduct(product)}
-                                    className="bg-red-600 hover:bg-red-700"
-                                  >
-                                    Delete
-                                  </AlertDialogAction>
-                                </AlertDialogFooter>
-                              </AlertDialogContent>
-                            </AlertDialog>
-                          )}
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
+                                 <Button
+                                   variant="outline"
+                                   size="sm"
+                                   onClick={() => {
+                                     setEditingProduct(product);
+                                     setShowEditDialog(true);
+                                   }}
+                                   title="Edit Product"
+                                   className="hover:bg-blue-50 hover:text-blue-600"
+                                 >
+                                   <Edit className="w-4 h-4" />
+                                 </Button>
+                                  <AlertDialog>
+                                    <AlertDialogTrigger asChild>
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        title={productsWithTransactions.has(product.id) ? "Cannot delete product with transactions" : "Delete Product"}
+                                        className={`${productsWithTransactions.has(product.id) 
+                                          ? "opacity-50 cursor-not-allowed" 
+                                          : "hover:bg-red-50 hover:text-red-600"}`}
+                                        disabled={productsWithTransactions.has(product.id)}
+                                      >
+                                        <Trash2 className="w-4 h-4" />
+                                      </Button>
+                                    </AlertDialogTrigger>
+                                    <AlertDialogContent>
+                                      <AlertDialogHeader>
+                                        <AlertDialogTitle>Delete Product</AlertDialogTitle>
+                                        <AlertDialogDescription>
+                                          Are you sure you want to delete "{product.name}" (SKU: {product.sku})? 
+                                          This will mark the product as inactive and it will no longer appear in active lists.
+                                        </AlertDialogDescription>
+                                      </AlertDialogHeader>
+                                      <AlertDialogFooter>
+                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                        <AlertDialogAction 
+                                          onClick={() => handleDeleteProduct(product.id)}
+                                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                        >
+                                          Delete Product
+                                        </AlertDialogAction>
+                                      </AlertDialogFooter>
+                                    </AlertDialogContent>
+                                  </AlertDialog>
+                              </div>
+                            </TableCell>
+                         )}
+                       </TableRow>
+                     ))
+                   )}
+                 </TableBody>
               </Table>
             </CardContent>
           </Card>
@@ -1160,29 +1342,55 @@ export default function InventoryModule() {
               console.log('Edit bin:', bin);
             }}
             onDelete={(bin) => {
-              // Handle delete - you can implement this based on your needs  
+              // Handle delete - you can implement this based on your needs
               console.log('Delete bin:', bin);
             }}
           />
         </TabsContent>
 
-        <TabsContent value="adjustments">
-          <InventoryAdjustmentTable refreshTrigger={adjustmentRefreshTrigger} />
-        </TabsContent>
-
-        <TabsContent value="transactions">
-          <InventoryTransactionTable refreshTrigger={adjustmentRefreshTrigger} />
-        </TabsContent>
-
-        <TabsContent value="current_stock">
+        <TabsContent value="adjustments" className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Package className="w-5 h-5" />
-                Current Stock Levels
+              <CardTitle className="flex items-center space-x-2">
+                <ClipboardList className="w-5 h-5" />
+                <span>Inventory Adjustments History</span>
               </CardTitle>
               <CardDescription>
-                Real-time inventory levels across all products and locations
+                Track all inventory adjustments with detailed audit trail
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <InventoryAdjustmentTable refreshTrigger={adjustmentRefreshTrigger} />
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="transactions" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center space-x-2">
+                <TrendingUp className="w-5 h-5" />
+                <span>Inventory Transactions</span>
+              </CardTitle>
+              <CardDescription>
+                Complete movement history for all inventory transactions
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <InventoryTransactionTable refreshTrigger={adjustmentRefreshTrigger} />
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="stock" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center space-x-2">
+                <Package className="w-5 h-5" />
+                <span>Enhanced Stock Management System</span>
+              </CardTitle>
+              <CardDescription>
+                Advanced inventory tracking with allocation management and comprehensive analytics
               </CardDescription>
             </CardHeader>
             <CardContent className="p-0">
@@ -1200,90 +1408,19 @@ export default function InventoryModule() {
       <ProductViewDialog
         open={showViewDialog}
         onOpenChange={setShowViewDialog}
-        product={viewingProduct as any}
-      />
-
-      {/* Bulk Upload Dialog */}
-      <BulkUploadDialog
-        open={showBulkUpload}
-        onOpenChange={setShowBulkUpload}
-        companyId={businessUser?.company_id}
-        onUploadComplete={() => {
-          fetchProducts();
-          setAdjustmentRefreshTrigger(prev => prev + 1);
-        }}
+        product={viewingProduct}
       />
 
       {/* Edit Product Dialog */}
       <EditProductDialog
         open={showEditDialog}
         onOpenChange={setShowEditDialog}
-        product={editingProduct as any}
+        product={editingProduct}
         onProductUpdated={() => {
           fetchProducts();
           setAdjustmentRefreshTrigger(prev => prev + 1);
         }}
       />
-
-      {/* Warehouse Bin Dialog */}
-      <Dialog open={showBinDialog} onOpenChange={setShowBinDialog}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>Create Warehouse BIN</DialogTitle>
-            <DialogDescription>
-              Add a new warehouse bin for better inventory organization
-            </DialogDescription>
-          </DialogHeader>
-          <WarehouseBinForm
-            open={showBinDialog}
-            onOpenChange={setShowBinDialog}
-            onSuccess={() => {
-              setShowBinDialog(false);
-              fetchWarehouseBins();
-            }}
-          />
-        </DialogContent>
-      </Dialog>
-
-      {/* Inventory Adjustment Dialog */}
-      <Dialog open={showAdjustmentDialog} onOpenChange={setShowAdjustmentDialog}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>Inventory Adjustment</DialogTitle>
-            <DialogDescription>
-              Adjust inventory levels for products
-            </DialogDescription>
-          </DialogHeader>
-          <InventoryAdjustmentForm
-            onSuccess={() => {
-              setShowAdjustmentDialog(false);
-              fetchProducts();
-              setAdjustmentRefreshTrigger(prev => prev + 1);
-            }}
-            onCancel={() => setShowAdjustmentDialog(false)}
-          />
-        </DialogContent>
-      </Dialog>
-
-      {/* Inventory Transfer Dialog */}
-      <Dialog open={showTransferDialog} onOpenChange={setShowTransferDialog}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>Inventory Transfer</DialogTitle>
-            <DialogDescription>
-              Transfer inventory between warehouses or bins
-            </DialogDescription>
-          </DialogHeader>
-          <InventoryTransferForm
-            onSuccess={() => {
-              setShowTransferDialog(false);
-              fetchProducts();
-              setAdjustmentRefreshTrigger(prev => prev + 1);
-            }}
-            onCancel={() => setShowTransferDialog(false)}
-          />
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
