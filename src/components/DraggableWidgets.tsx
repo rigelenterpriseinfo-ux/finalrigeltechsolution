@@ -88,8 +88,8 @@ export const DraggableWidgets: React.FC<DraggableWidgetsProps> = ({ onNavigate }
           const key = `${item.warehouse_id || 'unknown'}-${item.bin_id || 'unknown'}`;
           if (!aggregatedData[key]) {
             aggregatedData[key] = {
-              warehouse_name: 'Warehouse',
-              bin_name: 'Bin',
+              warehouse_name: `WH-${item.warehouse_id?.toString().slice(-3) || '001'}`,
+              bin_name: `BIN-${item.bin_id?.toString().slice(-3) || '001'}`,
               total_qty: 0,
               total_value: 0
             };
@@ -111,10 +111,10 @@ export const DraggableWidgets: React.FC<DraggableWidgetsProps> = ({ onNavigate }
     if (!profile?.company_id) return;
     
     try {
-      // For now, we'll simulate damage stock data as this requires specific business logic
+      // Simulate damage stock data with warehouse names
       setDamageStockData([
-        { warehouse_name: 'WH-A', bin_name: 'DMG-01', total_qty: 25, total_value: 12500 },
-        { warehouse_name: 'WH-B', bin_name: 'DMG-02', total_qty: 18, total_value: 8900 }
+        { warehouse_name: 'WH-Main', bin_name: 'DMG-01', total_qty: 25, total_value: 12500 },
+        { warehouse_name: 'WH-Storage', bin_name: 'DMG-02', total_qty: 18, total_value: 8900 }
       ]);
     } catch (error) {
       console.error('Error fetching damage stock data:', error);
@@ -206,9 +206,12 @@ export const DraggableWidgets: React.FC<DraggableWidgetsProps> = ({ onNavigate }
             ) : (
               <div className="space-y-1 text-xs">
                 {goodStockData.slice(0, 2).map((item, idx) => (
-                  <div key={idx} className="flex justify-between">
-                    <span className="truncate">Good Stock</span>
-                    <span>{item.total_qty} • ₹{item.total_value.toFixed(0)}</span>
+                  <div key={idx} className="space-y-0.5">
+                    <div className="font-medium text-xs">{item.warehouse_name}</div>
+                    <div className="flex justify-between text-xs">
+                      <span>Qty: {item.total_qty}</span>
+                      <span>₹{item.total_value.toFixed(0)}</span>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -230,9 +233,12 @@ export const DraggableWidgets: React.FC<DraggableWidgetsProps> = ({ onNavigate }
             ) : (
               <div className="space-y-1 text-xs">
                 {damageStockData.slice(0, 2).map((item, idx) => (
-                  <div key={idx} className="flex justify-between">
-                    <span className="truncate">Damage</span>
-                    <span>{item.total_qty} • ₹{item.total_value.toFixed(0)}</span>
+                  <div key={idx} className="space-y-0.5">
+                    <div className="font-medium text-xs">{item.warehouse_name}</div>
+                    <div className="flex justify-between text-xs">
+                      <span>Qty: {item.total_qty}</span>
+                      <span>₹{item.total_value.toFixed(0)}</span>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -255,8 +261,8 @@ export const DraggableWidgets: React.FC<DraggableWidgetsProps> = ({ onNavigate }
               <div className="space-y-1 text-xs">
                 {lowStockItems.slice(0, 3).map((item, idx) => (
                   <div key={idx} className="flex justify-between">
-                    <span className="truncate">{item.name}</span>
-                    <span>{item.stock_quantity}</span>
+                    <span className="truncate text-xs">{item.name}</span>
+                    <span className="text-xs">{item.stock_quantity}</span>
                   </div>
                 ))}
               </div>
@@ -279,8 +285,8 @@ export const DraggableWidgets: React.FC<DraggableWidgetsProps> = ({ onNavigate }
               <div className="space-y-1 text-xs">
                 {topValueItems.slice(0, 3).map((item, idx) => (
                   <div key={idx} className="flex justify-between">
-                    <span className="truncate">{item.name}</span>
-                    <span>₹{item.value.toFixed(0)}</span>
+                    <span className="truncate text-xs">{item.name}</span>
+                    <span className="text-xs">₹{item.value.toFixed(0)}</span>
                   </div>
                 ))}
               </div>
@@ -316,10 +322,10 @@ export const DraggableWidgets: React.FC<DraggableWidgetsProps> = ({ onNavigate }
     { id: 'settings', title: 'Settings', icon: Settings, color: 'bg-gray-500/10 text-gray-600', onClick: () => onNavigate('settings') },
     { id: 'calendar', title: 'Calendar', icon: Calendar, color: 'bg-violet-500/10 text-violet-600', onClick: () => console.log('Calendar clicked') },
     { id: 'mail', title: 'Mail', icon: Mail, color: 'bg-rose-500/10 text-rose-600', onClick: () => console.log('Mail clicked') },
-    { id: 'database', title: 'Database', icon: Database, color: 'bg-teal-500/10 text-teal-600', onClick: () => console.log('Database clicked') },
-    { id: 'logistics', title: 'Logistics', icon: Truck, color: 'bg-lime-500/10 text-lime-600', onClick: () => console.log('Logistics clicked') },
-    { id: 'calculator', title: 'Calculator', icon: Calculator, color: 'bg-sky-500/10 text-sky-600', onClick: () => console.log('Calculator clicked') },
-    { id: 'archive', title: 'Archive', icon: Archive, color: 'bg-stone-500/10 text-stone-600', onClick: () => console.log('Archive clicked') },
+    { id: 'database', title: 'Good Stock Overview', icon: Database, color: 'bg-teal-500/10 text-teal-600', onClick: () => console.log('Database clicked') },
+    { id: 'logistics', title: 'Damage Stock Report', icon: Truck, color: 'bg-lime-500/10 text-lime-600', onClick: () => console.log('Logistics clicked') },
+    { id: 'calculator', title: 'Top Value Items', icon: Calculator, color: 'bg-sky-500/10 text-sky-600', onClick: () => console.log('Calculator clicked') },
+    { id: 'archive', title: 'Low Stock Alert', icon: Archive, color: 'bg-stone-500/10 text-stone-600', onClick: () => console.log('Archive clicked') },
     { id: 'notifications', title: 'Notifications', icon: Bell, color: 'bg-yellow-500/10 text-yellow-600', onClick: () => console.log('Notifications clicked') },
     { id: 'timesheet', title: 'Timesheet', icon: Clock, color: 'bg-fuchsia-500/10 text-fuchsia-600', onClick: () => console.log('Timesheet clicked') },
   ];
