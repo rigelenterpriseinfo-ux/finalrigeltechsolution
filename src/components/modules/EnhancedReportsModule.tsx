@@ -472,44 +472,33 @@ export function EnhancedReportsModule() {
       throw new Error('Access denied');
     }
 
-    // Fetch detailed sales invoice items with all required information
-    const { data: salesItems, error } = await supabase
-      .from('sales_invoice_items')
+    // First, fetch sales invoices with customer information
+    const { data: salesInvoices, error: invoicesError } = await supabase
+      .from('sales_invoices')
       .select(`
-        *,
-        sales_invoices!inner(
-          id,
-          invoice_number,
-          invoice_date,
-          customer_name,
-          customer_id,
-          status,
-          total_amount,
-          customers(
-            name,
-            state,
-            gstin
-          )
-        ),
-        products(
-          id,
+        id,
+        invoice_number,
+        invoice_date,
+        customer_name,
+        customer_id,
+        status,
+        total_amount,
+        customers(
           name,
-          sku,
-          gst_percentage
+          state,
+          gstin
         )
       `)
-      .eq('sales_invoices.status', 'finalized')
-      .gte('sales_invoices.invoice_date', format(filters.dateRange.from, 'yyyy-MM-dd'))
-      .lte('sales_invoices.invoice_date', format(filters.dateRange.to, 'yyyy-MM-dd'));
+      .eq('status', 'finalized')
+      .gte('invoice_date', format(filters.dateRange.from, 'yyyy-MM-dd'))
+      .lte('invoice_date', format(filters.dateRange.to, 'yyyy-MM-dd'));
 
-    if (error) {
-      console.error('Error fetching customer sales data:', error);
-      throw error;
+    if (invoicesError) {
+      console.error('Error fetching sales invoices:', invoicesError);
+      throw invoicesError;
     }
 
-    console.log('Raw sales items count:', salesItems?.length || 0);
-
-    if (!salesItems || salesItems.length === 0) {
+    if (!salesInvoices || salesInvoices.length === 0) {
       return { 
         tableData: [], 
         chartData: [],
@@ -522,6 +511,32 @@ export function EnhancedReportsModule() {
       };
     }
 
+    // Get invoice IDs for fetching line items
+    const invoiceIds = salesInvoices.map(inv => inv.id);
+
+    // Fetch sales invoice items separately
+    const { data: salesItems, error: itemsError } = await supabase
+      .from('sales_invoice_items')
+      .select('*')
+      .in('sales_invoice_id', invoiceIds);
+
+    if (itemsError) {
+      console.error('Error fetching sales items:', itemsError);
+      throw itemsError;
+    }
+
+    // Fetch products separately to get additional product info
+    const productIds = [...new Set(salesItems?.map(item => item.product_id).filter(Boolean))];
+    const { data: products, error: productsError } = await supabase
+      .from('products')
+      .select('id, name, sku, gst_percentage')
+      .in('id', productIds);
+
+    if (productsError) {
+      console.error('Error fetching products:', productsError);
+      // Don't throw error for products, continue with available data
+    }
+
     // Get company information for place of supply comparison
     const { data: companyData } = await supabase
       .from('companies')
@@ -531,42 +546,54 @@ export function EnhancedReportsModule() {
 
     const companyState = companyData?.state || '';
 
+    // Create lookup maps for better performance
+    const invoiceMap = new Map(salesInvoices.map(inv => [inv.id, inv]));
+    const productMap = new Map(products?.map(prod => [prod.id, prod]) || []);
+
+    console.log('Raw sales items count:', salesItems?.length || 0);
+    console.log('Invoices count:', salesInvoices?.length || 0);
+    console.log('Products count:', products?.length || 0);
+
     // Transform data for detailed customer sales report
-    const tableData = salesItems
-      .sort((a: any, b: any) => new Date(b.sales_invoices.invoice_date).getTime() - new Date(a.sales_invoices.invoice_date).getTime())
+    const tableData = (salesItems || [])
       .map((item: any, index: number) => {
-      const invoice = item.sales_invoices;
-      const product = item.products;
-      const customer = invoice.customers;
-      
-      // Determine place of supply and tax type
-      const customerState = customer?.state || '';
-      const isInterState = companyState && customerState && companyState !== customerState;
-      
-      // Calculate tax amounts based on rates from the item
-      const taxableAmount = item.line_subtotal || 0;
-      const cgstAmount = item.cgst_amount || 0;
-      const sgstAmount = item.sgst_amount || 0;
-      const igstAmount = item.igst_amount || 0;
-      const totalTaxAmount = cgstAmount + sgstAmount + igstAmount;
-      
-      return {
-        itemNo: index + 1,
-        customerName: invoice.customer_name || 'Unknown Customer',
-        invoiceNumber: invoice.invoice_number || 'N/A',
-        invoiceDate: format(new Date(invoice.invoice_date), 'dd-MMM-yyyy'),
-        product: product?.name || item.product_name || 'Unknown Product',
-        sku: product?.sku || 'N/A',
-        gstPercent: `${item.cgst_rate || item.sgst_rate || item.igst_rate || 0}%`,
-        qtyInvoiced: item.quantity_invoiced || 0,
-        invoiceValue: item.line_total || 0,
-        taxableAmount: taxableAmount,
-        cgst: cgstAmount,
-        sgst: sgstAmount,
-        igst: igstAmount,
-        placeOfSupply: customerState || 'Not Specified'
-      };
-    });
+        const invoice = invoiceMap.get(item.sales_invoice_id);
+        const product = productMap.get(item.product_id);
+        
+        if (!invoice) return null; // Skip items without invoice data
+        
+        const customer = invoice.customers;
+        
+        // Determine place of supply and tax type
+        const customerState = customer?.state || '';
+        const isInterState = companyState && customerState && companyState !== customerState;
+        
+        // Calculate tax amounts based on rates from the item
+        const taxableAmount = item.line_subtotal || 0;
+        const cgstAmount = item.cgst_amount || 0;
+        const sgstAmount = item.sgst_amount || 0;
+        const igstAmount = item.igst_amount || 0;
+        const totalTaxAmount = cgstAmount + sgstAmount + igstAmount;
+        
+        return {
+          itemNo: index + 1,
+          customerName: invoice.customer_name || 'Unknown Customer',
+          invoiceNumber: invoice.invoice_number || 'N/A',
+          invoiceDate: format(new Date(invoice.invoice_date), 'dd-MMM-yyyy'),
+          product: product?.name || item.product_name || 'Unknown Product',
+          sku: product?.sku || 'N/A',
+          gstPercent: `${item.cgst_rate || item.sgst_rate || item.igst_rate || 0}%`,
+          qtyInvoiced: item.quantity_invoiced || 0,
+          invoiceValue: item.line_total || 0,
+          taxableAmount: taxableAmount,
+          cgst: cgstAmount,
+          sgst: sgstAmount,
+          igst: igstAmount,
+          placeOfSupply: customerState || 'Not Specified'
+        };
+      })
+      .filter(Boolean) // Remove null entries
+      .sort((a: any, b: any) => new Date(b.invoiceDate).getTime() - new Date(a.invoiceDate).getTime());
 
     // Calculate summary statistics
     const summary = {
