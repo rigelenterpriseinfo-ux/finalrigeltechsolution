@@ -4,14 +4,13 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Textarea } from '@/components/ui/textarea';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { sanitizeHtml } from '@/lib/security';
 import { Separator } from '@/components/ui/separator';
-import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useBusinessAuth } from '@/hooks/useBusinessAuth';
-import { Loader2, Building2, Save, Phone, Mail, Globe, MapPin, User, Lock, Eye, EyeOff, LogIn, AlertCircle, CheckCircle, IdCard } from 'lucide-react';
+import { Loader2, Building2, Save, Phone, Mail, Globe, MapPin, IdCard, Settings, FileText } from 'lucide-react';
 
 interface CompanyProfileProps {
   readonly?: boolean;
@@ -41,11 +40,7 @@ export function CompanyProfile({ readonly = false }: CompanyProfileProps) {
     );
   }
   const [isLoading, setIsLoading] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [showSignIn, setShowSignIn] = useState(false);
-  const [signInData, setSignInData] = useState({ username: '', password: '' });
-  const [isSigningIn, setIsSigningIn] = useState(false);
+  const [activeTab, setActiveTab] = useState('company-info');
   const [formData, setFormData] = useState({
     name: company?.name || '',
     email: company?.email || '',
@@ -59,9 +54,6 @@ export function CompanyProfile({ readonly = false }: CompanyProfileProps) {
     website: company?.website || '',
     status: company?.status || 'active',
     gstn: '',
-    username: '',
-    password: '',
-    confirmPassword: '',
   });
 
   // Generate Business ID based on company name and current date
@@ -78,59 +70,6 @@ export function CompanyProfile({ readonly = false }: CompanyProfileProps) {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
-  const validatePassword = (password: string) => {
-    const minLength = 8;
-    const hasUpperCase = /[A-Z]/.test(password);
-    const hasLowerCase = /[a-z]/.test(password);
-    const hasNumbers = /\d/.test(password);
-    const hasSpecialChar = /[!@#$%^&*(),.?":{}|<>]/.test(password);
-    
-    return {
-      isValid: password.length >= minLength && hasUpperCase && hasLowerCase && hasNumbers && hasSpecialChar,
-      minLength: password.length >= minLength,
-      hasUpperCase,
-      hasLowerCase,
-      hasNumbers,
-      hasSpecialChar
-    };
-  };
-
-  const passwordValidation = validatePassword(formData.password);
-  const passwordsMatch = formData.password === formData.confirmPassword;
-
-  const handleSignIn = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsSigningIn(true);
-    
-    try {
-      // Here you would implement sign-in logic with business credentials
-      // This is a placeholder for the actual implementation
-      await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate API call
-      
-      toast({
-        title: "Sign in successful",
-        description: "Welcome back!",
-      });
-      
-      setShowSignIn(false);
-      setSignInData({ username: '', password: '' });
-    } catch (error) {
-      toast({
-        title: "Sign in failed",
-        description: "Invalid credentials. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsSigningIn(false);
-    }
-  };
-
-  const handleForgotPassword = () => {
-    toast({
-      title: "Password reset",
-      description: "Password reset instructions will be sent to your registered email.",
-    });
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -149,27 +88,6 @@ export function CompanyProfile({ readonly = false }: CompanyProfileProps) {
           setIsLoading(false);
           return;
         }
-      }
-
-      // Validate password if provided
-      if (formData.password && !passwordValidation.isValid) {
-        toast({
-          title: "Invalid password",
-          description: "Password must meet all security requirements",
-          variant: "destructive",
-        });
-        setIsLoading(false);
-        return;
-      }
-
-      if (formData.password && !passwordsMatch) {
-        toast({
-          title: "Passwords don't match",
-          description: "Please ensure both password fields match",
-          variant: "destructive",
-        });
-        setIsLoading(false);
-        return;
       }
 
       // Sanitize form inputs before submission
@@ -309,8 +227,6 @@ export function CompanyProfile({ readonly = false }: CompanyProfileProps) {
           }
         }
 
-        // Note: Authentication credentials are now handled via Supabase Auth
-        // The business_credentials table has been removed in favor of using Supabase's built-in auth system
 
       toast({
         title: "Company saved",
@@ -352,442 +268,334 @@ export function CompanyProfile({ readonly = false }: CompanyProfileProps) {
   }, [company]);
 
   return (
-    <div className="max-w-2xl mx-auto space-y-6">
-      {/* Sign In Section - Only show if user can edit */}
-      {canEdit && (
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="p-3 rounded-xl bg-primary/10 text-primary">
-                  <LogIn className="h-6 w-6" />
-                </div>
-                <div>
-                  <CardTitle>Sign In</CardTitle>
-                  <CardDescription>Access with your business credentials</CardDescription>
-                </div>
-              </div>
-              <Button 
-                variant="outline" 
-                onClick={() => setShowSignIn(!showSignIn)}
-              >
-                {showSignIn ? 'Cancel' : 'Sign In'}
-              </Button>
-            </div>
-          </CardHeader>
-          {showSignIn && (
-            <CardContent>
-              <form onSubmit={handleSignIn} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="signin-username">Username</Label>
-                  <Input
-                    id="signin-username"
-                    value={signInData.username}
-                    onChange={(e) => setSignInData(prev => ({ ...prev, username: e.target.value }))}
-                    placeholder="Enter your username"
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="signin-password">Password</Label>
-                  <Input
-                    id="signin-password"
-                    type="password"
-                    value={signInData.password}
-                    onChange={(e) => setSignInData(prev => ({ ...prev, password: e.target.value }))}
-                    placeholder="Enter your password"
-                    required
-                  />
-                </div>
-                <Button type="submit" className="w-full" disabled={isSigningIn}>
-                  {isSigningIn ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Signing In...
-                    </>
-                  ) : (
-                    'Sign In'
-                  )}
-                </Button>
-              </form>
-            </CardContent>
-          )}
-        </Card>
-      )}
-
-      {/* Company Profile Section */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center gap-3">
-            <div className="p-3 rounded-xl bg-primary/10 text-primary">
-              <Building2 className="h-6 w-6" />
-            </div>
-            <div>
-              <CardTitle>Company Profile</CardTitle>
-              <CardDescription>
-                Update your company information and business details
-              </CardDescription>
-            </div>
+    <div className="max-w-4xl mx-auto space-y-6">
+      {/* Header */}
+      <div className="space-y-2">
+        <div className="flex items-center gap-3">
+          <div className="p-3 rounded-xl bg-primary/10 text-primary">
+            <Building2 className="h-6 w-6" />
           </div>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Business ID Field */}
-            <div className="space-y-2">
-              <Label htmlFor="business-id" className="flex items-center gap-2">
-                <IdCard className="h-4 w-4" />
-                Business ID
-              </Label>
-              <Input
-                id="business-id"
-                value={company ? ((company as any).business_ref_no || generateBusinessId(formData.name)) : generateBusinessId(formData.name)}
-                placeholder="Auto-generated based on company name and registration date"
-                disabled
-                className="bg-muted"
-              />
-              <p className="text-sm text-muted-foreground">
-                Format: PRISM-(First 4 letters of company)-(MM)-(YYYY)
-              </p>
-            </div>
-
-            <Separator />
-
-            <div className="space-y-2">
-              <Label htmlFor="company-name">Company Name *</Label>
-              <Input
-                id="company-name"
-                value={formData.name}
-                onChange={canEdit ? (e) => handleInputChange('name', e.target.value) : undefined}
-                placeholder="Your Company Ltd."
-                required
-                disabled={!canEdit}
-                className={!canEdit ? "bg-muted" : ""}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="gstn">GSTN</Label>
-              <Input
-                id="gstn"
-                value={formData.gstn}
-                onChange={canEdit ? (e) => handleInputChange('gstn', e.target.value) : undefined}
-                placeholder="22AAAAA0000A1Z5"
-                maxLength={15}
-                disabled={!canEdit}
-                className={!canEdit ? "bg-muted" : ""}
-              />
-            </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="company-email" className="flex items-center gap-2">
-              <Mail className="h-4 w-4" />
-              Company Email
-            </Label>
-            <Input
-              id="company-email"
-              type="email"
-              value={formData.email}
-              onChange={canEdit ? (e) => handleInputChange('email', e.target.value) : undefined}
-              placeholder="contact@yourcompany.com"
-              disabled={!canEdit}
-              className={!canEdit ? "bg-muted" : ""}
-            />
+          <div>
+            <h1 className="text-2xl font-semibold">Company Profile</h1>
+            <p className="text-muted-foreground">
+              Manage your company information and business settings
+            </p>
           </div>
+        </div>
+      </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="company-phone" className="flex items-center gap-2">
-              <Phone className="h-4 w-4" />
-              Company Phone (10 digits)
-            </Label>
-            <Input
-              id="company-phone"
-              type="tel"
-              value={formData.phone}
-              onChange={canEdit ? (e) => handleInputChange('phone', e.target.value) : undefined}
-              placeholder="1234567890"
-              pattern="\d{10}"
-              maxLength={10}
-              title="Please enter exactly 10 digits"
-              disabled={!canEdit}
-              className={!canEdit ? "bg-muted" : ""}
-            />
-          </div>
+      {/* Main Content */}
+      <Card className="border-0 shadow-card">
+        <CardContent className="p-0">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+            <div className="border-b border-border bg-muted/50">
+              <TabsList className="grid w-full grid-cols-3 bg-transparent h-14 p-1">
+                <TabsTrigger 
+                  value="company-info" 
+                  className="flex items-center gap-2 data-[state=active]:bg-background data-[state=active]:shadow-sm"
+                >
+                  <Building2 className="h-4 w-4" />
+                  <span className="hidden sm:inline">Company Info</span>
+                </TabsTrigger>
+                <TabsTrigger 
+                  value="contact-address"
+                  className="flex items-center gap-2 data-[state=active]:bg-background data-[state=active]:shadow-sm"
+                >
+                  <Mail className="h-4 w-4" />
+                  <span className="hidden sm:inline">Contact & Address</span>
+                </TabsTrigger>
+                <TabsTrigger 
+                  value="business-config"
+                  className="flex items-center gap-2 data-[state=active]:bg-background data-[state=active]:shadow-sm"
+                >
+                  <Settings className="h-4 w-4" />
+                  <span className="hidden sm:inline">Business Config</span>
+                </TabsTrigger>
+              </TabsList>
+            </div>
 
-            <div className="space-y-4">
-              <Label className="flex items-center gap-2">
-                <MapPin className="h-4 w-4" />
-                Company Address
-              </Label>
-              
-              <div className="grid grid-cols-1 gap-4">
-                  <div>
-                    <Label htmlFor="address-line1">Address Line 1 *</Label>
+            <form onSubmit={handleSubmit}>
+              <TabsContent value="company-info" className="section-padding space-y-6">
+                <div className="space-y-6">
+                  {/* Business ID - Auto-generated */}
+                  <div className="space-y-2">
+                    <Label htmlFor="business-id" className="flex items-center gap-2 text-base font-medium">
+                      <IdCard className="h-4 w-4 text-primary" />
+                      Business ID
+                    </Label>
                     <Input
-                      id="address-line1"
-                      value={formData.addressLine1}
-                      onChange={canEdit ? (e) => handleInputChange('addressLine1', e.target.value) : undefined}
-                      placeholder="Street address, building number"
-                      required={canEdit}
-                      disabled={!canEdit}
-                      className={!canEdit ? "bg-muted" : ""}
+                      id="business-id"
+                      value={company ? ((company as any).business_ref_no || generateBusinessId(formData.name)) : generateBusinessId(formData.name)}
+                      placeholder="Auto-generated based on company name"
+                      disabled
+                      className="bg-muted/50 border-muted font-mono text-sm"
                     />
+                    <p className="text-xs text-muted-foreground">
+                      Format: PRISM-(First 4 letters)-(MM)-(YYYY)
+                    </p>
                   </div>
-                  
-                  <div>
-                    <Label htmlFor="address-line2">Address Line 2</Label>
+
+                  <Separator />
+
+                  {/* Company Name */}
+                  <div className="space-y-2">
+                    <Label htmlFor="company-name" className="text-base font-medium">
+                      Company Name <span className="text-destructive">*</span>
+                    </Label>
                     <Input
-                      id="address-line2"
-                      value={formData.addressLine2}
-                      onChange={canEdit ? (e) => handleInputChange('addressLine2', e.target.value) : undefined}
-                      placeholder="Apartment, suite, floor (optional)"
-                      disabled={!canEdit}
-                      className={!canEdit ? "bg-muted" : ""}
-                    />
-                  </div>
-                  
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="city">City *</Label>
-                      <Input
-                        id="city"
-                        value={formData.city}
-                        onChange={canEdit ? (e) => handleInputChange('city', e.target.value) : undefined}
-                        placeholder="City"
-                        required={canEdit}
-                        disabled={!canEdit}
-                        className={!canEdit ? "bg-muted" : ""}
-                      />
-                    </div>
-                    
-                    <div>
-                      <Label htmlFor="state">State *</Label>
-                      <Input
-                        id="state"
-                        value={formData.state}
-                        onChange={canEdit ? (e) => handleInputChange('state', e.target.value) : undefined}
-                        placeholder="State/Province"
-                        required={canEdit}
-                        disabled={!canEdit}
-                        className={!canEdit ? "bg-muted" : ""}
-                      />
-                    </div>
-                  </div>
-                  
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="country">Country *</Label>
-                      <Input
-                        id="country"
-                        value={formData.country}
-                        onChange={canEdit ? (e) => handleInputChange('country', e.target.value) : undefined}
-                        placeholder="Country"
-                        required={canEdit}
-                        disabled={!canEdit}
-                        className={!canEdit ? "bg-muted" : ""}
-                      />
-                    </div>
-                    
-                    <div>
-                      <Label htmlFor="postal-code">Postal Code *</Label>
-                      <Input
-                        id="postal-code"
-                        value={formData.postalCode}
-                        onChange={canEdit ? (e) => handleInputChange('postalCode', e.target.value) : undefined}
-                        placeholder="Postal/ZIP code"
-                        required={canEdit}
-                        disabled={!canEdit}
-                        className={!canEdit ? "bg-muted" : ""}
-                      />
-                    </div>
-                  </div>
-              </div>
-            </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="company-website" className="flex items-center gap-2">
-              <Globe className="h-4 w-4" />
-              Website
-            </Label>
-            <Input
-              id="company-website"
-              type="url"
-              value={formData.website}
-              onChange={canEdit ? (e) => handleInputChange('website', e.target.value) : undefined}
-              placeholder="https://www.yourcompany.com"
-              disabled={!canEdit}
-              className={!canEdit ? "bg-muted" : ""}
-            />
-          </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="company-status">Company Status</Label>
-              <select
-                id="company-status"
-                value={formData.status}
-                onChange={canEdit ? (e) => handleInputChange('status', e.target.value) : undefined}
-                disabled={!canEdit}
-                className={`flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 ${!canEdit ? "bg-muted" : ""}`}
-              >
-                <option value="active">Active</option>
-                <option value="inactive">Inactive</option>
-              </select>
-            </div>
-
-            <Separator />
-
-            {/* Authentication Section - Only show if user can edit */}
-            {canEdit && (
-              <div className="space-y-4">
-                <h3 className="text-lg font-medium">Authentication Details</h3>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="username" className="flex items-center gap-2">
-                    <User className="h-4 w-4" />
-                    Username *
-                  </Label>
-                  <Input
-                    id="username"
-                    value={formData.username}
-                    onChange={(e) => handleInputChange('username', e.target.value)}
-                    placeholder="Enter username"
-                    required
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="password" className="flex items-center gap-2">
-                    <Lock className="h-4 w-4" />
-                    Password *
-                  </Label>
-                  <div className="relative">
-                    <Input
-                      id="password"
-                      type={showPassword ? "text" : "password"}
-                      value={formData.password}
-                      onChange={(e) => handleInputChange('password', e.target.value)}
-                      placeholder="Enter password"
+                      id="company-name"
+                      value={formData.name}
+                      onChange={canEdit ? (e) => handleInputChange('name', e.target.value) : undefined}
+                      placeholder="Your Company Ltd."
                       required
+                      disabled={!canEdit}
+                      className={!canEdit ? "bg-muted/50" : ""}
                     />
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="absolute right-2 top-1/2 -translate-y-1/2 h-auto p-1"
-                      onClick={() => setShowPassword(!showPassword)}
-                    >
-                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                    </Button>
                   </div>
-                  
-                  {formData.password && (
-                    <div className="space-y-2 p-3 bg-muted rounded-md">
-                      <p className="text-sm font-medium">Password Requirements:</p>
-                      <div className="space-y-1 text-sm">
-                        <div className={`flex items-center gap-2 ${passwordValidation.minLength ? 'text-green-600' : 'text-red-600'}`}>
-                          {passwordValidation.minLength ? <CheckCircle className="h-3 w-3" /> : <AlertCircle className="h-3 w-3" />}
-                          At least 8 characters
+
+                  {/* Company Description */}
+                  <div className="space-y-2">
+                    <Label htmlFor="company-website" className="flex items-center gap-2 text-base font-medium">
+                      <Globe className="h-4 w-4 text-primary" />
+                      Website
+                    </Label>
+                    <Input
+                      id="company-website"
+                      type="url"
+                      value={formData.website}
+                      onChange={canEdit ? (e) => handleInputChange('website', e.target.value) : undefined}
+                      placeholder="https://www.yourcompany.com"
+                      disabled={!canEdit}
+                      className={!canEdit ? "bg-muted/50" : ""}
+                    />
+                  </div>
+                </div>
+              </TabsContent>
+
+              <TabsContent value="contact-address" className="section-padding space-y-6">
+                <div className="space-y-6">
+                  {/* Contact Information */}
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-medium flex items-center gap-2">
+                      <Phone className="h-5 w-5 text-primary" />
+                      Contact Information
+                    </h3>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="company-email" className="text-base font-medium">
+                          Email Address
+                        </Label>
+                        <Input
+                          id="company-email"
+                          type="email"
+                          value={formData.email}
+                          onChange={canEdit ? (e) => handleInputChange('email', e.target.value) : undefined}
+                          placeholder="contact@yourcompany.com"
+                          disabled={!canEdit}
+                          className={!canEdit ? "bg-muted/50" : ""}
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="company-phone" className="text-base font-medium">
+                          Phone Number <span className="text-xs text-muted-foreground">(10 digits)</span>
+                        </Label>
+                        <Input
+                          id="company-phone"
+                          type="tel"
+                          value={formData.phone}
+                          onChange={canEdit ? (e) => handleInputChange('phone', e.target.value) : undefined}
+                          placeholder="1234567890"
+                          pattern="\d{10}"
+                          maxLength={10}
+                          disabled={!canEdit}
+                          className={!canEdit ? "bg-muted/50" : ""}
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <Separator />
+
+                  {/* Address Information */}
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-medium flex items-center gap-2">
+                      <MapPin className="h-5 w-5 text-primary" />
+                      Address Information
+                    </h3>
+                    
+                    <div className="space-y-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="address-line1" className="text-base font-medium">
+                          Address Line 1 <span className="text-destructive">*</span>
+                        </Label>
+                        <Input
+                          id="address-line1"
+                          value={formData.addressLine1}
+                          onChange={canEdit ? (e) => handleInputChange('addressLine1', e.target.value) : undefined}
+                          placeholder="Street address, building number"
+                          required={canEdit}
+                          disabled={!canEdit}
+                          className={!canEdit ? "bg-muted/50" : ""}
+                        />
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <Label htmlFor="address-line2" className="text-base font-medium">
+                          Address Line 2 <span className="text-xs text-muted-foreground">(Optional)</span>
+                        </Label>
+                        <Input
+                          id="address-line2"
+                          value={formData.addressLine2}
+                          onChange={canEdit ? (e) => handleInputChange('addressLine2', e.target.value) : undefined}
+                          placeholder="Apartment, suite, floor"
+                          disabled={!canEdit}
+                          className={!canEdit ? "bg-muted/50" : ""}
+                        />
+                      </div>
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="city" className="text-base font-medium">
+                            City <span className="text-destructive">*</span>
+                          </Label>
+                          <Input
+                            id="city"
+                            value={formData.city}
+                            onChange={canEdit ? (e) => handleInputChange('city', e.target.value) : undefined}
+                            placeholder="City"
+                            required={canEdit}
+                            disabled={!canEdit}
+                            className={!canEdit ? "bg-muted/50" : ""}
+                          />
                         </div>
-                        <div className={`flex items-center gap-2 ${passwordValidation.hasUpperCase ? 'text-green-600' : 'text-red-600'}`}>
-                          {passwordValidation.hasUpperCase ? <CheckCircle className="h-3 w-3" /> : <AlertCircle className="h-3 w-3" />}
-                          One uppercase letter
+                        
+                        <div className="space-y-2">
+                          <Label htmlFor="state" className="text-base font-medium">
+                            State <span className="text-destructive">*</span>
+                          </Label>
+                          <Input
+                            id="state"
+                            value={formData.state}
+                            onChange={canEdit ? (e) => handleInputChange('state', e.target.value) : undefined}
+                            placeholder="State/Province"
+                            required={canEdit}
+                            disabled={!canEdit}
+                            className={!canEdit ? "bg-muted/50" : ""}
+                          />
                         </div>
-                        <div className={`flex items-center gap-2 ${passwordValidation.hasLowerCase ? 'text-green-600' : 'text-red-600'}`}>
-                          {passwordValidation.hasLowerCase ? <CheckCircle className="h-3 w-3" /> : <AlertCircle className="h-3 w-3" />}
-                          One lowercase letter
+                      </div>
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="country" className="text-base font-medium">
+                            Country <span className="text-destructive">*</span>
+                          </Label>
+                          <Input
+                            id="country"
+                            value={formData.country}
+                            onChange={canEdit ? (e) => handleInputChange('country', e.target.value) : undefined}
+                            placeholder="Country"
+                            required={canEdit}
+                            disabled={!canEdit}
+                            className={!canEdit ? "bg-muted/50" : ""}
+                          />
                         </div>
-                        <div className={`flex items-center gap-2 ${passwordValidation.hasNumbers ? 'text-green-600' : 'text-red-600'}`}>
-                          {passwordValidation.hasNumbers ? <CheckCircle className="h-3 w-3" /> : <AlertCircle className="h-3 w-3" />}
-                          One number
-                        </div>
-                        <div className={`flex items-center gap-2 ${passwordValidation.hasSpecialChar ? 'text-green-600' : 'text-red-600'}`}>
-                          {passwordValidation.hasSpecialChar ? <CheckCircle className="h-3 w-3" /> : <AlertCircle className="h-3 w-3" />}
-                          One special character
+                        
+                        <div className="space-y-2">
+                          <Label htmlFor="postal-code" className="text-base font-medium">
+                            Postal Code <span className="text-destructive">*</span>
+                          </Label>
+                          <Input
+                            id="postal-code"
+                            value={formData.postalCode}
+                            onChange={canEdit ? (e) => handleInputChange('postalCode', e.target.value) : undefined}
+                            placeholder="Postal/ZIP code"
+                            required={canEdit}
+                            disabled={!canEdit}
+                            className={!canEdit ? "bg-muted/50" : ""}
+                          />
                         </div>
                       </div>
                     </div>
-                  )}
+                  </div>
                 </div>
+              </TabsContent>
 
-                <div className="space-y-2">
-                  <Label htmlFor="confirm-password">Reconfirm Password *</Label>
-                  <div className="relative">
-                    <Input
-                      id="confirm-password"
-                      type={showConfirmPassword ? "text" : "password"}
-                      value={formData.confirmPassword}
-                      onChange={(e) => handleInputChange('confirmPassword', e.target.value)}
-                      placeholder="Reconfirm password"
-                      required
-                    />
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="absolute right-2 top-1/2 -translate-y-1/2 h-auto p-1"
-                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                    >
-                      {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                    </Button>
+              <TabsContent value="business-config" className="section-padding space-y-6">
+                <div className="space-y-6">
+                  {/* Business Configuration */}
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-medium flex items-center gap-2">
+                      <FileText className="h-5 w-5 text-primary" />
+                      Business Configuration
+                    </h3>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="gstn" className="text-base font-medium">
+                          GSTN <span className="text-xs text-muted-foreground">(Goods and Services Tax Number)</span>
+                        </Label>
+                        <Input
+                          id="gstn"
+                          value={formData.gstn}
+                          onChange={canEdit ? (e) => handleInputChange('gstn', e.target.value) : undefined}
+                          placeholder="22AAAAA0000A1Z5"
+                          maxLength={15}
+                          disabled={!canEdit}
+                          className={!canEdit ? "bg-muted/50" : ""}
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="company-status" className="text-base font-medium">
+                          Company Status
+                        </Label>
+                        <select
+                          id="company-status"
+                          value={formData.status}
+                          onChange={canEdit ? (e) => handleInputChange('status', e.target.value) : undefined}
+                          disabled={!canEdit}
+                          className={`flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 ${!canEdit ? "bg-muted/50" : ""}`}
+                        >
+                          <option value="active">Active</option>
+                          <option value="inactive">Inactive</option>
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </TabsContent>
+
+              {/* Action Buttons */}
+              <div className="border-t border-border bg-muted/30 px-6 py-4">
+                <div className="flex flex-col-reverse sm:flex-row gap-3 sm:justify-between sm:items-center">
+                  <div className="text-xs text-muted-foreground">
+                    {!canEdit ? "You don't have permission to edit company details" : "All changes will be saved immediately"}
                   </div>
                   
-                  {formData.confirmPassword && (
-                    <Alert className={passwordsMatch ? "border-green-500" : "border-red-500"}>
-                      <AlertCircle className="h-4 w-4" />
-                      <AlertDescription className={passwordsMatch ? "text-green-600" : "text-red-600"}>
-                        {passwordsMatch ? (
-                          <span className="flex items-center gap-2">
-                            <CheckCircle className="h-3 w-3" />
-                            Passwords match
-                          </span>
-                        ) : (
-                          "Passwords do not match"
-                        )}
-                      </AlertDescription>
-                    </Alert>
+                  {canEdit && (
+                    <Button type="submit" disabled={isLoading} className="btn-gradient">
+                      {isLoading ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Saving Changes...
+                        </>
+                      ) : (
+                        <>
+                          <Save className="mr-2 h-4 w-4" />
+                          Save Changes
+                        </>
+                      )}
+                    </Button>
                   )}
                 </div>
               </div>
-            )}
-
-              {canEdit && (
-                <Button type="submit" className="w-full" disabled={isLoading}>
-                  {isLoading ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Updating...
-                    </>
-                  ) : (
-                    <>
-                      <Save className="mr-2 h-4 w-4" />
-                      Update Company Profile
-                    </>
-                  )}
-                </Button>
-              )}
-          </form>
+            </form>
+          </Tabs>
         </CardContent>
       </Card>
-
-      {/* Forgot Password Section - Only show if user can edit */}
-      {canEdit && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Forgot Password?</CardTitle>
-            <CardDescription>
-              Reset your password if you've forgotten it
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button 
-              variant="outline" 
-              onClick={handleForgotPassword}
-              className="w-full"
-            >
-              Send Password Reset Instructions
-            </Button>
-          </CardContent>
-        </Card>
-      )}
     </div>
   );
 }
