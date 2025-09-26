@@ -782,6 +782,433 @@ export function EnhancedReportsModule() {
     };
   };
 
+  const fetchGSTR9Data = async (filters: FilterState) => {
+    console.log('=== fetchGSTR9Data START ===');
+    console.log('Filters received:', filters);
+
+    if (!authLoading && !hasAccess('reports')) {
+      throw new Error('Access denied');
+    }
+
+    // Get company information
+    const { data: companyData, error: companyError } = await supabase
+      .from('companies')
+      .select('name, gstn, state')
+      .limit(1)
+      .single();
+
+    if (companyError) {
+      console.error('Error fetching company data:', companyError);
+      throw companyError;
+    }
+
+    const companyGSTIN = companyData?.gstn || '';
+
+    // Fetch Annual Sales Data (Outward Supplies) - Table 4
+    const { data: salesInvoices, error: salesError } = await supabase
+      .from('sales_invoices')
+      .select(`
+        *,
+        sales_invoice_items(
+          *
+        ),
+        customers(name, customer_type, gstin, state)
+      `)
+      .eq('status', 'finalized')
+      .gte('invoice_date', format(filters.dateRange.from, 'yyyy-MM-dd'))
+      .lte('invoice_date', format(filters.dateRange.to, 'yyyy-MM-dd'));
+
+    if (salesError) {
+      console.error('Error fetching sales invoices:', salesError);
+      throw salesError;
+    }
+
+    // Fetch Annual Purchase Data (Inward Supplies) - Table 5
+    const { data: purchaseOrders, error: purchaseError } = await supabase
+      .from('purchase_orders')
+      .select(`
+        *,
+        purchase_order_items(*),
+        suppliers(name, gst_number, state)
+      `)
+      .gte('order_date', format(filters.dateRange.from, 'yyyy-MM-dd'))
+      .lte('order_date', format(filters.dateRange.to, 'yyyy-MM-dd'));
+
+    if (purchaseError) {
+      console.error('Error fetching purchase orders:', purchaseError);
+      throw purchaseError;
+    }
+
+    // Initialize GSTR-9 Annual Return sections
+    let table4_outwardSupplies = 0;
+    let table4_outward_igst = 0;
+    let table4_outward_cgst = 0;
+    let table4_outward_sgst = 0;
+    let table4_outward_cess = 0;
+
+    let table5_inwardSupplies = 0;
+    let table5_inward_igst = 0;
+    let table5_inward_cgst = 0;
+    let table5_inward_sgst = 0;
+
+    let table6_itcAvailed_igst = 0;
+    let table6_itcAvailed_cgst = 0;
+    let table6_itcAvailed_sgst = 0;
+
+    let table7_exemptSupplies = 0;
+    let table8_zeroRatedSupplies = 0;
+
+    // Process Sales Invoices (Annual Outward Supplies - Table 4)
+    salesInvoices?.forEach(invoice => {
+      let invoiceTaxableValue = 0;
+      let invoiceCGST = 0;
+      let invoiceSGST = 0;
+      let invoiceIGST = 0;
+
+      invoice.sales_invoice_items?.forEach((item: any) => {
+        const itemTaxableValue = (item.unit_price * item.quantity_invoiced) - (item.discount_amount || 0);
+        invoiceTaxableValue += itemTaxableValue;
+        invoiceCGST += item.cgst_amount || 0;
+        invoiceSGST += item.sgst_amount || 0;
+        invoiceIGST += item.igst_amount || 0;
+      });
+
+      // Classify supplies
+      const hasAnyTax = invoiceCGST > 0 || invoiceSGST > 0 || invoiceIGST > 0;
+      
+      if (hasAnyTax) {
+        table4_outwardSupplies += invoiceTaxableValue;
+        table4_outward_cgst += invoiceCGST;
+        table4_outward_sgst += invoiceSGST;
+        table4_outward_igst += invoiceIGST;
+      } else if (invoice.customers?.customer_type === 'Export') {
+        table8_zeroRatedSupplies += invoice.total_amount || 0;
+      } else {
+        table7_exemptSupplies += invoice.total_amount || 0;
+      }
+    });
+
+    // Process Purchase Orders (Annual Inward Supplies - Table 5)
+    purchaseOrders?.forEach(order => {
+      const estimatedTaxRate = 0.18; // 18% GST assumption
+      const taxableValue = order.subtotal_amount || 0;
+      const estimatedTax = taxableValue * estimatedTaxRate;
+
+      table5_inwardSupplies += taxableValue;
+
+      // Estimate ITC (Table 6)
+      const supplierState = order.suppliers?.state || '';
+      const companyState = companyData?.state || '';
+      const isInterState = supplierState !== companyState;
+
+      if (isInterState) {
+        table5_inward_igst += estimatedTax;
+        table6_itcAvailed_igst += estimatedTax;
+      } else {
+        table5_inward_cgst += estimatedTax / 2;
+        table5_inward_sgst += estimatedTax / 2;
+        table6_itcAvailed_cgst += estimatedTax / 2;
+        table6_itcAvailed_sgst += estimatedTax / 2;
+      }
+    });
+
+    // Calculate net tax liability for annual return
+    const netAnnualIGST = table4_outward_igst - table6_itcAvailed_igst;
+    const netAnnualCGST = table4_outward_cgst - table6_itcAvailed_cgst;
+    const netAnnualSGST = table4_outward_sgst - table6_itcAvailed_sgst;
+
+    // Prepare GSTR-9 Annual Return table data
+    const tableData = [
+      // Table 4 - Annual Outward Supplies
+      {
+        section: 'Table 4A',
+        description: 'Outward supplies made to registered persons (B2B)',
+        particulars: 'Taxable supplies (including zero rated)',
+        taxableValue: table4_outwardSupplies,
+        integratedTax: table4_outward_igst,
+        centralTax: table4_outward_cgst,
+        stateTax: table4_outward_sgst,
+        cess: table4_outward_cess
+      },
+      {
+        section: 'Table 4B',
+        description: 'Outward supplies made to unregistered persons (B2C)',
+        particulars: 'Taxable supplies',
+        taxableValue: table4_outwardSupplies * 0.3, // Approximate B2C portion
+        integratedTax: table4_outward_igst * 0.3,
+        centralTax: table4_outward_cgst * 0.3,
+        stateTax: table4_outward_sgst * 0.3,
+        cess: 0
+      },
+      {
+        section: 'Table 4C',
+        description: 'Other outward supplies (Deemed exports, SEZ etc.)',
+        particulars: 'Zero rated supplies',
+        taxableValue: table8_zeroRatedSupplies,
+        integratedTax: 0,
+        centralTax: 0,
+        stateTax: 0,
+        cess: 0
+      },
+      // Table 5 - Annual Inward Supplies
+      {
+        section: 'Table 5A',
+        description: 'Inward supplies from registered persons (including reverse charge)',
+        particulars: 'Taxable supplies',
+        taxableValue: table5_inwardSupplies,
+        integratedTax: table5_inward_igst,
+        centralTax: table5_inward_cgst,
+        stateTax: table5_inward_sgst,
+        cess: 0
+      },
+      // Table 6 - ITC Available and Utilized
+      {
+        section: 'Table 6A',
+        description: 'ITC available (Annual)',
+        particulars: 'Total ITC available',
+        taxableValue: 0,
+        integratedTax: table6_itcAvailed_igst,
+        centralTax: table6_itcAvailed_cgst,
+        stateTax: table6_itcAvailed_sgst,
+        cess: 0
+      },
+      // Table 7 - Exempt Supplies
+      {
+        section: 'Table 7A',
+        description: 'Exempt supplies',
+        particulars: 'Nil rated/Exempt supplies',
+        taxableValue: table7_exemptSupplies,
+        integratedTax: 0,
+        centralTax: 0,
+        stateTax: 0,
+        cess: 0
+      },
+      // Table 8 - Tax Liability and Payment
+      {
+        section: 'Table 8A',
+        description: 'Net tax liability (Annual)',
+        particulars: 'Tax payable',
+        taxableValue: 0,
+        integratedTax: Math.max(0, netAnnualIGST),
+        centralTax: Math.max(0, netAnnualCGST),
+        stateTax: Math.max(0, netAnnualSGST),
+        cess: 0
+      }
+    ];
+
+    // Chart data for annual overview
+    const chartData = [
+      { name: 'Outward Supplies', value: table4_outwardSupplies, type: 'Revenue' },
+      { name: 'Inward Supplies', value: table5_inwardSupplies, type: 'Purchases' },
+      { name: 'ITC Availed', value: table6_itcAvailed_igst + table6_itcAvailed_cgst + table6_itcAvailed_sgst, type: 'Credits' },
+      { name: 'Net Tax Payable', value: Math.max(0, netAnnualIGST) + Math.max(0, netAnnualCGST) + Math.max(0, netAnnualSGST), type: 'Liability' }
+    ];
+
+    console.log('GSTR-9 Annual Return data processed:', { tableData, chartData });
+
+    return {
+      tableData,
+      chartData,
+      gstr9Sections: {
+        outwardSupplies: {
+          b2bTaxableValue: table4_outwardSupplies,
+          b2cTaxableValue: table4_outwardSupplies * 0.3,
+          zeroRatedValue: table8_zeroRatedSupplies,
+          exemptValue: table7_exemptSupplies,
+          totalIGST: table4_outward_igst,
+          totalCGST: table4_outward_cgst,
+          totalSGST: table4_outward_sgst
+        },
+        inwardSupplies: {
+          taxableValue: table5_inwardSupplies,
+          igst: table5_inward_igst,
+          cgst: table5_inward_cgst,
+          sgst: table5_inward_sgst
+        },
+        itcDetails: {
+          availableIGST: table6_itcAvailed_igst,
+          availableCGST: table6_itcAvailed_cgst,
+          availableSGST: table6_itcAvailed_sgst,
+          totalITCAvailed: table6_itcAvailed_igst + table6_itcAvailed_cgst + table6_itcAvailed_sgst
+        },
+        netTaxLiability: {
+          igst: Math.max(0, netAnnualIGST),
+          cgst: Math.max(0, netAnnualCGST),
+          sgst: Math.max(0, netAnnualSGST),
+          totalNetTax: Math.max(0, netAnnualIGST) + Math.max(0, netAnnualCGST) + Math.max(0, netAnnualSGST)
+        }
+      },
+      summary: {
+        gstin: companyGSTIN,
+        financialYear: `FY ${format(filters.dateRange.from, 'yyyy')}-${format(filters.dateRange.to, 'yy')}`,
+        totalOutwardSupplies: salesInvoices?.length || 0,
+        totalInwardSupplies: purchaseOrders?.length || 0,
+        totalTurnover: table4_outwardSupplies,
+        totalITCAvailed: table6_itcAvailed_igst + table6_itcAvailed_cgst + table6_itcAvailed_sgst,
+        netTaxPayable: Math.max(0, netAnnualIGST) + Math.max(0, netAnnualCGST) + Math.max(0, netAnnualSGST)
+      }
+    };
+  };
+
+  const fetchHSNTaxSummaryData = async (filters: FilterState) => {
+    console.log('=== fetchHSNTaxSummaryData START ===');
+    console.log('Filters received:', filters);
+
+    if (!authLoading && !hasAccess('reports')) {
+      throw new Error('Access denied');
+    }
+
+    // Fetch Sales Invoice Items for HSN analysis
+    const { data: salesItems, error: salesError } = await supabase
+      .from('sales_invoice_items')
+      .select(`
+        *,
+        sales_invoices!inner(
+          invoice_date,
+          status,
+          customer_name,
+          customers(customer_type, gstin, state)
+        )
+      `)
+      .eq('sales_invoices.status', 'finalized')
+      .gte('sales_invoices.invoice_date', format(filters.dateRange.from, 'yyyy-MM-dd'))
+      .lte('sales_invoices.invoice_date', format(filters.dateRange.to, 'yyyy-MM-dd'));
+
+    if (salesError) {
+      console.error('Error fetching sales items:', salesError);
+      throw salesError;
+    }
+
+    // Group by HSN Code and Tax Rate
+    const hsnSummary: Record<string, any> = {};
+
+    salesItems?.forEach(item => {
+      const hsnCode = item.hsn_sac_code || 'Not Classified';
+      const cgstRate = item.cgst_rate || 0;
+      const sgstRate = item.sgst_rate || 0;
+      const igstRate = item.igst_rate || 0;
+      
+      // Determine effective tax rate
+      let effectiveTaxRate = 0;
+      let taxType = 'Exempt';
+      
+      if (igstRate > 0) {
+        effectiveTaxRate = igstRate;
+        taxType = 'IGST';
+      } else if (cgstRate > 0 || sgstRate > 0) {
+        effectiveTaxRate = cgstRate + sgstRate;
+        taxType = 'CGST+SGST';
+      }
+
+      const key = `${hsnCode}-${effectiveTaxRate}`;
+      
+      if (!hsnSummary[key]) {
+        hsnSummary[key] = {
+          hsnSacCode: hsnCode,
+          description: item.item_description || 'Not Specified',
+          uom: item.unit_of_measure || 'PCS',
+          taxRate: effectiveTaxRate,
+          taxType: taxType,
+          totalQuantity: 0,
+          totalTaxableValue: 0,
+          cgstAmount: 0,
+          sgstAmount: 0,
+          igstAmount: 0,
+          totalTaxAmount: 0,
+          invoiceCount: 0
+        };
+      }
+
+      // Calculate item values
+      const itemTaxableValue = (item.unit_price * item.quantity_invoiced) - (item.discount_amount || 0);
+      const cgstAmount = item.cgst_amount || 0;
+      const sgstAmount = item.sgst_amount || 0;
+      const igstAmount = item.igst_amount || 0;
+      const totalTaxAmount = cgstAmount + sgstAmount + igstAmount;
+
+      // Aggregate values
+      hsnSummary[key].totalQuantity += item.quantity_invoiced;
+      hsnSummary[key].totalTaxableValue += itemTaxableValue;
+      hsnSummary[key].cgstAmount += cgstAmount;
+      hsnSummary[key].sgstAmount += sgstAmount;
+      hsnSummary[key].igstAmount += igstAmount;
+      hsnSummary[key].totalTaxAmount += totalTaxAmount;
+      hsnSummary[key].invoiceCount += 1;
+    });
+
+    // Convert to array and sort by HSN code
+    const tableData = Object.values(hsnSummary).sort((a: any, b: any) => {
+      if (a.hsnSacCode === 'Not Classified') return 1;
+      if (b.hsnSacCode === 'Not Classified') return -1;
+      return a.hsnSacCode.localeCompare(b.hsnSacCode);
+    });
+
+    // Tax rate wise summary for chart
+    const taxRateSummary: Record<string, any> = {};
+    
+    tableData.forEach((item: any) => {
+      const rateKey = `${item.taxRate}%`;
+      if (!taxRateSummary[rateKey]) {
+        taxRateSummary[rateKey] = {
+          taxRate: item.taxRate,
+          totalTaxableValue: 0,
+          totalTaxAmount: 0,
+          hsnCount: 0
+        };
+      }
+      
+      taxRateSummary[rateKey].totalTaxableValue += item.totalTaxableValue;
+      taxRateSummary[rateKey].totalTaxAmount += item.totalTaxAmount;
+      taxRateSummary[rateKey].hsnCount += 1;
+    });
+
+    const chartData = Object.values(taxRateSummary).map((item: any) => ({
+      name: `${item.taxRate}% GST`,
+      taxableValue: item.totalTaxableValue,
+      taxAmount: item.totalTaxAmount,
+      hsnCount: item.hsnCount,
+      effectiveRate: item.totalTaxableValue > 0 ? ((item.totalTaxAmount / item.totalTaxableValue) * 100).toFixed(2) : 0
+    }));
+
+    // Calculate totals
+    const totals = tableData.reduce((acc: any, item: any) => {
+      acc.totalQuantity += item.totalQuantity;
+      acc.totalTaxableValue += item.totalTaxableValue;
+      acc.totalCGST += item.cgstAmount;
+      acc.totalSGST += item.sgstAmount;
+      acc.totalIGST += item.igstAmount;
+      acc.totalTaxAmount += item.totalTaxAmount;
+      return acc;
+    }, {
+      totalQuantity: 0,
+      totalTaxableValue: 0,
+      totalCGST: 0,
+      totalSGST: 0,
+      totalIGST: 0,
+      totalTaxAmount: 0
+    });
+
+    console.log('HSN/Tax Summary data processed:', { tableData, chartData });
+
+    return {
+      tableData,
+      chartData,
+      hsnSections: {
+        hsnWiseDetails: tableData,
+        taxRateWiseSummary: chartData,
+        totals: totals
+      },
+      summary: {
+        totalHSNCodes: tableData.length,
+        uniqueTaxRates: Object.keys(taxRateSummary).length,
+        totalTaxableValue: totals.totalTaxableValue,
+        totalTaxAmount: totals.totalTaxAmount,
+        averageTaxRate: totals.totalTaxableValue > 0 ? ((totals.totalTaxAmount / totals.totalTaxableValue) * 100).toFixed(2) : 0,
+        period: `${format(filters.dateRange.from, 'dd MMM yyyy')} to ${format(filters.dateRange.to, 'dd MMM yyyy')}`
+      }
+    };
+  };
+
   const fetchGSTR1Data = async (filters: FilterState) => {
     // Build query with proper GSTIN filtering
     let query = supabase
@@ -1764,6 +2191,10 @@ export function EnhancedReportsModule() {
           return await fetchGSTR1Data(filters);
         case 'gstr3b':
           return await fetchGSTR3BData(filters);
+        case 'gstr9':
+          return await fetchGSTR9Data(filters);
+        case 'hsn_tax_summary':
+          return await fetchHSNTaxSummaryData(filters);
         case 'purchase_orders':
           return await fetchPurchaseOrdersData(filters);
         case 'vendor_purchases':
