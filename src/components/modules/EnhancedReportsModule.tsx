@@ -37,6 +37,7 @@ import { format, subDays, startOfMonth, endOfMonth, differenceInDays } from 'dat
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { useBusinessAuth } from '@/hooks/useBusinessAuth';
+import { useAuth } from '@/hooks/useAuth';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Area, AreaChart } from 'recharts';
 import { toast } from "sonner";
@@ -122,6 +123,7 @@ const reportCategories: ReportCategory[] = [
 
 export function EnhancedReportsModule() {
   const { hasAccess, loading: authLoading } = useBusinessAuth();
+  const { company } = useAuth();
   const [selectedCategory, setSelectedCategory] = useState<string>('finance');
   const [selectedReport, setSelectedReport] = useState<string>('ar_aging');
   const [openCategories, setOpenCategories] = useState<string[]>(['finance']);
@@ -1343,7 +1345,7 @@ export function EnhancedReportsModule() {
   };
 
   const fetchGSTR1Data = async (filters: FilterState) => {
-    // Build query with proper GSTIN filtering
+    // Build query with proper company and GSTIN filtering
     let query = supabase
       .from('sales_invoices')
       .select(`
@@ -1352,6 +1354,7 @@ export function EnhancedReportsModule() {
         customers(gstin, customer_type)
       `)
       .eq('status', 'finalized')
+      .eq('company_id', company?.id)
       .gte('invoice_date', format(filters.dateRange.from, 'yyyy-MM-dd'))
       .lte('invoice_date', format(filters.dateRange.to, 'yyyy-MM-dd'));
 
@@ -1557,6 +1560,7 @@ export function EnhancedReportsModule() {
     const { data: orders, error } = await supabase
       .from('purchase_orders')
       .select('*')
+      .eq('company_id', company?.id)
       .gte('order_date', format(filters.dateRange.from, 'yyyy-MM-dd'))
       .lte('order_date', format(filters.dateRange.to, 'yyyy-MM-dd'))
       .order('order_date', { ascending: false });
@@ -1591,6 +1595,7 @@ export function EnhancedReportsModule() {
     const { data: orders, error } = await supabase
       .from('purchase_orders')
       .select('supplier_id, total_amount, order_date')
+      .eq('company_id', company?.id)
       .in('status', ['confirmed', 'partially_received', 'closed'])
       .gte('order_date', format(filters.dateRange.from, 'yyyy-MM-dd'))
       .lte('order_date', format(filters.dateRange.to, 'yyyy-MM-dd'));
