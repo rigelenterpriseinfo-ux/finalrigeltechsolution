@@ -465,38 +465,139 @@ export function EnhancedReportsModule() {
   };
 
   const fetchCustomerSalesData = async (filters: FilterState) => {
-    const { data: invoices, error } = await supabase
-      .from('sales_invoices')
-      .select('customer_name, total_amount, invoice_date, customer_id')
-      .eq('status', 'finalized')
-      .gte('invoice_date', format(filters.dateRange.from, 'yyyy-MM-dd'))
-      .lte('invoice_date', format(filters.dateRange.to, 'yyyy-MM-dd'));
+    console.log('=== fetchCustomerSalesData START ===');
+    console.log('Filters received:', filters);
 
-    if (error) throw error;
+    if (!authLoading && !hasAccess('reports')) {    
+      throw new Error('Access denied');
+    }
 
-    const customerSales = invoices?.reduce((acc: Record<string, any>, invoice) => {
-      if (!acc[invoice.customer_name]) {
-        acc[invoice.customer_name] = {
-          customer: invoice.customer_name,
-          totalSales: 0,
-          orderCount: 0,
-          customerId: invoice.customer_id
+    // Fetch detailed sales invoice items with all required information
+    const { data: salesItems, error } = await supabase
+      .from('sales_invoice_items')
+      .select(`
+        *,
+        sales_invoices!inner(
+          id,
+          invoice_number,
+          invoice_date,
+          customer_name,
+          customer_id,
+          status,
+          total_amount,
+          customers(
+            name,
+            state,
+            gstin
+          )
+        ),
+        products(
+          id,
+          name,
+          sku,
+          gst_percentage
+        )
+      `)
+      .eq('sales_invoices.status', 'finalized')
+      .gte('sales_invoices.invoice_date', format(filters.dateRange.from, 'yyyy-MM-dd'))
+      .lte('sales_invoices.invoice_date', format(filters.dateRange.to, 'yyyy-MM-dd'))
+      .order('sales_invoices.invoice_date', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching customer sales data:', error);
+      throw error;
+    }
+
+    console.log('Raw sales items count:', salesItems?.length || 0);
+
+    if (!salesItems || salesItems.length === 0) {
+      return { 
+        tableData: [], 
+        chartData: [],
+        summary: {
+          totalRecords: 0,
+          totalInvoiceValue: 0,
+          totalTaxableAmount: 0,
+          totalTaxAmount: 0
+        }
+      };
+    }
+
+    // Get company information for place of supply comparison
+    const { data: companyData } = await supabase
+      .from('companies')
+      .select('state')
+      .limit(1)
+      .single();
+
+    const companyState = companyData?.state || '';
+
+    // Transform data for detailed customer sales report
+    const tableData = salesItems.map((item: any, index: number) => {
+      const invoice = item.sales_invoices;
+      const product = item.products;
+      const customer = invoice.customers;
+      
+      // Determine place of supply and tax type
+      const customerState = customer?.state || '';
+      const isInterState = companyState && customerState && companyState !== customerState;
+      
+      // Calculate tax amounts based on rates from the item
+      const taxableAmount = item.line_subtotal || 0;
+      const cgstAmount = item.cgst_amount || 0;
+      const sgstAmount = item.sgst_amount || 0;
+      const igstAmount = item.igst_amount || 0;
+      const totalTaxAmount = cgstAmount + sgstAmount + igstAmount;
+      
+      return {
+        itemNo: index + 1,
+        customerName: invoice.customer_name || 'Unknown Customer',
+        invoiceNumber: invoice.invoice_number || 'N/A',
+        invoiceDate: format(new Date(invoice.invoice_date), 'dd-MMM-yyyy'),
+        product: product?.name || item.product_name || 'Unknown Product',
+        sku: product?.sku || 'N/A',
+        gstPercent: `${item.cgst_rate || item.sgst_rate || item.igst_rate || 0}%`,
+        qtyInvoiced: item.quantity_invoiced || 0,
+        invoiceValue: item.line_total || 0,
+        taxableAmount: taxableAmount,
+        cgst: cgstAmount,
+        sgst: sgstAmount,
+        igst: igstAmount,
+        placeOfSupply: customerState || 'Not Specified'
+      };
+    });
+
+    // Calculate summary statistics
+    const summary = {
+      totalRecords: tableData.length,
+      totalInvoiceValue: tableData.reduce((sum, item) => sum + (item.invoiceValue || 0), 0),
+      totalTaxableAmount: tableData.reduce((sum, item) => sum + (item.taxableAmount || 0), 0),
+      totalTaxAmount: tableData.reduce((sum, item) => sum + (item.cgst || 0) + (item.sgst || 0) + (item.igst || 0), 0)
+    };
+
+    // Create chart data - Top 10 customers by total sales
+    const customerSalesMap = tableData.reduce((acc: Record<string, any>, item) => {
+      if (!acc[item.customerName]) {
+        acc[item.customerName] = {
+          name: item.customerName,
+          value: 0,
+          invoiceCount: 0
         };
       }
-      acc[invoice.customer_name].totalSales += invoice.total_amount;
-      acc[invoice.customer_name].orderCount += 1;
+      acc[item.customerName].value += item.invoiceValue || 0;
+      acc[item.customerName].invoiceCount += 1;
       return acc;
-    }, {}) || {};
+    }, {});
 
-    const tableData = Object.values(customerSales).sort((a: any, b: any) => b.totalSales - a.totalSales);
-    
-    const chartData = tableData.slice(0, 10).map((item: any) => ({
-      name: item.customer,
-      value: item.totalSales,
-      orders: item.orderCount
-    }));
+    const chartData = Object.values(customerSalesMap)
+      .sort((a: any, b: any) => b.value - a.value)
+      .slice(0, 10);
 
-    return { tableData, chartData };
+    console.log('Final result - Table data count:', tableData.length);
+    console.log('Final result - Chart data count:', chartData.length);
+    console.log('=== fetchCustomerSalesData END ===');
+
+    return { tableData, chartData, summary };
   };
 
   const fetchGSTR3BData = async (filters: FilterState) => {
