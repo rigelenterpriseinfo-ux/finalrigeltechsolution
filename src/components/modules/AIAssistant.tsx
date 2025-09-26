@@ -146,46 +146,48 @@ export function AIAssistant() {
                       <Bot className="h-4 w-4 text-primary-foreground" />
                     </div>
                   )}
-                  <div className={`max-w-[85%] rounded-lg p-3 ${
-                    message.isUser 
-                      ? 'bg-primary text-primary-foreground' 
-                      : 'bg-muted'
-                  }`}>
+                   <div className={`${
+                     message.isUser 
+                       ? 'max-w-[85%] bg-primary text-primary-foreground' 
+                       : message.tableData 
+                         ? 'w-full bg-muted'
+                         : 'max-w-[85%] bg-muted'
+                   } rounded-lg p-3`}>
                     <p className="text-sm whitespace-pre-wrap leading-relaxed">{message.content}</p>
                     
-                    {/* Table Data Display */}
-                    {message.tableData && (
-                      <div className="mt-4 border rounded-lg overflow-hidden bg-background">
-                        <div className="bg-muted px-3 py-2 flex items-center gap-2">
-                          <TableIcon className="h-4 w-4" />
-                          <span className="text-sm font-medium text-foreground">Data Results</span>
-                        </div>
-                        <div className="max-h-60 overflow-auto">
-                          <Table>
-                            <TableHeader>
-                              <TableRow>
-                                {message.tableData.columns.map((column, colIndex) => (
-                                  <TableHead key={colIndex} className="text-xs font-medium">
-                                    {column}
-                                  </TableHead>
-                                ))}
-                              </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                              {message.tableData.rows.map((row, rowIndex) => (
-                                <TableRow key={rowIndex}>
-                                  {row.map((cell, cellIndex) => (
-                                    <TableCell key={cellIndex} className="text-xs">
-                                      {cell}
-                                    </TableCell>
-                                  ))}
-                                </TableRow>
-                              ))}
-                            </TableBody>
-                          </Table>
-                        </div>
-                      </div>
-                    )}
+                     {/* Table Data Display */}
+                     {message.tableData && (
+                       <div className="mt-4 border rounded-lg overflow-hidden bg-background w-full">
+                         <div className="bg-muted px-3 py-2 flex items-center gap-2">
+                           <TableIcon className="h-4 w-4" />
+                           <span className="text-sm font-medium text-foreground">Data Results</span>
+                         </div>
+                         <div className="max-h-60 overflow-auto w-full">
+                           <Table className="w-full">
+                             <TableHeader>
+                               <TableRow>
+                                 {message.tableData.columns.map((column, colIndex) => (
+                                   <TableHead key={colIndex} className="text-xs font-medium whitespace-nowrap">
+                                     {column}
+                                   </TableHead>
+                                 ))}
+                               </TableRow>
+                             </TableHeader>
+                             <TableBody>
+                               {message.tableData.rows.map((row, rowIndex) => (
+                                 <TableRow key={rowIndex}>
+                                   {row.map((cell, cellIndex) => (
+                                     <TableCell key={cellIndex} className="text-xs whitespace-nowrap">
+                                       {cell}
+                                     </TableCell>
+                                   ))}
+                                 </TableRow>
+                               ))}
+                             </TableBody>
+                           </Table>
+                         </div>
+                       </div>
+                     )}
                     
                     <span className="text-xs opacity-70 mt-2 block">
                       {message.timestamp.toLocaleTimeString()}
