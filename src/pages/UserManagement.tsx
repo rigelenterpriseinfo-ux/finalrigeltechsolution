@@ -691,146 +691,199 @@ const UserManagement = () => {
                 <Loader2 className="h-8 w-8 animate-spin" />
               </div>
             ) : users.length === 0 ? (
-              <Card className="p-8 text-center">
-                <div className="space-y-3">
-                  <Users className="w-12 h-12 mx-auto text-muted-foreground" />
-                  <h3 className="text-lg font-medium">No team members yet</h3>
-                  <p className="text-sm text-muted-foreground max-w-sm mx-auto">
-                    Get started by adding your first team member to collaborate on your projects.
+              <Card className="p-8 text-center border-dashed border-2 border-muted-foreground/25">
+                <div className="space-y-4 animate-fade-in">
+                  <div className="mx-auto w-16 h-16 bg-gradient-to-br from-primary/10 to-primary/5 rounded-full flex items-center justify-center">
+                    <Users className="w-8 h-8 text-primary" />
+                  </div>
+                  <h3 className="text-xl font-semibold">No team members yet</h3>
+                  <p className="text-muted-foreground max-w-sm mx-auto">
+                    Get started by adding your first team member to collaborate on your projects and manage access permissions.
                   </p>
                   <Button 
                     onClick={() => handleOpenDialog()} 
-                    className="btn-gradient mt-4"
+                    className="btn-gradient mt-6 hover-scale"
                     disabled={!hasEditAccess('user_management')}
                   >
                     <UserPlus className="w-4 h-4 mr-2" />
-                    Add First User
+                    Add First Team Member
                   </Button>
                 </div>
               </Card>
             ) : (
-              <div className="space-y-4">
-                <div className="text-sm text-muted-foreground">
-                  {users.length} team member{users.length !== 1 ? 's' : ''}
+              <div className="space-y-6 animate-fade-in">
+                <div className="flex items-center justify-between">
+                  <div className="text-sm text-muted-foreground flex items-center gap-2">
+                    <Users className="w-4 h-4" />
+                    {users.length} team member{users.length !== 1 ? 's' : ''}
+                  </div>
+                  
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <div className="flex items-center gap-1">
+                      <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
+                      <span>Active</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <div className="w-2 h-2 rounded-full bg-gray-400"></div>
+                      <span>Inactive</span>
+                    </div>
+                  </div>
                 </div>
                 
-                <div className="grid gap-4">
-                  {users.map((user) => (
-                    <Card key={user.id} className="hover:shadow-md transition-shadow">
-                      <CardContent className="p-6">
-                        <div className="flex items-start justify-between">
-                          <div className="flex items-start space-x-4">
-                            <div className="w-12 h-12 rounded-full bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center">
-                              <User className="w-6 h-6 text-primary" />
-                            </div>
-                            <div className="space-y-1">
-                              <div className="flex items-center space-x-2">
-                                <h3 className="font-semibold text-base">{user.name}</h3>
-                                <Badge 
-                                  variant={user.is_active ? 'default' : 'secondary'}
-                                  className={user.is_active ? 'bg-emerald-100 text-emerald-800 hover:bg-emerald-100' : ''}
-                                >
-                                  {user.is_active ? 'Active' : 'Inactive'}
-                                </Badge>
-                                {['OWNER','ADMIN'].includes(user.access_type) && (
-                                  <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">
-                                    <Shield className="w-3 h-3 mr-1" />
-                                    {user.access_type}
-                                  </Badge>
-                                )}
+                <div className="grid gap-6">
+                  {users.map((user, index) => (
+                    <Card key={user.id} className="group hover:shadow-lg transition-all duration-300 hover:-translate-y-1 border-l-4 border-l-transparent hover:border-l-primary/50" style={{ animationDelay: `${index * 100}ms` }}>
+                      <CardContent className="p-0">
+                        <div className="p-6">
+                          <div className="flex items-start justify-between mb-4">
+                            <div className="flex items-start space-x-4">
+                              <div className="relative">
+                                <div className={`w-14 h-14 rounded-full bg-gradient-to-br flex items-center justify-center text-white font-semibold text-lg shadow-md ${
+                                  user.is_active ? 'from-primary to-primary-glow' : 'from-gray-400 to-gray-500'
+                                }`}>
+                                  {user.name?.charAt(0)?.toUpperCase() || 'U'}
+                                </div>
+                                <div className={`absolute -bottom-1 -right-1 w-5 h-5 rounded-full border-2 border-white ${
+                                  user.is_active ? 'bg-emerald-500' : 'bg-gray-400'
+                                }`} title={user.is_active ? 'Active' : 'Inactive'}></div>
                               </div>
-                              <p className="text-sm text-muted-foreground">{user.email}</p>
-                              {user.designation && (
-                                <p className="text-sm text-muted-foreground font-medium">{user.designation}</p>
-                              )}
-                              <p className="text-xs text-muted-foreground font-mono">ID: {user.user_ref}</p>
-                            </div>
-                          </div>
-                          
-                          <div className="flex items-center space-x-2">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleOpenDialog(user)}
-                              disabled={!hasEditAccess('user_management')}
-                              className="hover:bg-primary/5"
-                            >
-                              <Edit className="w-4 h-4 mr-1" />
-                              Edit
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleDeleteUser(user.id, user.name)}
-                              disabled={!hasEditAccess('user_management')}
-                              className="hover:bg-destructive/5 hover:text-destructive hover:border-destructive/20"
-                            >
-                              <Trash2 className="w-4 h-4 mr-1" />
-                              Delete
-                            </Button>
-                          </div>
-                        </div>
-                        
-                        <Separator className="my-4" />
-                        
-                        <div className="space-y-3">
-                          <div className="flex items-center justify-between">
-                            <h4 className="text-sm font-medium text-muted-foreground">Access Permissions</h4>
-                            <div className="text-xs text-muted-foreground">
-                              {['OWNER','ADMIN'].includes(user.access_type) ? 'Full Access' : 
-                               `${Object.values(user.access_sections || {}).filter(p => p !== 'none').length} sections`}
-                            </div>
-                          </div>
-                          
-                          {['OWNER','ADMIN'].includes(user.access_type) ? (
-                            <div className="flex items-center space-x-2 p-3 rounded-lg bg-gradient-to-r from-primary/5 to-primary/10 border border-primary/20">
-                              <Shield className="w-5 h-5 text-primary" />
-                              <div className="flex-1">
-                                <p className="font-medium text-sm">Full System Access</p>
-                                <p className="text-xs text-muted-foreground">Complete access to all sections and features</p>
-                              </div>
-                            </div>
-                          ) : Object.keys(user.access_sections || {}).length === 0 ? (
-                            <div className="text-sm text-muted-foreground italic bg-muted/50 rounded-lg p-3 text-center">
-                              No specific permissions assigned
-                            </div>
-                          ) : (
-                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-                              {Object.entries(user.access_sections || {}).map(([section, permission]) => {
-                                if (permission === 'none') return null;
-                                const sectionInfo = availableSections.find(s => s.key === section);
-                                const Icon = sectionInfo?.icon || Settings;
-                                
-                                return (
-                                  <div
-                                    key={section}
-                                    className={`flex items-center space-x-2 p-3 rounded-lg border ${
-                                      permission === 'edit' 
-                                        ? 'bg-primary/5 border-primary/20' 
-                                        : 'bg-muted/50 border-border'
-                                    }`}
-                                  >
-                                    <Icon className="w-4 h-4 text-muted-foreground" />
-                                    <div className="flex-1 min-w-0">
-                                      <p className="text-xs font-medium truncate">
-                                        {sectionInfo?.label || section}
-                                      </p>
-                                    </div>
-                                    <Badge 
-                                      variant={permission === 'edit' ? 'default' : 'secondary'}
-                                      className="text-xs px-2 py-0"
-                                    >
-                                      {permission === 'edit' ? (
-                                        <><Edit className="w-3 h-3 mr-1" />Edit</>
-                                      ) : (
-                                        <><Eye className="w-3 h-3 mr-1" />Read</>
-                                      )}
+                              
+                              <div className="space-y-2">
+                                <div className="flex items-center gap-3">
+                                  <h3 className="font-semibold text-lg text-foreground group-hover:text-primary transition-colors">
+                                    {user.name}
+                                  </h3>
+                                  {['OWNER','ADMIN'].includes(user.access_type) && (
+                                    <Badge variant="outline" className="bg-gradient-to-r from-amber-50 to-amber-100 text-amber-700 border-amber-200 hover:from-amber-100 hover:to-amber-200 transition-all">
+                                      <Shield className="w-3 h-3 mr-1" />
+                                      {user.access_type}
                                     </Badge>
+                                  )}
+                                </div>
+                                
+                                <div className="space-y-1 text-sm text-muted-foreground">
+                                  <div className="flex items-center gap-2">
+                                    <Globe className="w-4 h-4" />
+                                    <span>{user.email}</span>
                                   </div>
-                                );
-                              })}
+                                  {user.designation && (
+                                    <div className="flex items-center gap-2">
+                                      <User className="w-4 h-4" />
+                                      <span className="font-medium text-foreground">{user.designation}</span>
+                                    </div>
+                                  )}
+                                  <div className="flex items-center gap-2">
+                                    <Database className="w-4 h-4" />
+                                    <span className="font-mono text-xs">{user.user_ref}</span>
+                                  </div>
+                                </div>
+                              </div>
                             </div>
-                          )}
+                            
+                            <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleOpenDialog(user)}
+                                disabled={!hasEditAccess('user_management')}
+                                className="hover:bg-primary/5 hover:border-primary/20 hover:text-primary transition-all hover-scale"
+                              >
+                                <Edit className="w-4 h-4 mr-1" />
+                                Edit
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleDeleteUser(user.id, user.name)}
+                                disabled={!hasEditAccess('user_management')}
+                                className="hover:bg-destructive/5 hover:text-destructive hover:border-destructive/20 transition-all hover-scale"
+                              >
+                                <Trash2 className="w-4 h-4 mr-1" />
+                                Delete
+                              </Button>
+                            </div>
+                          </div>
+                          
+                          <Separator className="my-4" />
+                          
+                          <div className="space-y-4">
+                            <div className="flex items-center justify-between">
+                              <h4 className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                                <Shield className="w-4 h-4" />
+                                Access Permissions
+                              </h4>
+                              <div className="text-xs text-muted-foreground bg-muted/50 px-2 py-1 rounded-full">
+                                {['OWNER','ADMIN'].includes(user.access_type) ? 'Full System Access' : 
+                                 `${Object.values(user.access_sections || {}).filter(p => p !== 'none').length}/${availableSections.length} sections`}
+                              </div>
+                            </div>
+                            
+                            {['OWNER','ADMIN'].includes(user.access_type) ? (
+                              <div className="flex items-center space-x-3 p-4 rounded-lg bg-gradient-to-r from-primary/5 via-primary/3 to-primary/5 border border-primary/10">
+                                <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                                  <Shield className="w-5 h-5 text-primary" />
+                                </div>
+                                <div className="flex-1">
+                                  <p className="font-medium text-sm">Complete System Access</p>
+                                  <p className="text-xs text-muted-foreground">This user has unrestricted access to all sections and features</p>
+                                </div>
+                                <Badge className="bg-primary/10 text-primary hover:bg-primary/20">
+                                  All Sections
+                                </Badge>
+                              </div>
+                            ) : Object.keys(user.access_sections || {}).length === 0 ? (
+                              <div className="text-center py-8 px-4 rounded-lg bg-muted/30 border border-dashed border-muted-foreground/30">
+                                <div className="w-12 h-12 mx-auto mb-3 rounded-full bg-muted flex items-center justify-center">
+                                  <Shield className="w-6 h-6 text-muted-foreground" />
+                                </div>
+                                <p className="text-sm text-muted-foreground font-medium">No specific permissions assigned</p>
+                                <p className="text-xs text-muted-foreground mt-1">Contact an administrator to grant access to sections</p>
+                              </div>
+                            ) : (
+                              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+                                {Object.entries(user.access_sections || {}).map(([section, permission]) => {
+                                  if (permission === 'none') return null;
+                                  const sectionInfo = availableSections.find(s => s.key === section);
+                                  const Icon = sectionInfo?.icon || Settings;
+                                  
+                                  return (
+                                    <div
+                                      key={section}
+                                      className={`flex items-center space-x-3 p-3 rounded-lg border transition-all hover:shadow-sm hover-scale ${
+                                        permission === 'edit' 
+                                          ? 'bg-gradient-to-r from-primary/5 to-primary/3 border-primary/20 hover:from-primary/8 hover:to-primary/5' 
+                                          : 'bg-gradient-to-r from-muted/30 to-muted/10 border-border hover:from-muted/50 hover:to-muted/30'
+                                      }`}
+                                    >
+                                      <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
+                                        permission === 'edit' ? 'bg-primary/10' : 'bg-muted'
+                                      }`}>
+                                        <Icon className="w-4 h-4 text-muted-foreground" />
+                                      </div>
+                                      <div className="flex-1 min-w-0">
+                                        <p className="text-xs font-medium truncate">
+                                          {sectionInfo?.label || section}
+                                        </p>
+                                        <div className="flex items-center gap-1 mt-1">
+                                          {permission === 'edit' ? (
+                                            <>
+                                              <Edit className="w-3 h-3 text-primary" />
+                                              <span className="text-xs text-primary font-medium">Full Access</span>
+                                            </>
+                                          ) : (
+                                            <>
+                                              <Eye className="w-3 h-3 text-muted-foreground" />
+                                              <span className="text-xs text-muted-foreground">Read Only</span>
+                                            </>
+                                          )}
+                                        </div>
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </div>
                         </div>
                       </CardContent>
                     </Card>
