@@ -134,7 +134,7 @@ export function EnhancedReportsModule() {
     },
     product: 'all'
   });
-  const [reportData, setReportData] = useState<any[]>([]);
+  const [reportData, setReportData] = useState<any[] | any>([]);
   const [chartData, setChartData] = useState<any[]>([]);
   const [invoiceWiseData, setInvoiceWiseData] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
@@ -1345,6 +1345,16 @@ export function EnhancedReportsModule() {
   };
 
   const fetchGSTR1Data = async (filters: FilterState) => {
+    if (!company?.id) {
+      return { 
+        tableData: [], 
+        chartData: [],
+        itemWiseData: [],
+        gstr1Sections: { b2bSupplies: [], b2cLargeSupplies: [], b2cSmallSupplies: [], hsnSummary: [] },
+        summary: { totalInvoices: 0, totalTaxableValue: 0, totalTaxAmount: 0, b2bCount: 0, b2cLargeCount: 0, b2cSmallStates: 0, totalHSNs: 0 }
+      };
+    }
+    
     // Build query with proper company and GSTIN filtering
     let query = supabase
       .from('sales_invoices')
@@ -1360,7 +1370,9 @@ export function EnhancedReportsModule() {
 
     const { data: invoices, error } = await query;
 
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
 
     if (error) throw error;
 
@@ -1536,7 +1548,7 @@ export function EnhancedReportsModule() {
       tax: hsn.totalTax
     }));
 
-    return { 
+    const result = { 
       tableData: b2bSupplies, 
       chartData,
       itemWiseData, // New: Item-level data for export
@@ -1556,6 +1568,8 @@ export function EnhancedReportsModule() {
         totalHSNs: Object.keys(hsnSummary).length
       }
     };
+    
+    return result;
   };
 
   const fetchPurchaseOrdersData = async (filters: FilterState) => {
@@ -2362,8 +2376,15 @@ export function EnhancedReportsModule() {
   // Update state when query data changes
   useEffect(() => {
     if (reportResult) {
-      setReportData(reportResult.tableData);
-      setChartData(reportResult.chartData);
+      // For GSTR-1, store the entire result object so we can access summary data
+      if (selectedReport === 'gstr1') {
+        setReportData(reportResult); // Store entire object for GSTR-1
+        setChartData(reportResult.chartData);
+      } else {
+        setReportData(reportResult.tableData);
+        setChartData(reportResult.chartData);
+      }
+      
       // Handle optional invoiceWiseData for aging reports and itemWiseData for GSTR-1
       if ('invoiceWiseData' in reportResult && Array.isArray(reportResult.invoiceWiseData)) {
         setInvoiceWiseData(reportResult.invoiceWiseData);
@@ -2373,7 +2394,7 @@ export function EnhancedReportsModule() {
         setInvoiceWiseData([]);
       }
     }
-  }, [reportResult]);
+  }, [reportResult, selectedReport]);
 
   const toggleCategory = (categoryId: string) => {
     setOpenCategories(prev => 
