@@ -193,6 +193,100 @@ export const AuditLogViewer: React.FC<AuditLogViewerProps> = ({ className }) => 
     setCurrentPage(page);
   };
 
+  const formatLogChanges = (log: AuditLog) => {
+    if (log.action === 'DELETE') {
+      const identifier = getRecordIdentifier(log.table_name, log.old_values);
+      return `Deleted ${identifier || 'record'}`;
+    }
+
+    if (!log.new_values) {
+      return 'No changes recorded';
+    }
+
+    const identifier = getRecordIdentifier(log.table_name, log.new_values);
+    const changes = getKeyChanges(log.table_name, log.old_values, log.new_values);
+    
+    if (log.action === 'INSERT') {
+      return `Created ${identifier}${changes ? ` - ${changes}` : ''}`;
+    }
+
+    return `${identifier}${changes ? ` - Updated: ${changes}` : ' - Updated'}`;
+  };
+
+  const getRecordIdentifier = (tableName: string, values: any) => {
+    if (!values) return '';
+
+    const identifierFields: Record<string, string[]> = {
+      customers: ['customer_ref', 'name', 'email'],
+      suppliers: ['supplier_ref', 'name', 'email'], 
+      products: ['sku', 'name'],
+      sales_orders: ['order_number', 'customer_name'],
+      purchase_orders: ['order_number', 'supplier_name'],
+      sales_invoices: ['invoice_number', 'customer_name'],
+      purchase_invoices: ['invoice_number', 'supplier_name'],
+      performa_invoices: ['performa_invoice_number', 'customer_name'],
+      grn_header: ['grn_number', 'supplier_name'],
+      debit_notes: ['debit_note_number', 'supplier_name'],
+      credit_notes: ['cn_number', 'customer_name'],
+      payments: ['reference_number', 'amount'],
+      inventory_adjustments: ['reason'],
+      company_users: ['full_name', 'email'],
+      profiles: ['first_name', 'last_name']
+    };
+
+    const fields = identifierFields[tableName] || ['id'];
+    
+    for (const field of fields) {
+      if (values[field]) {
+        return `${field === 'amount' ? '$' + values[field] : values[field]}`;
+      }
+    }
+    
+    return values.id ? `ID: ${values.id.toString().slice(0, 8)}...` : '';
+  };
+
+  const getKeyChanges = (tableName: string, oldValues: any, newValues: any) => {
+    if (!oldValues || !newValues) return '';
+
+    const importantFields: Record<string, string[]> = {
+      customers: ['name', 'email', 'phone', 'credit_limit', 'is_active'],
+      suppliers: ['name', 'email', 'phone', 'is_active'],
+      products: ['name', 'unit_price', 'cost_price', 'stock_quantity', 'is_active'],
+      sales_orders: ['status', 'total_amount', 'customer_name'],
+      purchase_orders: ['status', 'total_amount', 'supplier_name'],
+      sales_invoices: ['status', 'total_amount'],
+      purchase_invoices: ['status', 'total_amount'],
+      grn_header: ['status', 'total_accepted_quantity'],
+      payments: ['amount', 'payment_status'],
+      inventory_adjustments: ['adjustment_quantity', 'adjustment_type'],
+      company_users: ['full_name', 'email', 'status', 'access_type'],
+      profiles: ['first_name', 'last_name', 'role', 'is_active']
+    };
+
+    const fields = importantFields[tableName] || [];
+    const changes: string[] = [];
+
+    fields.forEach(field => {
+      if (oldValues[field] !== newValues[field]) {
+        const oldVal = oldValues[field];
+        const newVal = newValues[field];
+        
+        if (field === 'is_active' || field === 'status') {
+          changes.push(`${field}: ${oldVal} → ${newVal}`);
+        } else if (typeof newVal === 'number') {
+          changes.push(`${field}: ${oldVal || 0} → ${newVal}`);
+        } else if (newVal && newVal !== oldVal) {
+          const displayVal = newVal.toString().length > 20 
+            ? newVal.toString().substring(0, 20) + '...' 
+            : newVal;
+          changes.push(`${field}: ${displayVal}`);
+        }
+      }
+    });
+
+    return changes.slice(0, 3).join(', ') + (changes.length > 3 ? '...' : '');
+  };
+
   const exportLogs = () => {
     const csvContent = [
       ['Date/Time', 'User', 'Action', 'Table', 'Record ID', 'Details'].join(','),
@@ -387,7 +481,7 @@ export const AuditLogViewer: React.FC<AuditLogViewerProps> = ({ className }) => 
                           </div>
                         </TableHead>
                         <TableHead className="w-32">Record ID</TableHead>
-                        <TableHead className="min-w-48">Changes</TableHead>
+                        <TableHead className="min-w-64">Details & Changes</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -417,13 +511,13 @@ export const AuditLogViewer: React.FC<AuditLogViewerProps> = ({ className }) => 
                             {log.record_id.split('-')[0]}...
                           </TableCell>
                           <TableCell>
-                            <div className="max-w-xs truncate text-xs text-muted-foreground">
-                              {log.action === 'DELETE' 
-                                ? `Deleted record` 
-                                : log.new_values 
-                                  ? Object.keys(log.new_values).slice(0, 5).join(', ') + (Object.keys(log.new_values).length > 5 ? '...' : '')
-                                  : 'No changes recorded'
-                              }
+                            <div className="max-w-sm text-xs">
+                              <div className="font-medium text-foreground mb-1">
+                                {formatLogChanges(log)}
+                              </div>
+                              <div className="text-muted-foreground text-xs">
+                                {format(new Date(log.created_at), 'MMM dd, HH:mm:ss')}
+                              </div>
                             </div>
                           </TableCell>
                         </TableRow>
