@@ -85,11 +85,9 @@ const reportCategories: ReportCategory[] = [
       { id: 'net_arap', name: 'Net AR/AP Position', description: 'Net position of receivables vs payables', category: 'finance', requiresFilters: ['dateRange'] },
       { id: 'gstr1', name: 'GSTR-1', description: 'Outward supplies report', category: 'finance', requiresFilters: ['dateRange', 'gstin'] },
       { id: 'gstr3b', name: 'GSTR-3B', description: 'Monthly return filing', category: 'finance', requiresFilters: ['dateRange', 'gstin'] },
-      { id: 'gstr2b', name: 'GSTR-2B Reconciliation', description: 'Auto-drafted ITC reconciliation', category: 'finance', requiresFilters: ['dateRange', 'gstin'] },
       { id: 'rcm_report', name: 'RCM Report', description: 'Reverse Charge Mechanism report', category: 'finance', requiresFilters: ['dateRange'] },
       { id: 'credit_debit_notes', name: 'Credit/Debit Notes', description: 'Credit and debit notes summary', category: 'finance', requiresFilters: ['dateRange'] },
       { id: 'hsn_tax_summary', name: 'HSN / Tax Summary', description: 'HSN-wise tax summary', category: 'finance', requiresFilters: ['dateRange'] },
-      { id: 'eway_reconciliation', name: 'E-Way Bill Reconciliation', description: 'E-way bill vs invoice reconciliation', category: 'finance', requiresFilters: ['dateRange'] },
       { id: 'gstr9', name: 'GSTR-9 (Annual Return)', description: 'Annual GST return', category: 'finance', requiresFilters: ['dateRange'] }
     ]
   },
