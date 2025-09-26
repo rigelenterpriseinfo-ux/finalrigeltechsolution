@@ -434,7 +434,7 @@ async function generateGeminiResponse(message: string, data: any, analysis: any)
     enhancedPrompt += `\n\nNote: Provide guidance on business process automation and workflow optimization.`;
   }
 
-  const response = await fetch('https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=' + GEMINI_API_KEY, {
+  const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${GEMINI_API_KEY}`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -457,10 +457,16 @@ async function generateGeminiResponse(message: string, data: any, analysis: any)
   const result = await response.json();
   console.log('Gemini API response:', result);
   
+  if (result.error) {
+    console.error('Gemini API error:', result.error);
+    throw new Error(`Gemini API error: ${result.error.message || JSON.stringify(result.error)}`);
+  }
+  
   if (result.candidates && result.candidates[0] && result.candidates[0].content) {
     return result.candidates[0].content.parts[0].text;
   } else {
-    throw new Error('Invalid response from Gemini API');
+    console.error('Invalid Gemini API response structure:', result);
+    throw new Error('Invalid response structure from Gemini API');
   }
 }
 
