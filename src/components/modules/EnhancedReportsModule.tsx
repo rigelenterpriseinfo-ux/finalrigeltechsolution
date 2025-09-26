@@ -500,8 +500,7 @@ export function EnhancedReportsModule() {
       `)
       .eq('sales_invoices.status', 'finalized')
       .gte('sales_invoices.invoice_date', format(filters.dateRange.from, 'yyyy-MM-dd'))
-      .lte('sales_invoices.invoice_date', format(filters.dateRange.to, 'yyyy-MM-dd'))
-      .order('sales_invoices.invoice_date', { ascending: false });
+      .lte('sales_invoices.invoice_date', format(filters.dateRange.to, 'yyyy-MM-dd'));
 
     if (error) {
       console.error('Error fetching customer sales data:', error);
@@ -533,7 +532,9 @@ export function EnhancedReportsModule() {
     const companyState = companyData?.state || '';
 
     // Transform data for detailed customer sales report
-    const tableData = salesItems.map((item: any, index: number) => {
+    const tableData = salesItems
+      .sort((a: any, b: any) => new Date(b.sales_invoices.invoice_date).getTime() - new Date(a.sales_invoices.invoice_date).getTime())
+      .map((item: any, index: number) => {
       const invoice = item.sales_invoices;
       const product = item.products;
       const customer = invoice.customers;
