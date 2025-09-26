@@ -40,6 +40,7 @@ import { CompanyProfile } from '@/components/CompanyProfile';
 import { ReturnsModule } from '@/components/modules/ReturnsModule';
 import { SettingsModule } from '@/components/modules/SettingsModule';
 import { AuthTestButton } from '@/components/AuthTestButton';
+import { DraggableWidgets } from '@/components/DraggableWidgets';
 
 const menuItems: Array<{ id: ActiveModule; icon: any; label: string; description: string; restricted?: boolean; section?: string }> = [
   { id: 'dashboard', icon: BarChart3, label: 'Welcome back, Girish!', description: "Here's what's happening with your business today" },
@@ -335,80 +336,8 @@ export default function Dashboard() {
         return (
           <div className="space-y-6">
 
-            {/* Quick Actions Grid - Mobile Optimized */}
-            <div className="grid gap-3 sm:gap-4 grid-cols-1 lg:grid-cols-3">
-              {/* Inventory Card */}
-              <Card className="card-interactive card-elevated">
-                <CardHeader className="pb-3">
-                  <div className="flex items-start gap-3">
-                    <div className="p-2 sm:p-3 rounded-xl bg-primary/10 text-primary flex-shrink-0">
-                      <Package className="h-5 w-5 sm:h-6 sm:w-6" />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <CardTitle className="text-base sm:text-lg">Inventory Management</CardTitle>
-                      <CardDescription className="text-sm">Manage products and stock levels</CardDescription>
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent className="pt-0">
-                  <Button 
-                    onClick={() => setActiveModule('inventory')}
-                    className="w-full btn-gradient min-h-[48px] text-sm sm:text-base"
-                  >
-                    <Plus className="h-4 w-4 mr-2" />
-                    Add Products
-                  </Button>
-                </CardContent>
-              </Card>
-
-              {/* Purchase Card */}
-              <Card className="card-interactive card-elevated">
-                <CardHeader className="pb-3">
-                  <div className="flex items-start gap-3">
-                    <div className="p-2 sm:p-3 rounded-xl bg-secondary/10 text-secondary flex-shrink-0">
-                      <ShoppingCart className="h-5 w-5 sm:h-6 sm:w-6" />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <CardTitle className="text-base sm:text-lg">Purchase Orders</CardTitle>
-                      <CardDescription className="text-sm">Create and manage purchase orders</CardDescription>
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent className="pt-0">
-                  <Button 
-                    onClick={() => setActiveModule('purchase')}
-                    variant="outline"
-                    className="w-full min-h-[48px] text-sm sm:text-base"
-                  >
-                    Create Order
-                  </Button>
-                </CardContent>
-              </Card>
-
-              {/* Sales Card */}
-              <Card className="card-interactive card-elevated">
-                <CardHeader className="pb-3">
-                  <div className="flex items-start gap-3">
-                    <div className="p-2 sm:p-3 rounded-xl bg-accent/10 text-accent flex-shrink-0">
-                      <FileText className="h-5 w-5 sm:h-6 sm:w-6" />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <CardTitle className="text-base sm:text-lg">Sales Orders</CardTitle>
-                      <CardDescription className="text-sm">Process sales and invoicing</CardDescription>
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent className="pt-0">
-                  <Button 
-                    onClick={() => setActiveModule('sales')}
-                    variant="outline"
-                    className="w-full min-h-[48px] text-sm sm:text-base"
-                  >
-                    New Sale
-                  </Button>
-                </CardContent>
-              </Card>
-            </div>
+            {/* Draggable Widgets Grid */}
+            <DraggableWidgets onNavigate={handleNavigation} />
 
             {/* Business Insights - Mobile Optimized */}
             <div className="grid gap-3 sm:gap-4 grid-cols-1 lg:grid-cols-2">
