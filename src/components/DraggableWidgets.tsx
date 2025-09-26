@@ -13,7 +13,15 @@ import {
   Users, 
   Building2, 
   Settings,
-  BarChart3 
+  BarChart3,
+  Calendar,
+  Mail,
+  Database,
+  Truck,
+  Calculator,
+  Archive,
+  Bell,
+  Clock
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -43,6 +51,14 @@ export const DraggableWidgets: React.FC<DraggableWidgetsProps> = ({ onNavigate }
     { id: 'users', title: 'Team Management', icon: Users, color: 'bg-amber-500/10 text-amber-600', onClick: () => onNavigate('users') },
     { id: 'profile', title: 'Company Profile', icon: Building2, color: 'bg-slate-500/10 text-slate-600', onClick: () => onNavigate('profile') },
     { id: 'settings', title: 'Settings', icon: Settings, color: 'bg-gray-500/10 text-gray-600', onClick: () => onNavigate('settings') },
+    { id: 'calendar', title: 'Calendar', icon: Calendar, color: 'bg-violet-500/10 text-violet-600', onClick: () => console.log('Calendar clicked') },
+    { id: 'mail', title: 'Mail', icon: Mail, color: 'bg-rose-500/10 text-rose-600', onClick: () => console.log('Mail clicked') },
+    { id: 'database', title: 'Database', icon: Database, color: 'bg-teal-500/10 text-teal-600', onClick: () => console.log('Database clicked') },
+    { id: 'logistics', title: 'Logistics', icon: Truck, color: 'bg-lime-500/10 text-lime-600', onClick: () => console.log('Logistics clicked') },
+    { id: 'calculator', title: 'Calculator', icon: Calculator, color: 'bg-sky-500/10 text-sky-600', onClick: () => console.log('Calculator clicked') },
+    { id: 'archive', title: 'Archive', icon: Archive, color: 'bg-stone-500/10 text-stone-600', onClick: () => console.log('Archive clicked') },
+    { id: 'notifications', title: 'Notifications', icon: Bell, color: 'bg-yellow-500/10 text-yellow-600', onClick: () => console.log('Notifications clicked') },
+    { id: 'timesheet', title: 'Timesheet', icon: Clock, color: 'bg-fuchsia-500/10 text-fuchsia-600', onClick: () => console.log('Timesheet clicked') },
   ];
 
   const [widgets, setWidgets] = useState<Widget[]>(createWidgets());
@@ -92,12 +108,12 @@ export const DraggableWidgets: React.FC<DraggableWidgetsProps> = ({ onNavigate }
       </div>
 
       <DragDropContext onDragEnd={handleDragEnd}>
-        <Droppable droppableId="widgets" direction="horizontal">
+        <Droppable droppableId="widgets">
           {(provided) => (
             <div
               {...provided.droppableProps}
               ref={provided.innerRef}
-              className="grid grid-cols-4 gap-4"
+              className="grid grid-cols-5 gap-4"
             >
               {widgets.map((widget, index) => {
                 const Icon = widget.icon;
@@ -113,23 +129,25 @@ export const DraggableWidgets: React.FC<DraggableWidgetsProps> = ({ onNavigate }
                           snapshot.isDragging && "rotate-2 scale-105"
                         )}
                       >
-                        <Card className={cn(
-                          "h-24 cursor-pointer transition-all duration-200 hover:scale-105 hover:shadow-md",
-                          "border-2 border-border/50 hover:border-primary/20",
-                          snapshot.isDragging && "shadow-lg border-primary/40"
-                        )}>
+                        <Card 
+                          className={cn(
+                            "h-24 cursor-pointer transition-all duration-200 hover:scale-105 hover:shadow-md",
+                            "border-2 border-border/50 hover:border-primary/20",
+                            snapshot.isDragging && "shadow-lg border-primary/40 z-50"
+                          )}
+                          onClick={(e) => {
+                            e.preventDefault();
+                            if (!snapshot.isDragging) {
+                              widget.onClick();
+                            }
+                          }}
+                        >
                           <CardContent className="flex flex-col items-center justify-center h-full p-2">
                             <div 
                               className={cn(
                                 "p-2 rounded-lg mb-1 transition-colors",
                                 widget.color
                               )}
-                              onClick={(e) => {
-                                e.preventDefault();
-                                if (!snapshot.isDragging) {
-                                  widget.onClick();
-                                }
-                              }}
                             >
                               <Icon className="h-5 w-5" />
                             </div>
