@@ -43,20 +43,42 @@ export const exportToExcel = ({
 
     // Add metadata if requested
     if (includeMetadata) {
-      const metadata = [
-        [companyName || 'Company Report'],
-        [`Generated: ${format(new Date(), 'MMM dd, yyyy HH:mm')}`],
-        [`Total Records: ${data.length}`],
-        [''] // Empty row
+      // Create horizontal metadata in first row
+      const metadataRow = [
+        companyName || 'Company Report',
+        `Generated: ${format(new Date(), 'MMM dd, yyyy HH:mm')}`,
+        `Total Records: ${data.length}`
       ];
       
-      // Insert metadata at the top
-      XLSX.utils.sheet_add_aoa(worksheet, metadata, { origin: 'A1' });
+      // Insert metadata horizontally at the top
+      XLSX.utils.sheet_add_aoa(worksheet, [metadataRow, ['']], { origin: 'A1' });
       
-      // Shift the data down by the number of metadata rows
-      const range = XLSX.utils.decode_range(worksheet['!ref'] || 'A1:A1');
-      range.e.r += metadata.length;
-      worksheet['!ref'] = XLSX.utils.encode_range(range);
+      // Get the existing data and shift it down by 2 rows (metadata + empty row)
+      const existingData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+      const dataStartRow = 3; // Row 3 (0-indexed as 2)
+      
+      // Clear worksheet and rebuild with proper structure
+      const newWorksheet = XLSX.utils.aoa_to_sheet([]);
+      
+      // Add metadata row
+      XLSX.utils.sheet_add_aoa(newWorksheet, [metadataRow], { origin: 'A1' });
+      
+      // Add empty row
+      XLSX.utils.sheet_add_aoa(newWorksheet, [['']], { origin: 'A2' });
+      
+      // Add column headers
+      const headers = columns.map(col => col.label);
+      XLSX.utils.sheet_add_aoa(newWorksheet, [headers], { origin: 'A3' });
+      
+      // Add data starting from row 4
+      XLSX.utils.sheet_add_json(newWorksheet, exportData, { 
+        origin: 'A4',
+        skipHeader: true 
+      });
+      
+      // Replace the original worksheet
+      Object.keys(worksheet).forEach(key => delete worksheet[key]);
+      Object.assign(worksheet, newWorksheet);
     }
 
     // Auto-size columns
