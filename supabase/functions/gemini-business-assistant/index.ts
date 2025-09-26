@@ -434,25 +434,34 @@ async function generateGeminiResponse(message: string, data: any, analysis: any)
     enhancedPrompt += `\n\nNote: Provide guidance on business process automation and workflow optimization.`;
   }
 
-  const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${GEMINI_API_KEY}`, {
+  const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({
-      contents: [{
-        parts: [{
-          text: enhancedPrompt
-        }]
-      }],
-      generationConfig: {
-        maxOutputTokens: 800,
-        temperature: 0.3,
-        topP: 0.8,
-        topK: 40
-      }
-    }),
+      body: JSON.stringify({
+        contents: [{
+          parts: [{
+            text: enhancedPrompt
+          }]
+        }],
+        generationConfig: {
+          maxOutputTokens: 800,
+          temperature: 0.3,
+          topP: 0.8,
+          topK: 40
+        }
+      }),
   });
+
+  console.log('Gemini API response status:', response.status, response.statusText);
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error('Gemini API HTTP error:', response.status, response.statusText);
+    console.error('Gemini API error response:', errorText);
+    throw new Error(`Gemini API HTTP error: ${response.status} ${response.statusText} - ${errorText}`);
+  }
 
   const result = await response.json();
   console.log('Gemini API response:', result);
