@@ -2786,6 +2786,184 @@ export function EnhancedReportsModule() {
                 </Card>
               </div>
             </div>
+          ) : selectedReport === 'hsn_tax_summary' ? (
+            // HSN/Tax Summary Specific Layout
+            <div className="space-y-6">
+              {/* HSN Summary Cards */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <Card className="bg-gradient-to-r from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 border-blue-200 dark:border-blue-800">
+                  <CardContent className="p-4">
+                    <div className="text-sm font-medium text-blue-700 dark:text-blue-300">Total HSN Codes</div>
+                    <div className="text-2xl font-bold text-blue-900 dark:text-blue-100">
+                      {(reportData as any)?.summary?.totalHSNCodes || 0}
+                    </div>
+                  </CardContent>
+                </Card>
+                <Card className="bg-gradient-to-r from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/20 border-green-200 dark:border-green-800">
+                  <CardContent className="p-4">
+                    <div className="text-sm font-medium text-green-700 dark:text-green-300">Taxable Value</div>
+                    <div className="text-2xl font-bold text-green-900 dark:text-green-100">
+                      ₹{Number((reportData as any)?.summary?.totalTaxableValue || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                    </div>
+                  </CardContent>
+                </Card>
+                <Card className="bg-gradient-to-r from-orange-50 to-orange-100 dark:from-orange-900/20 dark:to-orange-800/20 border-orange-200 dark:border-orange-800">
+                  <CardContent className="p-4">
+                    <div className="text-sm font-medium text-orange-700 dark:text-orange-300">Total Tax</div>
+                    <div className="text-2xl font-bold text-orange-900 dark:text-orange-100">
+                      ₹{Number((reportData as any)?.summary?.totalTaxAmount || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                    </div>
+                  </CardContent>
+                </Card>
+                <Card className="bg-gradient-to-r from-purple-50 to-purple-100 dark:from-purple-900/20 dark:to-purple-800/20 border-purple-200 dark:border-purple-800">
+                  <CardContent className="p-4">
+                    <div className="text-sm font-medium text-purple-700 dark:text-purple-300">Avg Tax Rate</div>
+                    <div className="text-2xl font-bold text-purple-900 dark:text-purple-100">
+                      {(reportData as any)?.summary?.averageTaxRate || 0}%
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Tax Rate Distribution Chart */}
+              {chartData.length > 0 && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Tax Rate Distribution</CardTitle>
+                    <CardDescription>GST rate-wise breakdown of taxable value and tax amount</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <ResponsiveContainer width="100%" height={400}>
+                      <BarChart data={chartData}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="name" />
+                        <YAxis />
+                        <Tooltip 
+                          formatter={(value, name) => [
+                            `₹${Number(value).toLocaleString('en-IN')}`,
+                            name === 'taxableValue' ? 'Taxable Value' : 'Tax Amount'
+                          ]}
+                        />
+                        <Bar dataKey="taxableValue" fill="#0ea5e9" name="Taxable Value" />
+                        <Bar dataKey="taxAmount" fill="#10b981" name="Tax Amount" />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* HSN-wise Details Table */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>HSN/SAC Code-wise Summary</CardTitle>
+                  <CardDescription>Detailed breakdown by HSN/SAC codes with tax calculations</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {reportData.length === 0 ? (
+                    <div className="text-center py-8">
+                      <p className="text-muted-foreground">No HSN/Tax data available for the selected period</p>
+                    </div>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="border-b bg-muted/50">
+                            <th className="text-left p-3 font-semibold">HSN/SAC Code</th>
+                            <th className="text-left p-3 font-semibold">Description</th>
+                            <th className="text-right p-3 font-semibold">UOM</th>
+                            <th className="text-right p-3 font-semibold">Quantity</th>
+                            <th className="text-right p-3 font-semibold">Tax Rate</th>
+                            <th className="text-right p-3 font-semibold">Taxable Value</th>
+                            <th className="text-right p-3 font-semibold">CGST</th>
+                            <th className="text-right p-3 font-semibold">SGST</th>
+                            <th className="text-right p-3 font-semibold">IGST</th>
+                            <th className="text-right p-3 font-semibold">Total Tax</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {reportData.map((row: any, index: number) => (
+                            <tr key={index} className="border-b hover:bg-muted/30 transition-colors">
+                              <td className="p-3 font-medium">{row.hsnSacCode}</td>
+                              <td className="p-3 max-w-[200px] truncate">{row.description}</td>
+                              <td className="p-3 text-right">{row.uom}</td>
+                              <td className="p-3 text-right font-medium tabular-nums">
+                                {Number(row.totalQuantity).toLocaleString('en-IN')}
+                              </td>
+                              <td className="p-3 text-right">
+                                <Badge variant={row.taxRate === 0 ? 'secondary' : 'default'}>
+                                  {row.taxRate}% {row.taxType}
+                                </Badge>
+                              </td>
+                              <td className="p-3 text-right font-medium tabular-nums">
+                                ₹{Number(row.totalTaxableValue).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                              </td>
+                              <td className="p-3 text-right tabular-nums">
+                                ₹{Number(row.cgstAmount).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                              </td>
+                              <td className="p-3 text-right tabular-nums">
+                                ₹{Number(row.sgstAmount).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                              </td>
+                              <td className="p-3 text-right tabular-nums">
+                                ₹{Number(row.igstAmount).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                              </td>
+                              <td className="p-3 text-right font-semibold tabular-nums text-green-600 dark:text-green-400">
+                                ₹{Number(row.totalTaxAmount).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                        <tfoot>
+                          <tr className="border-t-2 bg-muted/50 font-semibold">
+                            <td className="p-3" colSpan={5}>TOTAL</td>
+                            <td className="p-3 text-right">
+                              ₹{Number((reportData as any)?.reduce((sum: number, row: any) => sum + (row.totalTaxableValue || 0), 0) || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                            </td>
+                            <td className="p-3 text-right">
+                              ₹{Number((reportData as any)?.reduce((sum: number, row: any) => sum + (row.cgstAmount || 0), 0) || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                            </td>
+                            <td className="p-3 text-right">
+                              ₹{Number((reportData as any)?.reduce((sum: number, row: any) => sum + (row.sgstAmount || 0), 0) || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                            </td>
+                            <td className="p-3 text-right">
+                              ₹{Number((reportData as any)?.reduce((sum: number, row: any) => sum + (row.igstAmount || 0), 0) || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                            </td>
+                            <td className="p-3 text-right text-green-600 dark:text-green-400">
+                              ₹{Number((reportData as any)?.reduce((sum: number, row: any) => sum + (row.totalTaxAmount || 0), 0) || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                            </td>
+                          </tr>
+                        </tfoot>
+                      </table>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Export Information */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Export Information</CardTitle>
+                  <CardDescription>HSN/Tax summary ready for GST compliance</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+                    <h4 className="font-medium text-blue-800 dark:text-blue-200 mb-2">✓ GST Compliance Ready</h4>
+                    <p className="text-sm text-blue-700 dark:text-blue-300 mb-2">
+                      This HSN/Tax summary includes all required information for GST returns:
+                    </p>
+                    <ul className="text-sm text-blue-700 dark:text-blue-300 space-y-1">
+                      <li>• HSN/SAC code-wise classification</li>
+                      <li>• Quantity and UOM details</li>
+                      <li>• Taxable value calculations</li>
+                      <li>• CGST, SGST, IGST breakup</li>
+                      <li>• Tax rate distribution</li>
+                    </ul>
+                    <div className="text-xs text-blue-600 dark:text-blue-400 mt-3 p-2 bg-blue-100 dark:bg-blue-800/30 rounded">
+                      <strong>Period:</strong> {(reportData as any)?.summary?.period || 'Selected date range'}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
           ) : (
             <div className="space-y-6">
               {/* Charts */}
