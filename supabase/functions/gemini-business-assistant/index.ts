@@ -386,51 +386,47 @@ async function getEnhancedBusinessInsights(supabase: any, companyId: string) {
 
 async function generateGeminiResponse(message: string, data: any, analysis: any) {
   // Enhanced business context for more concise responses
-  const businessContext = `You are a concise business data assistant. Provide direct, brief answers to user questions.
+  const businessContext = `You are a data assistant. Provide ONLY the requested data without any additional text.
   
-  IMPORTANT RESPONSE GUIDELINES:
-  - Give SHORT, DIRECT answers unless user specifically asks for "detailed analysis", "comprehensive report", or "insights"  
-  - Only provide the requested data/information
-  - Skip business recommendations, insights, and analysis unless explicitly requested
-  - Use simple, clear language
-  - For data requests, show the data in a clean, organized way
-  - Avoid lengthy explanations or business advice unless asked
+  CRITICAL RULES:
+  - NO introductory text (don't say "Here are..." or "The results show...")
+  - NO explanations or context
+  - NO business advice or recommendations  
+  - NO additional information unless explicitly requested
+  - ONLY show the raw data/information requested
+  - For lists/tables: show data directly without headers or descriptions
+  - Keep responses minimal and factual only
   
-  Your expertise includes:
-  - Sales and purchase data
-  - Inventory and stock information  
-  - Customer and supplier data
-  - Financial information
-  - Business metrics`;
+  If user asks for data, show ONLY the data. Nothing else.`;
 
   let enhancedPrompt = `${businessContext}
   
   User Question: "${message}"
   
-  Business Data:
+  Data Available:
   ${JSON.stringify(data, null, 2)}
   
-  Provide a brief, direct answer to the user's question using the data above. Keep it concise and factual.`;
+  Show only the requested data. No additional text or explanations.`;
 
-  // Add specific context based on query type - but keep it brief
+  // Add specific context - show data only
   if (analysis.queryType === 'inventory' && analysis.stockLevel === 'low') {
-    enhancedPrompt += `\n\nNote: Show low stock items simply and clearly.`;
+    enhancedPrompt += `\n\nShow only the low stock items data.`;
   } else if (analysis.queryType === 'sales_orders') {
-    enhancedPrompt += `\n\nNote: Show sales data simply and clearly.`;
+    enhancedPrompt += `\n\nShow only the sales data.`;
   } else if (analysis.queryType === 'purchase_invoices') {
-    enhancedPrompt += `\n\nNote: Show purchase data simply and clearly.`;
+    enhancedPrompt += `\n\nShow only the purchase data.`;
   } else if (analysis.queryType === 'customers') {
-    enhancedPrompt += `\n\nNote: Show customer information simply and clearly.`;
+    enhancedPrompt += `\n\nShow only the customer data.`;
   } else if (analysis.queryType === 'suppliers') {
-    enhancedPrompt += `\n\nNote: Show supplier information simply and clearly.`;
+    enhancedPrompt += `\n\nShow only the supplier data.`;
   } else if (analysis.queryType === 'inventory') {
-    enhancedPrompt += `\n\nNote: Show inventory data simply and clearly.`;
+    enhancedPrompt += `\n\nShow only the inventory data.`;
   } else if (analysis.queryType === 'payments') {
-    enhancedPrompt += `\n\nNote: Show payment data simply and clearly.`;
+    enhancedPrompt += `\n\nShow only the payment data.`;
   } else if (analysis.queryType === 'analytics') {
-    enhancedPrompt += `\n\nNote: Show key metrics simply and clearly.`;
+    enhancedPrompt += `\n\nShow only the key metrics.`;
   } else if (analysis.queryType === 'actions') {
-    enhancedPrompt += `\n\nNote: Provide brief guidance only.`;
+    enhancedPrompt += `\n\nProvide only brief guidance.`;
   }
 
   const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`, {
