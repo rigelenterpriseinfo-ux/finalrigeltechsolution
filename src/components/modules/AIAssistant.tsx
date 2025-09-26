@@ -74,7 +74,8 @@ export function AIAssistant() {
       const { data, error } = await supabase.functions.invoke('gemini-business-assistant', {
         body: { 
           message: messageText,
-          companyId: profile.company_id 
+          companyId: profile.company_id,
+          userId: profile.id
         }
       });
 

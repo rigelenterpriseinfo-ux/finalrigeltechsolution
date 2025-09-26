@@ -18,7 +18,7 @@ serve(async (req) => {
   }
 
   try {
-    const { message, companyId } = await req.json();
+    const { message, companyId, userId } = await req.json();
 
     if (!GEMINI_API_KEY) {
       throw new Error('Google Gemini API key not configured');
@@ -29,6 +29,19 @@ serve(async (req) => {
 
     console.log('Processing business query:', message);
     console.log('Company ID:', companyId);
+
+    // Check if user wants conversation history
+    if (message.toLowerCase().includes('conversation history') || message.toLowerCase().includes('chat history') || message.toLowerCase().includes('previous messages')) {
+      const conversationHistory = await getConversationHistory(supabase, companyId, userId);
+      return new Response(JSON.stringify({
+        response: "Here are your recent conversations:",
+        data: conversationHistory,
+        queryType: 'conversation_history',
+        tableData: formatConversationHistory(conversationHistory)
+      }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
 
     // Determine the type of query and generate appropriate SQL
     const queryAnalysis = await analyzeBusinessQuery(message);
@@ -67,14 +80,20 @@ serve(async (req) => {
 
     data = queryResult.data;
 
+    // Filter data to show only essential fields
+    const filteredData = filterEssentialData(data, queryAnalysis.queryType);
+
     // Generate AI response using Gemini
-    const aiResponse = await generateGeminiResponse(message, data, queryAnalysis);
+    const aiResponse = await generateGeminiResponse(message, filteredData, queryAnalysis);
+
+    // Store conversation in history
+    await storeConversationHistory(supabase, companyId, userId, message, aiResponse);
 
     return new Response(JSON.stringify({
       response: aiResponse,
-      data: data,
+      data: filteredData,
       queryType: queryAnalysis.queryType,
-      tableData: formatTableData(data, queryAnalysis.queryType)
+      tableData: formatTableData(filteredData, queryAnalysis.queryType)
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
@@ -385,49 +404,23 @@ async function getEnhancedBusinessInsights(supabase: any, companyId: string) {
 }
 
 async function generateGeminiResponse(message: string, data: any, analysis: any) {
-  // Enhanced business context for more concise responses
-  const businessContext = `You are a data assistant. Provide ONLY the requested data without any additional text.
-  
-  CRITICAL RULES:
-  - NO introductory text (don't say "Here are..." or "The results show...")
-  - NO explanations or context
-  - NO business advice or recommendations  
-  - NO additional information unless explicitly requested
-  - ONLY show the raw data/information requested
-  - For lists/tables: show data directly without headers or descriptions
-  - Keep responses minimal and factual only
-  
-  If user asks for data, show ONLY the data. Nothing else.`;
+  // Ultra minimal response - table data ONLY
+  const businessContext = `You MUST respond with only a simple table format. NO other text allowed.
+
+  STRICT RULES:
+  - Show ONLY key data in simple table rows
+  - Maximum 5 columns, maximum 10 rows
+  - Use format: | Column1 | Column2 | Column3 |
+  - NO explanations, introductions, or additional text
+  - If no data, respond with: "No data found"
+  - Keep it EXTREMELY brief`;
 
   let enhancedPrompt = `${businessContext}
   
-  User Question: "${message}"
+  User Query: "${message}"
+  Data: ${JSON.stringify(data)}
   
-  Data Available:
-  ${JSON.stringify(data, null, 2)}
-  
-  Show only the requested data. No additional text or explanations.`;
-
-  // Add specific context - show data only
-  if (analysis.queryType === 'inventory' && analysis.stockLevel === 'low') {
-    enhancedPrompt += `\n\nShow only the low stock items data.`;
-  } else if (analysis.queryType === 'sales_orders') {
-    enhancedPrompt += `\n\nShow only the sales data.`;
-  } else if (analysis.queryType === 'purchase_invoices') {
-    enhancedPrompt += `\n\nShow only the purchase data.`;
-  } else if (analysis.queryType === 'customers') {
-    enhancedPrompt += `\n\nShow only the customer data.`;
-  } else if (analysis.queryType === 'suppliers') {
-    enhancedPrompt += `\n\nShow only the supplier data.`;
-  } else if (analysis.queryType === 'inventory') {
-    enhancedPrompt += `\n\nShow only the inventory data.`;
-  } else if (analysis.queryType === 'payments') {
-    enhancedPrompt += `\n\nShow only the payment data.`;
-  } else if (analysis.queryType === 'analytics') {
-    enhancedPrompt += `\n\nShow only the key metrics.`;
-  } else if (analysis.queryType === 'actions') {
-    enhancedPrompt += `\n\nProvide only brief guidance.`;
-  }
+  Show minimal table only:`;
 
   const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`, {
     method: 'POST',
@@ -441,10 +434,10 @@ async function generateGeminiResponse(message: string, data: any, analysis: any)
           }]
         }],
         generationConfig: {
-          maxOutputTokens: 800,
-          temperature: 0.3,
-          topP: 0.8,
-          topK: 40
+          maxOutputTokens: 200, // Reduced from 800
+          temperature: 0.1, // Reduced for consistency
+          topP: 0.5,
+          topK: 20
         }
       }),
   });
@@ -472,6 +465,113 @@ async function generateGeminiResponse(message: string, data: any, analysis: any)
     console.error('Invalid Gemini API response structure:', result);
     throw new Error('Invalid response structure from Gemini API');
   }
+}
+
+// Filter data to show only essential fields
+function filterEssentialData(data: any, queryType: string) {
+  if (!data) return data;
+
+  if (Array.isArray(data)) {
+    return data.slice(0, 10).map(item => {
+      switch (queryType) {
+        case 'sales_orders':
+          return {
+            order_number: item.order_number,
+            status: item.status,
+            total_amount: item.total_amount,
+            order_date: item.order_date
+          };
+        case 'inventory':
+          return {
+            name: item.name,
+            sku: item.sku,
+            stock_quantity: item.stock_quantity,
+            min_stock_level: item.min_stock_level
+          };
+        case 'customers':
+          return {
+            name: item.name,
+            email: item.email,
+            is_active: item.is_active
+          };
+        default:
+          // Return first 4 properties for other types
+          const keys = Object.keys(item).slice(0, 4);
+          const filtered = {};
+          keys.forEach(key => filtered[key] = item[key]);
+          return filtered;
+      }
+    });
+  }
+
+  return data;
+}
+
+// Store conversation history
+async function storeConversationHistory(supabase: any, companyId: string, userId: string, userMessage: string, aiResponse: string) {
+  try {
+    const { error } = await supabase
+      .from('ai_conversation_history')
+      .insert({
+        company_id: companyId,
+        user_id: userId,
+        user_message: userMessage,
+        ai_response: aiResponse,
+        created_at: new Date().toISOString()
+      });
+
+    if (error) {
+      console.log('Note: Could not store conversation history (table may not exist):', error.message);
+    }
+  } catch (error) {
+    console.log('Note: Conversation history storage failed (expected if table not created)');
+  }
+}
+
+// Get conversation history for last 24 hours
+async function getConversationHistory(supabase: any, companyId: string, userId: string) {
+  try {
+    const twentyFourHoursAgo = new Date();
+    twentyFourHoursAgo.setHours(twentyFourHoursAgo.getHours() - 24);
+
+    const { data, error } = await supabase
+      .from('ai_conversation_history')
+      .select('user_message, ai_response, created_at')
+      .eq('company_id', companyId)
+      .eq('user_id', userId)
+      .gte('created_at', twentyFourHoursAgo.toISOString())
+      .order('created_at', { ascending: false })
+      .limit(20);
+
+    if (error) {
+      console.log('Could not fetch conversation history:', error.message);
+      return [];
+    }
+
+    return data || [];
+  } catch (error) {
+    console.log('Conversation history fetch failed');
+    return [];
+  }
+}
+
+// Format conversation history for display
+function formatConversationHistory(history: any[]) {
+  if (!history || history.length === 0) {
+    return {
+      columns: ['Message', 'Response', 'Time'],
+      rows: [['No recent conversations', '', '']]
+    };
+  }
+
+  return {
+    columns: ['Your Message', 'AI Response', 'Time'],
+    rows: history.map((item: any) => [
+      item.user_message?.substring(0, 50) + '...' || 'N/A',
+      item.ai_response?.substring(0, 50) + '...' || 'N/A',
+      new Date(item.created_at).toLocaleString()
+    ])
+  };
 }
 
 function formatTableData(data: any, queryType: string) {
@@ -610,6 +710,9 @@ function formatTableData(data: any, queryType: string) {
           [data.action || 'General', 'Business Process Automation', 'Custom Development', data.message || 'Contact support for implementation']
         ]
       };
+
+    case 'conversation_history':
+      return formatConversationHistory(data);
 
     default:
       return null;
