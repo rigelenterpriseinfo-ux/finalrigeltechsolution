@@ -51,7 +51,9 @@ serve(async (req) => {
     let queryResult = null;
 
     // Execute the appropriate database query based on the analysis
-    if (queryAnalysis.queryType === 'sales_orders') {
+    if (queryAnalysis.queryType === 'sales_quantities') {
+      queryResult = await executeSalesQuantityQuery(supabase, companyId, queryAnalysis);
+    } else if (queryAnalysis.queryType === 'sales_orders') {
       queryResult = await executeQuery(supabase, companyId, queryAnalysis, 'sales_orders');
   } else if (queryAnalysis.queryType === 'purchase_invoices') {
       queryResult = await executeQuery(supabase, companyId, queryAnalysis, 'sales_invoices');
@@ -114,8 +116,20 @@ async function analyzeBusinessQuery(message: string) {
   const lowerMessage = message.toLowerCase();
   
   // Enhanced query classification with better pattern matching
-  if (lowerMessage.includes('sales order') || lowerMessage.includes('order') || 
-      lowerMessage.includes('so ') || lowerMessage.includes('sale')) {
+  if (lowerMessage.includes('sales qty') || lowerMessage.includes('sales quantity') || 
+      lowerMessage.includes('sold qty') || lowerMessage.includes('sold quantity') || 
+      lowerMessage.includes('quantity sold') || (lowerMessage.includes('sales') && lowerMessage.includes('qty'))) {
+    return {
+      queryType: 'sales_quantities',
+      timeframe: extractTimeframe(lowerMessage),
+      status: extractStatus(lowerMessage),
+      limit: extractLimit(lowerMessage),
+      analytics: extractAnalytics(lowerMessage),
+      month: extractMonth(lowerMessage),
+      stockLevel: extractStockLevel(lowerMessage)
+    };
+  } else if (lowerMessage.includes('sales order') || lowerMessage.includes('order') || 
+      lowerMessage.includes('so ') || (lowerMessage.includes('sale') && !lowerMessage.includes('qty'))) {
     return {
       queryType: 'sales_orders',
       timeframe: extractTimeframe(lowerMessage),
@@ -246,6 +260,23 @@ function extractLimit(message: string) {
   return match ? Math.min(parseInt(match[1]), 100) : 15; // Increased default and max
 }
 
+function extractMonth(message: string) {
+  const lowerMessage = message.toLowerCase();
+  if (lowerMessage.includes('sep') || lowerMessage.includes('september')) return 9;
+  if (lowerMessage.includes('jan') || lowerMessage.includes('january')) return 1;
+  if (lowerMessage.includes('feb') || lowerMessage.includes('february')) return 2;
+  if (lowerMessage.includes('mar') || lowerMessage.includes('march')) return 3;
+  if (lowerMessage.includes('apr') || lowerMessage.includes('april')) return 4;
+  if (lowerMessage.includes('may')) return 5;
+  if (lowerMessage.includes('jun') || lowerMessage.includes('june')) return 6;
+  if (lowerMessage.includes('jul') || lowerMessage.includes('july')) return 7;
+  if (lowerMessage.includes('aug') || lowerMessage.includes('august')) return 8;
+  if (lowerMessage.includes('oct') || lowerMessage.includes('october')) return 10;
+  if (lowerMessage.includes('nov') || lowerMessage.includes('november')) return 11;
+  if (lowerMessage.includes('dec') || lowerMessage.includes('december')) return 12;
+  return null;
+}
+
 async function executeQuery(supabase: any, companyId: string, analysis: any, table: string) {
   let query = supabase.from(table).select('*').eq('company_id', companyId);
 
@@ -320,6 +351,142 @@ async function executeInventoryQuery(supabase: any, companyId: string, analysis:
 
   query = query.order('stock_quantity', { ascending: true }).limit(analysis.limit || 15);
   return await query;
+}
+
+async function executeSalesQuantityQuery(supabase: any, companyId: string, analysis: any) {
+  try {
+    let whereClause = `si.company_id = '${companyId}'`;
+    
+    // Add month filter
+    if (analysis.month) {
+      whereClause += ` AND EXTRACT(MONTH FROM si.invoice_date) = ${analysis.month}`;
+    }
+    
+    // Add status filter to only include finalized invoices
+    whereClause += ` AND si.status = 'finalized'`;
+    
+    let query = `
+      SELECT 
+        p.name as product_name,
+        p.sku as product_sku,
+        p.stock_quantity as current_stock,
+        p.min_stock_level,
+        SUM(sii.quantity_invoiced) as total_sales_qty,
+        COUNT(si.id) as sales_count,
+        AVG(sii.unit_price) as avg_unit_price,
+        SUM(sii.quantity_invoiced * sii.unit_price) as total_sales_value
+      FROM products p
+      LEFT JOIN sales_invoice_items sii ON p.id = sii.product_id
+      LEFT JOIN sales_invoices si ON sii.sales_invoice_id = si.id AND ${whereClause}
+      WHERE p.company_id = '${companyId}'
+    `;
+    
+    // Add low stock filter if requested
+    if (analysis.stockLevel === 'low') {
+      query += ` AND p.stock_quantity <= p.min_stock_level`;
+    }
+    
+    query += `
+      GROUP BY p.id, p.name, p.sku, p.stock_quantity, p.min_stock_level
+      HAVING SUM(sii.quantity_invoiced) > 0 OR p.stock_quantity <= p.min_stock_level
+      ORDER BY p.stock_quantity ASC, total_sales_qty DESC
+      LIMIT ${analysis.limit || 15}
+    `;
+
+    const { data, error } = await supabase.rpc('execute_raw_sql', { query });
+    
+    if (error) {
+      console.error('SQL Query Error:', error);
+      // Fallback to simpler query
+      return await executeSalesQuantityFallback(supabase, companyId, analysis);
+    }
+
+    return { data, error };
+  } catch (error) {
+    console.error('Sales quantity query error:', error);
+    return await executeSalesQuantityFallback(supabase, companyId, analysis);
+  }
+}
+
+async function executeSalesQuantityFallback(supabase: any, companyId: string, analysis: any) {
+  // Get low stock products
+  const { data: lowStockProducts } = await supabase
+    .from('products')
+    .select('id, name, sku, stock_quantity, min_stock_level')
+    .eq('company_id', companyId)
+    .filter('stock_quantity', 'lte', 'min_stock_level')
+    .order('stock_quantity', { ascending: true })
+    .limit(analysis.limit || 15);
+
+  if (!lowStockProducts?.length) {
+    return { data: [], error: null };
+  }
+
+  // Get sales data for these products
+  const productIds = lowStockProducts.map(p => p.id);
+  
+  let invoiceQuery = supabase
+    .from('sales_invoices')
+    .select('id, invoice_date, status')
+    .eq('company_id', companyId)
+    .eq('status', 'finalized');
+    
+  if (analysis.month) {
+    const year = new Date().getFullYear();
+    const startDate = new Date(year, analysis.month - 1, 1);
+    const endDate = new Date(year, analysis.month, 0);
+    invoiceQuery = invoiceQuery
+      .gte('invoice_date', startDate.toISOString().split('T')[0])
+      .lte('invoice_date', endDate.toISOString().split('T')[0]);
+  }
+
+  const { data: invoices } = await invoiceQuery;
+  
+  if (!invoices?.length) {
+    // Return products with zero sales
+    return {
+      data: lowStockProducts.map(p => ({
+        product_name: p.name,
+        product_sku: p.sku,
+        current_stock: p.stock_quantity,
+        min_stock_level: p.min_stock_level,
+        total_sales_qty: 0,
+        sales_count: 0,
+        avg_unit_price: 0,
+        total_sales_value: 0
+      })),
+      error: null
+    };
+  }
+
+  const invoiceIds = invoices.map(i => i.id);
+  
+  const { data: salesItems } = await supabase
+    .from('sales_invoice_items')
+    .select('product_id, quantity_invoiced, unit_price')
+    .in('sales_invoice_id', invoiceIds)
+    .in('product_id', productIds);
+
+  // Aggregate the results
+  const results = lowStockProducts.map(product => {
+    const productSales = salesItems?.filter(item => item.product_id === product.id) || [];
+    const totalQty = productSales.reduce((sum, item) => sum + item.quantity_invoiced, 0);
+    const totalValue = productSales.reduce((sum, item) => sum + (item.quantity_invoiced * item.unit_price), 0);
+    const avgPrice = totalQty > 0 ? totalValue / totalQty : 0;
+
+    return {
+      product_name: product.name,
+      product_sku: product.sku,
+      current_stock: product.stock_quantity,
+      min_stock_level: product.min_stock_level,
+      total_sales_qty: totalQty,
+      sales_count: productSales.length,
+      avg_unit_price: avgPrice,
+      total_sales_value: totalValue
+    };
+  });
+
+  return { data: results, error: null };
 }
 
 async function executePaymentQuery(supabase: any, companyId: string, analysis: any) {
@@ -474,6 +641,15 @@ function filterEssentialData(data: any, queryType: string) {
   if (Array.isArray(data)) {
     return data.slice(0, 10).map(item => {
       switch (queryType) {
+        case 'sales_quantities':
+          return {
+            product_name: item.product_name,
+            product_sku: item.product_sku,
+            current_stock: item.current_stock,
+            min_stock_level: item.min_stock_level,
+            total_sales_qty: item.total_sales_qty,
+            total_sales_value: item.total_sales_value
+          };
         case 'sales_orders':
           return {
             order_number: item.order_number,
@@ -686,7 +862,6 @@ function formatTableData(data: any, queryType: string) {
         ])
       };
 
-    case 'inventory':
       return {
         columns: ['Product Name', 'SKU', 'Current Stock', 'Min Level', 'Unit Price', 'Status'],
         rows: data.map((item: any) => {
@@ -701,6 +876,19 @@ function formatTableData(data: any, queryType: string) {
             stockStatus
           ];
         })
+      };
+
+    case 'sales_quantities':
+      return {
+        columns: ['Product Name', 'SKU', 'Current Stock', 'Min Level', 'Sales Qty', 'Sales Value'],
+        rows: data.map((item: any) => [
+          item.product_name || 'N/A',
+          item.product_sku || 'N/A',
+          item.current_stock?.toString() || '0',
+          item.min_stock_level?.toString() || '0',
+          item.total_sales_qty?.toString() || '0',
+          `₹${item.total_sales_value?.toLocaleString() || '0'}`
+        ])
       };
 
     case 'actions':
