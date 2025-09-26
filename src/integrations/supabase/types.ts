@@ -271,11 +271,13 @@ export type Database = {
           email: string | null
           gstn: string | null
           id: string
+          logo_url: string | null
           name: string
           phone: string | null
           postal_code: string | null
           state: string | null
           status: Database["public"]["Enums"]["company_status"]
+          tagline: string | null
           updated_at: string
           website: string | null
         }
@@ -290,11 +292,13 @@ export type Database = {
           email?: string | null
           gstn?: string | null
           id?: string
+          logo_url?: string | null
           name: string
           phone?: string | null
           postal_code?: string | null
           state?: string | null
           status?: Database["public"]["Enums"]["company_status"]
+          tagline?: string | null
           updated_at?: string
           website?: string | null
         }
@@ -309,11 +313,13 @@ export type Database = {
           email?: string | null
           gstn?: string | null
           id?: string
+          logo_url?: string | null
           name?: string
           phone?: string | null
           postal_code?: string | null
           state?: string | null
           status?: Database["public"]["Enums"]["company_status"]
+          tagline?: string | null
           updated_at?: string
           website?: string | null
         }

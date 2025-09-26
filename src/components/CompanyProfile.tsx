@@ -10,7 +10,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { sanitizeHtml } from '@/lib/security';
 import { Separator } from '@/components/ui/separator';
 import { useBusinessAuth } from '@/hooks/useBusinessAuth';
-import { Loader2, Building2, Save, Phone, Mail, Globe, MapPin, IdCard, Settings, FileText } from 'lucide-react';
+import { Loader2, Building2, Save, Phone, Mail, Globe, MapPin, IdCard, Settings, FileText, Upload, X, Image as ImageIcon } from 'lucide-react';
+import { Textarea } from '@/components/ui/textarea';
 
 interface CompanyProfileProps {
   readonly?: boolean;
@@ -54,7 +55,11 @@ export function CompanyProfile({ readonly = false }: CompanyProfileProps) {
     website: company?.website || '',
     status: company?.status || 'active',
     gstn: '',
+    logoUrl: (company as any)?.logo_url || '',
+    tagline: (company as any)?.tagline || '',
   });
+  const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [logoPreview, setLogoPreview] = useState<string | null>(null);
 
   // Generate Business ID based on company name and current date
   const generateBusinessId = (companyName: string) => {
@@ -68,6 +73,76 @@ export function CompanyProfile({ readonly = false }: CompanyProfileProps) {
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleLogoChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      // Validate file type
+      if (!file.type.startsWith('image/')) {
+        toast({
+          title: "Invalid file type",
+          description: "Please select an image file (PNG, JPG, etc.)",
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      // Validate file size (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        toast({
+          title: "File too large",
+          description: "Please select an image under 5MB",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      setLogoFile(file);
+      
+      // Create preview
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setLogoPreview(e.target?.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleRemoveLogo = () => {
+    setLogoFile(null);
+    setLogoPreview(null);
+    setFormData(prev => ({ ...prev, logoUrl: '' }));
+  };
+
+  const uploadLogo = async (): Promise<string | null> => {
+    if (!logoFile || !company?.id) return null;
+
+    try {
+      const fileName = `${company.id}/logo-${Date.now()}.${logoFile.name.split('.').pop()}`;
+      
+      const { data, error } = await supabase.storage
+        .from('company-logos')
+        .upload(fileName, logoFile, {
+          cacheControl: '3600',
+          upsert: true
+        });
+
+      if (error) throw error;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('company-logos')
+        .getPublicUrl(data.path);
+
+      return publicUrl;
+    } catch (error: any) {
+      toast({
+        title: "Logo upload failed",
+        description: error.message,
+        variant: "destructive",
+      });
+      return null;
+    }
   };
 
 
@@ -87,6 +162,15 @@ export function CompanyProfile({ readonly = false }: CompanyProfileProps) {
           });
           setIsLoading(false);
           return;
+        }
+      }
+
+      // Upload logo if a new file was selected
+      let logoUrl = formData.logoUrl; // Keep existing logo URL
+      if (logoFile) {
+        const uploadedLogoUrl = await uploadLogo();
+        if (uploadedLogoUrl) {
+          logoUrl = uploadedLogoUrl;
         }
       }
 
@@ -113,6 +197,8 @@ export function CompanyProfile({ readonly = false }: CompanyProfileProps) {
         status: formData.status,
         gstn: formData.gstn,
         business_ref_no: generateBusinessId(formData.name),
+        logo_url: logoUrl,
+        tagline: sanitizeHtml(formData.tagline),
         updated_at: new Date().toISOString(),
       };
 
@@ -263,7 +349,14 @@ export function CompanyProfile({ readonly = false }: CompanyProfileProps) {
         website: company.website || '',
         status: company.status || 'active',
         gstn: (company as any).gstn || '',
+        logoUrl: (company as any).logo_url || '',
+        tagline: (company as any).tagline || '',
       }));
+      
+      // Set logo preview if URL exists
+      if ((company as any).logo_url) {
+        setLogoPreview((company as any).logo_url);
+      }
     }
   }, [company]);
 
@@ -353,7 +446,108 @@ export function CompanyProfile({ readonly = false }: CompanyProfileProps) {
                     />
                   </div>
 
-                  {/* Company Description */}
+                  {/* Company Logo */}
+                  <div className="space-y-4">
+                    <Label className="flex items-center gap-2 text-base font-medium">
+                      <ImageIcon className="h-4 w-4 text-primary" />
+                      Company Logo
+                    </Label>
+                    
+                    <div className="flex items-start gap-6">
+                      {/* Logo Preview */}
+                      <div className="flex-shrink-0">
+                        {logoPreview || formData.logoUrl ? (
+                          <div className="relative group">
+                            <div className="w-24 h-24 rounded-lg border-2 border-dashed border-border overflow-hidden bg-muted/50">
+                              <img
+                                src={logoPreview || formData.logoUrl}
+                                alt="Company logo"
+                                className="w-full h-full object-contain"
+                              />
+                            </div>
+                            {canEdit && (
+                              <button
+                                type="button"
+                                onClick={handleRemoveLogo}
+                                className="absolute -top-2 -right-2 p-1 bg-destructive text-destructive-foreground rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                              >
+                                <X className="h-3 w-3" />
+                              </button>
+                            )}
+                          </div>
+                        ) : (
+                          <div className="w-24 h-24 rounded-lg border-2 border-dashed border-border flex items-center justify-center bg-muted/50">
+                            <ImageIcon className="h-8 w-8 text-muted-foreground" />
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Upload Controls */}
+                      <div className="flex-1 space-y-2">
+                        {canEdit && (
+                          <>
+                            <div className="flex items-center gap-3">
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={() => document.getElementById('logo-upload')?.click()}
+                                className="flex items-center gap-2"
+                              >
+                                <Upload className="h-4 w-4" />
+                                Upload Logo
+                              </Button>
+                              {(logoPreview || formData.logoUrl) && (
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={handleRemoveLogo}
+                                  className="text-muted-foreground hover:text-destructive"
+                                >
+                                  Remove
+                                </Button>
+                              )}
+                            </div>
+                            <input
+                              id="logo-upload"
+                              type="file"
+                              accept="image/*"
+                              onChange={handleLogoChange}
+                              className="hidden"
+                            />
+                          </>
+                        )}
+                        <p className="text-xs text-muted-foreground">
+                          Recommended: Square image, max 5MB (PNG, JPG, SVG)
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Company Tagline */}
+                  <div className="space-y-2">
+                    <Label htmlFor="company-tagline" className="text-base font-medium">
+                      Company Tagline
+                    </Label>
+                    <Textarea
+                      id="company-tagline"
+                      value={formData.tagline}
+                      onChange={canEdit ? (e) => handleInputChange('tagline', e.target.value) : undefined}
+                      placeholder="A brief description of your company's mission or vision..."
+                      disabled={!canEdit}
+                      className={!canEdit ? "bg-muted/50" : ""}
+                      rows={3}
+                      maxLength={200}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      {formData.tagline.length}/200 characters
+                    </p>
+                  </div>
+
+                  <Separator />
+
+                  {/* Company Website */}
                   <div className="space-y-2">
                     <Label htmlFor="company-website" className="flex items-center gap-2 text-base font-medium">
                       <Globe className="h-4 w-4 text-primary" />
