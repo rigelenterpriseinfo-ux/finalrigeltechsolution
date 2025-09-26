@@ -58,22 +58,22 @@ interface Product {
   product_category: 'raw_material' | 'finished_goods' | 'consumables' | 'assets' | 'others';
   created_at: string;
   updated_at: string;
+  stock_quantity: number;
 }
 
-export function InventoryModule() {
-  const { profile } = useAuth();
+export default function InventoryModule() {
+  const { user } = useAuth();
+  const { profile, businessUser } = useBusinessAuth();
   const { toast } = useToast();
-  const { hasEditAccess } = useBusinessAuth();
   const isMobile = useIsMobile();
-  const canEdit = hasEditAccess('inventory');
+
+  // State management
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
-  const [productsWithTransactions, setProductsWithTransactions] = useState<Set<string>>(new Set());
   const [searchTerm, setSearchTerm] = useState('');
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [showViewDialog, setShowViewDialog] = useState(false);
-  const [showBOMDialog, setShowBOMDialog] = useState(false);
   const [showBinDialog, setShowBinDialog] = useState(false);
   const [showAdjustmentDialog, setShowAdjustmentDialog] = useState(false);
   const [showTransferDialog, setShowTransferDialog] = useState(false);
@@ -92,22 +92,6 @@ export function InventoryModule() {
   
   // Bulk upload states
   const [showBulkUpload, setShowBulkUpload] = useState(false);
-  const [uploadFile, setUploadFile] = useState<File | null>(null);
-  const [uploadProgress, setUploadProgress] = useState<{
-    status: 'idle' | 'processing' | 'completed' | 'error';
-    total: number;
-    processed: number;
-    successful: number;
-    failed: number;
-    errors: Array<{ row: number; error: string; data?: any }>;
-  }>({
-    status: 'idle',
-    total: 0,
-    processed: 0,
-    successful: 0,
-    failed: 0,
-    errors: []
-  });
   
   // Form state for auto-calculations and conditional display
   const [isTaxable, setIsTaxable] = useState(true);
@@ -154,6 +138,10 @@ export function InventoryModule() {
     return l > 0 && w > 0 && h > 0 ? (l * w * h).toFixed(2) : '';
   };
 
+  // Check permissions
+  const canEdit = businessUser?.access_type === 'OWNER' || businessUser?.access_type === 'ADMIN' || profile?.role === 'owner' || profile?.role === 'admin';
+  const canDelete = canEdit;
+
   // Debounced SKU validation
   const validateSKU = useCallback(async (sku: string) => {
     if (!sku.trim()) {
@@ -161,7 +149,7 @@ export function InventoryModule() {
       return;
     }
 
-    setSkuValidation({ status: 'checking', message: 'Checking availability...' });
+    setSkuValidation({ status: 'checking', message: 'Checking SKU availability...' });
 
     try {
       const { data, error } = await supabase
@@ -173,19 +161,21 @@ export function InventoryModule() {
 
       if (error) throw error;
 
-      if (!data) {
-        setSkuValidation({ status: 'valid', message: 'SKU is available' });
-      } else if (data.is_active) {
-        setSkuValidation({ 
-          status: 'duplicate', 
-          message: `SKU already exists for "${data.name}"` 
-        });
+      if (data) {
+        if (data.is_active) {
+          setSkuValidation({ 
+            status: 'duplicate', 
+            message: `SKU "${sku}" is already in use by "${data.name}"` 
+          });
+        } else {
+          setSkuValidation({ 
+            status: 'inactive_found', 
+            message: `Found inactive product "${data.name}" with this SKU`,
+            inactiveProduct: data
+          });
+        }
       } else {
-        setSkuValidation({ 
-          status: 'inactive_found', 
-          message: `Inactive product "${data.name}" uses this SKU`,
-          inactiveProduct: data 
-        });
+        setSkuValidation({ status: 'valid', message: 'SKU is available' });
       }
     } catch (error) {
       console.error('Error validating SKU:', error);
@@ -204,54 +194,40 @@ export function InventoryModule() {
     return () => clearTimeout(timeoutId);
   }, [skuValue, validateSKU]);
 
-  // Handle SKU reactivation
-  const handleReactivateProduct = async () => {
-    if (!skuValidation.inactiveProduct) return;
+  // Track products with inventory transactions
+  const [productsWithTransactions, setProductsWithTransactions] = useState<Set<string>>(new Set());
 
-    try {
-      const { error } = await supabase
-        .from('products')
-        .update({ is_active: true })
-        .eq('id', skuValidation.inactiveProduct.id);
-
-      if (error) throw error;
-
-      toast({
-        title: "Success",
-        description: `Product "${skuValidation.inactiveProduct.name}" has been reactivated`,
-      });
-
-      setShowAddDialog(false);
-      fetchProducts();
-      setSkuValue('');
-      setSkuValidation({ status: 'idle', message: '' });
-    } catch (error) {
-      console.error('Error reactivating product:', error);
-      toast({
-        title: "Error",
-        description: "Failed to reactivate product",
-        variant: "destructive",
-      });
+  useEffect(() => {
+    // When products are deleted, clear them from the form state
+    if (deletingProduct) {
+      setEditingProduct(null);
+      setViewingProduct(null);
     }
-  };
+  }, [deletingProduct]);
 
-  // Fetch warehouse bins
-  const fetchWarehouseBins = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('warehouse_bins')
-        .select('*')
-        .eq('is_active', true)
-        .order('wh_bin_code', { ascending: true });
+  useEffect(() => {
+    const calculateBinStats = () => {
+      const stats = warehouseBins.map(bin => {
+        // Count products assigned to this bin
+        const productsInBin = products.filter(product => 
+          product.bin_name && product.bin_name.toLowerCase() === bin.bin_name.toLowerCase()
+        ).length;
 
-      if (error) throw error;
-      setWarehouseBins(data || []);
-    } catch (error) {
-      console.error('Error fetching warehouse bins:', error);
+        return {
+          ...bin,
+          products_count: productsInBin
+        };
+      });
+      
+      setWarehouseBinStats(stats);
+    };
+
+    if (warehouseBins.length > 0 && products.length > 0) {
+      calculateBinStats();
     }
-  };
+  }, [warehouseBins, products]);
 
-  // Check for products with transactions
+  // Check for products with inventory transactions
   const checkProductsWithTransactions = async () => {
     try {
       const { data, error } = await supabase
@@ -264,44 +240,46 @@ export function InventoryModule() {
       const productIdsWithTransactions = new Set(data?.map(t => t.product_id) || []);
       setProductsWithTransactions(productIdsWithTransactions);
     } catch (error) {
-      console.error('Error checking product transactions:', error);
+      console.error('Error checking products with transactions:', error);
     }
   };
 
-  // Calculate warehouse bin statistics
   const calculateWarehouseBinStats = () => {
-    const binStats = warehouseBins.map(bin => {
+    const stats = warehouseBins.map(bin => {
+      // Count products assigned to this bin
+      const productsInBin = products.filter(product => 
+        product.bin_name && product.bin_name.toLowerCase() === bin.bin_name.toLowerCase()
+      ).length;
+      
+      // Calculate total value of products in this bin
+      const totalValue = products
+        .filter(product => 
+          product.bin_name && product.bin_name.toLowerCase() === bin.bin_name.toLowerCase()
+        )
+        .reduce((sum, product) => sum + (product.unit_price * (product.stock_quantity || 0)), 0);
+
       return {
-        binCode: bin.wh_bin_code,
-        binName: bin.bin_name,
-        totalUnits: 0,
-        totalValue: 0
+        ...bin,
+        products_count: productsInBin,
+        total_value: totalValue
       };
     });
-    setWarehouseBinStats(binStats);
+    
+    setWarehouseBinStats(stats);
   };
 
-  // Fetch products from Supabase
-  const fetchProducts = async () => {
+  const fetchWarehouseBins = async () => {
     try {
-      setLoading(true);
       const { data, error } = await supabase
-        .from('products')
+        .from('warehouse_bins')
         .select('*')
-        .eq('is_active', true)
-        .order('name', { ascending: true });
+        .eq('company_id', profile?.company_id)
+        .order('bin_name');
 
       if (error) throw error;
-      setProducts(data as Product[] || []);
+      setWarehouseBins(data || []);
     } catch (error) {
-      console.error('Error fetching products:', error);
-      toast({
-        title: "Error",
-        description: "Failed to fetch products",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
+      console.error('Error fetching warehouse bins:', error);
     }
   };
 
@@ -319,119 +297,77 @@ export function InventoryModule() {
     }
   }, [warehouseBins, products]);
 
-  // Handle sorting
-  const handleSort = (key: string) => {
-    let direction: 'asc' | 'desc' = 'asc';
-    if (sortConfig && sortConfig.key === key && sortConfig.direction === 'asc') {
-      direction = 'desc';
-    }
-    setSortConfig({ key, direction });
-  };
+  // Fetch products
+  const fetchProducts = async () => {
+    try {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('products')
+        .select('*')
+        .eq('company_id', profile?.company_id)
+        .order('created_at', { ascending: false });
 
-  // Get sort icon
-  const getSortIcon = (key: string) => {
-    if (!sortConfig || sortConfig.key !== key) {
-      return <ArrowUpDown className="w-4 h-4" />;
-    }
-    return sortConfig.direction === 'asc' ? 
-      <ArrowUp className="w-4 h-4" /> : 
-      <ArrowDown className="w-4 h-4" />;
-  };
-
-  // Handle add product
-  const handleAddProduct = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    if (!canEdit) {
+      if (error) throw error;
+      setProducts(data || []);
+    } catch (error) {
+      console.error('Error fetching products:', error);
       toast({
-        title: "Access Denied",
-        description: "You don't have permission to create products",
+        title: "Error",
+        description: "Failed to fetch products",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Handle product creation
+  const handleAddProduct = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!profile?.company_id) {
+      toast({
+        title: "Error",
+        description: "Company information not found",
         variant: "destructive",
       });
       return;
     }
 
-    // Prevent submission if SKU validation failed
+    // Check if SKU is valid
     if (skuValidation.status === 'duplicate') {
       toast({
-        title: "Validation Error",
-        description: "SKU already exists. Please use a different SKU.",
+        title: "Invalid SKU",
+        description: "Please use a different SKU as this one is already in use.",
         variant: "destructive",
       });
       return;
     }
 
-    if (isSubmitting) return;
     setIsSubmitting(true);
 
     try {
-      const formData = new FormData(e.currentTarget);
-      const form = e.currentTarget;
-      
-      // Enhanced validation
-      const costPrice = parseFloat(formData.get('cost_price') as string || '0');
-      const sellingPrice = parseFloat(formData.get('unit_price') as string || '0');
-      const mrp = formData.get('mrp') ? parseFloat(formData.get('mrp') as string) : null;
-      const gstPercentage = parseFloat(formData.get('gst_percentage') as string || '0');
-      const minStock = parseInt(formData.get('min_stock_level') as string || '0');
-      const maxStock = formData.get('max_stock_level') ? parseInt(formData.get('max_stock_level') as string) : null;
-      
-      // Validation checks
-      if (costPrice < 0 || sellingPrice < 0 || (mrp && mrp < 0)) {
-        toast({
-          title: "Validation Error", 
-          description: "Prices must be greater than or equal to 0",
-          variant: "destructive",
-        });
-        return;
-      }
-      
-      if (mrp && mrp < sellingPrice) {
-        toast({
-          title: "Validation Error",
-          description: "MRP cannot be less than Selling Price",
-          variant: "destructive",
-        });
-        return;
-      }
-      
-      if (gstPercentage < 0 || gstPercentage > 28) {
-        toast({
-          title: "Validation Error",
-          description: "GST percentage must be between 0-28%",
-          variant: "destructive",
-        });
-        return;
-      }
-      
-      if (minStock < 0 || (maxStock && maxStock < 0)) {
-        toast({
-          title: "Validation Error",
-          description: "Stock levels must be non-negative integers",
-          variant: "destructive",
-        });
-        return;
-      }
+      const formData = new FormData(event.currentTarget);
 
       // Calculate volume if dimensions are provided
-      const length = formData.get('length_cm') ? parseFloat(formData.get('length_cm') as string) : null;
-      const width = formData.get('width_cm') ? parseFloat(formData.get('width_cm') as string) : null;
-      const height = formData.get('height_cm') ? parseFloat(formData.get('height_cm') as string) : null;
+      const length = parseFloat(formData.get('length_cm') as string) || null;
+      const width = parseFloat(formData.get('width_cm') as string) || null;
+      const height = parseFloat(formData.get('height_cm') as string) || null;
       const volumeCubicCm = (length && width && height) ? length * width * height : null;
 
       const productData = {
-        name: formData.get('name') as string,
-        description: formData.get('description') as string,
         sku: formData.get('sku') as string,
-        unit: formData.get('unit') as string,
-        cost_price: costPrice,
-        unit_price: sellingPrice,
-        mrp: mrp,
-        min_stock_level: minStock,
-        max_stock_level: maxStock,
-        hsn_code: formData.get('hsn_code') as string,
-        gst_percentage: gstPercentage,
+        name: formData.get('name') as string,
+        description: formData.get('description') as string || null,
+        unit: formData.get('unit') as string || null,
+        cost_price: parseFloat(formData.get('cost_price') as string) || 0,
+        unit_price: parseFloat(formData.get('unit_price') as string) || 0,
+        mrp: parseFloat(formData.get('mrp') as string) || null,
+        hsn_code: formData.get('hsn_code') as string || null,
+        gst_percentage: parseFloat(formData.get('gst_percentage') as string) || 0,
         is_taxable: formData.get('is_taxable') === 'on',
-        weight_kg: formData.get('weight_kg') ? parseFloat(formData.get('weight_kg') as string) : null,
+        min_stock_level: parseInt(formData.get('min_stock_level') as string) || 0,
+        max_stock_level: parseInt(formData.get('max_stock_level') as string) || null,
+        weight_kg: parseFloat(formData.get('weight_kg') as string) || null,
         length_cm: length,
         width_cm: width,
         height_cm: height,
@@ -467,17 +403,19 @@ export function InventoryModule() {
 
       setShowAddDialog(false);
       fetchProducts();
-      // Reset form and state
-      form.reset();
-      setIsTaxable(true);
-      setDimensions({ length: '', width: '', height: '' });
+      
+      // Reset form validation state
       setSkuValue('');
       setSkuValidation({ status: 'idle', message: '' });
+      
+      // Reset form
+      event.currentTarget.reset();
+
     } catch (error) {
       console.error('Error adding product:', error);
       toast({
         title: "Error",
-        description: "Failed to add product. Please try again.",
+        description: "Failed to add product",
         variant: "destructive",
       });
     } finally {
@@ -485,76 +423,13 @@ export function InventoryModule() {
     }
   };
 
-  // Handle update product
-  const handleUpdateProduct = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    if (!canEdit || !editingProduct) {
+  // Handle product deletion
+  const handleDeleteProduct = async (product: Product) => {
+    // Check if product has inventory transactions
+    if (productsWithTransactions.has(product.id)) {
       toast({
-        title: "Access Denied",
-        description: "You don't have permission to update products",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    try {
-      const formData = new FormData(e.currentTarget);
-      const productData = {
-        name: formData.get('name') as string,
-        description: formData.get('description') as string,
-        sku: formData.get('sku') as string,
-        unit: formData.get('unit') as string,
-        cost_price: parseFloat(formData.get('cost_price') as string),
-        unit_price: parseFloat(formData.get('unit_price') as string),
-        min_stock_level: parseInt(formData.get('min_stock_level') as string),
-        max_stock_level: formData.get('max_stock_level') ? parseInt(formData.get('max_stock_level') as string) : null,
-        hsn_code: formData.get('hsn_code') as string,
-        gst_percentage: parseFloat(formData.get('gst_percentage') as string),
-        weight_kg: formData.get('weight_kg') ? parseFloat(formData.get('weight_kg') as string) : null,
-        length_cm: formData.get('length_cm') ? parseFloat(formData.get('length_cm') as string) : null,
-        width_cm: formData.get('width_cm') ? parseFloat(formData.get('width_cm') as string) : null,
-        height_cm: formData.get('height_cm') ? parseFloat(formData.get('height_cm') as string) : null,
-        product_type: formData.get('product_type') as 'goods' | 'service',
-        product_category: formData.get('product_category') as 'raw_material' | 'finished_goods' | 'consumables' | 'assets',
-      };
-
-      const { error } = await supabase
-        .from('products')
-        .update(productData)
-        .eq('id', editingProduct.id);
-
-      if (error) throw error;
-
-      toast({
-        title: "Success",
-        description: "Product updated successfully",
-      });
-
-      setShowEditDialog(false);
-      setEditingProduct(null);
-      fetchProducts();
-    } catch (error) {
-      console.error('Error updating product:', error);
-      toast({
-        title: "Error",
-        description: "Failed to update product",
-        variant: "destructive",
-      });
-    }
-  };
-
-  // Handle edit product
-  const handleEditProduct = (product: Product) => {
-    setEditingProduct(product);
-    setShowEditDialog(true);
-  };
-
-  // Handle delete product
-  const handleDeleteProduct = async (productId: string) => {
-    if (!canEdit) {
-      toast({
-        title: "Access Denied",
-        description: "You don't have permission to delete products",
+        title: "Cannot Delete Product",
+        description: "This product has inventory transactions and cannot be deleted. Consider marking it as inactive instead.",
         variant: "destructive",
       });
       return;
@@ -563,8 +438,8 @@ export function InventoryModule() {
     try {
       const { error } = await supabase
         .from('products')
-        .update({ is_active: false })
-        .eq('id', productId);
+        .delete()
+        .eq('id', product.id);
 
       if (error) throw error;
 
@@ -574,6 +449,7 @@ export function InventoryModule() {
       });
 
       fetchProducts();
+      setDeletingProduct(null);
     } catch (error) {
       console.error('Error deleting product:', error);
       toast({
@@ -584,6 +460,44 @@ export function InventoryModule() {
     }
   };
 
+  // Toggle product active status
+  const toggleProductStatus = async (product: Product) => {
+    try {
+      const { error } = await supabase
+        .from('products')
+        .update({ is_active: !product.is_active })
+        .eq('id', product.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: `Product ${!product.is_active ? 'activated' : 'deactivated'} successfully`,
+      });
+
+      fetchProducts();
+    } catch (error) {
+      console.error('Error updating product status:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update product status",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Sorting function
+  const handleSort = (key: string) => {
+    let direction: 'asc' | 'desc' = 'asc';
+    
+    if (sortConfig && sortConfig.key === key && sortConfig.direction === 'asc') {
+      direction = 'desc';
+    }
+    
+    setSortConfig({ key, direction });
+    setCurrentPage(1);
+  };
+
   // Filter and sort products
   const filteredProducts = useMemo(() => {
     let filtered = products.filter(product =>
@@ -592,17 +506,24 @@ export function InventoryModule() {
       (product.description && product.description.toLowerCase().includes(searchTerm.toLowerCase()))
     );
 
-    if (sortConfig) {
+    if (sortConfig !== null) {
       filtered.sort((a, b) => {
         const aValue = a[sortConfig.key as keyof Product];
         const bValue = b[sortConfig.key as keyof Product];
-        
-        if (aValue < bValue) {
-          return sortConfig.direction === 'asc' ? -1 : 1;
+
+        if (aValue === null || aValue === undefined) return 1;
+        if (bValue === null || bValue === undefined) return -1;
+
+        if (typeof aValue === 'string' && typeof bValue === 'string') {
+          return sortConfig.direction === 'asc' 
+            ? aValue.localeCompare(bValue)
+            : bValue.localeCompare(aValue);
         }
-        if (aValue > bValue) {
-          return sortConfig.direction === 'asc' ? 1 : -1;
+
+        if (typeof aValue === 'number' && typeof bValue === 'number') {
+          return sortConfig.direction === 'asc' ? aValue - bValue : bValue - aValue;
         }
+
         return 0;
       });
     }
@@ -644,352 +565,6 @@ export function InventoryModule() {
     XLSX.writeFile(workbook, 'products.xlsx');
   };
 
-  // Download template for bulk upload
-  const downloadTemplate = () => {
-    const templateData = [{
-      'SKU': 'SAMPLE-001',
-      'Name': 'Sample Product',
-      'Description': 'Sample product description',
-      'Type': 'goods', // goods or service
-      'Category': 'raw_material', // raw_material, work_in_progress, finished_goods, service
-      'Unit': 'pcs',
-      'Cost Price': 100,
-      'Unit Price': 150,
-      'HSN Code': '1234',
-      'GST %': 18,
-      'Min Stock': 10,
-      'Max Stock': 100,
-      'Weight (kg)': 1.5,
-      'Length (cm)': 10,
-      'Width (cm)': 5,
-      'Height (cm)': 2,
-      'Status': 'Active' // Active or Inactive
-    }];
-
-    const worksheet = XLSX.utils.json_to_sheet(templateData);
-    
-    // Add instructions as comments or in a separate sheet
-    const instructionsData = [
-      { Field: 'SKU', Description: 'Unique product identifier', Required: 'Yes', Example: 'PROD-001' },
-      { Field: 'Name', Description: 'Product name', Required: 'Yes', Example: 'Sample Product' },
-      { Field: 'Type', Description: 'Product type', Required: 'Yes', Example: 'goods or service' },
-      { Field: 'Category', Description: 'Product category', Required: 'Yes', Example: 'raw_material, work_in_progress, finished_goods, service' },
-      { Field: 'Unit', Description: 'Unit of measure', Required: 'No', Example: 'pcs, kg, liters' },
-      { Field: 'Cost Price', Description: 'Product cost price', Required: 'Yes', Example: '100' },
-      { Field: 'Unit Price', Description: 'Selling price', Required: 'Yes', Example: '150' },
-      { Field: 'Status', Description: 'Product status', Required: 'No', Example: 'Active or Inactive (default: Active)' }
-    ];
-    
-    const instructionsSheet = XLSX.utils.json_to_sheet(instructionsData);
-    
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'Template');
-    XLSX.utils.book_append_sheet(workbook, instructionsSheet, 'Instructions');
-    
-    XLSX.writeFile(workbook, 'products_bulk_upload_template.xlsx');
-    
-    toast({
-      title: "Template Downloaded",
-      description: "Fill the template with your product data and upload it back.",
-    });
-  };
-
-  // Handle file upload
-  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      if (file.type === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' || 
-          file.type === 'application/vnd.ms-excel') {
-        setUploadFile(file);
-        setUploadProgress(prev => ({ ...prev, status: 'idle', errors: [] }));
-      } else {
-        toast({
-          title: "Invalid File Type",
-          description: "Please upload an Excel file (.xlsx or .xls)",
-          variant: "destructive"
-        });
-      }
-    }
-  };
-
-  // Process bulk upload
-  const processBulkUpload = async () => {
-    if (!uploadFile || !profile?.company_id) return;
-
-    setUploadProgress(prev => ({ 
-      ...prev, 
-      status: 'processing', 
-      total: 0, 
-      processed: 0, 
-      successful: 0, 
-      failed: 0, 
-      errors: [] 
-    }));
-
-    try {
-      const arrayBuffer = await uploadFile.arrayBuffer();
-      const workbook = XLSX.read(arrayBuffer, { type: 'buffer' });
-      const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-      const jsonData = XLSX.utils.sheet_to_json(worksheet);
-
-      if (jsonData.length === 0) {
-        throw new Error('No data found in the uploaded file');
-      }
-
-      setUploadProgress(prev => ({ ...prev, total: jsonData.length }));
-
-      const results = {
-        successful: 0,
-        failed: 0,
-        errors: [] as Array<{ row: number; error: string; data?: any }>
-      };
-
-      // Process each row
-      for (let i = 0; i < jsonData.length; i++) {
-        const rowData = jsonData[i] as any;
-        const rowNumber = i + 2; // +2 because Excel starts at 1 and we have header
-
-        try {
-          // Validate required fields
-          if (!rowData.SKU || !rowData.Name || !rowData['Cost Price'] || !rowData['Unit Price']) {
-            throw new Error('Missing required fields: SKU, Name, Cost Price, or Unit Price');
-          }
-
-          // Prepare product data
-          const productData = {
-            company_id: profile.company_id,
-            sku: String(rowData.SKU).trim(),
-            name: String(rowData.Name).trim(),
-            description: rowData.Description ? String(rowData.Description).trim() : null,
-            product_type: rowData.Type === 'service' ? 'service' : 'goods',
-            product_category: rowData.Category || 'raw_material',
-            unit: rowData.Unit ? String(rowData.Unit).trim() : 'pcs',
-            cost_price: Number(rowData['Cost Price']) || 0,
-            unit_price: Number(rowData['Unit Price']) || 0,
-            mrp: rowData.MRP ? Number(rowData.MRP) : null,
-            hsn_code: rowData['HSN Code'] ? String(rowData['HSN Code']).trim() : null,
-            gst_percentage: Number(rowData['GST %']) || 0,
-            min_stock_level: Number(rowData['Min Stock']) || 0,
-            max_stock_level: rowData['Max Stock'] ? Number(rowData['Max Stock']) : null,
-            weight_kg: rowData['Weight (kg)'] ? Number(rowData['Weight (kg)']) : null,
-            length_cm: rowData['Length (cm)'] ? Number(rowData['Length (cm)']) : null,
-            width_cm: rowData['Width (cm)'] ? Number(rowData['Width (cm)']) : null,
-            height_cm: rowData['Height (cm)'] ? Number(rowData['Height (cm)']) : null,
-            is_active: rowData.Status === 'Inactive' ? false : true,
-            stock_quantity: 0
-          };
-
-          // Check if product with SKU already exists
-          const { data: existingProduct } = await supabase
-            .from('products')
-            .select('id')
-            .eq('company_id', profile.company_id)
-            .eq('sku', productData.sku)
-            .maybeSingle();
-
-          let result;
-          if (existingProduct) {
-            // Update existing product
-            result = await supabase
-              .from('products')
-              .update(productData)
-              .eq('id', existingProduct.id);
-          } else {
-            // Insert new product
-            result = await supabase
-              .from('products')
-              .insert(productData);
-          }
-
-          if (result.error) {
-            throw new Error(result.error.message);
-          }
-
-          results.successful++;
-        } catch (error) {
-          results.failed++;
-          results.errors.push({
-            row: rowNumber,
-            error: error instanceof Error ? error.message : 'Unknown error',
-            data: rowData
-          });
-        }
-
-        // Update progress
-        setUploadProgress(prev => ({
-          ...prev,
-          processed: i + 1,
-          successful: results.successful,
-          failed: results.failed,
-          errors: results.errors
-        }));
-
-        // Small delay to prevent overwhelming the database
-        await new Promise(resolve => setTimeout(resolve, 50));
-      }
-
-      setUploadProgress(prev => ({ ...prev, status: 'completed' }));
-      
-      // Refresh products list
-      fetchProducts();
-      
-      toast({
-        title: "Bulk Upload Completed",
-        description: `Successfully processed ${results.successful} products. ${results.failed} failed.`,
-      });
-
-    } catch (error) {
-      setUploadProgress(prev => ({ 
-        ...prev, 
-        status: 'error',
-        errors: [{ row: 0, error: error instanceof Error ? error.message : 'Upload failed' }]
-      }));
-      
-      toast({
-        title: "Upload Failed",
-        description: error instanceof Error ? error.message : 'Failed to process upload',
-        variant: "destructive"
-      });
-    }
-  };
-
-    setUploadProgress(prev => ({ 
-      ...prev, 
-      status: 'processing', 
-      total: 0, 
-      processed: 0, 
-      successful: 0, 
-      failed: 0, 
-      errors: [] 
-    }));
-
-    try {
-      const arrayBuffer = await uploadFile.arrayBuffer();
-      const workbook = XLSX.read(arrayBuffer, { type: 'buffer' });
-      const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-      const jsonData = XLSX.utils.sheet_to_json(worksheet);
-
-      if (jsonData.length === 0) {
-        throw new Error('No data found in the uploaded file');
-      }
-
-      setUploadProgress(prev => ({ ...prev, total: jsonData.length }));
-
-      const results = {
-        successful: 0,
-        failed: 0,
-        errors: [] as Array<{ row: number; error: string; data?: any }>
-      };
-
-      // Process each row
-      for (let i = 0; i < jsonData.length; i++) {
-        const rowData = jsonData[i] as any;
-        const rowNumber = i + 2; // +2 because Excel starts at 1 and we have header
-
-        try {
-          // Validate required fields
-          if (!rowData.SKU || !rowData.Name || !rowData['Cost Price'] || !rowData['Unit Price']) {
-            throw new Error('Missing required fields: SKU, Name, Cost Price, or Unit Price');
-          }
-
-          // Prepare product data
-          const productData = {
-            company_id: company.id,
-            sku: String(rowData.SKU).trim(),
-            name: String(rowData.Name).trim(),
-            description: rowData.Description ? String(rowData.Description).trim() : null,
-            product_type: rowData.Type === 'service' ? 'service' : 'goods',
-            product_category: rowData.Category || 'raw_material',
-            unit: rowData.Unit ? String(rowData.Unit).trim() : 'pcs',
-            cost_price: Number(rowData['Cost Price']) || 0,
-            unit_price: Number(rowData['Unit Price']) || 0,
-            mrp: rowData.MRP ? Number(rowData.MRP) : null,
-            hsn_code: rowData['HSN Code'] ? String(rowData['HSN Code']).trim() : null,
-            gst_percentage: Number(rowData['GST %']) || 0,
-            min_stock_level: Number(rowData['Min Stock']) || 0,
-            max_stock_level: rowData['Max Stock'] ? Number(rowData['Max Stock']) : null,
-            weight_kg: rowData['Weight (kg)'] ? Number(rowData['Weight (kg)']) : null,
-            length_cm: rowData['Length (cm)'] ? Number(rowData['Length (cm)']) : null,
-            width_cm: rowData['Width (cm)'] ? Number(rowData['Width (cm)']) : null,
-            height_cm: rowData['Height (cm)'] ? Number(rowData['Height (cm)']) : null,
-            is_active: rowData.Status === 'Inactive' ? false : true,
-            stock_quantity: 0
-          };
-
-          // Check if product with SKU already exists
-          const { data: existingProduct } = await supabase
-            .from('products')
-            .select('id')
-            .eq('company_id', company.id)
-            .eq('sku', productData.sku)
-            .maybeSingle();
-
-          let result;
-          if (existingProduct) {
-            // Update existing product
-            result = await supabase
-              .from('products')
-              .update(productData)
-              .eq('id', existingProduct.id);
-          } else {
-            // Insert new product
-            result = await supabase
-              .from('products')
-              .insert(productData);
-          }
-
-          if (result.error) {
-            throw new Error(result.error.message);
-          }
-
-          results.successful++;
-        } catch (error) {
-          results.failed++;
-          results.errors.push({
-            row: rowNumber,
-            error: error instanceof Error ? error.message : 'Unknown error',
-            data: rowData
-          });
-        }
-
-        // Update progress
-        setUploadProgress(prev => ({
-          ...prev,
-          processed: i + 1,
-          successful: results.successful,
-          failed: results.failed,
-          errors: results.errors
-        }));
-
-        // Small delay to prevent overwhelming the database
-        await new Promise(resolve => setTimeout(resolve, 50));
-      }
-
-      setUploadProgress(prev => ({ ...prev, status: 'completed' }));
-      
-      // Refresh products list
-      fetchProducts();
-      
-      toast({
-        title: "Bulk Upload Completed",
-        description: `Successfully processed ${results.successful} products. ${results.failed} failed.`,
-      });
-
-    } catch (error) {
-      setUploadProgress(prev => ({ 
-        ...prev, 
-        status: 'error',
-        errors: [{ row: 0, error: error instanceof Error ? error.message : 'Upload failed' }]
-      }));
-      
-      toast({
-        title: "Upload Failed",
-        description: error instanceof Error ? error.message : 'Failed to process upload',
-        variant: "destructive"
-      });
-    }
-  };
-
   // Statistics
   const totalProducts = products.length;
   const totalValue = products.reduce((sum, product) => sum + (product.unit_price * product.min_stock_level || 0), 0);
@@ -1014,456 +589,296 @@ export function InventoryModule() {
                 onOpenChange={(open) => {
                   setShowAddDialog(open);
                   if (!open) {
-                    // Reset form state when dialog closes
-                    setIsTaxable(true);
-                    setDimensions({ length: '', width: '', height: '' });
                     setSkuValue('');
                     setSkuValidation({ status: 'idle', message: '' });
-                    setIsSubmitting(false);
                   }
                 }}
               >
                 <DialogTrigger asChild>
-                  <Button>
+                  <Button className="bg-blue-500 hover:bg-blue-600 text-white">
                     <Plus className="w-4 h-4 mr-2" />
                     Add Product
                   </Button>
                 </DialogTrigger>
-                <DialogContent className="max-w-6xl max-h-[90vh] sm:max-h-[95vh] overflow-y-auto">
-                  <DialogHeader className="pb-3">
-                    <DialogTitle className="text-base sm:text-xl">Add New Product</DialogTitle>
-                    <DialogDescription className="text-xs sm:text-sm">
-                      Enter the product details below
+                <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+                  <DialogHeader>
+                    <DialogTitle>Add New Product</DialogTitle>
+                    <DialogDescription>
+                      Create a new product with detailed information
                     </DialogDescription>
                   </DialogHeader>
-                  <form onSubmit={handleAddProduct} className="space-y-4 animate-fade-in">
-                    <div className="grid grid-cols-1 gap-4 sm:gap-6 xl:grid-cols-3">
-                      {/* Column 1: Basic Information */}
-                      <div className="space-y-3">
-                        <h3 className="text-sm font-semibold text-primary border-b pb-1 flex items-center gap-2">
-                          <Package className="h-4 w-4" />
-                          Basic Information
-                        </h3>
-                        <div className="space-y-2.5">
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                            <div>
-                              <Label htmlFor="name" className="text-xs font-medium text-muted-foreground">Product Name *</Label>
-                              <Input id="name" name="name" required className="mobile-touch-target text-xs transition-all focus:scale-[1.02]" placeholder="Enter product name" />
-                            </div>
-                            <div>
-                              <Label htmlFor="sku" className="text-xs font-medium text-muted-foreground">SKU *</Label>
-                              <div className="relative">
-                                <Input 
-                                  id="sku" 
-                                  name="sku" 
-                                  required 
-                                  value={skuValue}
-                                  onChange={(e) => setSkuValue(e.target.value)}
-                                  className={`mobile-touch-target text-xs transition-all focus:scale-[1.02] pr-8 ${
-                                    skuValidation.status === 'valid' ? 'border-green-500' :
-                                    skuValidation.status === 'duplicate' ? 'border-red-500' :
-                                    skuValidation.status === 'inactive_found' ? 'border-yellow-500' : ''
-                                  }`}
-                                  placeholder="Product SKU" 
-                                />
-                                <div className="absolute right-2 top-1/2 -translate-y-1/2">
-                                  {skuValidation.status === 'checking' && (
-                                    <div className="animate-spin rounded-full h-3 w-3 border-b border-primary"></div>
-                                  )}
-                                  {skuValidation.status === 'valid' && (
-                                    <CheckCircle className="h-3 w-3 text-green-500" />
-                                  )}
-                                  {skuValidation.status === 'duplicate' && (
-                                    <XCircle className="h-3 w-3 text-red-500" />
-                                  )}
-                                  {skuValidation.status === 'inactive_found' && (
-                                    <AlertTriangle className="h-3 w-3 text-yellow-500" />
-                                  )}
-                                </div>
-                              </div>
-                              {skuValidation.message && (
-                                <div className={`text-xs mt-1 flex items-center gap-1 ${
-                                  skuValidation.status === 'valid' ? 'text-green-600' :
-                                  skuValidation.status === 'duplicate' ? 'text-red-600' :
-                                  skuValidation.status === 'inactive_found' ? 'text-yellow-600' :
-                                  'text-muted-foreground'
-                                }`}>
-                                  {skuValidation.message}
-                                  {skuValidation.status === 'inactive_found' && (
-                                    <Button
-                                      type="button"
-                                      variant="link"
-                                      size="sm"
-                                      onClick={handleReactivateProduct}
-                                      className="h-auto p-0 ml-2 text-xs text-blue-600 hover:text-blue-800"
-                                    >
-                                      <RotateCcw className="h-3 w-3 mr-1" />
-                                      Reactivate
-                                    </Button>
-                                  )}
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                          <div>
-                            <Label htmlFor="description" className="text-xs font-medium text-muted-foreground">Description</Label>
-                            <Textarea id="description" name="description" className="mt-0.5 min-h-[50px] resize-none text-xs transition-all focus:scale-[1.01]" placeholder="Product description..." />
-                          </div>
-                          <div className="grid grid-cols-2 gap-2">
-                            <div>
-                              <Label htmlFor="product_type" className="text-xs font-medium text-muted-foreground">Type *</Label>
-                              <Select name="product_type" required>
-                                <SelectTrigger className="mt-0.5 h-8 text-xs">
-                                  <SelectValue placeholder="Select type" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="goods">Goods</SelectItem>
-                                  <SelectItem value="service">Service</SelectItem>
-                                </SelectContent>
-                              </Select>
-                            </div>
-                            <div>
-                              <Label htmlFor="unit" className="text-xs font-medium text-muted-foreground">Unit</Label>
-                              <Input id="unit" name="unit" placeholder="pcs, kg, ltr" className="mt-0.5 h-8 text-xs transition-all focus:scale-[1.02]" />
-                            </div>
-                          </div>
-                          <div>
-                            <Label htmlFor="product_category" className="text-xs font-medium text-muted-foreground">Category *</Label>
-                            <Select name="product_category" required>
-                              <SelectTrigger className="mt-0.5 h-8 text-xs">
-                                <SelectValue placeholder="Select category" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="raw_material">Raw Material</SelectItem>
-                                <SelectItem value="finished_goods">Finished Goods</SelectItem>
-                                <SelectItem value="consumables">Consumables</SelectItem>
-                                <SelectItem value="assets">Assets</SelectItem>
-                                <SelectItem value="others">Others / Miscellaneous</SelectItem>
-                              </SelectContent>
-                            </Select>
-                          </div>
-                          <div>
-                            <Label htmlFor="barcode" className="text-xs font-medium text-muted-foreground">Barcode</Label>
-                            <Input id="barcode" name="barcode" placeholder="Enter barcode (optional)" className="mt-0.5 h-8 text-xs transition-all focus:scale-[1.02]" />
-                          </div>
-                        </div>
+                  <form onSubmit={handleAddProduct} className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="sku">SKU *</Label>
+                        <Input
+                          id="sku"
+                          name="sku"
+                          placeholder="Product SKU"
+                          required
+                          value={skuValue}
+                          onChange={(e) => setSkuValue(e.target.value)}
+                          className={`${
+                            skuValidation.status === 'valid' ? 'border-green-500' :
+                            skuValidation.status === 'duplicate' ? 'border-red-500' :
+                            skuValidation.status === 'inactive_found' ? 'border-yellow-500' : ''
+                          }`}
+                        />
+                        {skuValidation.message && (
+                          <p className={`text-xs ${
+                            skuValidation.status === 'valid' ? 'text-green-600' :
+                            skuValidation.status === 'duplicate' ? 'text-red-600' :
+                            skuValidation.status === 'inactive_found' ? 'text-yellow-600' :
+                            'text-gray-500'
+                          }`}>
+                            {skuValidation.message}
+                          </p>
+                        )}
                       </div>
-
-                      {/* Column 2: Pricing & Tax */}
-                      <div className="space-y-3">
-                        <h3 className="text-sm font-semibold text-primary border-b pb-1 flex items-center gap-2">
-                          <TrendingUp className="h-4 w-4" />
-                          Pricing & Tax
-                        </h3>
-                        <div className="space-y-2.5">
-                          <div className="grid grid-cols-2 gap-2">
-                            <div>
-                              <Label htmlFor="cost_price" className="text-xs font-medium text-muted-foreground">Cost Price *</Label>
-                              <Input 
-                                id="cost_price" 
-                                name="cost_price" 
-                                type="number" 
-                                step="0.01" 
-                                min="0"
-                                required 
-                                className="mt-0.5 h-8 text-xs transition-all focus:scale-[1.02]" 
-                                placeholder="0.00"
-                              />
-                            </div>
-                            <div>
-                              <Label htmlFor="unit_price" className="text-xs font-medium text-muted-foreground">Selling Price *</Label>
-                              <Input 
-                                id="unit_price" 
-                                name="unit_price" 
-                                type="number" 
-                                step="0.01" 
-                                min="0"
-                                required 
-                                className="mt-0.5 h-8 text-xs transition-all focus:scale-[1.02]" 
-                                placeholder="0.00"
-                              />
-                            </div>
-                          </div>
-                          <div>
-                            <Label htmlFor="mrp" className="text-xs font-medium text-muted-foreground">MRP</Label>
-                            <Input 
-                              id="mrp" 
-                              name="mrp" 
-                              type="number" 
-                              step="0.01" 
-                              min="0"
-                              placeholder="Maximum Retail Price (optional)" 
-                              className="mt-0.5 h-8 text-xs transition-all focus:scale-[1.02]" 
-                            />
-                          </div>
-                          <div className="bg-muted/30 p-2 rounded-md border">
-                            <div className="flex items-center justify-between mb-2">
-                              <Label htmlFor="is_taxable" className="text-xs font-medium">Taxable Item</Label>
-                              <Switch 
-                                id="is_taxable"
-                                name="is_taxable"
-                                checked={isTaxable}
-                                onCheckedChange={setIsTaxable}
-                                className="scale-75"
-                              />
-                            </div>
-                            {isTaxable && (
-                              <div className="space-y-2 animate-fade-in">
-                                <div>
-                                  <Label htmlFor="hsn_code" className="text-xs font-medium text-muted-foreground">HSN Code</Label>
-                                  <Input id="hsn_code" name="hsn_code" className="mt-0.5 h-7 text-xs" placeholder="HSN/SAC Code" />
-                                </div>
-                                <div>
-                                  <Label htmlFor="gst_percentage" className="text-xs font-medium text-muted-foreground">GST Rate</Label>
-                                  <Select name="gst_percentage" defaultValue="0">
-                                    <SelectTrigger className="mt-0.5 h-7 text-xs">
-                                      <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      <SelectItem value="0">0%</SelectItem>
-                                      <SelectItem value="5">5%</SelectItem>
-                                      <SelectItem value="12">12%</SelectItem>
-                                      <SelectItem value="18">18%</SelectItem>
-                                      <SelectItem value="28">28%</SelectItem>
-                                    </SelectContent>
-                                  </Select>
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="name">Product Name *</Label>
+                        <Input
+                          id="name"
+                          name="name"
+                          placeholder="Product name"
+                          required
+                        />
                       </div>
-
-                      {/* Column 3: Stock & Dimensions */}
-                      <div className="space-y-3">
-                        <h3 className="text-sm font-semibold text-primary border-b pb-1 flex items-center gap-2">
-                          <ClipboardList className="h-4 w-4" />
-                          Stock & Dimensions
-                        </h3>
-                        <div className="space-y-2.5">
-                          <div className="grid grid-cols-2 gap-2">
-                            <div>
-                              <Label htmlFor="min_stock_level" className="text-xs font-medium text-muted-foreground">Min Stock *</Label>
-                              <Input 
-                                id="min_stock_level" 
-                                name="min_stock_level" 
-                                type="number" 
-                                min="0"
-                                defaultValue="0"
-                                required 
-                                className="mt-0.5 h-8 text-xs transition-all focus:scale-[1.02]" 
-                              />
-                            </div>
-                            <div>
-                              <Label htmlFor="max_stock_level" className="text-xs font-medium text-muted-foreground">Max Stock</Label>
-                              <Input 
-                                id="max_stock_level" 
-                                name="max_stock_level" 
-                                type="number" 
-                                min="0"
-                                className="mt-0.5 h-8 text-xs transition-all focus:scale-[1.02]" 
-                                placeholder="Optional"
-                              />
-                            </div>
-                          </div>
-                          <div>
-                            <Label htmlFor="weight_kg" className="text-xs font-medium text-muted-foreground">Weight (kg)</Label>
-                            <Input 
-                              id="weight_kg" 
-                              name="weight_kg" 
-                              type="number" 
-                              step="0.01" 
-                              min="0"
-                              className="mt-0.5 h-8 text-xs transition-all focus:scale-[1.02]" 
-                              placeholder="0.00"
-                            />
-                          </div>
-                          <div>
-                            <Label className="text-xs font-medium text-muted-foreground">Dimensions (L × W × H)</Label>
-                            <div className="grid grid-cols-3 gap-1 mt-0.5">
-                              <Input 
-                                id="length_cm" 
-                                name="length_cm" 
-                                type="number" 
-                                step="0.01" 
-                                min="0"
-                                value={dimensions.length}
-                                onChange={(e) => setDimensions(prev => ({ ...prev, length: e.target.value }))}
-                                className="h-8 text-xs transition-all focus:scale-[1.02]" 
-                                placeholder="L"
-                              />
-                              <Input 
-                                id="width_cm" 
-                                name="width_cm" 
-                                type="number" 
-                                step="0.01" 
-                                min="0"
-                                value={dimensions.width}
-                                onChange={(e) => setDimensions(prev => ({ ...prev, width: e.target.value }))}
-                                className="h-8 text-xs transition-all focus:scale-[1.02]" 
-                                placeholder="W"
-                              />
-                              <Input 
-                                id="height_cm" 
-                                name="height_cm" 
-                                type="number" 
-                                step="0.01" 
-                                min="0"
-                                value={dimensions.height}
-                                onChange={(e) => setDimensions(prev => ({ ...prev, height: e.target.value }))}
-                                className="h-8 text-xs transition-all focus:scale-[1.02]" 
-                                placeholder="H"
-                              />
-                            </div>
-                          </div>
-                          {calculateVolume(dimensions.length, dimensions.width, dimensions.height) && (
-                            <div className="animate-fade-in">
-                              <Label className="text-xs font-medium text-muted-foreground">Volume</Label>
-                              <div className="mt-0.5 p-2 bg-muted/50 rounded border text-xs text-center font-mono">
-                                {calculateVolume(dimensions.length, dimensions.width, dimensions.height)} cm³
-                              </div>
-                            </div>
-                          )}
-                        </div>
+                      <div className="space-y-2 col-span-2">
+                        <Label htmlFor="description">Description</Label>
+                        <Textarea
+                          id="description"
+                          name="description"
+                          placeholder="Product description"
+                          rows={3}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="product_type">Product Type *</Label>
+                        <Select name="product_type" defaultValue="goods">
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="goods">Goods</SelectItem>
+                            <SelectItem value="service">Service</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="product_category">Category *</Label>
+                        <Select name="product_category" defaultValue="raw_material">
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="raw_material">Raw Material</SelectItem>
+                            <SelectItem value="finished_goods">Finished Goods</SelectItem>
+                            <SelectItem value="consumables">Consumables</SelectItem>
+                            <SelectItem value="assets">Assets</SelectItem>
+                            <SelectItem value="others">Others</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="unit">Unit</Label>
+                        <Input
+                          id="unit"
+                          name="unit"
+                          placeholder="e.g., pcs, kg, meters"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="cost_price">Cost Price *</Label>
+                        <Input
+                          id="cost_price"
+                          name="cost_price"
+                          type="number"
+                          step="0.01"
+                          placeholder="0.00"
+                          required
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="unit_price">Selling Price *</Label>
+                        <Input
+                          id="unit_price"
+                          name="unit_price"
+                          type="number"
+                          step="0.01"
+                          placeholder="0.00"
+                          required
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="mrp">MRP</Label>
+                        <Input
+                          id="mrp"
+                          name="mrp"
+                          type="number"
+                          step="0.01"
+                          placeholder="0.00"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="hsn_code">HSN Code</Label>
+                        <Input
+                          id="hsn_code"
+                          name="hsn_code"
+                          placeholder="HSN/SAC Code"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="gst_percentage">GST %</Label>
+                        <Input
+                          id="gst_percentage"
+                          name="gst_percentage"
+                          type="number"
+                          step="0.01"
+                          placeholder="0.00"
+                          disabled={!isTaxable}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="min_stock_level">Min Stock Level</Label>
+                        <Input
+                          id="min_stock_level"
+                          name="min_stock_level"
+                          type="number"
+                          placeholder="0"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="max_stock_level">Max Stock Level</Label>
+                        <Input
+                          id="max_stock_level"
+                          name="max_stock_level"
+                          type="number"
+                          placeholder="0"
+                        />
                       </div>
                     </div>
 
-                    {/* Bottom Actions Bar */}
-                    <div className="flex items-center justify-between pt-3 border-t mt-4 bg-muted/20 p-3 rounded-md">
-                      <div className="flex items-center gap-3">
-                        <div className="flex items-center gap-2">
-                          <Switch 
-                            id="is_active"
-                            name="is_active"
-                            defaultChecked={true}
-                            className="scale-90"
-                          />
-                          <Label htmlFor="is_active" className="text-xs font-medium cursor-pointer">Active Product</Label>
-                        </div>
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="weight_kg">Weight (kg)</Label>
+                        <Input
+                          id="weight_kg"
+                          name="weight_kg"
+                          type="number"
+                          step="0.001"
+                          placeholder="0.000"
+                        />
                       </div>
-                      
-                      <div className="flex gap-2">
-                        <Button 
-                          type="button" 
-                          variant="outline" 
-                          onClick={() => setShowAddDialog(false)} 
-                          className="h-8 px-4 text-xs hover-scale"
-                        >
-                          Cancel
-                        </Button>
-                        <Button 
-                          type="submit" 
-                          disabled={skuValidation.status === 'duplicate' || isSubmitting}
-                          className="h-8 px-4 text-xs hover-scale bg-gradient-to-r from-primary to-primary/80"
-                        >
-                          {isSubmitting ? (
-                            <>
-                              <div className="animate-spin rounded-full h-3 w-3 border-b border-white mr-1"></div>
-                              Adding...
-                            </>
-                          ) : (
-                            <>
-                              <Plus className="h-3 w-3 mr-1" />
-                              Add Product
-                            </>
-                          )}
-                        </Button>
+                      <div className="space-y-2">
+                        <Label htmlFor="length_cm">Length (cm)</Label>
+                        <Input
+                          id="length_cm"
+                          name="length_cm"
+                          type="number"
+                          step="0.1"
+                          placeholder="0.0"
+                          value={dimensions.length}
+                          onChange={(e) => setDimensions(prev => ({ ...prev, length: e.target.value }))}
+                        />
                       </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="width_cm">Width (cm)</Label>
+                        <Input
+                          id="width_cm"
+                          name="width_cm"
+                          type="number"
+                          step="0.1"
+                          placeholder="0.0"
+                          value={dimensions.width}
+                          onChange={(e) => setDimensions(prev => ({ ...prev, width: e.target.value }))}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="height_cm">Height (cm)</Label>
+                        <Input
+                          id="height_cm"
+                          name="height_cm"
+                          type="number"
+                          step="0.1"
+                          placeholder="0.0"
+                          value={dimensions.height}
+                          onChange={(e) => setDimensions(prev => ({ ...prev, height: e.target.value }))}
+                        />
+                      </div>
+                    </div>
+
+                    {dimensions.length && dimensions.width && dimensions.height && (
+                      <div className="p-3 bg-blue-50 rounded-lg">
+                        <p className="text-sm text-blue-700">
+                          Calculated Volume: {calculateVolume(dimensions.length, dimensions.width, dimensions.height)} cubic cm
+                        </p>
+                      </div>
+                    )}
+
+                    <div className="space-y-2">
+                      <Label htmlFor="barcode">Barcode</Label>
+                      <Input
+                        id="barcode"
+                        name="barcode"
+                        placeholder="Product barcode"
+                      />
+                    </div>
+
+                    <div className="flex items-center space-x-2">
+                      <Switch
+                        id="is_taxable"
+                        name="is_taxable"
+                        checked={isTaxable}
+                        onCheckedChange={setIsTaxable}
+                      />
+                      <Label htmlFor="is_taxable">Taxable Product</Label>
+                    </div>
+
+                    <div className="flex items-center space-x-2">
+                      <Switch
+                        id="is_active"
+                        name="is_active"
+                        defaultChecked
+                      />
+                      <Label htmlFor="is_active">Active Product</Label>
+                    </div>
+
+                    <div className="flex justify-end space-x-2 pt-4">
+                      <Button type="button" variant="outline" onClick={() => setShowAddDialog(false)}>
+                        Cancel
+                      </Button>
+                      <Button 
+                        type="submit" 
+                        disabled={isSubmitting || skuValidation.status === 'duplicate'}
+                      >
+                        {isSubmitting ? 'Adding...' : 'Add Product'}
+                      </Button>
                     </div>
                   </form>
                 </DialogContent>
               </Dialog>
-
-              {/* Create BOM Dialog */}
-              <Dialog open={showBOMDialog} onOpenChange={setShowBOMDialog}>
-                <DialogContent className="max-w-7xl max-h-[95vh] overflow-hidden">
-                  <DialogHeader>
-                    <DialogTitle></DialogTitle>
-                    <DialogDescription>
-                    </DialogDescription>
-                  </DialogHeader>
-                  <div className="flex-1 overflow-hidden">
-                    <BOMModule />
-                  </div>
-                </DialogContent>
-              </Dialog>
-
-              {canEdit && (
-                <Button 
-                  className="bg-green-600 hover:bg-green-700 text-white"
-                  onClick={() => setShowBOMDialog(true)}
-                >
-                  <Plus className="w-4 h-4 mr-2" />
-                  Create BOM
-                </Button>
-              )}
-
               <Button 
-                className="bg-purple-600 hover:bg-purple-700 text-white"
-                onClick={() => setShowBinDialog(true)}
+                onClick={() => setShowBinDialog(true)} 
+                className="bg-green-500 hover:bg-green-600 text-white"
               >
                 <Plus className="w-4 h-4 mr-2" />
                 Create Warehouse BIN
               </Button>
-
-              <Dialog open={showAdjustmentDialog} onOpenChange={setShowAdjustmentDialog}>
-                <DialogTrigger asChild>
-                  <Button className="bg-orange-600 hover:bg-orange-700 text-white">
-                    <Plus className="w-4 h-4 mr-2" />
-                    Inventory Adjustment
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-                  <DialogHeader>
-                    <DialogTitle>Create Inventory Adjustment</DialogTitle>
-                    <DialogDescription>
-                      Adjust stock levels with proper tracking and validation
-                    </DialogDescription>
-                  </DialogHeader>
-                  <InventoryAdjustmentForm
-                    onSuccess={() => {
-                      setShowAdjustmentDialog(false);
-                      setAdjustmentRefreshTrigger(prev => prev + 1);
-                      fetchProducts(); // Refresh products to show updated stock
-                    }}
-                    onCancel={() => setShowAdjustmentDialog(false)}
-                  />
-                </DialogContent>
-              </Dialog>
-
-              <Dialog open={showTransferDialog} onOpenChange={setShowTransferDialog}>
-                <DialogTrigger asChild>
-                  <Button className="bg-teal-600 hover:bg-teal-700 text-white">
-                    <Plus className="w-4 h-4 mr-2" />
-                    Inventory Transfer
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-                  <DialogHeader>
-                    <DialogTitle>Create Inventory Transfer</DialogTitle>
-                    <DialogDescription>
-                      Transfer stock between warehouses and bins
-                    </DialogDescription>
-                  </DialogHeader>
-                  <InventoryTransferForm
-                    onSuccess={() => {
-                      setShowTransferDialog(false);
-                      setAdjustmentRefreshTrigger(prev => prev + 1);
-                      fetchProducts(); // Refresh products to show updated stock
-                    }}
-                    onCancel={() => setShowTransferDialog(false)}
-                  />
-                </DialogContent>
-              </Dialog>
-
-              <WarehouseBinForm 
-                open={showBinDialog}
-                onOpenChange={setShowBinDialog}
-                onSuccess={() => {
-                  setShowBinDialog(false);
-                  fetchWarehouseBins();
-                }}
-              />
+              <Button 
+                onClick={() => setShowAdjustmentDialog(true)} 
+                className="bg-orange-500 hover:bg-orange-600 text-white"
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                Inventory Adjustment
+              </Button>
+              <Button 
+                onClick={() => setShowTransferDialog(true)} 
+                className="bg-green-500 hover:bg-green-600 text-white"
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                Inventory Transfer
+              </Button>
             </>
           )}
         </div>
@@ -1478,41 +893,70 @@ export function InventoryModule() {
             Products
           </TabsTrigger>
           <TabsTrigger 
-            value="bom"
-            className="data-[state=active]:bg-yellow-500 data-[state=active]:text-white"
-          >
-            BOM
-          </TabsTrigger>
-          <TabsTrigger 
-            value="bins"
-            className="data-[state=active]:bg-green-500 data-[state=active]:text-white"
+            value="bins" 
+            className="data-[state=active]:bg-purple-500 data-[state=active]:text-white"
           >
             Warehouse BINs
           </TabsTrigger>
           <TabsTrigger 
-            value="adjustments"
-            className="data-[state=active]:bg-green-500 data-[state=active]:text-white"
+            value="adjustments" 
+            className="data-[state=active]:bg-orange-500 data-[state=active]:text-white"
           >
             Adjustments
           </TabsTrigger>
           <TabsTrigger 
-            value="transactions"
-            className="data-[state=active]:bg-green-500 data-[state=active]:text-white"
+            value="transactions" 
+            className="data-[state=active]:bg-red-500 data-[state=active]:text-white"
           >
             Transactions
           </TabsTrigger>
           <TabsTrigger 
-            value="stock"
-            className="data-[state=active]:bg-green-500 data-[state=active]:text-white"
+            value="current_stock" 
+            className="data-[state=active]:bg-teal-500 data-[state=active]:text-white"
           >
             Current Stock
           </TabsTrigger>
+          <TabsTrigger 
+            value="bom" 
+            className="data-[state=active]:bg-indigo-500 data-[state=active]:text-white"
+          >
+            BOM
+          </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="products" className="space-y-6">
+        <TabsContent value="products" className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Total Products</CardTitle>
+                <Package className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{totalProducts}</div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Total Value</CardTitle>
+                <TrendingUp className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">₹{totalValue.toLocaleString()}</div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Low Stock Alert</CardTitle>
+                <AlertTriangle className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-red-600">{lowStockCount}</div>
+              </CardContent>
+            </Card>
+          </div>
 
-          {/* Search and Export */}
-            <div className="flex justify-between items-center">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-4">
               <div className="relative w-72">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
                 <Input
@@ -1523,10 +967,6 @@ export function InventoryModule() {
                 />
               </div>
               <div className="flex items-center gap-2">
-                <Button variant="outline" onClick={downloadTemplate}>
-                  <Download className="w-4 h-4 mr-2" />
-                  Download Template
-                </Button>
                 <Button variant="outline" onClick={() => setShowBulkUpload(true)}>
                   <Upload className="w-4 h-4 mr-2" />
                   Bulk Upload
@@ -1536,189 +976,8 @@ export function InventoryModule() {
                   Export to Excel
                 </Button>
               </div>
-                  <DialogTrigger asChild>
-                    <Button variant="outline">
-                      <Upload className="w-4 h-4 mr-2" />
-                      Bulk Upload
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent className="max-w-2xl">
-                    <DialogHeader>
-                      <DialogTitle>Bulk Upload Products</DialogTitle>
-                      <DialogDescription>
-                        Upload an Excel file to add or update multiple products at once
-                      </DialogDescription>
-                    </DialogHeader>
-                    
-                    <div className="space-y-4">
-                      {uploadProgress.status === 'idle' && (
-                        <div className="space-y-4">
-                          <div className="border-2 border-dashed border-gray-300 rounded-lg p-6">
-                            <div className="text-center">
-                              <Upload className="mx-auto h-12 w-12 text-gray-400" />
-                              <div className="mt-4">
-                                <label htmlFor="file-upload" className="cursor-pointer">
-                                  <span className="mt-2 block text-sm font-medium text-gray-900">
-                                    Choose an Excel file or drag and drop
-                                  </span>
-                                  <input
-                                    id="file-upload"
-                                    name="file-upload"
-                                    type="file"
-                                    className="sr-only"
-                                    accept=".xlsx,.xls"
-                                    onChange={handleFileUpload}
-                                  />
-                                </label>
-                                <p className="mt-1 text-xs text-gray-500">
-                                  XLSX or XLS up to 10MB
-                                </p>
-                              </div>
-                            </div>
-                          </div>
-                          
-                          {uploadFile && (
-                            <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                              <div className="flex items-center">
-                                <CheckCircle className="h-5 w-5 text-green-500 mr-2" />
-                                <span className="text-sm font-medium text-green-800">
-                                  File selected: {uploadFile.name}
-                                </span>
-                              </div>
-                            </div>
-                          )}
-
-                          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                            <h4 className="text-sm font-medium text-blue-800 mb-2">Instructions:</h4>
-                            <ul className="text-xs text-blue-700 space-y-1">
-                              <li>• Download the template first and fill in your data</li>
-                              <li>• SKU, Name, Cost Price, and Unit Price are required fields</li>
-                              <li>• Existing products (same SKU) will be updated</li>
-                              <li>• New products will be created</li>
-                              <li>• Use the provided categories and product types</li>
-                            </ul>
-                          </div>
-                        </div>
-                      )}
-
-                      {uploadProgress.status === 'processing' && (
-                        <div className="space-y-4">
-                          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                            <h4 className="text-sm font-medium text-blue-800 mb-2">Processing Upload...</h4>
-                            <div className="w-full bg-blue-200 rounded-full h-2">
-                              <div 
-                                className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                                style={{ width: `${(uploadProgress.processed / uploadProgress.total) * 100}%` }}
-                              ></div>
-                            </div>
-                            <div className="mt-2 text-xs text-blue-700">
-                              Progress: {uploadProgress.processed} / {uploadProgress.total} 
-                              ({Math.round((uploadProgress.processed / uploadProgress.total) * 100)}%)
-                            </div>
-                          </div>
-                        </div>
-                      )}
-
-                      {uploadProgress.status === 'completed' && (
-                        <div className="space-y-4">
-                          <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                            <div className="flex items-center mb-2">
-                              <CheckCircle className="h-5 w-5 text-green-500 mr-2" />
-                              <h4 className="text-sm font-medium text-green-800">Upload Completed!</h4>
-                            </div>
-                            <div className="grid grid-cols-3 gap-4 text-xs text-green-700">
-                              <div>Total: {uploadProgress.total}</div>
-                              <div>Successful: {uploadProgress.successful}</div>
-                              <div>Failed: {uploadProgress.failed}</div>
-                            </div>
-                          </div>
-
-                          {uploadProgress.errors.length > 0 && (
-                            <div className="bg-red-50 border border-red-200 rounded-lg p-4 max-h-60 overflow-y-auto">
-                              <h4 className="text-sm font-medium text-red-800 mb-2">Errors ({uploadProgress.errors.length}):</h4>
-                              <div className="space-y-1">
-                                {uploadProgress.errors.slice(0, 10).map((error, index) => (
-                                  <div key={index} className="text-xs text-red-700">
-                                    Row {error.row}: {error.error}
-                                  </div>
-                                ))}
-                                {uploadProgress.errors.length > 10 && (
-                                  <div className="text-xs text-red-600 font-medium">
-                                    ... and {uploadProgress.errors.length - 10} more errors
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      )}
-
-                      {uploadProgress.status === 'error' && (
-                        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-                          <div className="flex items-center mb-2">
-                            <XCircle className="h-5 w-5 text-red-500 mr-2" />
-                            <h4 className="text-sm font-medium text-red-800">Upload Failed</h4>
-                          </div>
-                          <div className="text-xs text-red-700">
-                            {uploadProgress.errors[0]?.error || 'Unknown error occurred'}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="flex justify-between pt-4">
-                      <Button 
-                        variant="outline" 
-                        onClick={() => {
-                          setShowBulkUpload(false);
-                          setUploadFile(null);
-                          setUploadProgress({
-                            status: 'idle',
-                            total: 0,
-                            processed: 0,
-                            successful: 0,
-                            failed: 0,
-                            errors: []
-                          });
-                        }}
-                      >
-                        Close
-                      </Button>
-                      
-                      <div className="flex gap-2">
-                        {uploadProgress.status === 'idle' && (
-                          <Button onClick={downloadTemplate} variant="outline">
-                            <Download className="w-4 h-4 mr-2" />
-                            Download Template
-                          </Button>
-                        )}
-                        
-                        {uploadProgress.status === 'idle' && uploadFile && (
-                          <Button onClick={processBulkUpload}>
-                            <Upload className="w-4 h-4 mr-2" />
-                            Start Upload
-                          </Button>
-                        )}
-
-                        {uploadProgress.status === 'completed' && uploadProgress.failed > 0 && (
-                          <Button 
-                            onClick={() => setUploadProgress(prev => ({ ...prev, status: 'idle' }))}
-                            variant="outline"
-                          >
-                            <RotateCcw className="w-4 h-4 mr-2" />
-                            Try Again
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-                  </DialogContent>
-                </Dialog>
-                <Button variant="outline" onClick={exportToExcel}>
-                  <Download className="w-4 h-4 mr-2" />
-                  Export to Excel
-                </Button>
-              </div>
             </div>
+          </div>
 
           {/* Products Table */}
           <Card>
@@ -1729,13 +988,17 @@ export function InventoryModule() {
                     <TableHead className="cursor-pointer" onClick={() => handleSort('sku')}>
                       <div className="flex items-center space-x-2">
                         <span>SKU</span>
-                        {getSortIcon('sku')}
+                        {sortConfig?.key === 'sku' && (
+                          sortConfig.direction === 'asc' ? <ArrowUp className="w-4 h-4" /> : <ArrowDown className="w-4 h-4" />
+                        )}
                       </div>
                     </TableHead>
                     <TableHead className="cursor-pointer" onClick={() => handleSort('name')}>
                       <div className="flex items-center space-x-2">
                         <span>Name</span>
-                        {getSortIcon('name')}
+                        {sortConfig?.key === 'name' && (
+                          sortConfig.direction === 'asc' ? <ArrowUp className="w-4 h-4" /> : <ArrowDown className="w-4 h-4" />
+                        )}
                       </div>
                     </TableHead>
                     <TableHead>Type</TableHead>
@@ -1743,117 +1006,115 @@ export function InventoryModule() {
                     <TableHead className="cursor-pointer" onClick={() => handleSort('unit_price')}>
                       <div className="flex items-center space-x-2">
                         <span>Unit Price</span>
-                        {getSortIcon('unit_price')}
+                        {sortConfig?.key === 'unit_price' && (
+                          sortConfig.direction === 'asc' ? <ArrowUp className="w-4 h-4" /> : <ArrowDown className="w-4 h-4" />
+                        )}
                       </div>
                     </TableHead>
                     <TableHead>Unit</TableHead>
                     <TableHead>Status</TableHead>
-                    {canEdit && <TableHead>Actions</TableHead>}
+                    <TableHead>Actions</TableHead>
                   </TableRow>
                 </TableHeader>
-                 <TableBody>
-                   {currentProducts.length === 0 ? (
-                     <TableRow>
-                       <TableCell colSpan={canEdit ? 8 : 7} className="text-center py-8 text-muted-foreground">
-                         {searchTerm ? 'No products found matching your search.' : 'No products available.'}
-                       </TableCell>
-                     </TableRow>
-                   ) : (
-                     currentProducts.map((product) => (
-                       <TableRow key={product.id}>
-                         <TableCell className="font-medium">{product.sku}</TableCell>
-                         <TableCell>
-                           <div>
-                             <div className="font-medium">{product.name}</div>
-                             {product.description && (
-                               <div className="text-sm text-muted-foreground">{product.description}</div>
-                             )}
-                           </div>
-                         </TableCell>
-                         <TableCell>
-                           <Badge variant={product.product_type === 'goods' ? 'default' : 'secondary'}>
-                             {product.product_type === 'goods' ? 'Goods' : 'Service'}
-                           </Badge>
-                         </TableCell>
-                         <TableCell>
-                           <Badge variant="outline">
-                             {product.product_category.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                           </Badge>
-                         </TableCell>
-                         <TableCell>₹{product.unit_price.toLocaleString()}</TableCell>
-                         <TableCell>{product.unit || 'N/A'}</TableCell>
-                         <TableCell>
-                           <Badge variant={product.is_active ? 'default' : 'secondary'}>
-                             {product.is_active ? 'Active' : 'Inactive'}
-                           </Badge>
-                         </TableCell>
-                         {canEdit && (
-                            <TableCell>
-                              <div className="flex space-x-2">
+                <TableBody>
+                  {currentProducts.map((product) => (
+                    <TableRow key={product.id}>
+                      <TableCell className="font-mono text-sm">{product.sku}</TableCell>
+                      <TableCell>
+                        <div>
+                          <div className="font-medium">{product.name}</div>
+                          {product.description && (
+                            <div className="text-sm text-muted-foreground truncate max-w-xs">
+                              {product.description}
+                            </div>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={product.product_type === 'goods' ? 'default' : 'secondary'}>
+                          {product.product_type === 'goods' ? 'Goods' : 'Service'}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <span className="capitalize">
+                          {product.product_category.replace('_', ' ')}
+                        </span>
+                      </TableCell>
+                      <TableCell>₹{product.unit_price.toLocaleString()}</TableCell>
+                      <TableCell>{product.unit || '-'}</TableCell>
+                      <TableCell>
+                        <div className="flex items-center space-x-2">
+                          <Badge variant={product.is_active ? 'default' : 'secondary'}>
+                            {product.is_active ? 'Active' : 'Inactive'}
+                          </Badge>
+                          {canEdit && (
+                            <Switch
+                              checked={product.is_active}
+                            onCheckedChange={() => toggleProductStatus(product)}
+                          />
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center space-x-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              setViewingProduct(product);
+                              setShowViewDialog(true);
+                            }}
+                          >
+                            <Eye className="w-4 h-4" />
+                          </Button>
+                          {canEdit && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                setEditingProduct(product);
+                                setShowEditDialog(true);
+                              }}
+                            >
+                              <Edit className="w-4 h-4" />
+                            </Button>
+                          )}
+                          {canDelete && (
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
                                 <Button
-                                  variant="outline"
+                                  variant="ghost"
                                   size="sm"
-                                  onClick={() => {
-                                    setViewingProduct(product);
-                                    setShowViewDialog(true);
-                                  }}
-                                  className="hover:bg-green-50 hover:text-green-600"
-                                  title="View Details"
+                                  onClick={() => setDeletingProduct(product)}
+                                  disabled={productsWithTransactions.has(product.id)}
                                 >
-                                  <Eye className="w-4 h-4" />
+                                  <Trash2 className="w-4 h-4" />
                                 </Button>
-                                 <Button
-                                   variant="outline"
-                                   size="sm"
-                                   onClick={() => {
-                                     setEditingProduct(product);
-                                     setShowEditDialog(true);
-                                   }}
-                                   title="Edit Product"
-                                   className="hover:bg-blue-50 hover:text-blue-600"
-                                 >
-                                   <Edit className="w-4 h-4" />
-                                 </Button>
-                                  <AlertDialog>
-                                    <AlertDialogTrigger asChild>
-                                      <Button
-                                        variant="outline"
-                                        size="sm"
-                                        title={productsWithTransactions.has(product.id) ? "Cannot delete product with transactions" : "Delete Product"}
-                                        className={`${productsWithTransactions.has(product.id) 
-                                          ? "opacity-50 cursor-not-allowed" 
-                                          : "hover:bg-red-50 hover:text-red-600"}`}
-                                        disabled={productsWithTransactions.has(product.id)}
-                                      >
-                                        <Trash2 className="w-4 h-4" />
-                                      </Button>
-                                    </AlertDialogTrigger>
-                                    <AlertDialogContent>
-                                      <AlertDialogHeader>
-                                        <AlertDialogTitle>Delete Product</AlertDialogTitle>
-                                        <AlertDialogDescription>
-                                          Are you sure you want to delete "{product.name}" (SKU: {product.sku})? 
-                                          This will mark the product as inactive and it will no longer appear in active lists.
-                                        </AlertDialogDescription>
-                                      </AlertDialogHeader>
-                                      <AlertDialogFooter>
-                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                        <AlertDialogAction 
-                                          onClick={() => handleDeleteProduct(product.id)}
-                                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                                        >
-                                          Delete Product
-                                        </AlertDialogAction>
-                                      </AlertDialogFooter>
-                                    </AlertDialogContent>
-                                  </AlertDialog>
-                              </div>
-                            </TableCell>
-                         )}
-                       </TableRow>
-                     ))
-                   )}
-                 </TableBody>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>Delete Product</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    Are you sure you want to delete "{product.name}"? This action cannot be undone.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                  <AlertDialogAction
+                                    onClick={() => handleDeleteProduct(product)}
+                                    className="bg-red-600 hover:bg-red-700"
+                                  >
+                                    Delete
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          )}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
               </Table>
             </CardContent>
           </Card>
@@ -1898,55 +1159,29 @@ export function InventoryModule() {
               console.log('Edit bin:', bin);
             }}
             onDelete={(bin) => {
-              // Handle delete - you can implement this based on your needs
+              // Handle delete - you can implement this based on your needs  
               console.log('Delete bin:', bin);
             }}
           />
         </TabsContent>
 
-        <TabsContent value="adjustments" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center space-x-2">
-                <ClipboardList className="w-5 h-5" />
-                <span>Inventory Adjustments History</span>
-              </CardTitle>
-              <CardDescription>
-                Track all inventory adjustments with detailed audit trail
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <InventoryAdjustmentTable refreshTrigger={adjustmentRefreshTrigger} />
-            </CardContent>
-          </Card>
+        <TabsContent value="adjustments">
+          <InventoryAdjustmentTable refreshTrigger={adjustmentRefreshTrigger} />
         </TabsContent>
 
-        <TabsContent value="transactions" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center space-x-2">
-                <TrendingUp className="w-5 h-5" />
-                <span>Inventory Transactions</span>
-              </CardTitle>
-              <CardDescription>
-                Complete movement history for all inventory transactions
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <InventoryTransactionTable refreshTrigger={adjustmentRefreshTrigger} />
-            </CardContent>
-          </Card>
+        <TabsContent value="transactions">
+          <InventoryTransactionTable refreshTrigger={adjustmentRefreshTrigger} />
         </TabsContent>
 
-        <TabsContent value="stock" className="space-y-6">
+        <TabsContent value="current_stock">
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center space-x-2">
+              <CardTitle className="flex items-center gap-2">
                 <Package className="w-5 h-5" />
-                <span>Enhanced Stock Management System</span>
+                Current Stock Levels
               </CardTitle>
               <CardDescription>
-                Advanced inventory tracking with allocation management and comprehensive analytics
+                Real-time inventory levels across all products and locations
               </CardDescription>
             </CardHeader>
             <CardContent className="p-0">
@@ -1988,6 +1223,64 @@ export function InventoryModule() {
           setAdjustmentRefreshTrigger(prev => prev + 1);
         }}
       />
+
+      {/* Warehouse Bin Dialog */}
+      <Dialog open={showBinDialog} onOpenChange={setShowBinDialog}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Create Warehouse BIN</DialogTitle>
+            <DialogDescription>
+              Add a new warehouse bin for better inventory organization
+            </DialogDescription>
+          </DialogHeader>
+          <WarehouseBinForm
+            onSuccess={() => {
+              setShowBinDialog(false);
+              fetchWarehouseBins();
+            }}
+          />
+        </DialogContent>
+      </Dialog>
+
+      {/* Inventory Adjustment Dialog */}
+      <Dialog open={showAdjustmentDialog} onOpenChange={setShowAdjustmentDialog}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Inventory Adjustment</DialogTitle>
+            <DialogDescription>
+              Adjust inventory levels for products
+            </DialogDescription>
+          </DialogHeader>
+          <InventoryAdjustmentForm
+            onSuccess={() => {
+              setShowAdjustmentDialog(false);
+              fetchProducts();
+              setAdjustmentRefreshTrigger(prev => prev + 1);
+            }}
+            onCancel={() => setShowAdjustmentDialog(false)}
+          />
+        </DialogContent>
+      </Dialog>
+
+      {/* Inventory Transfer Dialog */}
+      <Dialog open={showTransferDialog} onOpenChange={setShowTransferDialog}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Inventory Transfer</DialogTitle>
+            <DialogDescription>
+              Transfer inventory between warehouses or bins
+            </DialogDescription>
+          </DialogHeader>
+          <InventoryTransferForm
+            onSuccess={() => {
+              setShowTransferDialog(false);
+              fetchProducts();
+              setAdjustmentRefreshTrigger(prev => prev + 1);
+            }}
+            onCancel={() => setShowTransferDialog(false)}
+          />
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
