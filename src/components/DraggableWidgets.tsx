@@ -413,9 +413,13 @@ export const DraggableWidgets: React.FC<DraggableWidgetsProps> = ({ onNavigate }
             </div>
             {loading ? (
               <div className="text-xs text-muted-foreground">Loading...</div>
+            ) : salesTrendData.length === 0 ? (
+              <div className="text-xs text-muted-foreground text-center py-2">
+                No sales data
+              </div>
             ) : (
               <div className="space-y-1 text-xs">
-                {salesTrendData.slice(0, 3).map((item, idx) => (
+                {salesTrendData.slice(0, 2).map((item, idx) => (
                   <div key={idx} className="space-y-0.5">
                     <div className="font-medium text-xs">{item.month}</div>
                     <div className="flex justify-between text-xs">
@@ -440,6 +444,10 @@ export const DraggableWidgets: React.FC<DraggableWidgetsProps> = ({ onNavigate }
             </div>
             {loading ? (
               <div className="text-xs text-muted-foreground">Loading...</div>
+            ) : backorderData.length === 0 ? (
+              <div className="text-xs text-muted-foreground text-center py-2">
+                No pending backorders
+              </div>
             ) : (
               <div className="space-y-1 text-xs">
                 {backorderData.slice(0, 2).map((item, idx) => (
