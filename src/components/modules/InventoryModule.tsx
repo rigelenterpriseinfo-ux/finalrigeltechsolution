@@ -48,22 +48,23 @@ interface Product {
   width_cm: number | null;
   height_cm: number | null;
   volume_cubic_cm: number | null;
+  bin_name: string | null;
   barcode: string | null;
   min_stock_level: number;
   max_stock_level: number | null;
+  stock_quantity: number;
   is_active: boolean;
   company_id: string;
   category_id: string | null;
-  product_type: 'goods' | 'service';
-  product_category: 'raw_material' | 'finished_goods' | 'consumables' | 'assets' | 'others';
+  product_type: string;
+  product_category: string;
   created_at: string;
   updated_at: string;
-  stock_quantity: number;
 }
 
 export default function InventoryModule() {
   const { user } = useAuth();
-  const { profile, businessUser } = useBusinessAuth();
+  const { businessUser } = useBusinessAuth();
   const { toast } = useToast();
   const isMobile = useIsMobile();
 
@@ -139,7 +140,7 @@ export default function InventoryModule() {
   };
 
   // Check permissions
-  const canEdit = businessUser?.access_type === 'OWNER' || businessUser?.access_type === 'ADMIN' || profile?.role === 'owner' || profile?.role === 'admin';
+  const canEdit = businessUser?.access_type === 'OWNER' || businessUser?.access_type === 'ADMIN';
   const canDelete = canEdit;
 
   // Debounced SKU validation
@@ -155,7 +156,7 @@ export default function InventoryModule() {
       const { data, error } = await supabase
         .from('products')
         .select('id, sku, name, is_active')
-        .eq('company_id', profile?.company_id)
+        .eq('company_id', businessUser?.company_id)
         .eq('sku', sku.trim())
         .maybeSingle();
 
@@ -181,7 +182,7 @@ export default function InventoryModule() {
       console.error('Error validating SKU:', error);
       setSkuValidation({ status: 'idle', message: '' });
     }
-  }, [profile?.company_id]);
+  }, [businessUser?.company_id]);
 
   // Debounce the SKU validation
   useEffect(() => {
@@ -233,7 +234,7 @@ export default function InventoryModule() {
       const { data, error } = await supabase
         .from('inventory_transactions')
         .select('product_id')
-        .eq('company_id', profile?.company_id);
+        .eq('company_id', businessUser?.company_id);
 
       if (error) throw error;
       
@@ -273,7 +274,7 @@ export default function InventoryModule() {
       const { data, error } = await supabase
         .from('warehouse_bins')
         .select('*')
-        .eq('company_id', profile?.company_id)
+        .eq('company_id', businessUser?.company_id)
         .order('bin_name');
 
       if (error) throw error;
@@ -286,10 +287,10 @@ export default function InventoryModule() {
   useEffect(() => {
     fetchProducts();
     fetchWarehouseBins();
-    if (profile?.company_id) {
+    if (businessUser?.company_id) {
       checkProductsWithTransactions();
     }
-  }, [profile?.company_id]);
+  }, [businessUser?.company_id]);
 
   useEffect(() => {
     if (warehouseBins.length > 0 && products.length > 0) {
@@ -304,7 +305,7 @@ export default function InventoryModule() {
       const { data, error } = await supabase
         .from('products')
         .select('*')
-        .eq('company_id', profile?.company_id)
+        .eq('company_id', businessUser?.company_id)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -324,7 +325,7 @@ export default function InventoryModule() {
   // Handle product creation
   const handleAddProduct = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!profile?.company_id) {
+    if (!businessUser?.company_id) {
       toast({
         title: "Error",
         description: "Company information not found",
@@ -375,7 +376,7 @@ export default function InventoryModule() {
         barcode: formData.get('barcode') as string || null,
         product_type: formData.get('product_type') as 'goods' | 'service',
         product_category: formData.get('product_category') as 'raw_material' | 'finished_goods' | 'consumables' | 'assets' | 'others',
-        company_id: profile?.company_id,
+        company_id: businessUser?.company_id,
         is_active: formData.get('is_active') !== 'off' // Default to true unless explicitly turned off
       };
 
@@ -1199,14 +1200,14 @@ export default function InventoryModule() {
       <ProductViewDialog
         open={showViewDialog}
         onOpenChange={setShowViewDialog}
-        product={viewingProduct}
+        product={viewingProduct as any}
       />
 
       {/* Bulk Upload Dialog */}
       <BulkUploadDialog
         open={showBulkUpload}
         onOpenChange={setShowBulkUpload}
-        companyId={profile?.company_id}
+        companyId={businessUser?.company_id}
         onUploadComplete={() => {
           fetchProducts();
           setAdjustmentRefreshTrigger(prev => prev + 1);
@@ -1217,7 +1218,7 @@ export default function InventoryModule() {
       <EditProductDialog
         open={showEditDialog}
         onOpenChange={setShowEditDialog}
-        product={editingProduct}
+        product={editingProduct as any}
         onProductUpdated={() => {
           fetchProducts();
           setAdjustmentRefreshTrigger(prev => prev + 1);
@@ -1234,6 +1235,8 @@ export default function InventoryModule() {
             </DialogDescription>
           </DialogHeader>
           <WarehouseBinForm
+            open={showBinDialog}
+            onOpenChange={setShowBinDialog}
             onSuccess={() => {
               setShowBinDialog(false);
               fetchWarehouseBins();

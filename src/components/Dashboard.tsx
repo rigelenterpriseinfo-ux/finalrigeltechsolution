@@ -29,7 +29,7 @@ import {
   RotateCcw,
   Settings,
 } from 'lucide-react';
-import { InventoryModule } from '@/components/modules/InventoryModule';
+import InventoryModule from '@/components/modules/InventoryModule';
 import { PurchaseModule } from '@/components/modules/PurchaseModule';
 import SalesModule from '@/components/modules/SalesModule';
 import { PaymentsModule } from '@/components/modules/PaymentsModule';
