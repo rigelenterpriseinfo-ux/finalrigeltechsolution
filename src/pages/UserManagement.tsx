@@ -11,7 +11,7 @@ import { Switch } from '@/components/ui/switch';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Loader2, Plus, Edit, Trash2, Users, Shield, Eye, ArrowLeft, Clock, CheckCircle, User, Settings, Database, FileText, CreditCard, MapPin, Bot, Package, RotateCcw, ChevronRight, ChevronLeft, UserPlus, Lock, Globe, BarChart3, ShoppingCart, TrendingUp } from 'lucide-react';
+import { Loader2, Plus, Edit, Trash2, Users, Shield, Eye, ArrowLeft, Clock, CheckCircle, User, Settings, Database, FileText, CreditCard, MapPin, Bot, Package, RotateCcw, ChevronRight, ChevronLeft, UserPlus, Lock, Globe, BarChart3, ShoppingCart, TrendingUp, Download } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -21,6 +21,7 @@ import { AuditLogViewer } from '@/components/AuditLogViewer';
 import { PermissionErrorBoundary } from '@/components/ui/PermissionErrorBoundary';
 import { useNavigate } from 'react-router-dom';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import * as XLSX from 'xlsx';
 
 interface BusinessUser {
   id: string;
@@ -444,6 +445,73 @@ const UserManagement = () => {
     setBulkPermission(permission);
   };
 
+  const exportToExcel = () => {
+    try {
+      // Prepare the data for Excel export
+      const exportData = users.map(user => {
+        const row: any = {
+          'Name': user.name || '',
+          'Login ID': user.email || '',
+          'User Reference': user.user_ref || '',
+          'Designation': user.designation || '',
+          'Account Status': user.is_active ? 'Active' : 'Inactive',
+          'Access Type': user.access_type || 'USER',
+          'Creation Date': user.created_at ? new Date(user.created_at).toLocaleDateString() : ''
+        };
+
+        // Add all sections as columns with their access levels
+        availableSections.forEach(section => {
+          const accessLevel = user.access_sections?.[section.key] || 'none';
+          row[`${section.label} Access`] = accessLevel === 'none' ? 'No Access' : 
+                                          accessLevel === 'read' ? 'Read Only' : 
+                                          accessLevel === 'edit' ? 'Full Access' : 'No Access';
+        });
+
+        return row;
+      });
+
+      // Create a new workbook and worksheet
+      const ws = XLSX.utils.json_to_sheet(exportData);
+      const wb = XLSX.utils.book_new();
+
+      // Set column widths for better readability
+      const colWidths = [
+        { wch: 20 }, // Name
+        { wch: 25 }, // Login ID
+        { wch: 15 }, // User Reference
+        { wch: 20 }, // Designation
+        { wch: 15 }, // Account Status
+        { wch: 12 }, // Access Type
+        { wch: 15 }, // Creation Date
+        ...availableSections.map(() => ({ wch: 18 })) // Section access columns
+      ];
+      ws['!cols'] = colWidths;
+
+      // Add the worksheet to workbook
+      XLSX.utils.book_append_sheet(wb, ws, 'User Access Report');
+
+      // Generate filename with current date
+      const currentDate = new Date().toISOString().split('T')[0];
+      const companyName = company?.name?.replace(/[^a-zA-Z0-9]/g, '_') || 'Company';
+      const filename = `${companyName}_User_Access_Report_${currentDate}.xlsx`;
+
+      // Save the file
+      XLSX.writeFile(wb, filename);
+
+      toast({
+        title: "Export Successful",
+        description: `User access report has been exported to ${filename}`,
+      });
+    } catch (error: any) {
+      console.error('Export error:', error);
+      toast({
+        title: "Export Failed",
+        description: error.message || "Failed to export user access report",
+        variant: "destructive"
+      });
+    }
+  };
+
   const nextStep = () => {
     console.log('nextStep called, current step:', wizardStep, 'canProceed:', canProceedToNextStep());
     if (wizardStep < 2 && canProceedToNextStep()) {
@@ -597,14 +665,25 @@ const UserManagement = () => {
                   Manage users and their access to different sections
                 </p>
               </div>
-              <Button 
-                onClick={() => handleOpenDialog()} 
-                className="btn-gradient"
-                disabled={!hasEditAccess('user_management')}
-              >
-                <UserPlus className="mr-2 h-4 w-4" />
-                Add User
-              </Button>
+              <div className="flex gap-2">
+                <Button 
+                  onClick={exportToExcel}
+                  variant="outline"
+                  className="flex items-center gap-2"
+                  disabled={users.length === 0}
+                >
+                  <Download className="w-4 h-4" />
+                  Export Excel
+                </Button>
+                <Button 
+                  onClick={() => handleOpenDialog()} 
+                  className="btn-gradient"
+                  disabled={!hasEditAccess('user_management')}
+                >
+                  <UserPlus className="mr-2 h-4 w-4" />
+                  Add User
+                </Button>
+              </div>
             </div>
 
             {isLoading ? (
