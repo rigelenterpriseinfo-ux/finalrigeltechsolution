@@ -582,7 +582,7 @@ export function EnhancedReportsModule() {
           invoiceDate: format(new Date(invoice.invoice_date), 'dd-MMM-yyyy'),
           product: product?.name || item.product_name || 'Unknown Product',
           sku: product?.sku || 'N/A',
-          gstPercent: `${item.cgst_rate || item.sgst_rate || item.igst_rate || 0}%`,
+          gstPercent: item.cgst_rate && item.sgst_rate ? (item.cgst_rate + item.sgst_rate) : (item.igst_rate || 0),
           qtyInvoiced: item.quantity_invoiced || 0,
           invoiceValue: item.line_total || 0,
           taxableAmount: taxableAmount,
@@ -603,26 +603,30 @@ export function EnhancedReportsModule() {
       totalTaxAmount: tableData.reduce((sum, item) => sum + (item.cgst || 0) + (item.sgst || 0) + (item.igst || 0), 0)
     };
 
-    // Create chart data - Top 10 customers by total sales
-    const customerSalesMap = tableData.reduce((acc: Record<string, any>, item) => {
-      if (!acc[item.customerName]) {
-        acc[item.customerName] = {
-          name: item.customerName,
-          value: 0,
-          invoiceCount: 0
-        };
-      }
-      acc[item.customerName].value += item.invoiceValue || 0;
-      acc[item.customerName].invoiceCount += 1;
+    // Create month-on-month chart data based on invoice values
+    const monthlyData = tableData.reduce((acc: Record<string, number>, item) => {
+      const invoiceDate = item.invoiceDate.replace(/(\d{2})-(\w{3})-(\d{4})/, '$2 $3'); // Convert "25-Sep-2025" to "Sep 2025"
+      acc[invoiceDate] = (acc[invoiceDate] || 0) + (item.invoiceValue || 0);
       return acc;
     }, {});
 
-    const chartData = Object.values(customerSalesMap)
-      .sort((a: any, b: any) => b.value - a.value)
-      .slice(0, 10);
+    const chartData = Object.entries(monthlyData)
+      .map(([month, value]) => ({
+        name: month,
+        value: value
+      }))
+      .sort((a, b) => {
+        const monthOrder = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        const [monthA, yearA] = a.name.split(' ');
+        const [monthB, yearB] = b.name.split(' ');
+        const yearDiff = parseInt(yearA) - parseInt(yearB);
+        if (yearDiff !== 0) return yearDiff;
+        return monthOrder.indexOf(monthA) - monthOrder.indexOf(monthB);
+      });
 
     console.log('Final result - Table data count:', tableData.length);
     console.log('Final result - Chart data count:', chartData.length);
+    console.log('Monthly sales data:', chartData);
     console.log('=== fetchCustomerSalesData END ===');
 
     return { tableData, chartData, summary };
@@ -3161,12 +3165,16 @@ export function EnhancedReportsModule() {
                       <CardTitle className="text-lg font-semibold">
                         {selectedReport === 'item_wise_sales' && filters.product && filters.product !== 'all' 
                           ? 'Month-on-Month Sales Trend' 
+                          : selectedReport === 'customer_sales'
+                          ? 'Month-on-Month Sales by Invoice Value'
                           : 'Visual Analysis'
                         }
                       </CardTitle>
                       <CardDescription>
                         {selectedReport === 'item_wise_sales' && filters.product && filters.product !== 'all' 
                           ? 'Volume and revenue trends for selected item' 
+                          : selectedReport === 'customer_sales'
+                          ? 'Monthly sales trends based on invoice values'
                           : selectedReport.includes('aging') ? 'Outstanding amounts by aging period' : 'Data visualization'
                         }
                       </CardDescription>
@@ -3299,10 +3307,24 @@ export function EnhancedReportsModule() {
                               <div className="text-xl font-bold text-blue-900 dark:text-blue-100 break-all">
                                 {selectedReport.includes('aging') ? 
                                   `₹${Number(chartData.reduce((sum, item) => sum + item.value, 0)).toLocaleString('en-IN', { maximumFractionDigits: 0 })}` : 
-                                  reportData.length
+                                  selectedReport === 'customer_sales' && (reportResult as any)?.summary ? 
+                                    (reportResult as any).summary.totalRecords :
+                                    reportData.length
                                 }
                               </div>
                             </div>
+                            
+                            {/* Additional metrics for Customer Sales */}
+                            {selectedReport === 'customer_sales' && (reportResult as any)?.summary && (
+                              <div className="p-4 rounded-lg bg-gradient-to-r from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/20 border border-green-200 dark:border-green-800">
+                                <div className="text-sm font-medium text-green-700 dark:text-green-300 mb-1">
+                                  Total Invoice Value
+                                </div>
+                                <div className="text-xl font-bold text-green-900 dark:text-green-100 break-all">
+                                  ₹{Number((reportResult as any).summary.totalInvoiceValue || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                                </div>
+                              </div>
+                            )}
                             
                             {selectedReport.includes('aging') && chartData.length > 0 && (
                               <div className="grid grid-cols-2 gap-3">
