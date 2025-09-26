@@ -541,6 +541,7 @@ export function EnhancedReportsModule() {
     const b2cLargeSupplies: any[] = [];
     const b2cSmallSupplies: any[] = [];
     const hsnSummary: Record<string, any> = {};
+    const itemWiseData: any[] = []; // New: Item-level details for export
     let totalTaxableValue = 0;
     let totalTaxAmount = 0;
 
@@ -557,6 +558,46 @@ export function EnhancedReportsModule() {
       // Business customer OR customer with GSTIN = B2B
       // Individual customer without GSTIN = B2C
       const isB2B = (customerType === 'Business' || (customerGSTIN && customerGSTIN.trim() !== ''));
+      
+      // Process each line item for detailed export
+      invoice.sales_invoice_items?.forEach((item: any) => {
+        const itemTaxableValue = (item.unit_price * item.quantity_invoiced) - (item.discount_amount || 0);
+        const cgstAmount = item.cgst_amount || 0;
+        const sgstAmount = item.sgst_amount || 0;
+        const igstAmount = item.igst_amount || 0;
+        const totalItemTax = cgstAmount + sgstAmount + igstAmount;
+        const taxRate = itemTaxableValue > 0 ? ((totalItemTax / itemTaxableValue) * 100).toFixed(1) : '0';
+
+        itemWiseData.push({
+          customerName: invoice.customer_name,
+          customerGSTIN: customerGSTIN || 'N/A',
+          customerType: customerType || (isB2B ? 'Business' : 'Individual'),
+          invoiceNumber: invoice.invoice_number,
+          invoiceDate: format(new Date(invoice.invoice_date), 'dd-MMM-yyyy'),
+          invoiceValue: invoiceValue,
+          placeOfSupply: companyPlaceOfSupply,
+          reverseCharge: 'N',
+          invoiceType: 'Regular',
+          ecommerceGSTIN: '',
+          // Item-level details
+          itemDescription: item.item_description || item.product_name || 'N/A',
+          hsnSacCode: item.hsn_sac_code || 'Not Specified',
+          quantity: item.quantity_invoiced,
+          unitOfMeasure: item.unit_of_measure || 'PCS',
+          unitPrice: item.unit_price,
+          discountAmount: item.discount_amount || 0,
+          itemTaxableValue: itemTaxableValue,
+          cgstRate: item.cgst_rate || 0,
+          cgstAmount: cgstAmount,
+          sgstRate: item.sgst_rate || 0,
+          sgstAmount: sgstAmount,
+          igstRate: item.igst_rate || 0,
+          igstAmount: igstAmount,
+          totalTaxRate: taxRate,
+          totalItemTax: totalItemTax,
+          itemTotalValue: itemTaxableValue + totalItemTax
+        });
+      });
       
       if (isB2B) {
         // B2B Supply - Business customer or customer with GSTIN
@@ -652,6 +693,7 @@ export function EnhancedReportsModule() {
     return { 
       tableData: b2bSupplies, 
       chartData,
+      itemWiseData, // New: Item-level data for export
       gstr1Sections: {
         b2bSupplies,
         b2cLargeSupplies,
@@ -1468,9 +1510,11 @@ export function EnhancedReportsModule() {
     if (reportResult) {
       setReportData(reportResult.tableData);
       setChartData(reportResult.chartData);
-      // Handle optional invoiceWiseData for aging reports
+      // Handle optional invoiceWiseData for aging reports and itemWiseData for GSTR-1
       if ('invoiceWiseData' in reportResult && Array.isArray(reportResult.invoiceWiseData)) {
         setInvoiceWiseData(reportResult.invoiceWiseData);
+      } else if ('itemWiseData' in reportResult && Array.isArray(reportResult.itemWiseData)) {
+        setInvoiceWiseData(reportResult.itemWiseData); // Store item-wise data in same state
       } else {
         setInvoiceWiseData([]);
       }
@@ -1508,10 +1552,14 @@ export function EnhancedReportsModule() {
   };
 
   const exportReport = (exportFormat: 'excel' | 'pdf' | 'json') => {
-    // Use invoice-wise data for AR/AP aging reports, regular reportData for others
-    const dataToExport = (selectedReport === 'ar_aging' || selectedReport === 'ap_aging') && invoiceWiseData.length > 0
-      ? invoiceWiseData 
-      : reportData;
+    // Use item-wise data for GSTR-1, invoice-wise data for AR/AP aging reports, regular reportData for others
+    let dataToExport = reportData;
+    
+    if (selectedReport === 'gstr1' && invoiceWiseData.length > 0) {
+      dataToExport = invoiceWiseData; // Use detailed item-level data for GSTR-1
+    } else if ((selectedReport === 'ar_aging' || selectedReport === 'ap_aging') && invoiceWiseData.length > 0) {
+      dataToExport = invoiceWiseData; // Use invoice-wise data for aging reports
+    }
       
     if (!dataToExport.length) {
       toast.error('No data to export');
