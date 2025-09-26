@@ -3388,6 +3388,13 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "fk_transaction_audit_log_user_id"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
             foreignKeyName: "transaction_audit_log_company_id_fkey"
             columns: ["company_id"]
             isOneToOne: false
