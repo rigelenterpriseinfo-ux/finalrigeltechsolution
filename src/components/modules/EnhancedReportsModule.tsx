@@ -2575,34 +2575,92 @@ export function EnhancedReportsModule() {
         {/* Filters */}
         <div className="border-b border-border p-6 bg-card">
           <div className="flex flex-wrap gap-4">
-            <div className="flex-1 min-w-[200px]">
-              <label className="text-sm font-medium mb-2 block">Date Range</label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button variant="outline" className="w-full justify-start text-left">
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {format(filters.dateRange.from, 'MMM dd, yyyy')} - {format(filters.dateRange.to, 'MMM dd, yyyy')}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    initialFocus
-                    mode="range"
-                    defaultMonth={filters.dateRange.from}
-                    selected={filters.dateRange}
-                    onSelect={(range) => {
-                      if (range?.from && range?.to) {
-                        setFilters(prev => ({
-                          ...prev,
-                          dateRange: { from: range.from, to: range.to }
-                        }));
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 flex-1 min-w-[400px]">
+              {/* Start Date Picker */}
+              <div>
+                <label className="text-sm font-medium mb-2 block">Start Date</label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className="w-full justify-start text-left font-normal"
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {filters.dateRange.from ? (
+                        format(filters.dateRange.from, 'MMM dd, yyyy')
+                      ) : (
+                        <span className="text-muted-foreground">Select start date</span>
+                      )}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={filters.dateRange.from}
+                      onSelect={(date) => {
+                        if (date) {
+                          setFilters(prev => ({
+                            ...prev,
+                            dateRange: { 
+                              from: date, 
+                              to: date > prev.dateRange.to ? date : prev.dateRange.to 
+                            }
+                          }));
+                        }
+                      }}
+                      disabled={(date) =>
+                        date > new Date() || date < new Date("1900-01-01")
                       }
-                    }}
-                    numberOfMonths={2}
-                    className="pointer-events-auto"
-                  />
-                </PopoverContent>
-              </Popover>
+                      initialFocus
+                      className="p-3 pointer-events-auto"
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+
+              {/* End Date Picker */}
+              <div>
+                <label className="text-sm font-medium mb-2 block">End Date</label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className="w-full justify-start text-left font-normal"
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {filters.dateRange.to ? (
+                        format(filters.dateRange.to, 'MMM dd, yyyy')
+                      ) : (
+                        <span className="text-muted-foreground">Select end date</span>
+                      )}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={filters.dateRange.to}
+                      onSelect={(date) => {
+                        if (date) {
+                          setFilters(prev => ({
+                            ...prev,
+                            dateRange: { 
+                              from: date < prev.dateRange.from ? date : prev.dateRange.from, 
+                              to: date 
+                            }
+                          }));
+                        }
+                      }}
+                      disabled={(date) =>
+                        date > new Date() || 
+                        date < new Date("1900-01-01") ||
+                        (filters.dateRange.from && date < filters.dateRange.from)
+                      }
+                      initialFocus
+                      className="p-3 pointer-events-auto"
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
             </div>
 
             {currentReport?.requiresFilters?.includes('customer') && (
