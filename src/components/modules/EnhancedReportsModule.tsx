@@ -136,6 +136,7 @@ export function EnhancedReportsModule() {
   });
   const [reportData, setReportData] = useState<any[]>([]);
   const [chartData, setChartData] = useState<any[]>([]);
+  const [invoiceWiseData, setInvoiceWiseData] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [gstinOptions, setGstinOptions] = useState<GSTINOption[]>([]);
@@ -223,7 +224,21 @@ export function EnhancedReportsModule() {
       };
     }).filter(item => item.amount > 0) || [];
 
-    // Group by customer
+    // Invoice-wise data for export (detailed)
+    const invoiceWiseData = agingData.map(item => ({
+      'Customer/Vendor Name': item.customer,
+      'Invoice No': item.invoiceNumber,
+      'Invoice Date': format(new Date(item.invoiceDate), 'MMM dd, yyyy'),
+      'Invoice Status': 'Outstanding',
+      'Total Amount': item.amount + (invoices?.find(inv => inv.invoice_number === item.invoiceNumber)?.payments?.reduce((sum: number, payment: any) => sum + payment.amount, 0) || 0),
+      'Pending Amount': item.amount,
+      'Days30': item.days30,
+      'Days60': item.days60,
+      'Days90': item.days90,
+      'Over90': item.over90
+    }));
+
+    // Group by customer for UI display (aggregated)
     const customerAging = agingData.reduce((acc: Record<string, any>, item) => {
       if (!acc[item.customer]) {
         acc[item.customer] = {
@@ -261,7 +276,7 @@ export function EnhancedReportsModule() {
       { name: '90+ Days', value: totals.over90, percentage: total ? Math.round((totals.over90 / total) * 100) : 0 }
     ];
 
-    return { tableData, chartData };
+    return { tableData, chartData, invoiceWiseData };
   };
 
   const fetchAPAgingData = async (filters: FilterState) => {
@@ -303,13 +318,15 @@ export function EnhancedReportsModule() {
       
       const totalAdvancePayment = advancePayments.reduce((sum, payment) => sum + payment.amount, 0);
       const totalAmountReceived = regularPayments.reduce((sum, payment) => sum + payment.amount, 0);
-      const outstandingAmount = grn.total_amount - totalAdvancePayment - totalAmountReceived;
+      const totalPaid = totalAdvancePayment + totalAmountReceived;
+      const outstandingAmount = grn.total_amount - totalPaid;
       const daysOutstanding = differenceInDays(new Date(), new Date(grn.grn_date));
       
       return {
         vendor: grn.supplier_name,
         orderNumber: grn.grn_number,
         amount: Math.max(0, outstandingAmount),
+        totalAmount: grn.total_amount,
         daysOutstanding,
         orderDate: grn.grn_date,
         current: daysOutstanding <= 0 ? Math.max(0, outstandingAmount) : 0,
@@ -320,6 +337,21 @@ export function EnhancedReportsModule() {
       };
     }).filter(item => item.amount > 0) || [];
 
+    // Invoice-wise data for export (detailed)
+    const invoiceWiseData = agingData.map(item => ({
+      'Customer/Vendor Name': item.vendor,
+      'Invoice No': item.orderNumber,
+      'Invoice Date': format(new Date(item.orderDate), 'MMM dd, yyyy'),
+      'Invoice Status': 'Outstanding',
+      'Total Amount': item.totalAmount,
+      'Pending Amount': item.amount,
+      'Days30': item.days30,
+      'Days60': item.days60,
+      'Days90': item.days90,
+      'Over90': item.over90
+    }));
+
+    // Group by vendor for UI display (aggregated)
     const vendorAging = agingData.reduce((acc: Record<string, any>, item) => {
       if (!acc[item.vendor]) {
         acc[item.vendor] = {
@@ -356,7 +388,7 @@ export function EnhancedReportsModule() {
       { name: '90+ Days', value: totals.over90, percentage: total ? Math.round((totals.over90 / total) * 100) : 0 }
     ];
 
-    return { tableData, chartData };
+    return { tableData, chartData, invoiceWiseData };
   };
 
   const fetchSalesOrdersData = async (filters: FilterState) => {
@@ -1436,6 +1468,7 @@ export function EnhancedReportsModule() {
     if (reportResult) {
       setReportData(reportResult.tableData);
       setChartData(reportResult.chartData);
+      setInvoiceWiseData(reportResult.invoiceWiseData || []);
     }
   }, [reportResult]);
 
@@ -1470,7 +1503,12 @@ export function EnhancedReportsModule() {
   };
 
   const exportReport = (exportFormat: 'excel' | 'pdf' | 'json') => {
-    if (!reportData.length) {
+    // Use invoice-wise data for AR/AP aging reports, regular reportData for others
+    const dataToExport = (selectedReport === 'ar_aging' || selectedReport === 'ap_aging') && invoiceWiseData.length > 0
+      ? invoiceWiseData 
+      : reportData;
+      
+    if (!dataToExport.length) {
       toast.error('No data to export');
       return;
     }
@@ -1481,9 +1519,46 @@ export function EnhancedReportsModule() {
       const jsonData = JSON.stringify({ 
         reportName: currentReport?.name,
         dateRange: filters.dateRange,
-        data: reportData,
+        data: dataToExport,
         chartData: chartData
       }, null, 2);
+      
+      const blob = new Blob([jsonData], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${fileName}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      
+      toast.success('JSON file downloaded successfully');
+    } else if (exportFormat === 'excel') {
+      // Use the existing exportToExcel utility from utils
+      import('@/utils/excelExport').then(({ exportToExcel }) => {
+        const columns = Object.keys(dataToExport[0]).map(key => ({
+          key,
+          label: key,
+          format: (value: any) => {
+            if (typeof value === 'number' && (key.toLowerCase().includes('amount') || key.toLowerCase().includes('days'))) {
+              return key.toLowerCase().includes('amount') ? `₹${value.toLocaleString()}` : value;
+            }
+            return value;
+          }
+        }));
+        
+        exportToExcel({
+          filename: fileName,
+          sheetName: currentReport?.name || 'Report',
+          columns,
+          data: dataToExport,
+          includeMetadata: true,
+          companyName: 'Company Report'
+        });
+      });
+    }
+  };
       
       const blob = new Blob([jsonData], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
