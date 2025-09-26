@@ -8,7 +8,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { useBusinessAuth } from '@/hooks/useBusinessAuth';
 import { supabase } from '@/integrations/supabase/client';
-import { Bot, Send, User, Lightbulb, TrendingUp, Package, DollarSign, Table as TableIcon, FileText, BarChart3 } from 'lucide-react';
+import { Bot, Send, User, Lightbulb, TrendingUp, Package, DollarSign, Table as TableIcon, FileText, BarChart3, Copy, Check } from 'lucide-react';
 
 interface Message {
   id: string;
@@ -28,6 +28,8 @@ export function AIAssistant() {
   const { hasAccess } = useBusinessAuth();
   const { toast } = useToast();
   
+  const [copiedTableId, setCopiedTableId] = useState<string | null>(null);
+  
   
   const [messages, setMessages] = useState<Message[]>([
     {
@@ -39,6 +41,33 @@ export function AIAssistant() {
   ]);
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+
+  const copyTableData = async (tableData: { columns: string[]; rows: string[][] }, messageId: string) => {
+    try {
+      // Convert table data to CSV format
+      const csvContent = [
+        tableData.columns.join(','),
+        ...tableData.rows.map(row => row.join(','))
+      ].join('\n');
+      
+      await navigator.clipboard.writeText(csvContent);
+      setCopiedTableId(messageId);
+      
+      toast({
+        title: 'Data Copied!',
+        description: 'Table data has been copied to clipboard as CSV format.',
+      });
+      
+      // Reset copied state after 2 seconds
+      setTimeout(() => setCopiedTableId(null), 2000);
+    } catch (error) {
+      toast({
+        title: 'Copy Failed',
+        description: 'Unable to copy data to clipboard.',
+        variant: 'destructive',
+      });
+    }
+  };
 
   if (!hasAccess('ai')) {
     return (
@@ -153,14 +182,32 @@ export function AIAssistant() {
                          ? 'w-full bg-muted'
                          : 'max-w-[85%] bg-muted'
                    } rounded-lg p-3`}>
-                    <p className="text-sm whitespace-pre-wrap leading-relaxed">{message.content}</p>
+                    {/* Only show text content if it's not the table-only indicator */}
+                    {message.content !== "TABLE_DATA_ONLY" && (
+                      <p className="text-sm whitespace-pre-wrap leading-relaxed">{message.content}</p>
+                    )}
                     
                      {/* Table Data Display */}
                      {message.tableData && (
-                       <div className="mt-4 border rounded-lg overflow-hidden bg-background w-full">
-                         <div className="bg-muted px-3 py-2 flex items-center gap-2">
-                           <TableIcon className="h-4 w-4" />
-                           <span className="text-sm font-medium text-foreground">Data Results</span>
+                       <div className={`${message.content !== "TABLE_DATA_ONLY" ? 'mt-4' : ''} border rounded-lg overflow-hidden bg-background w-full`}>
+                         <div className="bg-muted px-3 py-2 flex items-center justify-between">
+                           <div className="flex items-center gap-2">
+                             <TableIcon className="h-4 w-4" />
+                             <span className="text-sm font-medium text-foreground">Data Results</span>
+                           </div>
+                           <Button
+                             variant="ghost"
+                             size="sm"
+                             onClick={() => copyTableData(message.tableData!, message.id)}
+                             className="h-6 px-2 text-xs"
+                           >
+                             {copiedTableId === message.id ? (
+                               <Check className="h-3 w-3" />
+                             ) : (
+                               <Copy className="h-3 w-3" />
+                             )}
+                             {copiedTableId === message.id ? 'Copied!' : 'Copy'}
+                           </Button>
                          </div>
                          <div className="max-h-60 overflow-auto w-full">
                            <Table className="w-full">

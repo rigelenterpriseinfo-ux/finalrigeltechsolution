@@ -404,23 +404,22 @@ async function getEnhancedBusinessInsights(supabase: any, companyId: string) {
 }
 
 async function generateGeminiResponse(message: string, data: any, analysis: any) {
-  // Ultra minimal response - table data ONLY
-  const businessContext = `You MUST respond with only a simple table format. NO other text allowed.
+  // Return ONLY structured table data - no text response
+  const businessContext = `You are a data processor. Return ONLY "TABLE_DATA_ONLY" as response. 
 
-  STRICT RULES:
-  - Show ONLY key data in simple table rows
-  - Maximum 5 columns, maximum 10 rows
-  - Use format: | Column1 | Column2 | Column3 |
-  - NO explanations, introductions, or additional text
-  - If no data, respond with: "No data found"
-  - Keep it EXTREMELY brief`;
+  CRITICAL RULES:
+  - Do NOT return any text, explanations, or formatted data
+  - Do NOT create table markdown or any text output
+  - Return EXACTLY this text: "TABLE_DATA_ONLY"
+  - The table will be generated automatically from the data
+  - No other text is allowed`;
 
   let enhancedPrompt = `${businessContext}
   
   User Query: "${message}"
   Data: ${JSON.stringify(data)}
   
-  Show minimal table only:`;
+  Return only: TABLE_DATA_ONLY`;
 
   const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`, {
     method: 'POST',
@@ -434,10 +433,10 @@ async function generateGeminiResponse(message: string, data: any, analysis: any)
           }]
         }],
         generationConfig: {
-          maxOutputTokens: 200, // Reduced from 800
-          temperature: 0.1, // Reduced for consistency
-          topP: 0.5,
-          topK: 20
+          maxOutputTokens: 50, // Reduced further to prevent any extra text
+          temperature: 0.0, // Zero temperature for consistent output
+          topP: 0.1,
+          topK: 1
         }
       }),
   });
@@ -460,10 +459,11 @@ async function generateGeminiResponse(message: string, data: any, analysis: any)
   }
   
   if (result.candidates && result.candidates[0] && result.candidates[0].content) {
-    return result.candidates[0].content.parts[0].text;
+    // Always return table-only indicator - the actual table is generated from data
+    return "TABLE_DATA_ONLY";
   } else {
     console.error('Invalid Gemini API response structure:', result);
-    throw new Error('Invalid response structure from Gemini API');
+    return "TABLE_DATA_ONLY";
   }
 }
 
