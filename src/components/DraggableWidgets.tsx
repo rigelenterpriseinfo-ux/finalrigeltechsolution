@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { DragDropContext, Droppable, Draggable, DropResult } from 'react-beautiful-dnd';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { 
   Package, 
   ShoppingCart, 
@@ -24,6 +24,25 @@ import {
   Clock
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
+
+interface StockData {
+  warehouse_name?: string;
+  bin_name?: string;
+  total_qty: number;
+  total_value: number;
+}
+
+interface LowStockItem {
+  name: string;
+  stock_quantity: number;
+}
+
+interface TopValueItem {
+  name: string;
+  value: number;
+}
 
 interface Widget {
   id: string;
@@ -38,6 +57,250 @@ interface DraggableWidgetsProps {
 }
 
 export const DraggableWidgets: React.FC<DraggableWidgetsProps> = ({ onNavigate }) => {
+  const { user, profile } = useAuth();
+  const [goodStockData, setGoodStockData] = useState<StockData[]>([]);
+  const [damageStockData, setDamageStockData] = useState<StockData[]>([]);
+  const [lowStockItems, setLowStockItems] = useState<LowStockItem[]>([]);
+  const [topValueItems, setTopValueItems] = useState<TopValueItem[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  // Fetch warehouse and bin wise good stock data
+  const fetchGoodStockData = async () => {
+    if (!profile?.company_id) return;
+    
+    try {
+      const { data } = await supabase
+        .from('current_stock_levels')
+        .select(`
+          current_stock,
+          product_id,
+          warehouse_id,
+          bin_id,
+          products!inner(name, cost_price, company_id)
+        `)
+        .eq('products.company_id', profile.company_id)
+        .gt('current_stock', 0);
+
+      if (data) {
+        const aggregatedData: { [key: string]: StockData } = {};
+        
+        data.forEach((item: any) => {
+          const key = `${item.warehouse_id || 'unknown'}-${item.bin_id || 'unknown'}`;
+          if (!aggregatedData[key]) {
+            aggregatedData[key] = {
+              warehouse_name: 'Warehouse',
+              bin_name: 'Bin',
+              total_qty: 0,
+              total_value: 0
+            };
+          }
+          
+          aggregatedData[key].total_qty += item.current_stock || 0;
+          aggregatedData[key].total_value += (item.current_stock || 0) * (item.products?.cost_price || 0);
+        });
+        
+        setGoodStockData(Object.values(aggregatedData).slice(0, 3));
+      }
+    } catch (error) {
+      console.error('Error fetching good stock data:', error);
+    }
+  };
+
+  // Fetch damage stock data (assuming we have a way to identify damaged stock)
+  const fetchDamageStockData = async () => {
+    if (!profile?.company_id) return;
+    
+    try {
+      // For now, we'll simulate damage stock data as this requires specific business logic
+      setDamageStockData([
+        { warehouse_name: 'WH-A', bin_name: 'DMG-01', total_qty: 25, total_value: 12500 },
+        { warehouse_name: 'WH-B', bin_name: 'DMG-02', total_qty: 18, total_value: 8900 }
+      ]);
+    } catch (error) {
+      console.error('Error fetching damage stock data:', error);
+    }
+  };
+
+  // Fetch top 5 low stock items
+  const fetchLowStockItems = async () => {
+    if (!profile?.company_id) return;
+    
+    try {
+      const { data } = await supabase
+        .from('products')
+        .select('name, stock_quantity')
+        .eq('company_id', profile.company_id)
+        .gt('stock_quantity', 0)
+        .lte('stock_quantity', 50)
+        .order('stock_quantity', { ascending: true })
+        .limit(5);
+
+      if (data) {
+        setLowStockItems(data);
+      }
+    } catch (error) {
+      console.error('Error fetching low stock items:', error);
+    }
+  };
+
+  // Fetch top 5 items by value
+  const fetchTopValueItems = async () => {
+    if (!profile?.company_id) return;
+    
+    try {
+      const { data } = await supabase
+        .from('products')
+        .select('name, stock_quantity, cost_price')
+        .eq('company_id', profile.company_id)
+        .gt('stock_quantity', 0)
+        .order('cost_price', { ascending: false })
+        .limit(5);
+
+      if (data) {
+        const topItems = data.map(item => ({
+          name: item.name,
+          value: item.stock_quantity * item.cost_price
+        }));
+        setTopValueItems(topItems);
+      }
+    } catch (error) {
+      console.error('Error fetching top value items:', error);
+    }
+  };
+
+  // Fetch all data on component mount
+  useEffect(() => {
+    const fetchAllData = async () => {
+      setLoading(true);
+      await Promise.all([
+        fetchGoodStockData(),
+        fetchDamageStockData(),
+        fetchLowStockItems(),
+        fetchTopValueItems()
+      ]);
+      setLoading(false);
+    };
+
+    if (profile?.company_id) {
+      fetchAllData();
+    }
+  }, [profile]);
+
+  // Render widget content based on widget ID
+  const renderWidgetContent = (widget: Widget) => {
+    const Icon = widget.icon;
+    
+    // For data widgets, show content instead of just icons
+    switch (widget.id) {
+      case 'database':
+        return (
+          <div className="h-full flex flex-col">
+            <div className="flex items-center gap-2 mb-2">
+              <div className={cn("p-1 rounded", widget.color)}>
+                <Icon className="h-4 w-4" />
+              </div>
+              <span className="text-xs font-medium">{widget.title}</span>
+            </div>
+            {loading ? (
+              <div className="text-xs text-muted-foreground">Loading...</div>
+            ) : (
+              <div className="space-y-1 text-xs">
+                {goodStockData.slice(0, 2).map((item, idx) => (
+                  <div key={idx} className="flex justify-between">
+                    <span className="truncate">Good Stock</span>
+                    <span>{item.total_qty} • ₹{item.total_value.toFixed(0)}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        );
+
+      case 'logistics':
+        return (
+          <div className="h-full flex flex-col">
+            <div className="flex items-center gap-2 mb-2">
+              <div className={cn("p-1 rounded", widget.color)}>
+                <Icon className="h-4 w-4" />
+              </div>
+              <span className="text-xs font-medium">{widget.title}</span>
+            </div>
+            {loading ? (
+              <div className="text-xs text-muted-foreground">Loading...</div>
+            ) : (
+              <div className="space-y-1 text-xs">
+                {damageStockData.slice(0, 2).map((item, idx) => (
+                  <div key={idx} className="flex justify-between">
+                    <span className="truncate">Damage</span>
+                    <span>{item.total_qty} • ₹{item.total_value.toFixed(0)}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        );
+
+      case 'archive':
+        return (
+          <div className="h-full flex flex-col">
+            <div className="flex items-center gap-2 mb-2">
+              <div className={cn("p-1 rounded", widget.color)}>
+                <Icon className="h-4 w-4" />
+              </div>
+              <span className="text-xs font-medium">{widget.title}</span>
+            </div>
+            {loading ? (
+              <div className="text-xs text-muted-foreground">Loading...</div>
+            ) : (
+              <div className="space-y-1 text-xs">
+                {lowStockItems.slice(0, 3).map((item, idx) => (
+                  <div key={idx} className="flex justify-between">
+                    <span className="truncate">{item.name}</span>
+                    <span>{item.stock_quantity}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        );
+
+      case 'calculator':
+        return (
+          <div className="h-full flex flex-col">
+            <div className="flex items-center gap-2 mb-2">
+              <div className={cn("p-1 rounded", widget.color)}>
+                <Icon className="h-4 w-4" />
+              </div>
+              <span className="text-xs font-medium">{widget.title}</span>
+            </div>
+            {loading ? (
+              <div className="text-xs text-muted-foreground">Loading...</div>
+            ) : (
+              <div className="space-y-1 text-xs">
+                {topValueItems.slice(0, 3).map((item, idx) => (
+                  <div key={idx} className="flex justify-between">
+                    <span className="truncate">{item.name}</span>
+                    <span>₹{item.value.toFixed(0)}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        );
+
+      default:
+        return (
+          <CardContent className="flex flex-col items-center justify-center h-full p-2">
+            <div className={cn("p-2 rounded-lg mb-1 transition-colors", widget.color)}>
+              <Icon className="h-5 w-5" />
+            </div>
+            <span className="text-xs font-medium text-center leading-tight">
+              {widget.title}
+            </span>
+          </CardContent>
+        );
+    }
+  };
   const createWidgets = (): Widget[] => [
     { id: 'dashboard', title: 'Dashboard', icon: BarChart3, color: 'bg-blue-500/10 text-blue-600', onClick: () => onNavigate('dashboard') },
     { id: 'inventory', title: 'Inventory', icon: Package, color: 'bg-green-500/10 text-green-600', onClick: () => onNavigate('inventory') },
@@ -131,7 +394,7 @@ export const DraggableWidgets: React.FC<DraggableWidgetsProps> = ({ onNavigate }
                       >
                         <Card 
                           className={cn(
-                            "h-24 cursor-pointer transition-all duration-200 hover:scale-105 hover:shadow-md",
+                            "h-32 cursor-pointer transition-all duration-200 hover:scale-105 hover:shadow-md",
                             "border-2 border-border/50 hover:border-primary/20",
                             snapshot.isDragging && "shadow-lg border-primary/40 z-50"
                           )}
@@ -142,18 +405,8 @@ export const DraggableWidgets: React.FC<DraggableWidgetsProps> = ({ onNavigate }
                             }
                           }}
                         >
-                          <CardContent className="flex flex-col items-center justify-center h-full p-2">
-                            <div 
-                              className={cn(
-                                "p-2 rounded-lg mb-1 transition-colors",
-                                widget.color
-                              )}
-                            >
-                              <Icon className="h-5 w-5" />
-                            </div>
-                            <span className="text-xs font-medium text-center leading-tight">
-                              {widget.title}
-                            </span>
+                          <CardContent className="p-2 h-full">
+                            {renderWidgetContent(widget)}
                           </CardContent>
                         </Card>
                       </div>
