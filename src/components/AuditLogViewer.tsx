@@ -35,8 +35,8 @@ export const AuditLogViewer: React.FC<AuditLogViewerProps> = ({ className }) => 
   const [logs, setLogs] = useState<AuditLog[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [filters, setFilters] = useState({
-    table_name: '',
-    action: '',
+    table_name: 'all',
+    action: 'all',
     user_id: '',
     date_from: '',
     date_to: ''
@@ -79,10 +79,10 @@ export const AuditLogViewer: React.FC<AuditLogViewerProps> = ({ className }) => 
         .limit(100);
 
       // Apply filters
-      if (filters.table_name) {
+      if (filters.table_name && filters.table_name !== 'all') {
         query = query.eq('table_name', filters.table_name);
       }
-      if (filters.action) {
+      if (filters.action && filters.action !== 'all') {
         query = query.eq('action', filters.action);
       }
       if (filters.user_id) {
@@ -118,8 +118,8 @@ export const AuditLogViewer: React.FC<AuditLogViewerProps> = ({ className }) => 
 
   const clearFilters = () => {
     setFilters({
-      table_name: '',
-      action: '',
+      table_name: 'all',
+      action: 'all',
       user_id: '',
       date_from: '',
       date_to: ''
@@ -196,7 +196,7 @@ export const AuditLogViewer: React.FC<AuditLogViewerProps> = ({ className }) => 
                   <SelectValue placeholder="All tables" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All tables</SelectItem>
+                  <SelectItem value="all">All tables</SelectItem>
                   {Object.entries(tableDisplayNames).map(([key, label]) => (
                     <SelectItem key={key} value={key}>{label}</SelectItem>
                   ))}
@@ -214,7 +214,7 @@ export const AuditLogViewer: React.FC<AuditLogViewerProps> = ({ className }) => 
                   <SelectValue placeholder="All actions" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All actions</SelectItem>
+                  <SelectItem value="all">All actions</SelectItem>
                   <SelectItem value="INSERT">Created</SelectItem>
                   <SelectItem value="UPDATE">Updated</SelectItem>
                   <SelectItem value="DELETE">Deleted</SelectItem>
