@@ -17,6 +17,7 @@ interface InvitePayload {
   email: string;
   password?: string; // optional; if missing, we'll generate one
   name?: string;
+  designation?: string;
   role?: 'Admin' | 'Editor' | 'Viewer';
   company_id: string;
   created_by?: string; // Track who created this user
@@ -56,7 +57,7 @@ serve(async (req) => {
     const payload: InvitePayload = await req.json();
     console.log('Received payload:', { ...payload, password: payload.password ? '[REDACTED]' : undefined });
 
-    const { email, password, name, role, company_id, created_by } = payload;
+    const { email, password, name, designation, role, company_id, created_by } = payload;
 
     if (!email || !company_id) {
       console.log('Validation failed - missing fields:', { email: !!email, company_id: !!company_id });
@@ -241,6 +242,7 @@ serve(async (req) => {
         .update({
           user_id: authUserId,
           full_name: name || existingCompanyUser.username,
+          designation: designation || existingCompanyUser.designation,
           access_type: accessType,
           updated_at: new Date().toISOString()
         })
@@ -261,6 +263,7 @@ serve(async (req) => {
           email: email,
           username: email, // Keep for backward compatibility
           full_name: name,
+          designation: designation,
           access_type: accessType,
           status: 'ACTIVE',
           password_hash: 'MANAGED_BY_AUTH', // Indicate this is managed by Supabase Auth

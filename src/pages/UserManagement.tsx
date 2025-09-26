@@ -29,6 +29,7 @@ interface BusinessUser {
   name: string;
   full_name?: string;
   email: string;
+  designation?: string;
   access_type: 'OWNER' | 'ADMIN' | 'USER';
   access_sections: Record<string, 'read' | 'edit' | 'none'>;
   is_active: boolean;
@@ -55,6 +56,7 @@ const UserManagement = () => {
   const [formData, setFormData] = useState({
     name: '',
     email: '',
+    designation: '',
     password: '',
     confirmPassword: '',
     access_sections: {} as Record<string, 'read' | 'edit' | 'none'>,
@@ -150,6 +152,7 @@ const UserManagement = () => {
         ...user,
         user_ref: user.username, // Use username as user_ref for display
         name: user.full_name || user.username, // Use full_name if available
+        designation: user.designation || '',
         access_type: user.access_type || 'USER',
         access_sections: permissionsMap[user.email] || {},
         is_active: user.status === 'ACTIVE' // Map status to is_active boolean
@@ -169,6 +172,7 @@ const UserManagement = () => {
     setFormData({
       name: '',
       email: '',
+      designation: '',
       password: '',
       confirmPassword: '',
       access_sections: {},
@@ -206,6 +210,7 @@ const UserManagement = () => {
       const initialFormData = {
         name: userName,
         email: userEmail,
+        designation: user.designation || '',
         password: '',
         confirmPassword: '',
         access_sections: userSections,
@@ -265,19 +270,20 @@ const UserManagement = () => {
         throw new Error('Passwords do not match');
       }
 
-      // For new users, create in Supabase Auth first, then sync to company_users
-      if (!editingUser) {
-        console.log('Creating new user...');
-        // Create Auth user and company_user via Edge Function
-        const { data: inviteData, error: inviteError } = await supabase.functions.invoke('invite-business-user', {
-          body: {
-            email: formData.email,
-            password: formData.password,
-            name: formData.name,
-            company_id: company?.id,
-            created_by: user?.id
-          }
-        });
+        // For new users, create in Supabase Auth first, then sync to company_users
+        if (!editingUser) {
+          console.log('Creating new user...');
+          // Create Auth user and company_user via Edge Function
+          const { data: inviteData, error: inviteError } = await supabase.functions.invoke('invite-business-user', {
+            body: {
+              email: formData.email,
+              password: formData.password,
+              name: formData.name,
+              designation: formData.designation,
+              company_id: company?.id,
+              created_by: user?.id
+            }
+          });
 
         if (inviteError) {
           console.error('Error creating user:', inviteError);
@@ -319,6 +325,7 @@ const UserManagement = () => {
           username: formData.email,
           email: formData.email,
           full_name: formData.name,
+          designation: formData.designation,
           status: formData.is_active ? 'ACTIVE' : 'INACTIVE' // Map is_active to status
         };
 
@@ -654,6 +661,9 @@ const UserManagement = () => {
                                 )}
                               </div>
                               <p className="text-sm text-muted-foreground">{user.email}</p>
+                              {user.designation && (
+                                <p className="text-sm text-muted-foreground font-medium">{user.designation}</p>
+                              )}
                               <p className="text-xs text-muted-foreground font-mono">ID: {user.user_ref}</p>
                             </div>
                           </div>
@@ -893,6 +903,27 @@ const UserManagement = () => {
                               <p className="text-xs text-muted-foreground">Email cannot be changed after creation</p>
                             )}
                           </div>
+                        </div>
+                        
+                        <div className="space-y-2">
+                          <Label htmlFor="designation" className="text-sm font-medium">
+                            Designation
+                          </Label>
+                          <Input
+                            id="designation"
+                            value={formData.designation}
+                            onChange={(e) => setFormData(prev => ({ ...prev, designation: e.target.value }))}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault();
+                                if (canProceedToNextStep()) {
+                                  nextStep();
+                                }
+                              }
+                            }}
+                            placeholder="e.g., Manager, Developer, Analyst"
+                            className="h-9"
+                          />
                         </div>
                       </CardContent>
                     </Card>
