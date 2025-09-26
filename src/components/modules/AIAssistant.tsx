@@ -21,44 +21,7 @@ interface Message {
   } | null;
 }
 
-const quickActions = [
-  {
-    icon: Package,
-    title: "Inventory Management",
-    description: "Check stock levels and reorder alerts",
-    prompt: "Show me all products with low stock that need immediate reordering, including SKU and current quantities"
-  },
-  {
-    icon: TrendingUp,
-    title: "Sales Performance",
-    description: "Analyze recent sales trends and metrics",
-    prompt: "Analyze my sales performance for the last 30 days with trends and key metrics"
-  },
-  {
-    icon: FileText,
-    title: "Purchase Analytics",
-    description: "Review procurement and supplier data",
-    prompt: "Show me purchase invoices from the last month with supplier analysis and spending patterns"
-  },
-  {
-    icon: DollarSign,
-    title: "Financial Dashboard",
-    description: "View revenue, costs, and profitability",
-    prompt: "Give me a comprehensive financial overview including sales revenue, purchase costs, and profit margins"
-  },
-  {
-    icon: BarChart3,
-    title: "Business Intelligence",
-    description: "Advanced analytics and KPI tracking",
-    prompt: "Provide detailed business intelligence report with KPIs, trends, and performance metrics"
-  },
-  {
-    icon: Lightbulb,
-    title: "Strategic Insights",
-    description: "AI-powered recommendations and opportunities",
-    prompt: "Based on my complete business data, provide strategic insights, opportunities, and actionable recommendations for growth"
-  }
-];
+const quickActions: never[] = [];
 
 export function AIAssistant() {
   const { profile } = useAuth();
@@ -69,7 +32,7 @@ export function AIAssistant() {
   const [messages, setMessages] = useState<Message[]>([
     {
       id: '1',
-      content: "🚀 Welcome to your Enhanced AI Business Assistant!\n\nI'm powered by Google Gemini and can provide comprehensive business intelligence including:\n\n📊 **Advanced Analytics**: KPIs, trends, and performance metrics\n📦 **Smart Inventory**: Stock optimization and reorder alerts\n💰 **Financial Intelligence**: Revenue analysis and cost management\n👥 **Customer Insights**: Behavior patterns and relationship analytics\n🔍 **Predictive Analytics**: Business forecasting and recommendations\n\nI understand natural language queries like:\n• \"Show top-performing products this quarter\"\n• \"Which customers have outstanding payments over 30 days?\"\n• \"Analyze supplier performance and delivery metrics\"\n• \"What are my cash flow trends?\"\n\nTry the enhanced quick actions below or ask me anything about your business!",
+      content: "🤖 Welcome to your AI Business Assistant!\n\nI'm powered by Google Gemini and can help you with comprehensive business intelligence and data analysis.\n\nI can answer questions about:\n• Sales orders and performance\n• Purchase orders and supplier data\n• Inventory and stock management\n• Customer and supplier information\n• Financial analytics and reports\n• Business KPIs and trends\n\nJust ask me anything about your business data using natural language! For example:\n• \"Show me top-performing products this quarter\"\n• \"Which customers have outstanding payments?\"\n• \"What are my inventory levels?\"\n• \"Analyze my sales trends for last month\"",
       isUser: false,
       timestamp: new Date(),
     }
@@ -162,23 +125,6 @@ export function AIAssistant() {
 
   return (
     <div className="space-y-6">
-      {/* Quick Actions */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {quickActions.map((action, index) => (
-          <Card key={index} className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => handleSendMessage(action.prompt)}>
-            <CardHeader className="pb-3">
-              <div className="flex items-center gap-3">
-                <action.icon className="h-5 w-5 text-primary" />
-                <CardTitle className="text-sm">{action.title}</CardTitle>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <CardDescription className="text-xs">{action.description}</CardDescription>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-
       {/* Chat Interface */}
       <Card className="h-[700px] flex flex-col">
         <CardHeader>
