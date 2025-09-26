@@ -1454,12 +1454,12 @@ export function EnhancedReportsModule() {
         case 'quotation_comparison':
           return await fetchQuotationComparisonData(filters);
         default:
-          return { tableData: [], chartData: [] };
+          return { tableData: [], chartData: [], invoiceWiseData: [] };
       }
     } catch (error) {
       console.error('Error fetching report data:', error);
       toast.error('Failed to fetch report data');
-      return { tableData: [], chartData: [] };
+      return { tableData: [], chartData: [], invoiceWiseData: [] };
     }
   };
 
@@ -1468,7 +1468,12 @@ export function EnhancedReportsModule() {
     if (reportResult) {
       setReportData(reportResult.tableData);
       setChartData(reportResult.chartData);
-      setInvoiceWiseData(reportResult.invoiceWiseData || []);
+      // Handle optional invoiceWiseData for aging reports
+      if ('invoiceWiseData' in reportResult && Array.isArray(reportResult.invoiceWiseData)) {
+        setInvoiceWiseData(reportResult.invoiceWiseData);
+      } else {
+        setInvoiceWiseData([]);
+      }
     }
   }, [reportResult]);
 
@@ -1557,105 +1562,6 @@ export function EnhancedReportsModule() {
           companyName: 'Company Report'
         });
       });
-    }
-  };
-      
-      const blob = new Blob([jsonData], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `${fileName}.json`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-      
-      toast.success('JSON file downloaded successfully');
-    } else if (exportFormat === 'excel') {
-      // Create CSV content for Excel compatibility
-      if (reportData.length === 0) return;
-      
-      const headers = Object.keys(reportData[0]);
-      const csvContent = [
-        headers.join(','),
-        ...reportData.map(row => 
-          headers.map(header => {
-            const value = row[header];
-            // Format numbers properly for Excel
-            if (typeof value === 'number') {
-              return value;
-            }
-            return `"${String(value).replace(/"/g, '""')}"`;
-          }).join(',')
-        )
-      ].join('\n');
-      
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `${fileName}.csv`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-      
-      toast.success('Excel file downloaded successfully');
-    } else if (exportFormat === 'pdf') {
-      // Create a simple HTML table for PDF generation
-      const htmlContent = `
-        <html>
-          <head>
-            <title>${currentReport?.name}</title>
-            <style>
-              body { font-family: Arial, sans-serif; margin: 20px; }
-              h1 { color: #333; }
-              table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-              th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-              th { background-color: #f5f5f5; font-weight: bold; }
-              .currency { text-align: right; }
-            </style>
-          </head>
-          <body>
-            <h1>${currentReport?.name}</h1>
-            <p>Date Range: ${format(filters.dateRange.from, 'MMM dd, yyyy')} - ${format(filters.dateRange.to, 'MMM dd, yyyy')}</p>
-            <table>
-              <thead>
-                <tr>
-                  ${Object.keys(reportData[0] || {}).map(key => 
-                    `<th>${key.charAt(0).toUpperCase() + key.slice(1).replace(/([A-Z])/g, ' $1').trim()}</th>`
-                  ).join('')}
-                </tr>
-              </thead>
-              <tbody>
-                ${reportData.map(row => 
-                  `<tr>
-                    ${Object.entries(row).map(([key, value]) => {
-                      const isAmount = key.includes('amount') || key.includes('total') || key.includes('value');
-                      const displayValue = typeof value === 'number' && isAmount 
-                        ? `₹${value.toLocaleString('en-IN')}`
-                        : String(value);
-                      return `<td class="${isAmount ? 'currency' : ''}">${displayValue}</td>`;
-                    }).join('')}
-                  </tr>`
-                ).join('')}
-              </tbody>
-            </table>
-          </body>
-        </html>
-      `;
-      
-      const blob = new Blob([htmlContent], { type: 'text/html' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `${fileName}.html`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-      
-      toast.success('PDF file downloaded successfully (HTML format)');
     }
   };
 
