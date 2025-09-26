@@ -14,6 +14,36 @@ export type Database = {
   }
   public: {
     Tables: {
+      ai_conversation_history: {
+        Row: {
+          ai_response: string
+          company_id: string
+          created_at: string
+          id: string
+          updated_at: string
+          user_id: string
+          user_message: string
+        }
+        Insert: {
+          ai_response: string
+          company_id: string
+          created_at?: string
+          id?: string
+          updated_at?: string
+          user_id: string
+          user_message: string
+        }
+        Update: {
+          ai_response?: string
+          company_id?: string
+          created_at?: string
+          id?: string
+          updated_at?: string
+          user_id?: string
+          user_message?: string
+        }
+        Relationships: []
+      }
       auth_rate_limits: {
         Row: {
           attempt_count: number
