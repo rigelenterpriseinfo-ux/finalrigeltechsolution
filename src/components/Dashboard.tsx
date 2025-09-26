@@ -95,6 +95,8 @@ export default function Dashboard() {
     if (view === 'dashboard' || view === 'inventory' || view === 'purchase' || view === 'sales' || 
         view === 'returns' || view === 'payments' || view === 'reports' || view === 'tracking' || 
         view === 'ai' || view === 'profile' || view === 'settings') {
+      // Update URL parameters first to ensure state persistence
+      setSearchParams({ module: view });
       setActiveModule(view as ActiveModule);
     }
   };
