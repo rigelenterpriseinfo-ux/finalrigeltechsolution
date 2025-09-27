@@ -16,7 +16,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { Plus, Trash2, Search, ChevronDown, ChevronRight, Building, MapPin, Info, AlertTriangle, CheckCircle2, RadioIcon, ShoppingCart, FileText } from 'lucide-react';
+import { Plus, Trash2, Search, ChevronDown, ChevronRight, Building, MapPin, Info, AlertTriangle, CheckCircle2, RadioIcon, ShoppingCart, FileText, Warehouse, Package } from 'lucide-react';
 import { OrderLineItemsTable } from '@/components/ui/order-line-items-table';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { useAuth } from '@/hooks/useAuth';
@@ -51,6 +51,8 @@ const purchaseOrderSchema = z.object({
   payment_terms: z.string().optional(),
   expected_date: z.string().optional(),
   place_of_supply: z.string().optional(),
+  warehouse_id: z.string().optional(),
+  bin_id: z.string().optional(),
   same_as_registered_address: z.boolean().default(false),
   delivery_address_line1: z.string().optional(),
   delivery_address_line2: z.string().optional(),
@@ -85,6 +87,8 @@ export function PurchaseOrderForm({
   const [suppliers, setSuppliers] = useState<any[]>([]);
   const [products, setProducts] = useState<any[]>([]);
   const [companyData, setCompanyData] = useState<any>(null);
+  const [warehouses, setWarehouses] = useState<any[]>([]);
+  const [bins, setBins] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('order-info');
   const [globalGstType, setGlobalGstType] = useState<'intra' | 'inter'>('intra');
@@ -127,6 +131,8 @@ export function PurchaseOrderForm({
       currency: purchaseOrder?.currency || 'INR',
       payment_terms: purchaseOrder?.payment_terms || '',
       place_of_supply: purchaseOrder?.company_place_of_supply || '',
+      warehouse_id: purchaseOrder?.warehouse_id || '',
+      bin_id: purchaseOrder?.bin_id || '',
       same_as_registered_address: purchaseOrder?.same_as_registered_address || false,
       delivery_address_line1: purchaseOrder?.delivery_address_line1 || '',
       delivery_address_line2: purchaseOrder?.delivery_address_line2 || '',
@@ -154,7 +160,7 @@ export function PurchaseOrderForm({
 
       setLoading(true);
       try {
-        const [suppliersRes, productsRes, companyRes] = await Promise.all([
+        const [suppliersRes, productsRes, companyRes, warehousesRes] = await Promise.all([
           supabase
             .from('suppliers')
             .select('*')
@@ -169,12 +175,23 @@ export function PurchaseOrderForm({
             .from('companies')
             .select('*')
             .eq('id', profile.company_id)
-            .single()
+            .single(),
+          supabase
+            .from('warehouse_bins')
+            .select('*')
+            .eq('company_id', profile.company_id)
+            .eq('is_active', true)
+            .order('warehouse_name', { ascending: true })
         ]);
 
         if (suppliersRes.data) setSuppliers(suppliersRes.data);
         if (productsRes.data) setProducts(productsRes.data);
         if (companyRes.data) setCompanyData(companyRes.data);
+        if (warehousesRes.data) {
+          setWarehouses(warehousesRes.data);
+          // Extract unique bins for the bin dropdown
+          setBins(warehousesRes.data);
+        }
       } catch (error) {
         console.error('Error fetching data:', error);
         toast({
@@ -603,6 +620,58 @@ export function PurchaseOrderForm({
                             </FormItem>
                           )}
                         />
+
+                        <div className="grid grid-cols-2 gap-3">
+                          <FormField
+                            control={form.control}
+                            name="warehouse_id"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Default Warehouse</FormLabel>
+                                <FormControl>
+                                  <SearchableCombobox
+                                    value={field.value}
+                                    onSelect={field.onChange}
+                                    placeholder="Select warehouse"
+                                    searchPlaceholder="Search warehouses..."
+                                    options={warehouses.map(warehouse => ({
+                                      id: warehouse.id,
+                                      name: warehouse.warehouse_name || warehouse.wh_bin_code,
+                                      subtitle: warehouse.warehouse_code ? `Code: ${warehouse.warehouse_code}` : undefined
+                                    }))}
+                                    disabled={readOnly}
+                                    loading={loading}
+                                  />
+                                </FormControl>
+                              </FormItem>
+                            )}
+                          />
+
+                          <FormField
+                            control={form.control}
+                            name="bin_id"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Default Bin</FormLabel>
+                                <FormControl>
+                                  <SearchableCombobox
+                                    value={field.value}
+                                    onSelect={field.onChange}
+                                    placeholder="Select bin"
+                                    searchPlaceholder="Search bins..."
+                                    options={bins.map(bin => ({
+                                      id: bin.id,
+                                      name: bin.bin_name,
+                                      subtitle: bin.wh_bin_code ? `Code: ${bin.wh_bin_code}` : undefined
+                                    }))}
+                                    disabled={readOnly}
+                                    loading={loading}
+                                  />
+                                </FormControl>
+                              </FormItem>
+                            )}
+                          />
+                        </div>
 
                         <FormField
                           control={form.control}

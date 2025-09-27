@@ -2087,6 +2087,7 @@ export type Database = {
       }
       purchase_orders: {
         Row: {
+          bin_id: string | null
           company_id: string
           company_place_of_supply: string | null
           created_at: string
@@ -2118,8 +2119,10 @@ export type Database = {
           total_discount_amount: number | null
           total_tax_amount: number | null
           updated_at: string
+          warehouse_id: string | null
         }
         Insert: {
+          bin_id?: string | null
           company_id: string
           company_place_of_supply?: string | null
           created_at?: string
@@ -2151,8 +2154,10 @@ export type Database = {
           total_discount_amount?: number | null
           total_tax_amount?: number | null
           updated_at?: string
+          warehouse_id?: string | null
         }
         Update: {
+          bin_id?: string | null
           company_id?: string
           company_place_of_supply?: string | null
           created_at?: string
@@ -2184,8 +2189,23 @@ export type Database = {
           total_discount_amount?: number | null
           total_tax_amount?: number | null
           updated_at?: string
+          warehouse_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "fk_purchase_orders_bin_id"
+            columns: ["bin_id"]
+            isOneToOne: false
+            referencedRelation: "warehouse_bins"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_purchase_orders_warehouse_id"
+            columns: ["warehouse_id"]
+            isOneToOne: false
+            referencedRelation: "warehouse_bins"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "purchase_orders_company_id_fkey"
             columns: ["company_id"]
