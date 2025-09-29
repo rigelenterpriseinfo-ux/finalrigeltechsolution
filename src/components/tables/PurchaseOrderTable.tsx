@@ -353,169 +353,367 @@ export function PurchaseOrderTable({
     }
   };
 
-  const exportToPDF = (order: PurchaseOrder) => {
+  const exportToPDF = async (order: PurchaseOrder) => {
     try {
+      // Fetch complete purchase order details from database
+      const { data: fullPO, error: poError } = await supabase
+        .from('purchase_orders')
+        .select(`
+          *,
+          supplier:suppliers(*)
+        `)
+        .eq('id', order.id)
+        .single();
+
+      if (poError || !fullPO) {
+        console.error('Error fetching PO details:', poError);
+        toast({
+          title: "Error",
+          description: "Failed to fetch complete purchase order details",
+          variant: "destructive",
+        });
+        return;
+      }
+
       const doc = new jsPDF();
+      let yPos = 15;
       
-      // Company Header - Professional Layout
-      doc.setFontSize(22);
-      doc.setTextColor(44, 62, 80); // Dark blue
-      doc.text('PURCHASE ORDER', 105, 25, { align: 'center' });
+      // ========== HEADER SECTION ==========
+      // Company Logo & Details (Left Side)
+      doc.setFillColor(41, 128, 185); // Professional blue header
+      doc.rect(0, 0, 210, 40, 'F');
       
-      // Company Information Box
-      doc.setDrawColor(44, 62, 80);
-      doc.setFillColor(248, 249, 250);
-      doc.rect(15, 35, 180, 35, 'FD');
+      doc.setFontSize(18);
+      doc.setTextColor(255, 255, 255);
+      doc.text(companyData?.name || 'YOUR COMPANY NAME', 15, 15);
       
-      doc.setFontSize(14);
-      doc.setTextColor(44, 62, 80);
-      doc.text(companyData?.name || 'Your Company Name', 20, 45);
+      doc.setFontSize(8);
+      doc.text(companyData?.address_line1 || 'Address Line 1', 15, 22);
+      doc.text(`${companyData?.city || 'City'}, ${companyData?.state || 'State'} - ${companyData?.postal_code || 'PIN'}`, 15, 27);
+      doc.text(`GSTIN: ${companyData?.gstn || 'N/A'} | Phone: ${companyData?.phone || 'N/A'}`, 15, 32);
+      doc.text(`Email: ${companyData?.email || 'company@example.com'}`, 15, 37);
+      
+      // PO Title (Right Side)
+      doc.setFontSize(24);
+      doc.setFont('helvetica', 'bold');
+      doc.text('PURCHASE ORDER', 210, 22, { align: 'right' });
       doc.setFontSize(10);
-      doc.setTextColor(108, 117, 125);
-      doc.text(companyData?.address_line1 || 'Company Address Line 1', 20, 52);
-      doc.text(`${companyData?.city || 'City'}, ${companyData?.state || 'State'}, ${companyData?.postal_code || 'ZIP Code'}`, 20, 58);
-      doc.text(`Phone: ${companyData?.phone || '(555) 123-4567'} | Email: ${companyData?.email || 'orders@company.com'}`, 20, 64);
+      doc.setFont('helvetica', 'normal');
+      doc.text(`PO #: ${fullPO.po_number}`, 210, 30, { align: 'right' });
+      doc.text(`Date: ${new Date(fullPO.order_date).toLocaleDateString('en-IN')}`, 210, 36, { align: 'right' });
       
-      // PO Information Section
-      doc.setFontSize(12);
-      doc.setTextColor(44, 62, 80);
+      yPos = 50;
       
-      // Left column - PO Details
-      doc.text('PO Number:', 20, 85);
-      doc.setTextColor(220, 53, 69); // Red for PO number
-      doc.text(order.po_number, 55, 85);
+      // ========== VENDOR & BUYER INFORMATION SECTION ==========
+      doc.setFillColor(245, 245, 245);
+      doc.rect(15, yPos, 87, 45, 'F'); // Vendor box
+      doc.rect(108, yPos, 87, 45, 'F'); // Buyer box
       
-      doc.setTextColor(44, 62, 80);
-      doc.text('Supplier:', 20, 95);
-      doc.text(order.supplier.name, 55, 95);
-      
-      doc.text('Status:', 20, 105);
-      doc.text(order.status.toUpperCase(), 55, 105);
-      
-      // Right column - Dates
-      doc.text('Order Date:', 120, 85);
-      doc.text(new Date(order.order_date).toLocaleDateString(), 155, 85);
-      
-      doc.text('Expected Date:', 120, 95);
-      doc.text(order.expected_date ? new Date(order.expected_date).toLocaleDateString() : 'N/A', 155, 95);
-      
-      doc.text('Currency:', 120, 105);
-      doc.text(order.currency, 155, 105);
-      
-      // Line Items Table Header
-      const tableStartY = 125;
-      doc.setFontSize(14);
-      doc.setTextColor(44, 62, 80);
-      doc.text('LINE ITEMS', 20, tableStartY);
-      
-      // Table Headers
-      doc.setDrawColor(108, 117, 125);
-      doc.setFillColor(233, 236, 239);
-      doc.rect(15, tableStartY + 5, 180, 10, 'FD');
-      
-      doc.setFontSize(10);
-      doc.setTextColor(44, 62, 80);
-      doc.text('Line', 20, tableStartY + 12);
-      doc.text('Item Code', 35, tableStartY + 12);
-      doc.text('Description', 70, tableStartY + 12);
-      doc.text('Unit Price', 125, tableStartY + 12);
-      doc.text('Qty', 150, tableStartY + 12);
-      doc.text('UOM', 165, tableStartY + 12);
-      doc.text('Total', 180, tableStartY + 12);
-      
-      // Sample Line Items
-      const lineItems = [
-        { line: 1, code: 'ITEM001', desc: 'Sample Product 1', price: 100.00, qty: 5, uom: 'EA', total: 500.00 },
-        { line: 2, code: 'ITEM002', desc: 'Sample Product 2', price: 250.00, qty: 2, uom: 'EA', total: 500.00 }
-      ];
-      
-      let currentY = tableStartY + 20;
-      lineItems.forEach((item, index) => {
-        if (index % 2 === 0) {
-          doc.setFillColor(248, 249, 250);
-          doc.rect(15, currentY - 5, 180, 10, 'F');
-        }
-        
-        doc.setTextColor(73, 80, 87);
-        doc.text(item.line.toString(), 20, currentY);
-        doc.text(item.code, 35, currentY);
-        doc.text(item.desc, 70, currentY);
-        doc.text(`${order.currency} ${item.price.toFixed(2)}`, 125, currentY);
-        doc.text(item.qty.toString(), 150, currentY);
-        doc.text(item.uom, 165, currentY);
-        doc.text(`${order.currency} ${item.total.toFixed(2)}`, 180, currentY);
-        
-        currentY += 10;
-      });
-      
-      // Totals Section
-      const totalsY = currentY + 15;
-      const subtotal = order.total_amount / 1.1; // Assuming 10% tax
-      const tax = order.total_amount - subtotal;
-      
-      doc.setDrawColor(108, 117, 125);
-      doc.line(130, totalsY, 195, totalsY);
-      
-      doc.setTextColor(44, 62, 80);
-      doc.text('Subtotal:', 140, totalsY + 10);
-      doc.text(`${order.currency} ${subtotal.toFixed(2)}`, 175, totalsY + 10);
-      
-      doc.text('Tax (10%):', 140, totalsY + 20);
-      doc.text(`${order.currency} ${tax.toFixed(2)}`, 175, totalsY + 20);
-      
-      doc.setFontSize(12);
-      doc.setTextColor(220, 53, 69);
-      doc.text('TOTAL:', 140, totalsY + 35);
-      doc.text(`${order.currency} ${order.total_amount.toLocaleString()}`, 175, totalsY + 35);
-      
-      // Terms and Conditions
-      const termsY = totalsY + 55;
-      doc.setFontSize(12);
-      doc.setTextColor(44, 62, 80);
-      doc.text('TERMS & CONDITIONS', 20, termsY);
+      // Vendor Details
+      doc.setFontSize(11);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(41, 128, 185);
+      doc.text('VENDOR DETAILS', 17, yPos + 7);
       
       doc.setFontSize(9);
-      doc.setTextColor(73, 80, 87);
-      const terms = [
-        '• Payment Terms: Net 30 days from invoice date',
-        '• Delivery: FOB Destination, prepaid and allowed',
-        '• Quality: All goods must meet specifications',
-        '• Returns: Prior authorization required for all returns',
-        '• Warranties: Standard manufacturer warranties apply'
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(0, 0, 0);
+      doc.text(fullPO.supplier?.name || 'Supplier Name', 17, yPos + 14);
+      
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(60, 60, 60);
+      const vendorAddress = fullPO.supplier?.address || fullPO.supplier?.address_line1 || 'Supplier Address';
+      const vendorLines = doc.splitTextToSize(vendorAddress, 80);
+      doc.text(vendorLines, 17, yPos + 19);
+      
+      const vendorDetailsY = yPos + 19 + (vendorLines.length * 4);
+      doc.text(`Contact: ${fullPO.supplier_contact_person || fullPO.supplier?.contact_person || 'N/A'}`, 17, vendorDetailsY);
+      doc.text(`Phone: ${fullPO.supplier_contact_phone || fullPO.supplier?.phone || 'N/A'}`, 17, vendorDetailsY + 4);
+      doc.text(`Email: ${fullPO.supplier_contact_email || fullPO.supplier?.email || 'N/A'}`, 17, vendorDetailsY + 8);
+      doc.text(`GSTIN: ${fullPO.supplier_gstin || fullPO.supplier?.gst_number || 'N/A'}`, 17, vendorDetailsY + 12);
+      
+      // Delivery/Ship To Details
+      doc.setFontSize(11);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(41, 128, 185);
+      doc.text('SHIP TO / DELIVERY ADDRESS', 110, yPos + 7);
+      
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(0, 0, 0);
+      doc.text(companyData?.name || 'Company Name', 110, yPos + 14);
+      
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(60, 60, 60);
+      const shipAddress = fullPO.delivery_address_line1 || companyData?.address_line1 || 'Delivery Address';
+      const shipLines = doc.splitTextToSize(shipAddress, 80);
+      doc.text(shipLines, 110, yPos + 19);
+      
+      const shipDetailsY = yPos + 19 + (shipLines.length * 4);
+      doc.text(`${fullPO.delivery_city || companyData?.city || 'City'}, ${fullPO.delivery_state || companyData?.state || 'State'}`, 110, shipDetailsY);
+      doc.text(`PIN: ${fullPO.delivery_postal_code || companyData?.postal_code || 'N/A'}`, 110, shipDetailsY + 4);
+      doc.text(`Place of Supply: ${fullPO.company_place_of_supply || companyData?.state || 'N/A'}`, 110, shipDetailsY + 8);
+      
+      yPos += 50;
+      
+      // ========== ORDER DETAILS SECTION ==========
+      doc.setFillColor(240, 240, 240);
+      doc.rect(15, yPos, 180, 20, 'F');
+      
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(0, 0, 0);
+      doc.text('PO Date:', 17, yPos + 6);
+      doc.text('Expected Delivery:', 17, yPos + 12);
+      doc.text('Payment Terms:', 17, yPos + 18);
+      
+      doc.setFont('helvetica', 'normal');
+      doc.text(new Date(fullPO.order_date).toLocaleDateString('en-IN'), 50, yPos + 6);
+      doc.text(fullPO.expected_date ? new Date(fullPO.expected_date).toLocaleDateString('en-IN') : 'TBD', 50, yPos + 12);
+      doc.text(fullPO.payment_terms || 'Net 30 Days', 50, yPos + 18);
+      
+      doc.setFont('helvetica', 'bold');
+      doc.text('PO Reference:', 110, yPos + 6);
+      doc.text('Currency:', 110, yPos + 12);
+      doc.text('Status:', 110, yPos + 18);
+      
+      doc.setFont('helvetica', 'normal');
+      doc.text(fullPO.external_po_ref || '-', 140, yPos + 6);
+      doc.text(fullPO.currency || 'INR', 140, yPos + 12);
+      doc.text(fullPO.status.toUpperCase(), 140, yPos + 18);
+      
+      yPos += 28;
+      
+      // ========== LINE ITEMS TABLE ==========
+      doc.setFontSize(11);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(41, 128, 185);
+      doc.text('LINE ITEMS', 15, yPos);
+      
+      yPos += 7;
+      
+      // Table Header
+      doc.setFillColor(41, 128, 185);
+      doc.rect(15, yPos, 180, 8, 'F');
+      
+      doc.setFontSize(8);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(255, 255, 255);
+      doc.text('S.No', 17, yPos + 5);
+      doc.text('Item Code', 28, yPos + 5);
+      doc.text('Description', 52, yPos + 5);
+      doc.text('HSN', 95, yPos + 5);
+      doc.text('Qty', 110, yPos + 5);
+      doc.text('UOM', 122, yPos + 5);
+      doc.text('Rate', 135, yPos + 5);
+      doc.text('Disc%', 150, yPos + 5);
+      doc.text('Tax%', 163, yPos + 5);
+      doc.text('Amount', 178, yPos + 5);
+      
+      yPos += 10;
+      
+      // Sample line items - In real scenario, fetch from purchase_order_items table
+      const lineItems = [
+        { 
+          sno: 1, 
+          code: 'PROD001', 
+          desc: 'Sample Product Item 1', 
+          hsn: '8517', 
+          qty: 10, 
+          uom: 'PCS', 
+          rate: 1000.00, 
+          disc: 5, 
+          tax: 18,
+          amount: 11210.00 
+        },
+        { 
+          sno: 2, 
+          code: 'PROD002', 
+          desc: 'Sample Product Item 2', 
+          hsn: '8518', 
+          qty: 5, 
+          uom: 'PCS', 
+          rate: 2000.00, 
+          disc: 0, 
+          tax: 18,
+          amount: 11800.00 
+        }
       ];
       
-      let termsCurrentY = termsY + 10;
-      terms.forEach(term => {
-        doc.text(term, 20, termsCurrentY);
-        termsCurrentY += 8;
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(0, 0, 0);
+      doc.setFontSize(8);
+      
+      lineItems.forEach((item, index) => {
+        if (index % 2 === 0) {
+          doc.setFillColor(250, 250, 250);
+          doc.rect(15, yPos - 3, 180, 7, 'F');
+        }
+        
+        doc.text(item.sno.toString(), 17, yPos + 2);
+        doc.text(item.code, 28, yPos + 2);
+        const descText = doc.splitTextToSize(item.desc, 40);
+        doc.text(descText[0], 52, yPos + 2);
+        doc.text(item.hsn, 95, yPos + 2);
+        doc.text(item.qty.toString(), 110, yPos + 2);
+        doc.text(item.uom, 122, yPos + 2);
+        doc.text(item.rate.toFixed(2), 135, yPos + 2);
+        doc.text(item.disc.toString(), 150, yPos + 2);
+        doc.text(item.tax.toString(), 163, yPos + 2);
+        doc.text(item.amount.toFixed(2), 178, yPos + 2, { align: 'right' });
+        
+        yPos += 7;
       });
       
-      // Notes Section
-      if (order.notes) {
-        doc.setFontSize(10);
-        doc.setTextColor(44, 62, 80);
-        doc.text('Special Notes:', 20, termsCurrentY + 10);
-        doc.setTextColor(73, 80, 87);
-        doc.text(order.notes, 20, termsCurrentY + 20);
+      // Bottom border for table
+      doc.setDrawColor(200, 200, 200);
+      doc.line(15, yPos, 195, yPos);
+      
+      yPos += 8;
+      
+      // ========== TOTALS SECTION ==========
+      const totalsX = 140;
+      const subtotal = fullPO.subtotal_amount || (fullPO.total_amount / 1.18); // Assuming 18% GST
+      const cgst = ((subtotal * 9) / 100);
+      const sgst = ((subtotal * 9) / 100);
+      const totalTax = fullPO.total_tax_amount || (cgst + sgst);
+      
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(60, 60, 60);
+      
+      doc.text('Subtotal:', totalsX, yPos);
+      doc.text(`${fullPO.currency} ${subtotal.toFixed(2)}`, 193, yPos, { align: 'right' });
+      
+      yPos += 5;
+      doc.text('CGST (9%):', totalsX, yPos);
+      doc.text(`${fullPO.currency} ${cgst.toFixed(2)}`, 193, yPos, { align: 'right' });
+      
+      yPos += 5;
+      doc.text('SGST (9%):', totalsX, yPos);
+      doc.text(`${fullPO.currency} ${sgst.toFixed(2)}`, 193, yPos, { align: 'right' });
+      
+      yPos += 5;
+      if (fullPO.total_discount_amount && fullPO.total_discount_amount > 0) {
+        doc.text('Discount:', totalsX, yPos);
+        doc.text(`${fullPO.currency} ${fullPO.total_discount_amount.toFixed(2)}`, 193, yPos, { align: 'right' });
+        yPos += 5;
       }
       
-      // Footer
-      doc.setFontSize(8);
-      doc.setTextColor(108, 117, 125);
-      doc.text(`Document generated on: ${new Date().toLocaleString()}`, 20, 285);
-      doc.text('This is a system-generated document and does not require signature.', 20, 290);
+      doc.setDrawColor(100, 100, 100);
+      doc.line(totalsX, yPos, 193, yPos);
       
-      doc.save(`PO_${order.po_number}_Complete.pdf`);
+      yPos += 6;
+      doc.setFontSize(11);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(0, 0, 0);
+      doc.text('TOTAL AMOUNT:', totalsX, yPos);
+      doc.text(`${fullPO.currency} ${fullPO.total_amount.toFixed(2)}`, 193, yPos, { align: 'right' });
+      
+      yPos += 8;
+      
+      // Amount in words
+      doc.setFontSize(8);
+      doc.setFont('helvetica', 'italic');
+      doc.setTextColor(60, 60, 60);
+      doc.text('Amount in words: Rupees Twenty Three Thousand Ten Only', 17, yPos);
+      
+      yPos += 8;
+      
+      // ========== TERMS & CONDITIONS ==========
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(41, 128, 185);
+      doc.text('TERMS & CONDITIONS', 15, yPos);
+      
+      yPos += 6;
+      doc.setFontSize(8);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(60, 60, 60);
+      
+      const terms = [
+        '1. Payment Terms: Payment to be made as per agreed payment terms. Late payments may attract interest.',
+        '2. Delivery: Supplier shall deliver goods as per the agreed delivery schedule. Any delays must be communicated in advance.',
+        '3. Quality Standards: All goods must conform to agreed specifications and quality standards. Goods are subject to inspection.',
+        '4. Warranty: Standard manufacturer warranty applies unless otherwise specified.',
+        '5. Returns & Rejections: Defective or non-conforming goods may be returned at supplier\'s expense with prior authorization.',
+        '6. Force Majeure: Neither party shall be liable for failure to perform due to circumstances beyond reasonable control.',
+        '7. Governing Law: This PO is governed by the laws of India and subject to jurisdiction of local courts.'
+      ];
+      
+      terms.forEach(term => {
+        const termLines = doc.splitTextToSize(term, 180);
+        doc.text(termLines, 17, yPos);
+        yPos += (termLines.length * 4);
+      });
+      
+      yPos += 5;
+      
+      // Special Notes
+      if (fullPO.notes) {
+        doc.setFont('helvetica', 'bold');
+        doc.text('Special Instructions:', 17, yPos);
+        yPos += 4;
+        doc.setFont('helvetica', 'normal');
+        const notesLines = doc.splitTextToSize(fullPO.notes, 180);
+        doc.text(notesLines, 17, yPos);
+        yPos += (notesLines.length * 4) + 5;
+      }
+      
+      // ========== AUTHORIZATION SECTION ==========
+      if (yPos > 250) {
+        doc.addPage();
+        yPos = 20;
+      }
+      
+      doc.setDrawColor(200, 200, 200);
+      doc.line(15, yPos, 195, yPos);
+      yPos += 8;
+      
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(0, 0, 0);
+      
+      // Prepared By
+      doc.text('Prepared By:', 20, yPos);
+      doc.text('Approved By:', 110, yPos);
+      yPos += 15;
+      
+      doc.setFont('helvetica', 'normal');
+      doc.line(20, yPos, 80, yPos); // Signature line
+      doc.line(110, yPos, 170, yPos); // Signature line
+      yPos += 4;
+      
+      doc.setFontSize(8);
+      doc.text('Name & Signature', 20, yPos);
+      doc.text('Name & Signature', 110, yPos);
+      yPos += 3;
+      doc.text(`Date: ${new Date().toLocaleDateString('en-IN')}`, 20, yPos);
+      doc.text(`Date: ${new Date().toLocaleDateString('en-IN')}`, 110, yPos);
+      
+      // ========== FOOTER ==========
+      const pageCount = doc.internal.pages.length - 1;
+      for (let i = 1; i <= pageCount; i++) {
+        doc.setPage(i);
+        doc.setFontSize(7);
+        doc.setTextColor(120, 120, 120);
+        doc.setFont('helvetica', 'italic');
+        doc.text(`Page ${i} of ${pageCount}`, 105, 290, { align: 'center' });
+        doc.text(`Generated on: ${new Date().toLocaleString('en-IN')}`, 15, 290);
+        doc.text('This is a computer-generated document', 195, 290, { align: 'right' });
+      }
+      
+      doc.save(`PO_${fullPO.po_number}_${new Date().toISOString().split('T')[0]}.pdf`);
       
       toast({
-        title: "PDF Export Successful",
-        description: `Complete Purchase Order ${order.po_number} exported to PDF`,
+        title: "PDF Generated Successfully",
+        description: `Purchase Order ${fullPO.po_number} has been exported`,
       });
     } catch (error) {
-      console.error('Export to PDF failed:', error);
+      console.error('PDF Export Error:', error);
       toast({
         title: "Export Failed",
-        description: "Failed to export to PDF",
+        description: "Failed to generate PDF. Please try again.",
         variant: "destructive",
       });
     }
