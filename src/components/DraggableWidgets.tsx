@@ -84,6 +84,10 @@ export const DraggableWidgets: React.FC<DraggableWidgetsProps> = ({ onNavigate }
   const [topDebitNoteVendors, setTopDebitNoteVendors] = useState<Array<{vendor: string, value: number}>>([]);
   const [openSalesOrderData, setOpenSalesOrderData] = useState<{count: number, value: number}>({count: 0, value: 0});
   const [topSalesOrderCustomers, setTopSalesOrderCustomers] = useState<Array<{customer: string, value: number}>>([]);
+  const [openRSOData, setOpenRSOData] = useState<{count: number, value: number}>({count: 0, value: 0});
+  const [topRSOCustomers, setTopRSOCustomers] = useState<Array<{customer: string, value: number}>>([]);
+  const [apAgingData, setAPAgingData] = useState<Array<{bucket: string, value: number}>>([]);
+  const [arAgingData, setARAgingData] = useState<Array<{bucket: string, value: number}>>([]);
 
   // Fetch warehouse and bin wise good stock data
   const fetchGoodStockData = async () => {
@@ -546,10 +550,157 @@ export const DraggableWidgets: React.FC<DraggableWidgetsProps> = ({ onNavigate }
         fetchOpenDebitNoteData(),
         fetchTopDebitNoteVendors(),
         fetchOpenSalesOrderData(),
-        fetchTopSalesOrderCustomers()
+        fetchTopSalesOrderCustomers(),
+        fetchOpenRSOData(),
+        fetchTopRSOCustomers(),
+        fetchAPAgingData(),
+        fetchARAgingData()
       ]);
       setLoading(false);
-    };
+  };
+
+  // Fetch open RSO count and value
+  const fetchOpenRSOData = async () => {
+    if (!profile?.company_id) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from('credit_notes')
+        .select('id, total_amount')
+        .eq('company_id', profile.company_id)
+        .eq('status', 'Draft');
+
+      if (error) throw error;
+
+      if (data) {
+        const totalValue = data.reduce((sum, cn) => sum + Number(cn.total_amount || 0), 0);
+        setOpenRSOData({ count: data.length, value: totalValue });
+      }
+    } catch (error) {
+      console.error('Error fetching open RSO data:', error);
+      setOpenRSOData({ count: 0, value: 0 });
+    }
+  };
+
+  // Fetch top 3 RSO customers
+  const fetchTopRSOCustomers = async () => {
+    if (!profile?.company_id) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from('credit_notes')
+        .select('customer_id, total_amount, customer_name')
+        .eq('company_id', profile.company_id)
+        .eq('status', 'Draft')
+        .order('total_amount', { ascending: false });
+
+      if (error) throw error;
+
+      if (data) {
+        // Group by customer and sum values
+        const customerMap = new Map<string, number>();
+        data.forEach(cn => {
+          const customerName = cn.customer_name || 'Unknown';
+          const current = customerMap.get(customerName) || 0;
+          customerMap.set(customerName, current + Number(cn.total_amount));
+        });
+
+        const topCustomers = Array.from(customerMap.entries())
+          .map(([customer, value]) => ({ customer, value }))
+          .sort((a, b) => b.value - a.value)
+          .slice(0, 3);
+
+        setTopRSOCustomers(topCustomers);
+      }
+    } catch (error) {
+      console.error('Error fetching top RSO customers:', error);
+      setTopRSOCustomers([]);
+    }
+  };
+
+  // Fetch AP aging data
+  const fetchAPAgingData = async () => {
+    if (!profile?.company_id) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from('purchase_orders')
+        .select('order_date, total_amount, status')
+        .eq('company_id', profile.company_id)
+        .in('status', ['open', 'partially_received']);
+
+      if (error) throw error;
+
+      if (data) {
+        const today = new Date();
+        const buckets = {
+          '0-30': 0,
+          '31-60': 0,
+          '61-90': 0,
+          '90+': 0
+        };
+
+        data.forEach(po => {
+          const orderDate = new Date(po.order_date);
+          const daysDiff = Math.floor((today.getTime() - orderDate.getTime()) / (1000 * 60 * 60 * 24));
+          const amount = Number(po.total_amount || 0);
+
+          if (daysDiff <= 30) buckets['0-30'] += amount;
+          else if (daysDiff <= 60) buckets['31-60'] += amount;
+          else if (daysDiff <= 90) buckets['61-90'] += amount;
+          else buckets['90+'] += amount;
+        });
+
+        const agingArray = Object.entries(buckets).map(([bucket, value]) => ({ bucket, value }));
+        setAPAgingData(agingArray);
+      }
+    } catch (error) {
+      console.error('Error fetching AP aging data:', error);
+      setAPAgingData([]);
+    }
+  };
+
+  // Fetch AR aging data
+  const fetchARAgingData = async () => {
+    if (!profile?.company_id) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from('sales_orders')
+        .select('order_date, total_amount, status')
+        .eq('company_id', profile.company_id)
+        .in('status', ['confirmed', 'partially_delivered']);
+
+      if (error) throw error;
+
+      if (data) {
+        const today = new Date();
+        const buckets = {
+          '0-30': 0,
+          '31-60': 0,
+          '61-90': 0,
+          '90+': 0
+        };
+
+        data.forEach(so => {
+          const orderDate = new Date(so.order_date);
+          const daysDiff = Math.floor((today.getTime() - orderDate.getTime()) / (1000 * 60 * 60 * 24));
+          const amount = Number(so.total_amount || 0);
+
+          if (daysDiff <= 30) buckets['0-30'] += amount;
+          else if (daysDiff <= 60) buckets['31-60'] += amount;
+          else if (daysDiff <= 90) buckets['61-90'] += amount;
+          else buckets['90+'] += amount;
+        });
+
+        const agingArray = Object.entries(buckets).map(([bucket, value]) => ({ bucket, value }));
+        setARAgingData(agingArray);
+      }
+    } catch (error) {
+      console.error('Error fetching AR aging data:', error);
+      setARAgingData([]);
+    }
+  };
 
     if (profile?.company_id) {
       fetchAllData();
@@ -893,6 +1044,121 @@ export const DraggableWidgets: React.FC<DraggableWidgetsProps> = ({ onNavigate }
                       <span>Value:</span>
                       <span>₹{customer.value.toLocaleString()}</span>
                     </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        );
+
+      case 'users':
+        return (
+          <div className="h-full flex flex-col">
+            <div className="flex items-center gap-2 mb-2">
+              <div className={cn("p-1 rounded", widget.color)}>
+                <Icon className="h-4 w-4" />
+              </div>
+              <span className="text-xs font-medium">Open RSO</span>
+            </div>
+            {loading ? (
+              <div className="text-xs text-muted-foreground">Loading...</div>
+            ) : (
+              <div className="space-y-2 text-xs">
+                <div className="space-y-1">
+                  <div className="flex justify-between items-center">
+                    <span className="text-muted-foreground">Count:</span>
+                    <span className="font-semibold">{openRSOData.count.toLocaleString()}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-muted-foreground">Value:</span>
+                    <span className="font-semibold">₹{openRSOData.value.toLocaleString()}</span>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        );
+
+      case 'profile':
+        return (
+          <div className="h-full flex flex-col">
+            <div className="flex items-center gap-2 mb-2">
+              <div className={cn("p-1 rounded", widget.color)}>
+                <Icon className="h-4 w-4" />
+              </div>
+              <span className="text-xs font-medium">Top 3 RSO Customers</span>
+            </div>
+            {loading ? (
+              <div className="text-xs text-muted-foreground">Loading...</div>
+            ) : topRSOCustomers.length === 0 ? (
+              <div className="text-xs text-muted-foreground text-center py-2">
+                No open RSOs
+              </div>
+            ) : (
+              <div className="space-y-1 text-xs">
+                {topRSOCustomers.map((customer, idx) => (
+                  <div key={idx} className="space-y-0.5">
+                    <div className="font-medium text-xs truncate">{customer.customer}</div>
+                    <div className="flex justify-between text-xs">
+                      <span>Value:</span>
+                      <span>₹{customer.value.toLocaleString()}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        );
+
+      case 'settings':
+        return (
+          <div className="h-full flex flex-col">
+            <div className="flex items-center gap-2 mb-2">
+              <div className={cn("p-1 rounded", widget.color)}>
+                <Icon className="h-4 w-4" />
+              </div>
+              <span className="text-xs font-medium">AP Aging</span>
+            </div>
+            {loading ? (
+              <div className="text-xs text-muted-foreground">Loading...</div>
+            ) : apAgingData.length === 0 ? (
+              <div className="text-xs text-muted-foreground text-center py-2">
+                No AP data
+              </div>
+            ) : (
+              <div className="space-y-1 text-xs">
+                {apAgingData.map((bucket, idx) => (
+                  <div key={idx} className="flex justify-between items-center">
+                    <span className="text-muted-foreground">{bucket.bucket} days:</span>
+                    <span className="font-semibold">₹{bucket.value.toLocaleString()}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        );
+
+      case 'calendar':
+        return (
+          <div className="h-full flex flex-col">
+            <div className="flex items-center gap-2 mb-2">
+              <div className={cn("p-1 rounded", widget.color)}>
+                <Icon className="h-4 w-4" />
+              </div>
+              <span className="text-xs font-medium">AR Aging</span>
+            </div>
+            {loading ? (
+              <div className="text-xs text-muted-foreground">Loading...</div>
+            ) : arAgingData.length === 0 ? (
+              <div className="text-xs text-muted-foreground text-center py-2">
+                No AR data
+              </div>
+            ) : (
+              <div className="space-y-1 text-xs">
+                {arAgingData.map((bucket, idx) => (
+                  <div key={idx} className="flex justify-between items-center">
+                    <span className="text-muted-foreground">{bucket.bucket} days:</span>
+                    <span className="font-semibold">₹{bucket.value.toLocaleString()}</span>
                   </div>
                 ))}
               </div>
