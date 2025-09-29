@@ -39,7 +39,6 @@ import { AIAssistant } from '@/components/modules/AIAssistant';
 import { CompanyProfile } from '@/components/CompanyProfile';
 import { ReturnsModule } from '@/components/modules/ReturnsModule';
 import { SettingsModule } from '@/components/modules/SettingsModule';
-import { AuthTestButton } from '@/components/AuthTestButton';
 import { DraggableWidgets } from '@/components/DraggableWidgets';
 
 const menuItems: Array<{ id: ActiveModule; icon: any; label: string; description: string; restricted?: boolean; section?: string }> = [
@@ -355,7 +354,6 @@ export default function Dashboard() {
         activeView="dashboard"
         onNavigate={handleNavigation}
         showWelcome={false}
-        headerActions={<AuthTestButton />}
       >
         {renderActiveModule()}
       </DashboardLayout>
