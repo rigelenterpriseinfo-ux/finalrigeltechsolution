@@ -334,53 +334,94 @@ export default function Dashboard() {
         );
       default:
         return (
-          <div className="space-y-6">
+          <div className="space-y-8 animate-fade-in">
 
             {/* Draggable Widgets Grid */}
-            <DraggableWidgets onNavigate={handleNavigation} />
+            <div className="relative">
+              <DraggableWidgets onNavigate={handleNavigation} />
+            </div>
 
-            {/* Business Insights - Mobile Optimized */}
-            <div className="grid gap-3 sm:gap-4 grid-cols-1 lg:grid-cols-2">
-              <Card className="card-elevated">
-                <CardHeader className="pb-3">
-                  <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
-                    <Activity className="h-4 w-4 sm:h-5 sm:w-5" />
-                    Recent Activity
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-center py-6 sm:py-8 text-muted-foreground">
-                    <Activity className="h-10 w-10 sm:h-12 sm:w-12 mx-auto mb-3 sm:mb-4 opacity-50" />
-                    <p className="text-sm sm:text-base">No recent activity</p>
-                    <p className="text-xs sm:text-sm">Your business activities will appear here</p>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="card-elevated">
-                <CardHeader className="pb-3">
-                  <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
-                    <Bot className="h-4 w-4 sm:h-5 sm:w-5" />
-                    AI Assistant
-                  </CardTitle>
-                  <CardDescription className="text-sm">Get insights and assistance</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-3 sm:space-y-4">
-                    <p className="text-xs sm:text-sm text-muted-foreground">
-                      Ask me anything about your business operations, analytics, or how to use this system.
+            {/* Business Insights Section */}
+            <div className="space-y-4">
+              <div className="flex items-center gap-2">
+                <div className="h-1 w-12 bg-gradient-to-r from-primary to-primary/50 rounded-full"></div>
+                <h3 className="text-lg font-semibold text-foreground">Insights & Activity</h3>
+              </div>
+              
+              <div className="grid gap-6 grid-cols-1 lg:grid-cols-2">
+                {/* AI Assistant Card */}
+                <Card className="group relative overflow-hidden border-2 hover:border-primary/20 transition-all duration-300 hover:shadow-lg bg-gradient-to-br from-card via-card to-primary/5">
+                  <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 group-hover:bg-primary/10 transition-colors duration-300"></div>
+                  
+                  <CardHeader className="pb-4 relative">
+                    <div className="flex items-start justify-between">
+                      <div className="space-y-1">
+                        <CardTitle className="flex items-center gap-3 text-xl">
+                          <div className="p-2 rounded-lg bg-primary/10 text-primary">
+                            <Bot className="h-5 w-5" />
+                          </div>
+                          AI Assistant
+                        </CardTitle>
+                        <CardDescription className="text-sm">Get insights and assistance powered by AI</CardDescription>
+                      </div>
+                      <Badge variant="secondary" className="text-xs">Active</Badge>
+                    </div>
+                  </CardHeader>
+                  
+                  <CardContent className="space-y-4 relative">
+                    <p className="text-sm text-muted-foreground leading-relaxed">
+                      Ask me anything about your business operations, analytics, inventory management, or how to use this system effectively.
                     </p>
-                    <Button 
-                      onClick={() => setActiveModule('ai')}
-                      className="w-full min-h-[48px] text-sm sm:text-base"
-                      variant="outline"
-                    >
-                      <Bot className="h-4 w-4 mr-2" />
-                      Start Conversation
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
+                    
+                    <div className="flex flex-col sm:flex-row gap-2">
+                      <Button 
+                        onClick={() => setActiveModule('ai')}
+                        className="flex-1 h-11 font-medium shadow-sm hover:shadow-md transition-all duration-200"
+                      >
+                        <Bot className="h-4 w-4 mr-2" />
+                        Start Conversation
+                      </Button>
+                      <Button 
+                        onClick={() => setActiveModule('ai')}
+                        variant="outline"
+                        className="h-11"
+                      >
+                        Learn More
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Recent Activity Card */}
+                <Card className="relative overflow-hidden border-2 hover:border-muted-foreground/20 transition-all duration-300 hover:shadow-lg">
+                  <CardHeader className="pb-4">
+                    <CardTitle className="flex items-center gap-3 text-xl">
+                      <div className="p-2 rounded-lg bg-muted text-muted-foreground">
+                        <Activity className="h-5 w-5" />
+                      </div>
+                      Recent Activity
+                    </CardTitle>
+                    <CardDescription className="text-sm">Track your latest business activities</CardDescription>
+                  </CardHeader>
+                  
+                  <CardContent>
+                    <div className="flex flex-col items-center justify-center py-12 text-center space-y-4">
+                      <div className="relative">
+                        <div className="absolute inset-0 animate-pulse">
+                          <Activity className="h-16 w-16 text-muted-foreground/20" />
+                        </div>
+                        <Activity className="h-16 w-16 text-muted-foreground/40 relative" />
+                      </div>
+                      <div className="space-y-2">
+                        <p className="text-sm font-medium text-muted-foreground">No recent activity</p>
+                        <p className="text-xs text-muted-foreground/60 max-w-xs">
+                          Your business activities and transactions will appear here as you use the system
+                        </p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
             </div>
           </div>
         );

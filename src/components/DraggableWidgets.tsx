@@ -21,7 +21,8 @@ import {
   Calculator,
   Archive,
   Bell,
-  Clock
+  Clock,
+  Menu
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
@@ -833,22 +834,28 @@ export const DraggableWidgets: React.FC<DraggableWidgetsProps> = ({ onNavigate }
       case 'database':
         return (
           <div className="h-full flex flex-col">
-            <div className="flex items-center gap-2 mb-2">
-              <div className={cn("p-1 rounded", widget.color)}>
+            <div className="flex items-center gap-2 mb-3">
+              <div className={cn("p-1.5 rounded-md shadow-sm", widget.color)}>
                 <Icon className="h-4 w-4" />
               </div>
-              <span className="text-xs font-medium">{widget.title}</span>
+              <span className="text-xs font-semibold truncate">{widget.title}</span>
             </div>
             {loading ? (
-              <div className="text-xs text-muted-foreground">Loading...</div>
+              <div className="flex items-center justify-center flex-1">
+                <div className="animate-spin rounded-full h-4 w-4 border-2 border-primary border-t-transparent"></div>
+              </div>
             ) : (
-              <div className="space-y-1 text-xs">
+              <div className="space-y-2 text-xs flex-1 overflow-hidden">
                 {goodStockData.slice(0, 2).map((item, idx) => (
-                  <div key={idx} className="space-y-0.5">
-                    <div className="font-medium text-xs">{item.warehouse_name}</div>
-                    <div className="flex justify-between text-xs">
-                      <span>Qty: {item.total_qty}</span>
-                      <span>₹{item.total_value.toFixed(0)}</span>
+                  <div key={idx} className="p-2 rounded-md bg-muted/30 hover:bg-muted/50 transition-colors space-y-1">
+                    <div className="font-semibold text-xs truncate">{item.warehouse_name}</div>
+                    <div className="flex justify-between items-center text-xs">
+                      <span className="text-muted-foreground">Qty:</span>
+                      <span className="font-bold">{item.total_qty}</span>
+                    </div>
+                    <div className="flex justify-between items-center text-xs">
+                      <span className="text-muted-foreground">Value:</span>
+                      <span className="font-bold text-primary">₹{item.total_value.toFixed(0)}</span>
                     </div>
                   </div>
                 ))}
@@ -860,22 +867,28 @@ export const DraggableWidgets: React.FC<DraggableWidgetsProps> = ({ onNavigate }
       case 'logistics':
         return (
           <div className="h-full flex flex-col">
-            <div className="flex items-center gap-2 mb-2">
-              <div className={cn("p-1 rounded", widget.color)}>
+            <div className="flex items-center gap-2 mb-3">
+              <div className={cn("p-1.5 rounded-md shadow-sm", widget.color)}>
                 <Icon className="h-4 w-4" />
               </div>
-              <span className="text-xs font-medium">{widget.title}</span>
+              <span className="text-xs font-semibold truncate">{widget.title}</span>
             </div>
             {loading ? (
-              <div className="text-xs text-muted-foreground">Loading...</div>
+              <div className="flex items-center justify-center flex-1">
+                <div className="animate-spin rounded-full h-4 w-4 border-2 border-primary border-t-transparent"></div>
+              </div>
             ) : (
-              <div className="space-y-1 text-xs">
+              <div className="space-y-2 text-xs flex-1 overflow-hidden">
                 {damageStockData.slice(0, 2).map((item, idx) => (
-                  <div key={idx} className="space-y-0.5">
-                    <div className="font-medium text-xs">{item.warehouse_name}</div>
-                    <div className="flex justify-between text-xs">
-                      <span>Qty: {item.total_qty}</span>
-                      <span>₹{item.total_value.toFixed(0)}</span>
+                  <div key={idx} className="p-2 rounded-md bg-destructive/10 hover:bg-destructive/20 transition-colors space-y-1">
+                    <div className="font-semibold text-xs truncate">{item.warehouse_name}</div>
+                    <div className="flex justify-between items-center text-xs">
+                      <span className="text-muted-foreground">Qty:</span>
+                      <span className="font-bold">{item.total_qty}</span>
+                    </div>
+                    <div className="flex justify-between items-center text-xs">
+                      <span className="text-muted-foreground">Value:</span>
+                      <span className="font-bold text-destructive">₹{item.total_value.toFixed(0)}</span>
                     </div>
                   </div>
                 ))}
@@ -966,26 +979,28 @@ export const DraggableWidgets: React.FC<DraggableWidgetsProps> = ({ onNavigate }
       case 'dashboard':
         return (
           <div className="h-full flex flex-col">
-            <div className="flex items-center gap-2 mb-2">
-              <div className={cn("p-1 rounded", widget.color)}>
+            <div className="flex items-center gap-2 mb-3">
+              <div className={cn("p-1.5 rounded-md shadow-sm", widget.color)}>
                 <Icon className="h-4 w-4" />
               </div>
-              <span className="text-xs font-medium">Top 3 Vendors - Pending PO</span>
+              <span className="text-xs font-semibold leading-tight">Top 3 Vendors - Pending PO</span>
             </div>
             {loading ? (
-              <div className="text-xs text-muted-foreground">Loading...</div>
+              <div className="flex items-center justify-center flex-1">
+                <div className="animate-spin rounded-full h-4 w-4 border-2 border-primary border-t-transparent"></div>
+              </div>
             ) : topVendorsPendingPO.length === 0 ? (
-              <div className="text-xs text-muted-foreground text-center py-2">
-                No pending POs
+              <div className="flex items-center justify-center flex-1">
+                <p className="text-xs text-muted-foreground text-center">No pending POs</p>
               </div>
             ) : (
-              <div className="space-y-1 text-xs">
+              <div className="space-y-1.5 flex-1 overflow-hidden">
                 {topVendorsPendingPO.map((vendor, idx) => (
-                  <div key={idx} className="space-y-0.5">
-                    <div className="font-medium text-xs truncate">{vendor.vendor}</div>
+                  <div key={idx} className="p-1.5 rounded bg-muted/30 hover:bg-muted/50 transition-colors">
+                    <div className="font-semibold text-xs truncate mb-0.5">{vendor.vendor}</div>
                     <div className="flex justify-between text-xs">
-                      <span>Value:</span>
-                      <span>₹{vendor.value.toLocaleString()}</span>
+                      <span className="text-muted-foreground">Value:</span>
+                      <span className="font-bold text-primary">₹{vendor.value.toLocaleString()}</span>
                     </div>
                   </div>
                 ))}
@@ -997,24 +1012,28 @@ export const DraggableWidgets: React.FC<DraggableWidgetsProps> = ({ onNavigate }
       case 'mail':
         return (
           <div className="h-full flex flex-col">
-            <div className="flex items-center gap-2 mb-2">
-              <div className={cn("p-1 rounded", widget.color)}>
+            <div className="flex items-center gap-2 mb-3">
+              <div className={cn("p-1.5 rounded-md shadow-sm", widget.color)}>
                 <Icon className="h-4 w-4" />
               </div>
-              <span className="text-xs font-medium">Total Open PO</span>
+              <span className="text-xs font-semibold">Total Open PO</span>
             </div>
             {loading ? (
-              <div className="text-xs text-muted-foreground">Loading...</div>
+              <div className="flex items-center justify-center flex-1">
+                <div className="animate-spin rounded-full h-4 w-4 border-2 border-primary border-t-transparent"></div>
+              </div>
             ) : (
-              <div className="space-y-2 text-xs">
-                <div className="space-y-1">
+              <div className="space-y-3 flex-1 flex flex-col justify-center">
+                <div className="p-2 rounded-md bg-primary/10 space-y-1">
                   <div className="flex justify-between items-center">
-                    <span className="text-muted-foreground">Quantity:</span>
-                    <span className="font-semibold">{totalOpenPOData.qty.toLocaleString()}</span>
+                    <span className="text-xs text-muted-foreground">Quantity:</span>
+                    <span className="text-sm font-bold">{totalOpenPOData.qty.toLocaleString()}</span>
                   </div>
+                </div>
+                <div className="p-2 rounded-md bg-primary/10 space-y-1">
                   <div className="flex justify-between items-center">
-                    <span className="text-muted-foreground">Value:</span>
-                    <span className="font-semibold">₹{totalOpenPOData.value.toLocaleString()}</span>
+                    <span className="text-xs text-muted-foreground">Value:</span>
+                    <span className="text-sm font-bold text-primary">₹{totalOpenPOData.value.toLocaleString()}</span>
                   </div>
                 </div>
               </div>
@@ -1025,24 +1044,26 @@ export const DraggableWidgets: React.FC<DraggableWidgetsProps> = ({ onNavigate }
       case 'payments':
         return (
           <div className="h-full flex flex-col">
-            <div className="flex items-center gap-2 mb-2">
-              <div className={cn("p-1 rounded", widget.color)}>
+            <div className="flex items-center gap-2 mb-3">
+              <div className={cn("p-1.5 rounded-md shadow-sm", widget.color)}>
                 <Icon className="h-4 w-4" />
               </div>
-              <span className="text-xs font-medium">Top 5 Items - Pending Receipt</span>
+              <span className="text-xs font-semibold leading-tight">Top 5 Items - Pending</span>
             </div>
             {loading ? (
-              <div className="text-xs text-muted-foreground">Loading...</div>
+              <div className="flex items-center justify-center flex-1">
+                <div className="animate-spin rounded-full h-4 w-4 border-2 border-primary border-t-transparent"></div>
+              </div>
             ) : topPendingItems.length === 0 ? (
-              <div className="text-xs text-muted-foreground text-center py-2">
-                No pending items
+              <div className="flex items-center justify-center flex-1">
+                <p className="text-xs text-muted-foreground text-center">No pending items</p>
               </div>
             ) : (
-              <div className="space-y-1 text-xs">
+              <div className="space-y-1 flex-1 overflow-hidden">
                 {topPendingItems.map((item, idx) => (
-                  <div key={idx} className="flex justify-between items-center">
-                    <span className="text-xs truncate flex-1">{item.item}</span>
-                    <span className="font-semibold ml-2">Qty: {item.qty}</span>
+                  <div key={idx} className="flex justify-between items-center p-1.5 rounded bg-muted/30 hover:bg-muted/50 transition-colors">
+                    <span className="text-xs truncate flex-1 font-medium">{item.item}</span>
+                    <span className="text-xs font-bold ml-2 whitespace-nowrap">{item.qty}</span>
                   </div>
                 ))}
               </div>
@@ -1451,10 +1472,18 @@ export const DraggableWidgets: React.FC<DraggableWidgetsProps> = ({ onNavigate }
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold text-foreground">Quick Access</h2>
-        <p className="text-sm text-muted-foreground">Drag to rearrange widgets</p>
+        <div className="space-y-1">
+          <h2 className="text-2xl font-bold text-foreground tracking-tight">Quick Access</h2>
+          <p className="text-sm text-muted-foreground">View key metrics and navigate to modules</p>
+        </div>
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-md bg-muted/50">
+            <Menu className="h-3.5 w-3.5" />
+            <span>Drag to rearrange</span>
+          </div>
+        </div>
       </div>
 
       <DragDropContext onDragEnd={handleDragEnd}>
@@ -1463,7 +1492,7 @@ export const DraggableWidgets: React.FC<DraggableWidgetsProps> = ({ onNavigate }
             <div
               {...provided.droppableProps}
               ref={provided.innerRef}
-              className="grid grid-cols-5 gap-4"
+              className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4"
             >
               {widgets.map((widget, index) => {
                 const Icon = widget.icon;
@@ -1476,14 +1505,15 @@ export const DraggableWidgets: React.FC<DraggableWidgetsProps> = ({ onNavigate }
                         {...provided.dragHandleProps}
                         className={cn(
                           "transform transition-all duration-200",
-                          snapshot.isDragging && "rotate-2 scale-105"
+                          snapshot.isDragging && "scale-105 rotate-2 z-50"
                         )}
                       >
                         <Card 
                           className={cn(
-                            "h-32 cursor-pointer transition-all duration-200 hover:scale-105 hover:shadow-md",
-                            "border-2 border-border/50 hover:border-primary/20",
-                            snapshot.isDragging && "shadow-lg border-primary/40 z-50"
+                            "h-36 cursor-pointer transition-all duration-300 group relative overflow-hidden",
+                            "border-2 hover:border-primary/30 bg-gradient-to-br from-card to-card/50",
+                            "hover:shadow-xl hover:scale-[1.02]",
+                            snapshot.isDragging && "shadow-2xl border-primary/50 scale-105"
                           )}
                           onClick={(e) => {
                             e.preventDefault();
@@ -1492,9 +1522,19 @@ export const DraggableWidgets: React.FC<DraggableWidgetsProps> = ({ onNavigate }
                             }
                           }}
                         >
-                          <CardContent className="p-2 h-full">
+                          {/* Gradient overlay on hover */}
+                          <div className="absolute inset-0 bg-gradient-to-br from-primary/0 to-primary/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                          
+                          <CardContent className="p-3 h-full relative z-10">
                             {renderWidgetContent(widget)}
                           </CardContent>
+
+                          {/* Drag indicator */}
+                          {snapshot.isDragging && (
+                            <div className="absolute top-2 right-2">
+                              <Menu className="h-4 w-4 text-primary animate-pulse" />
+                            </div>
+                          )}
                         </Card>
                       </div>
                     )}
