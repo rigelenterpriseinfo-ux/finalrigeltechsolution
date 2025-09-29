@@ -105,7 +105,8 @@ export const DraggableWidgets: React.FC<DraggableWidgetsProps> = ({ onNavigate }
           product_id,
           warehouse_id,
           bin_id,
-          products!inner(name, cost_price, company_id)
+          products!inner(name, cost_price, company_id),
+          warehouse_bins!current_stock_levels_warehouse_id_fkey(warehouse_name, bin_name)
         `)
         .eq('products.company_id', profile.company_id)
         .gt('current_stock', 0);
@@ -117,8 +118,8 @@ export const DraggableWidgets: React.FC<DraggableWidgetsProps> = ({ onNavigate }
           const key = `${item.warehouse_id || 'unknown'}-${item.bin_id || 'unknown'}`;
           if (!aggregatedData[key]) {
             aggregatedData[key] = {
-              warehouse_name: `WH-${item.warehouse_id?.toString().slice(-3) || '001'}`,
-              bin_name: `BIN-${item.bin_id?.toString().slice(-3) || '001'}`,
+              warehouse_name: item.warehouse_bins?.warehouse_name || 'Unknown Warehouse',
+              bin_name: item.warehouse_bins?.bin_name || 'Unknown Bin',
               total_qty: 0,
               total_value: 0
             };
@@ -355,7 +356,7 @@ export const DraggableWidgets: React.FC<DraggableWidgetsProps> = ({ onNavigate }
     }
   };
 
-  // Fetch top 5 items pending to receive
+  // Fetch top 3 items pending to receive
   const fetchTopPendingItems = async () => {
     if (!profile?.company_id) return;
     
@@ -371,7 +372,7 @@ export const DraggableWidgets: React.FC<DraggableWidgetsProps> = ({ onNavigate }
         .in('purchase_order.status', ['draft', 'open', 'partially_received'])
         .gt('pending_quantity', 0)
         .order('pending_quantity', { ascending: false })
-        .limit(5);
+        .limit(3);
 
       if (error) throw error;
 
@@ -1049,7 +1050,7 @@ export const DraggableWidgets: React.FC<DraggableWidgetsProps> = ({ onNavigate }
               <div className={cn("p-1.5 rounded-md shadow-sm", widget.color)}>
                 <Icon className="h-4 w-4" />
               </div>
-              <span className="text-xs font-semibold leading-tight">Top 5 Items - Pending</span>
+              <span className="text-xs font-semibold leading-tight">Top 3 Items - Pending</span>
             </div>
             {loading ? (
               <div className="flex items-center justify-center flex-1">
@@ -1412,26 +1413,26 @@ export const DraggableWidgets: React.FC<DraggableWidgetsProps> = ({ onNavigate }
     }
   };
   const createWidgets = (): Widget[] => [
-    { id: 'dashboard', title: 'Dashboard', icon: BarChart3, color: 'bg-blue-500/10 text-blue-600', onClick: () => onNavigate('dashboard') },
-    { id: 'inventory', title: 'Inventory', icon: Package, color: 'bg-green-500/10 text-green-600', onClick: () => onNavigate('inventory') },
-    { id: 'purchase', title: 'Purchase', icon: ShoppingCart, color: 'bg-purple-500/10 text-purple-600', onClick: () => onNavigate('purchase') },
-    { id: 'sales', title: 'Sales', icon: FileText, color: 'bg-orange-500/10 text-orange-600', onClick: () => onNavigate('sales') },
-    { id: 'returns', title: 'Returns', icon: RotateCcw, color: 'bg-red-500/10 text-red-600', onClick: () => onNavigate('returns') },
-    { id: 'payments', title: 'Payments', icon: CreditCard, color: 'bg-emerald-500/10 text-emerald-600', onClick: () => onNavigate('payments') },
-    { id: 'reports', title: 'Reports', icon: TrendingUp, color: 'bg-indigo-500/10 text-indigo-600', onClick: () => onNavigate('reports') },
-    { id: 'tracking', title: 'Track & Trace', icon: MapPin, color: 'bg-cyan-500/10 text-cyan-600', onClick: () => onNavigate('tracking') },
+    { id: 'dashboard', title: 'Dashboard', icon: BarChart3, color: 'bg-blue-500/10 text-blue-600', onClick: () => {} },
+    { id: 'inventory', title: 'Inventory', icon: Package, color: 'bg-green-500/10 text-green-600', onClick: () => {} },
+    { id: 'purchase', title: 'Purchase', icon: ShoppingCart, color: 'bg-purple-500/10 text-purple-600', onClick: () => {} },
+    { id: 'sales', title: 'Sales', icon: FileText, color: 'bg-orange-500/10 text-orange-600', onClick: () => {} },
+    { id: 'returns', title: 'Returns', icon: RotateCcw, color: 'bg-red-500/10 text-red-600', onClick: () => {} },
+    { id: 'payments', title: 'Payments', icon: CreditCard, color: 'bg-emerald-500/10 text-emerald-600', onClick: () => {} },
+    { id: 'reports', title: 'Reports', icon: TrendingUp, color: 'bg-indigo-500/10 text-indigo-600', onClick: () => {} },
+    { id: 'tracking', title: 'Track & Trace', icon: MapPin, color: 'bg-cyan-500/10 text-cyan-600', onClick: () => {} },
     { id: 'ai', title: 'AI Assistant', icon: Bot, color: 'bg-pink-500/10 text-pink-600', onClick: () => onNavigate('ai') },
-    { id: 'users', title: 'Team Management', icon: Users, color: 'bg-amber-500/10 text-amber-600', onClick: () => onNavigate('users') },
-    { id: 'profile', title: 'Company Profile', icon: Building2, color: 'bg-slate-500/10 text-slate-600', onClick: () => onNavigate('profile') },
-    { id: 'settings', title: 'Settings', icon: Settings, color: 'bg-gray-500/10 text-gray-600', onClick: () => onNavigate('settings') },
-    { id: 'calendar', title: 'Calendar', icon: Calendar, color: 'bg-violet-500/10 text-violet-600', onClick: () => console.log('Calendar clicked') },
-    { id: 'mail', title: 'Mail', icon: Mail, color: 'bg-rose-500/10 text-rose-600', onClick: () => console.log('Mail clicked') },
-    { id: 'database', title: 'Good Stock Overview', icon: Database, color: 'bg-teal-500/10 text-teal-600', onClick: () => console.log('Database clicked') },
-    { id: 'logistics', title: 'Damage Stock Report', icon: Truck, color: 'bg-lime-500/10 text-lime-600', onClick: () => console.log('Logistics clicked') },
-    { id: 'calculator', title: 'Top Value Items', icon: Calculator, color: 'bg-sky-500/10 text-sky-600', onClick: () => console.log('Calculator clicked') },
-    { id: 'archive', title: 'Low Stock Alert', icon: Archive, color: 'bg-stone-500/10 text-stone-600', onClick: () => console.log('Archive clicked') },
-    { id: 'notifications', title: 'Notifications', icon: Bell, color: 'bg-yellow-500/10 text-yellow-600', onClick: () => console.log('Notifications clicked') },
-    { id: 'timesheet', title: 'Timesheet', icon: Clock, color: 'bg-fuchsia-500/10 text-fuchsia-600', onClick: () => console.log('Timesheet clicked') },
+    { id: 'users', title: 'Team Management', icon: Users, color: 'bg-amber-500/10 text-amber-600', onClick: () => {} },
+    { id: 'profile', title: 'Company Profile', icon: Building2, color: 'bg-slate-500/10 text-slate-600', onClick: () => {} },
+    { id: 'settings', title: 'Settings', icon: Settings, color: 'bg-gray-500/10 text-gray-600', onClick: () => {} },
+    { id: 'calendar', title: 'Calendar', icon: Calendar, color: 'bg-violet-500/10 text-violet-600', onClick: () => {} },
+    { id: 'mail', title: 'Mail', icon: Mail, color: 'bg-rose-500/10 text-rose-600', onClick: () => {} },
+    { id: 'database', title: 'Good Stock Overview', icon: Database, color: 'bg-teal-500/10 text-teal-600', onClick: () => {} },
+    { id: 'logistics', title: 'Damage Stock Report', icon: Truck, color: 'bg-lime-500/10 text-lime-600', onClick: () => {} },
+    { id: 'calculator', title: 'Top Value Items', icon: Calculator, color: 'bg-sky-500/10 text-sky-600', onClick: () => {} },
+    { id: 'archive', title: 'Low Stock Alert', icon: Archive, color: 'bg-stone-500/10 text-stone-600', onClick: () => {} },
+    { id: 'notifications', title: 'Notifications', icon: Bell, color: 'bg-yellow-500/10 text-yellow-600', onClick: () => {} },
+    { id: 'timesheet', title: 'Timesheet', icon: Clock, color: 'bg-fuchsia-500/10 text-fuchsia-600', onClick: () => {} },
   ];
 
   const [widgets, setWidgets] = useState<Widget[]>(createWidgets());
