@@ -581,27 +581,26 @@ export function PurchaseOrderTable({
       
       yPos += 6;
       
-      // Table Header with improved design and optimized spacing
+      // Table Header with improved design and optimized spacing (UOM removed)
       doc.setFillColor(41, 128, 185);
       doc.rect(15, yPos, 180, 10, 'F');
       
-      doc.setFontSize(7);
+      doc.setFontSize(7.5);
       doc.setFont('helvetica', 'bold');
       doc.setTextColor(255, 255, 255);
       
-      // Optimized column positions to prevent overlap
+      // Optimized column positions without UOM
       const colPositions = {
         sno: 17,
-        itemCode: 26,
-        description: 48,
-        hsn: 78,
-        qty: 95,
-        uom: 108,
-        rate: 125,
-        discPct: 140,
-        discAmt: 154,
-        taxPct: 168,
-        taxAmt: 182,
+        itemCode: 27,
+        description: 53,
+        hsn: 90,
+        qty: 107,
+        rate: 127,
+        discPct: 143,
+        discAmt: 159,
+        taxPct: 172,
+        taxAmt: 185,
         amount: 193
       };
       
@@ -610,7 +609,6 @@ export function PurchaseOrderTable({
       doc.text('Description', colPositions.description, yPos + 6.5);
       doc.text('HSN', colPositions.hsn, yPos + 6.5);
       doc.text('Qty', colPositions.qty, yPos + 6.5, { align: 'center' });
-      doc.text('UOM', colPositions.uom, yPos + 6.5);
       doc.text('Rate', colPositions.rate, yPos + 6.5, { align: 'right' });
       doc.text('Disc%', colPositions.discPct, yPos + 6.5, { align: 'center' });
       doc.text('Disc Amt', colPositions.discAmt, yPos + 6.5, { align: 'right' });
@@ -646,7 +644,7 @@ export function PurchaseOrderTable({
       
       doc.setFont('helvetica', 'normal');
       doc.setTextColor(0, 0, 0);
-      doc.setFontSize(7);
+      doc.setFontSize(7.5);
       
       lineItems.forEach((item, index) => {
         // Alternating row background with more subtle color
@@ -659,24 +657,24 @@ export function PurchaseOrderTable({
         doc.setDrawColor(220, 220, 220);
         doc.line(15, yPos + 7, 195, yPos + 7);
         
-        // Data with proper alignment and spacing
+        // Data with proper alignment and spacing (UOM removed, no decimals)
         doc.text(item.sno.toString(), colPositions.sno, yPos + 4);
         
         // Item code with truncation if too long
-        const itemCode = item.code.length > 8 ? item.code.substring(0, 8) : item.code;
+        const itemCode = item.code.length > 9 ? item.code.substring(0, 9) : item.code;
         doc.text(itemCode, colPositions.itemCode, yPos + 4);
         
-        // Description with word wrap - limit to 25 chars
-        const descText = item.desc.length > 25 ? item.desc.substring(0, 25) + '...' : item.desc;
+        // Description with word wrap - limit to 30 chars (more space now)
+        const descText = item.desc.length > 30 ? item.desc.substring(0, 30) + '...' : item.desc;
         doc.text(descText, colPositions.description, yPos + 4);
         
         // HSN with truncation if too long
-        const hsnText = item.hsn.length > 10 ? item.hsn.substring(0, 10) : item.hsn;
+        const hsnText = item.hsn.length > 12 ? item.hsn.substring(0, 12) : item.hsn;
         doc.text(hsnText, colPositions.hsn, yPos + 4);
         
         doc.text(item.qty.toString(), colPositions.qty, yPos + 4, { align: 'center' });
-        doc.text(item.uom, colPositions.uom, yPos + 4);
-        doc.text(item.rate.toFixed(2), colPositions.rate, yPos + 4, { align: 'right' });
+        // Rate without decimals
+        doc.text(Math.round(item.rate).toString(), colPositions.rate, yPos + 4, { align: 'right' });
         doc.text(item.disc.toString(), colPositions.discPct, yPos + 4, { align: 'center' });
         doc.text(Math.round(item.discAmt).toString(), colPositions.discAmt, yPos + 4, { align: 'right' });
         doc.text(item.tax.toString(), colPositions.taxPct, yPos + 4, { align: 'center' });
