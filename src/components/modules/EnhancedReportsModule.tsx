@@ -570,7 +570,7 @@ export function EnhancedReportsModule() {
       .gt('back_order_quantity', 0)
       .gte('sales_orders.order_date', format(filters.dateRange.from, 'yyyy-MM-dd'))
       .lte('sales_orders.order_date', format(filters.dateRange.to, 'yyyy-MM-dd'))
-      .order('sales_orders.order_date', { ascending: false });
+      .order('order_date', { ascending: false, foreignTable: 'sales_orders' });
 
     if (itemsError) throw itemsError;
 
