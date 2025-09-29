@@ -557,34 +557,51 @@ export function PurchaseOrderTable({
       yPos += 28;
       
       // ========== LINE ITEMS TABLE ==========
-      doc.setFontSize(11);
+      doc.setFontSize(10);
       doc.setFont('helvetica', 'bold');
       doc.setTextColor(41, 128, 185);
       doc.text('LINE ITEMS', 15, yPos);
       
-      yPos += 7;
+      yPos += 6;
       
-      // Table Header - Updated with separate columns
+      // Table Header with improved design
       doc.setFillColor(41, 128, 185);
-      doc.rect(15, yPos, 180, 8, 'F');
+      doc.rect(15, yPos, 180, 10, 'F');
       
-      doc.setFontSize(7);
+      doc.setFontSize(8);
       doc.setFont('helvetica', 'bold');
       doc.setTextColor(255, 255, 255);
-      doc.text('S.No', 17, yPos + 5);
-      doc.text('Item Code', 26, yPos + 5);
-      doc.text('Description', 48, yPos + 5);
-      doc.text('HSN', 82, yPos + 5);
-      doc.text('Qty', 96, yPos + 5);
-      doc.text('UOM', 106, yPos + 5);
-      doc.text('Rate', 118, yPos + 5);
-      doc.text('Disc%', 132, yPos + 5);
-      doc.text('Disc Amt', 144, yPos + 5);
-      doc.text('Tax%', 160, yPos + 5);
-      doc.text('Tax Amt', 172, yPos + 5);
-      doc.text('Amount', 188, yPos + 5, { align: 'right' });
       
-      yPos += 10;
+      // Column positions optimized for readability
+      const colPositions = {
+        sno: 18,
+        itemCode: 28,
+        description: 52,
+        hsn: 88,
+        qty: 102,
+        uom: 115,
+        rate: 128,
+        discPct: 142,
+        discAmt: 155,
+        taxPct: 168,
+        taxAmt: 180,
+        amount: 193
+      };
+      
+      doc.text('S.No', colPositions.sno, yPos + 6.5);
+      doc.text('Item Code', colPositions.itemCode, yPos + 6.5);
+      doc.text('Description', colPositions.description, yPos + 6.5);
+      doc.text('HSN', colPositions.hsn, yPos + 6.5);
+      doc.text('Qty', colPositions.qty, yPos + 6.5, { align: 'right' });
+      doc.text('UOM', colPositions.uom, yPos + 6.5);
+      doc.text('Rate', colPositions.rate, yPos + 6.5, { align: 'right' });
+      doc.text('Disc%', colPositions.discPct, yPos + 6.5, { align: 'right' });
+      doc.text('Disc Amt', colPositions.discAmt, yPos + 6.5, { align: 'right' });
+      doc.text('Tax%', colPositions.taxPct, yPos + 6.5, { align: 'right' });
+      doc.text('Tax Amt', colPositions.taxAmt, yPos + 6.5, { align: 'right' });
+      doc.text('Amount', colPositions.amount, yPos + 6.5, { align: 'right' });
+      
+      yPos += 12;
       
       // Sample line items - In real scenario, fetch from purchase_order_items table
       const lineItems = [
@@ -620,36 +637,51 @@ export function PurchaseOrderTable({
       
       doc.setFont('helvetica', 'normal');
       doc.setTextColor(0, 0, 0);
-      doc.setFontSize(7);
+      doc.setFontSize(8);
       
       lineItems.forEach((item, index) => {
+        // Alternating row background with more subtle color
         if (index % 2 === 0) {
-          doc.setFillColor(250, 250, 250);
-          doc.rect(15, yPos - 3, 180, 7, 'F');
+          doc.setFillColor(248, 249, 250);
+          doc.rect(15, yPos - 2, 180, 9, 'F');
         }
         
-        doc.text(item.sno.toString(), 17, yPos + 2);
-        doc.text(item.code, 26, yPos + 2);
-        const descText = doc.splitTextToSize(item.desc, 30);
-        doc.text(descText[0], 48, yPos + 2);
-        doc.text(item.hsn, 82, yPos + 2);
-        doc.text(item.qty.toString(), 96, yPos + 2);
-        doc.text(item.uom, 106, yPos + 2);
-        doc.text(item.rate.toFixed(2), 118, yPos + 2);
-        doc.text(item.disc.toString(), 132, yPos + 2);
-        doc.text(item.discAmt.toFixed(2), 144, yPos + 2);
-        doc.text(item.tax.toString(), 160, yPos + 2);
-        doc.text(item.taxAmt.toFixed(2), 172, yPos + 2);
-        doc.text(item.amount.toFixed(2), 193, yPos + 2, { align: 'right' });
+        // Draw subtle row border
+        doc.setDrawColor(220, 220, 220);
+        doc.line(15, yPos + 7, 195, yPos + 7);
         
-        yPos += 7;
+        // Data with proper alignment
+        doc.text(item.sno.toString(), colPositions.sno, yPos + 4);
+        doc.text(item.code, colPositions.itemCode, yPos + 4);
+        
+        // Description with word wrap if needed
+        const descText = doc.splitTextToSize(item.desc, 32);
+        doc.text(descText[0], colPositions.description, yPos + 4);
+        
+        doc.text(item.hsn, colPositions.hsn, yPos + 4);
+        doc.text(item.qty.toString(), colPositions.qty, yPos + 4, { align: 'right' });
+        doc.text(item.uom, colPositions.uom, yPos + 4);
+        doc.text(item.rate.toFixed(2), colPositions.rate, yPos + 4, { align: 'right' });
+        doc.text(item.disc.toString(), colPositions.discPct, yPos + 4, { align: 'right' });
+        doc.text(item.discAmt.toFixed(2), colPositions.discAmt, yPos + 4, { align: 'right' });
+        doc.text(item.tax.toString(), colPositions.taxPct, yPos + 4, { align: 'right' });
+        doc.text(item.taxAmt.toFixed(2), colPositions.taxAmt, yPos + 4, { align: 'right' });
+        
+        // Amount in bold
+        doc.setFont('helvetica', 'bold');
+        doc.text(item.amount.toFixed(2), colPositions.amount, yPos + 4, { align: 'right' });
+        doc.setFont('helvetica', 'normal');
+        
+        yPos += 9;
       });
       
-      // Bottom border for table
-      doc.setDrawColor(200, 200, 200);
+      // Table bottom border with emphasis
+      doc.setDrawColor(41, 128, 185);
+      doc.setLineWidth(0.5);
       doc.line(15, yPos, 195, yPos);
+      doc.setLineWidth(0.2); // Reset line width
       
-      yPos += 8;
+      yPos += 10;
       
       // ========== TOTALS SECTION ==========
       const totalsX = 140;
