@@ -2873,8 +2873,8 @@ export function EnhancedReportsModule() {
   const toggleCategory = (categoryId: string) => {
     setOpenCategories(prev => 
       prev.includes(categoryId) 
-        ? prev.filter(id => id !== categoryId)
-        : [...prev, categoryId]
+        ? [] // Close if already open
+        : [categoryId] // Open only this category, closing others
     );
   };
 
