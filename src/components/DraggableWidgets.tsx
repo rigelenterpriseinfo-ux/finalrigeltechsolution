@@ -98,7 +98,7 @@ export const DraggableWidgets: React.FC<DraggableWidgetsProps> = ({ onNavigate }
     if (!profile?.company_id) return;
     
     try {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('current_stock_levels')
         .select(`
           current_stock,
@@ -111,7 +111,14 @@ export const DraggableWidgets: React.FC<DraggableWidgetsProps> = ({ onNavigate }
         .eq('products.company_id', profile.company_id)
         .gt('current_stock', 0);
 
-      if (data) {
+      if (error) {
+        console.error('Error fetching good stock data:', error);
+        return;
+      }
+
+      console.log('Good Stock Data fetched:', data);
+
+      if (data && data.length > 0) {
         const aggregatedData: { [key: string]: StockData } = {};
         
         data.forEach((item: any) => {
@@ -129,10 +136,16 @@ export const DraggableWidgets: React.FC<DraggableWidgetsProps> = ({ onNavigate }
           aggregatedData[key].total_value += (item.current_stock || 0) * (item.products?.cost_price || 0);
         });
         
-        setGoodStockData(Object.values(aggregatedData).slice(0, 3));
+        const result = Object.values(aggregatedData).slice(0, 3);
+        console.log('Aggregated Good Stock Data:', result);
+        setGoodStockData(result);
+      } else {
+        console.log('No good stock data found');
+        setGoodStockData([]);
       }
     } catch (error) {
-      console.error('Error fetching good stock data:', error);
+      console.error('Exception fetching good stock data:', error);
+      setGoodStockData([]);
     }
   };
 
@@ -845,9 +858,13 @@ export const DraggableWidgets: React.FC<DraggableWidgetsProps> = ({ onNavigate }
               <div className="flex items-center justify-center flex-1">
                 <div className="animate-spin rounded-full h-4 w-4 border-2 border-primary border-t-transparent"></div>
               </div>
+            ) : goodStockData.length === 0 ? (
+              <div className="flex items-center justify-center flex-1">
+                <p className="text-xs text-muted-foreground text-center">No stock data available</p>
+              </div>
             ) : (
               <div className="space-y-2 text-xs flex-1 overflow-hidden">
-                {goodStockData.slice(0, 2).map((item, idx) => (
+                {goodStockData.slice(0, 3).map((item, idx) => (
                   <div key={idx} className="p-2 rounded-md bg-muted/30 hover:bg-muted/50 transition-colors">
                     <div className="space-y-1">
                       <div className="font-semibold text-xs truncate">{item.warehouse_name}</div>
@@ -876,9 +893,13 @@ export const DraggableWidgets: React.FC<DraggableWidgetsProps> = ({ onNavigate }
               <div className="flex items-center justify-center flex-1">
                 <div className="animate-spin rounded-full h-4 w-4 border-2 border-primary border-t-transparent"></div>
               </div>
+            ) : damageStockData.length === 0 ? (
+              <div className="flex items-center justify-center flex-1">
+                <p className="text-xs text-muted-foreground text-center">No damage stock data</p>
+              </div>
             ) : (
               <div className="space-y-2 text-xs flex-1 overflow-hidden">
-                {damageStockData.slice(0, 2).map((item, idx) => (
+                {damageStockData.slice(0, 3).map((item, idx) => (
                   <div key={idx} className="p-2 rounded-md bg-destructive/10 hover:bg-destructive/20 transition-colors">
                     <div className="space-y-1">
                       <div className="font-semibold text-xs truncate">{item.warehouse_name}</div>
@@ -956,19 +977,21 @@ export const DraggableWidgets: React.FC<DraggableWidgetsProps> = ({ onNavigate }
               <span className="text-xs font-medium">{widget.title}</span>
             </div>
             {loading ? (
-              <div className="text-xs text-muted-foreground">Loading...</div>
+              <div className="flex items-center justify-center flex-1">
+                <div className="animate-spin rounded-full h-4 w-4 border-2 border-primary border-t-transparent"></div>
+              </div>
             ) : salesTrendData.length === 0 ? (
               <div className="text-xs text-muted-foreground text-center py-2">
                 No sales data
               </div>
             ) : (
-              <div className="space-y-1 text-xs">
-                {salesTrendData.slice(0, 2).map((item, idx) => (
-                  <div key={idx} className="space-y-0.5">
+              <div className="space-y-1.5 text-xs overflow-hidden">
+                {salesTrendData.slice(0, 3).map((item, idx) => (
+                  <div key={idx} className="p-1.5 rounded bg-muted/30 hover:bg-muted/50 transition-colors space-y-0.5">
                     <div className="font-medium text-xs">{item.month}</div>
                     <div className="flex justify-between text-xs">
-                      <span>Qty: {item.qty}</span>
-                      <span>₹{item.value.toFixed(0)}</span>
+                      <span className="text-muted-foreground">Qty: {item.qty}</span>
+                      <span className="font-bold">₹{item.value.toFixed(0)}</span>
                     </div>
                   </div>
                 ))}
