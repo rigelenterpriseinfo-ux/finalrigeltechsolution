@@ -848,15 +848,13 @@ export const DraggableWidgets: React.FC<DraggableWidgetsProps> = ({ onNavigate }
             ) : (
               <div className="space-y-2 text-xs flex-1 overflow-hidden">
                 {goodStockData.slice(0, 2).map((item, idx) => (
-                  <div key={idx} className="p-2 rounded-md bg-muted/30 hover:bg-muted/50 transition-colors space-y-1">
-                    <div className="font-semibold text-xs truncate">{item.warehouse_name}</div>
-                    <div className="flex justify-between items-center text-xs">
-                      <span className="text-muted-foreground">Qty:</span>
-                      <span className="font-bold">{item.total_qty}</span>
-                    </div>
-                    <div className="flex justify-between items-center text-xs">
-                      <span className="text-muted-foreground">Value:</span>
-                      <span className="font-bold text-primary">₹{item.total_value.toFixed(0)}</span>
+                  <div key={idx} className="p-2 rounded-md bg-muted/30 hover:bg-muted/50 transition-colors">
+                    <div className="space-y-1">
+                      <div className="font-semibold text-xs truncate">{item.warehouse_name}</div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-muted-foreground text-xs">{item.bin_name}</span>
+                        <span className="font-bold text-primary text-xs whitespace-nowrap">₹{item.total_value.toFixed(0)}</span>
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -881,15 +879,13 @@ export const DraggableWidgets: React.FC<DraggableWidgetsProps> = ({ onNavigate }
             ) : (
               <div className="space-y-2 text-xs flex-1 overflow-hidden">
                 {damageStockData.slice(0, 2).map((item, idx) => (
-                  <div key={idx} className="p-2 rounded-md bg-destructive/10 hover:bg-destructive/20 transition-colors space-y-1">
-                    <div className="font-semibold text-xs truncate">{item.warehouse_name}</div>
-                    <div className="flex justify-between items-center text-xs">
-                      <span className="text-muted-foreground">Qty:</span>
-                      <span className="font-bold">{item.total_qty}</span>
-                    </div>
-                    <div className="flex justify-between items-center text-xs">
-                      <span className="text-muted-foreground">Value:</span>
-                      <span className="font-bold text-destructive">₹{item.total_value.toFixed(0)}</span>
+                  <div key={idx} className="p-2 rounded-md bg-destructive/10 hover:bg-destructive/20 transition-colors">
+                    <div className="space-y-1">
+                      <div className="font-semibold text-xs truncate">{item.warehouse_name}</div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-muted-foreground text-xs">{item.bin_name}</span>
+                        <span className="font-bold text-destructive text-xs whitespace-nowrap">₹{item.total_value.toFixed(0)}</span>
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -1413,26 +1409,37 @@ export const DraggableWidgets: React.FC<DraggableWidgetsProps> = ({ onNavigate }
     }
   };
   const createWidgets = (): Widget[] => [
-    { id: 'dashboard', title: 'Dashboard', icon: BarChart3, color: 'bg-blue-500/10 text-blue-600', onClick: () => {} },
-    { id: 'inventory', title: 'Inventory', icon: Package, color: 'bg-green-500/10 text-green-600', onClick: () => {} },
-    { id: 'purchase', title: 'Purchase', icon: ShoppingCart, color: 'bg-purple-500/10 text-purple-600', onClick: () => {} },
+    // Purchase & Procurement (Purple shades)
+    { id: 'dashboard', title: 'Dashboard', icon: BarChart3, color: 'bg-purple-500/10 text-purple-600', onClick: () => {} },
+    { id: 'purchase', title: 'Purchase', icon: ShoppingCart, color: 'bg-purple-600/10 text-purple-700', onClick: () => {} },
+    { id: 'mail', title: 'Mail', icon: Mail, color: 'bg-purple-400/10 text-purple-500', onClick: () => {} },
+    { id: 'payments', title: 'Payments', icon: CreditCard, color: 'bg-purple-700/10 text-purple-800', onClick: () => {} },
+    
+    // Inventory & Warehouse (Teal/Cyan shades)
+    { id: 'inventory', title: 'Inventory', icon: Package, color: 'bg-teal-500/10 text-teal-600', onClick: () => {} },
+    { id: 'database', title: 'Good Stock Overview', icon: Database, color: 'bg-teal-600/10 text-teal-700', onClick: () => {} },
+    { id: 'logistics', title: 'Damage Stock Report', icon: Truck, color: 'bg-teal-400/10 text-teal-500', onClick: () => {} },
+    { id: 'calculator', title: 'Top Value Items', icon: Calculator, color: 'bg-cyan-500/10 text-cyan-600', onClick: () => {} },
+    { id: 'archive', title: 'Low Stock Alert', icon: Archive, color: 'bg-cyan-600/10 text-cyan-700', onClick: () => {} },
+    
+    // Sales & Customer (Orange/Amber shades)
     { id: 'sales', title: 'Sales', icon: FileText, color: 'bg-orange-500/10 text-orange-600', onClick: () => {} },
-    { id: 'returns', title: 'Returns', icon: RotateCcw, color: 'bg-red-500/10 text-red-600', onClick: () => {} },
-    { id: 'payments', title: 'Payments', icon: CreditCard, color: 'bg-emerald-500/10 text-emerald-600', onClick: () => {} },
-    { id: 'reports', title: 'Reports', icon: TrendingUp, color: 'bg-indigo-500/10 text-indigo-600', onClick: () => {} },
-    { id: 'tracking', title: 'Track & Trace', icon: MapPin, color: 'bg-cyan-500/10 text-cyan-600', onClick: () => {} },
+    { id: 'reports', title: 'Reports', icon: TrendingUp, color: 'bg-orange-600/10 text-orange-700', onClick: () => {} },
+    { id: 'profile', title: 'Company Profile', icon: Building2, color: 'bg-amber-500/10 text-amber-600', onClick: () => {} },
+    { id: 'returns', title: 'Returns', icon: RotateCcw, color: 'bg-orange-400/10 text-orange-500', onClick: () => {} },
+    
+    // Operations & Tracking (Blue shades)
+    { id: 'tracking', title: 'Track & Trace', icon: MapPin, color: 'bg-blue-500/10 text-blue-600', onClick: () => {} },
+    { id: 'notifications', title: 'Notifications', icon: Bell, color: 'bg-blue-600/10 text-blue-700', onClick: () => {} },
+    { id: 'timesheet', title: 'Timesheet', icon: Clock, color: 'bg-blue-400/10 text-blue-500', onClick: () => {} },
+    
+    // Management & Settings (Slate/Gray shades)
+    { id: 'users', title: 'Team Management', icon: Users, color: 'bg-slate-500/10 text-slate-600', onClick: () => {} },
+    { id: 'settings', title: 'Settings', icon: Settings, color: 'bg-slate-600/10 text-slate-700', onClick: () => {} },
+    { id: 'calendar', title: 'Calendar', icon: Calendar, color: 'bg-slate-400/10 text-slate-500', onClick: () => {} },
+    
+    // AI Assistant (Distinct Pink/Rose)
     { id: 'ai', title: 'AI Assistant', icon: Bot, color: 'bg-pink-500/10 text-pink-600', onClick: () => onNavigate('ai') },
-    { id: 'users', title: 'Team Management', icon: Users, color: 'bg-amber-500/10 text-amber-600', onClick: () => {} },
-    { id: 'profile', title: 'Company Profile', icon: Building2, color: 'bg-slate-500/10 text-slate-600', onClick: () => {} },
-    { id: 'settings', title: 'Settings', icon: Settings, color: 'bg-gray-500/10 text-gray-600', onClick: () => {} },
-    { id: 'calendar', title: 'Calendar', icon: Calendar, color: 'bg-violet-500/10 text-violet-600', onClick: () => {} },
-    { id: 'mail', title: 'Mail', icon: Mail, color: 'bg-rose-500/10 text-rose-600', onClick: () => {} },
-    { id: 'database', title: 'Good Stock Overview', icon: Database, color: 'bg-teal-500/10 text-teal-600', onClick: () => {} },
-    { id: 'logistics', title: 'Damage Stock Report', icon: Truck, color: 'bg-lime-500/10 text-lime-600', onClick: () => {} },
-    { id: 'calculator', title: 'Top Value Items', icon: Calculator, color: 'bg-sky-500/10 text-sky-600', onClick: () => {} },
-    { id: 'archive', title: 'Low Stock Alert', icon: Archive, color: 'bg-stone-500/10 text-stone-600', onClick: () => {} },
-    { id: 'notifications', title: 'Notifications', icon: Bell, color: 'bg-yellow-500/10 text-yellow-600', onClick: () => {} },
-    { id: 'timesheet', title: 'Timesheet', icon: Clock, color: 'bg-fuchsia-500/10 text-fuchsia-600', onClick: () => {} },
   ];
 
   const [widgets, setWidgets] = useState<Widget[]>(createWidgets());
@@ -1479,7 +1486,7 @@ export const DraggableWidgets: React.FC<DraggableWidgetsProps> = ({ onNavigate }
       <div className="flex items-center justify-between">
         <div className="space-y-1">
           <h2 className="text-2xl font-bold text-foreground tracking-tight">Quick Access</h2>
-          <p className="text-sm text-muted-foreground">View key metrics and navigate to modules</p>
+          <p className="text-sm text-muted-foreground">Widgets are color-coded by function: <span className="text-purple-600 font-medium">Purchase</span>, <span className="text-teal-600 font-medium">Inventory</span>, <span className="text-orange-600 font-medium">Sales</span>, <span className="text-blue-600 font-medium">Operations</span>, <span className="text-slate-600 font-medium">Management</span></p>
         </div>
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
           <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-md bg-muted/50">
