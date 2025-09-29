@@ -12,6 +12,7 @@ import { Eye, Edit, Trash2, FileText, FileSpreadsheet, ArrowUpDown, ArrowUp, Arr
 import { format } from 'date-fns';
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
+import 'jspdf-autotable';
 
 interface GRN {
   id: string;
@@ -411,16 +412,24 @@ export function GRNTable({ refreshTrigger, onView, onEdit, onDelete }: GRNTableP
             po_number,
             external_po_ref,
             payment_terms,
-            currency
+            currency,
+            delivery_address_line1,
+            delivery_address_line2,
+            delivery_city,
+            delivery_state,
+            delivery_postal_code
           ),
           suppliers(
             name,
             address_line1,
+            address_line2,
             city,
             state,
-            gst_number,
+            pin_code,
             contact_person,
-            phone
+            phone,
+            email,
+            gst_number
           )
         `)
         .eq('id', grn.id)
@@ -432,196 +441,336 @@ export function GRNTable({ refreshTrigger, onView, onEdit, onDelete }: GRNTableP
       const po = grnDetail.purchase_orders as any || {};
 
       const pdf = new jsPDF();
-      let yPosition = 20;
+      
+      // Blue header background
+      pdf.setFillColor(70, 130, 180);
+      pdf.rect(0, 0, 220, 45, 'F');
 
-      // Header with company name
-      pdf.setFontSize(22);
+      // Company logo placeholder (circle)
+      pdf.setFillColor(255, 255, 255);
+      pdf.circle(25, 22, 12, 'F');
+      pdf.setFontSize(10);
+      pdf.setTextColor(70, 130, 180);
+      pdf.text('LOGO', 18, 24);
+
+      // Company details - Left side
+      pdf.setTextColor(255, 255, 255);
+      pdf.setFontSize(16);
       pdf.setFont('helvetica', 'bold');
-      pdf.text(company?.name || 'Company Name', 105, yPosition, { align: 'center' });
-      yPosition += 8;
+      pdf.text(company?.name || 'Company Name', 42, 15);
+      
+      pdf.setFontSize(9);
+      pdf.setFont('helvetica', 'normal');
+      pdf.text(company?.address_line1 || 'Address Line 1', 42, 21);
+      pdf.text(`${company?.city || 'City'}, ${company?.state || 'State'} - ${company?.postal_code || '000000'}`, 42, 26);
+      pdf.text(`GSTIN: ${company?.gstn || 'N/A'} | Phone: ${company?.phone || 'N/A'}`, 42, 31);
+      pdf.text(`Email: ${company?.email || 'N/A'}`, 42, 36);
+
+      // Document title - Right side
+      pdf.setFontSize(20);
+      pdf.setFont('helvetica', 'bold');
+      pdf.text('GOODS RECEIPT NOTE', 210, 18, { align: 'right' });
       
       pdf.setFontSize(10);
       pdf.setFont('helvetica', 'normal');
-      pdf.text(`${company?.address_line1 || ''}, ${company?.city || ''}, ${company?.state || ''}`, 105, yPosition, { align: 'center' });
-      yPosition += 5;
-      pdf.text(`Phone: ${company?.phone || 'N/A'} | Email: ${company?.email || 'N/A'}`, 105, yPosition, { align: 'center' });
-      yPosition += 5;
-      pdf.text(`GSTIN: ${company?.gstn || 'N/A'}`, 105, yPosition, { align: 'center' });
-      yPosition += 12;
+      pdf.text(`GRN #: ${grnDetail.grn_number}`, 210, 28, { align: 'right' });
+      pdf.text(`Date: ${format(new Date(grnDetail.grn_date), 'dd/MM/yyyy')}`, 210, 34, { align: 'right' });
 
-      // Document title
-      pdf.setFontSize(18);
-      pdf.setFont('helvetica', 'bold');
-      pdf.text('GOODS RECEIPT NOTE', 105, yPosition, { align: 'center' });
-      yPosition += 12;
+      // Reset text color for body
+      pdf.setTextColor(0, 0, 0);
+      let yPosition = 55;
 
-      // GRN Details box
-      pdf.setFontSize(10);
+      // Two-column layout for Vendor and Delivery details
+      // Left column - VENDOR DETAILS
+      pdf.setFillColor(240, 240, 240);
+      pdf.rect(14, yPosition, 90, 8, 'F');
+      pdf.setFontSize(11);
       pdf.setFont('helvetica', 'bold');
-      pdf.text('GRN HEADER', 14, yPosition);
-      yPosition += 6;
+      pdf.setTextColor(70, 130, 180);
+      pdf.text('VENDOR DETAILS', 16, yPosition + 5);
       
+      yPosition += 12;
+      pdf.setFontSize(9);
+      pdf.setFont('helvetica', 'bold');
+      pdf.setTextColor(0, 0, 0);
+      pdf.text(supplier.name || grnDetail.supplier_name, 16, yPosition);
+      
+      yPosition += 5;
       pdf.setFont('helvetica', 'normal');
-      pdf.text(`GRN Number: ${grnDetail.grn_number}`, 14, yPosition);
-      pdf.text(`Date: ${format(new Date(grnDetail.grn_date), 'dd/MM/yyyy')}`, 120, yPosition);
+      pdf.text(supplier.address_line1 || 'N/A', 16, yPosition);
+      
+      yPosition += 5;
+      pdf.text(`${supplier.city || ''}, ${supplier.state || ''} - ${supplier.pin_code || ''}`, 16, yPosition);
+      
+      yPosition += 5;
+      pdf.text(`Contact: ${supplier.contact_person || 'N/A'}`, 16, yPosition);
+      
+      yPosition += 5;
+      pdf.text(`Phone: ${supplier.phone || 'N/A'}`, 16, yPosition);
+      
+      yPosition += 5;
+      pdf.text(`Email: ${supplier.email || 'N/A'}`, 16, yPosition);
+      
+      yPosition += 5;
+      pdf.text(`GSTIN: ${supplier.gst_number || 'N/A'}`, 16, yPosition);
+
+      // Right column - SHIP TO / DELIVERY ADDRESS
+      yPosition = 55;
+      pdf.setFillColor(240, 240, 240);
+      pdf.rect(110, yPosition, 90, 8, 'F');
+      pdf.setFontSize(11);
+      pdf.setFont('helvetica', 'bold');
+      pdf.setTextColor(70, 130, 180);
+      pdf.text('SHIP TO / DELIVERY ADDRESS', 112, yPosition + 5);
+      
+      yPosition += 12;
+      pdf.setFontSize(9);
+      pdf.setFont('helvetica', 'bold');
+      pdf.setTextColor(0, 0, 0);
+      pdf.text(company?.name || 'Company Name', 112, yPosition);
+      
+      yPosition += 5;
+      pdf.setFont('helvetica', 'normal');
+      pdf.text(po.delivery_address_line1 || company?.address_line1 || 'Address', 112, yPosition);
+      
+      yPosition += 5;
+      pdf.text(`${po.delivery_city || company?.city || 'City'}, ${po.delivery_state || company?.state || 'State'}`, 112, yPosition);
+      
+      yPosition += 5;
+      pdf.text(`PIN: ${po.delivery_postal_code || company?.postal_code || 'N/A'}`, 112, yPosition);
+      
+      yPosition += 5;
+      pdf.text(`Place of Supply: ${po.delivery_state || company?.state || 'N/A'}`, 112, yPosition);
+
+      // Order details section
+      yPosition = 103;
+      pdf.setFontSize(9);
+      
+      // Left column details
+      pdf.setFont('helvetica', 'bold');
+      pdf.text('GRN Date:', 16, yPosition);
+      pdf.setFont('helvetica', 'normal');
+      pdf.text(format(new Date(grnDetail.grn_date), 'dd/MM/yyyy'), 50, yPosition);
+      
       yPosition += 6;
-      pdf.text(`PO Number: ${po.po_number || 'N/A'}`, 14, yPosition);
-      pdf.text(`Status: ${grnDetail.status}`, 120, yPosition);
+      pdf.setFont('helvetica', 'bold');
+      pdf.text('PO Number:', 16, yPosition);
+      pdf.setFont('helvetica', 'normal');
+      pdf.text(po.po_number || 'N/A', 50, yPosition);
+      
       yPosition += 6;
-      pdf.text(`Supplier Invoice: ${grnDetail.supplier_invoice_number || 'N/A'}`, 14, yPosition);
+      pdf.setFont('helvetica', 'bold');
+      pdf.text('Payment Terms:', 16, yPosition);
+      pdf.setFont('helvetica', 'normal');
+      pdf.text(po.payment_terms || 'N/A', 50, yPosition);
+
+      // Right column details
+      yPosition = 103;
+      pdf.setFont('helvetica', 'bold');
+      pdf.text('Supplier Invoice:', 112, yPosition);
+      pdf.setFont('helvetica', 'normal');
+      pdf.text(grnDetail.supplier_invoice_number || 'N/A', 155, yPosition);
+      
+      yPosition += 6;
+      pdf.setFont('helvetica', 'bold');
+      pdf.text('Currency:', 112, yPosition);
+      pdf.setFont('helvetica', 'normal');
+      pdf.text(po.currency || 'INR', 155, yPosition);
+      
+      yPosition += 6;
+      pdf.setFont('helvetica', 'bold');
+      pdf.text('Status:', 112, yPosition);
+      pdf.setFont('helvetica', 'normal');
+      pdf.text(grnDetail.status.toUpperCase(), 155, yPosition);
+
+      // Line Items section
+      yPosition += 10;
+      pdf.setFillColor(240, 240, 240);
+      pdf.rect(14, yPosition, 182, 7, 'F');
+      pdf.setFontSize(11);
+      pdf.setFont('helvetica', 'bold');
+      pdf.setTextColor(70, 130, 180);
+      pdf.text('LINE ITEMS', 16, yPosition + 5);
+      
       yPosition += 10;
 
-      // Supplier Details
-      pdf.setFont('helvetica', 'bold');
-      pdf.text('SUPPLIER DETAILS', 14, yPosition);
-      yPosition += 6;
-      
-      pdf.setFont('helvetica', 'normal');
-      pdf.text(`Name: ${supplier.name || grnDetail.supplier_name}`, 14, yPosition);
-      yPosition += 6;
-      pdf.text(`Contact: ${supplier.contact_person || 'N/A'}`, 14, yPosition);
-      pdf.text(`Phone: ${supplier.phone || 'N/A'}`, 120, yPosition);
-      yPosition += 6;
-      pdf.text(`GSTIN: ${supplier.gst_number || 'N/A'}`, 14, yPosition);
-      yPosition += 6;
-      pdf.text(`Address: ${supplier.address_line1 || 'N/A'}`, 14, yPosition);
-      yPosition += 12;
-
-      // Line Items Table
-      pdf.setFont('helvetica', 'bold');
-      pdf.text('LINE ITEMS', 14, yPosition);
-      yPosition += 8;
-
-      // Table column positions
-      const colPositions = {
-        sno: 14,
-        itemCode: 21,
-        description: 38,
-        hsn: 75,
-        qty: 91,
-        rate: 106,
-        discPct: 119,
-        discAmt: 132,
-        taxPct: 147,
-        taxAmt: 162,
-        amount: 180
-      };
-
-      // Table headers
-      pdf.setFontSize(8);
-      pdf.text('S.No', colPositions.sno, yPosition);
-      pdf.text('Item Code', colPositions.itemCode, yPosition);
-      pdf.text('Description', colPositions.description, yPosition);
-      pdf.text('HSN', colPositions.hsn, yPosition);
-      pdf.text('Acc.Qty', colPositions.qty, yPosition);
-      pdf.text('Rate', colPositions.rate, yPosition);
-      pdf.text('Disc%', colPositions.discPct, yPosition);
-      pdf.text('Disc', colPositions.discAmt, yPosition);
-      pdf.text('Tax%', colPositions.taxPct, yPosition);
-      pdf.text('Tax', colPositions.taxAmt, yPosition);
-      pdf.text('Amount', colPositions.amount, yPosition);
-      yPosition += 5;
-
-      // Draw line under headers
-      pdf.line(14, yPosition, 196, yPosition);
-      yPosition += 5;
-
-      // Table rows
-      pdf.setFont('helvetica', 'normal');
-      let subtotal = 0;
-      let totalDiscount = 0;
-      let cgstTotal = 0;
-      let sgstTotal = 0;
-      let totalTax = 0;
-      
-      grnDetail.grn_line_items?.forEach((item: any, index: number) => {
-        if (yPosition > 270) {
-          pdf.addPage();
-          yPosition = 20;
-        }
-
+      // Prepare table data
+      const tableData = grnDetail.grn_line_items?.map((item: any, index: number) => {
         const accQty = item.accepted_quantity || 0;
         const unitPrice = item.unit_price || 0;
         const discPct = item.discount_percentage || 0;
         const discAmt = item.discount_amount || 0;
-        const lineSubtotal = accQty * unitPrice;
         const lineTaxRate = (item.cgst_rate || 0) + (item.sgst_rate || 0) + (item.igst_rate || 0);
         const lineTax = item.total_tax_amount || 0;
-        const lineTotal = item.line_total || (lineSubtotal - discAmt + lineTax);
+        const lineTotal = item.line_total || 0;
         
-        subtotal += lineSubtotal;
-        totalDiscount += discAmt;
-        cgstTotal += (item.cgst_amount || 0);
-        sgstTotal += (item.sgst_amount || 0);
-        totalTax += lineTax;
+        return [
+          index + 1,
+          item.product_sku,
+          item.product_name,
+          item.hsn_sac_code || '-',
+          accQty,
+          Math.round(unitPrice),
+          discPct,
+          Math.round(discAmt),
+          lineTaxRate,
+          Math.round(lineTax),
+          Math.round(lineTotal)
+        ];
+      }) || [];
 
-        pdf.text(`${index + 1}`, colPositions.sno, yPosition);
-        pdf.text(item.product_sku.substring(0, 8), colPositions.itemCode, yPosition);
-        pdf.text(item.product_name.substring(0, 15), colPositions.description, yPosition);
-        pdf.text(item.hsn_sac_code || '-', colPositions.hsn, yPosition);
-        pdf.text(accQty.toString(), colPositions.qty, yPosition);
-        pdf.text(Math.round(unitPrice).toString(), colPositions.rate, yPosition);
-        pdf.text(discPct.toString(), colPositions.discPct, yPosition);
-        pdf.text(Math.round(discAmt).toString(), colPositions.discAmt, yPosition);
-        pdf.text(lineTaxRate.toString(), colPositions.taxPct, yPosition);
-        pdf.text(Math.round(lineTax).toString(), colPositions.taxAmt, yPosition);
-        pdf.text(Math.round(lineTotal).toString(), colPositions.amount, yPosition);
-        yPosition += 6;
+      // Use autoTable for professional table layout
+      (pdf as any).autoTable({
+        startY: yPosition,
+        head: [['S.No', 'Item Code', 'Description', 'HSN', 'Qty', 'Rate', 'Disc%', 'Disc Amt', 'Tax%', 'Tax Amt', 'Amount']],
+        body: tableData,
+        theme: 'grid',
+        headStyles: {
+          fillColor: [70, 130, 180],
+          textColor: [255, 255, 255],
+          fontSize: 9,
+          fontStyle: 'bold',
+          halign: 'center'
+        },
+        bodyStyles: {
+          fontSize: 8,
+          textColor: [0, 0, 0]
+        },
+        columnStyles: {
+          0: { halign: 'center', cellWidth: 12 },
+          1: { halign: 'left', cellWidth: 20 },
+          2: { halign: 'left', cellWidth: 35 },
+          3: { halign: 'center', cellWidth: 15 },
+          4: { halign: 'center', cellWidth: 12 },
+          5: { halign: 'right', cellWidth: 18 },
+          6: { halign: 'center', cellWidth: 12 },
+          7: { halign: 'right', cellWidth: 18 },
+          8: { halign: 'center', cellWidth: 12 },
+          9: { halign: 'right', cellWidth: 18 },
+          10: { halign: 'right', cellWidth: 20 }
+        },
+        margin: { left: 14, right: 14 }
       });
 
-      // Draw line before totals
-      pdf.line(14, yPosition, 196, yPosition);
-      yPosition += 8;
+      // Get position after table
+      yPosition = (pdf as any).lastAutoTable.finalY + 10;
 
-      // Totals section
-      pdf.setFont('helvetica', 'bold');
-      pdf.setFontSize(10);
+      // Calculate totals
+      let subtotal = 0;
+      let totalDiscount = 0;
+      let cgstTotal = 0;
+      let sgstTotal = 0;
+      let igstTotal = 0;
       
-      const totalXPos = 145;
-      pdf.text('Subtotal:', totalXPos, yPosition);
-      pdf.text(`₹${Math.round(subtotal).toLocaleString()}`, 180, yPosition);
+      grnDetail.grn_line_items?.forEach((item: any) => {
+        const accQty = item.accepted_quantity || 0;
+        const unitPrice = item.unit_price || 0;
+        subtotal += accQty * unitPrice;
+        totalDiscount += item.discount_amount || 0;
+        cgstTotal += item.cgst_amount || 0;
+        sgstTotal += item.sgst_amount || 0;
+        igstTotal += item.igst_amount || 0;
+      });
+
+      const totalTax = cgstTotal + sgstTotal + igstTotal;
+      const grandTotal = subtotal - totalDiscount + totalTax;
+
+      // Totals section (right-aligned)
+      const totalsX = 145;
+      pdf.setFontSize(9);
+      pdf.setFont('helvetica', 'normal');
+      
+      pdf.text('Subtotal:', totalsX, yPosition);
+      pdf.text(`INR ${Math.round(subtotal).toLocaleString()}`, 196, yPosition, { align: 'right' });
       yPosition += 6;
       
-      if (totalDiscount > 0) {
-        pdf.text('Discount:', totalXPos, yPosition);
-        pdf.text(`-₹${Math.round(totalDiscount).toLocaleString()}`, 180, yPosition);
-        yPosition += 6;
-      }
-      
       if (cgstTotal > 0) {
-        pdf.text('CGST:', totalXPos, yPosition);
-        pdf.text(`₹${Math.round(cgstTotal).toLocaleString()}`, 180, yPosition);
+        pdf.text(`CGST (${grnDetail.grn_line_items?.[0]?.cgst_rate || 0}%):`, totalsX, yPosition);
+        pdf.text(`INR ${Math.round(cgstTotal).toLocaleString()}`, 196, yPosition, { align: 'right' });
         yPosition += 6;
       }
       
       if (sgstTotal > 0) {
-        pdf.text('SGST:', totalXPos, yPosition);
-        pdf.text(`₹${Math.round(sgstTotal).toLocaleString()}`, 180, yPosition);
+        pdf.text(`SGST (${grnDetail.grn_line_items?.[0]?.sgst_rate || 0}%):`, totalsX, yPosition);
+        pdf.text(`INR ${Math.round(sgstTotal).toLocaleString()}`, 196, yPosition, { align: 'right' });
         yPosition += 6;
       }
       
-      pdf.setFontSize(12);
-      pdf.text('Total:', totalXPos, yPosition);
-      pdf.text(`₹${Math.round(subtotal - totalDiscount + totalTax).toLocaleString()}`, 180, yPosition);
+      if (igstTotal > 0) {
+        pdf.text(`IGST (${grnDetail.grn_line_items?.[0]?.igst_rate || 0}%):`, totalsX, yPosition);
+        pdf.text(`INR ${Math.round(igstTotal).toLocaleString()}`, 196, yPosition, { align: 'right' });
+        yPosition += 6;
+      }
+      
+      if (totalDiscount > 0) {
+        pdf.text('Discount:', totalsX, yPosition);
+        pdf.text(`-INR ${Math.round(totalDiscount).toLocaleString()}`, 196, yPosition, { align: 'right' });
+        yPosition += 6;
+      }
+      
+      // Total line
+      yPosition += 2;
+      pdf.setFont('helvetica', 'bold');
+      pdf.setFontSize(11);
+      pdf.text('Total:', totalsX, yPosition);
+      pdf.text(`INR ${Math.round(grandTotal).toLocaleString()}`, 196, yPosition, { align: 'right' });
+      
+      // Amount in words
+      yPosition += 8;
+      pdf.setFontSize(8);
+      pdf.setFont('helvetica', 'italic');
+      pdf.text(`Amount in words: ${convertNumberToWords(Math.round(grandTotal))} Only`, 14, yPosition);
+
+      // Terms & Conditions section
+      yPosition += 10;
+      if (yPosition > 250) {
+        pdf.addPage();
+        yPosition = 20;
+      }
+      
+      pdf.setFillColor(240, 240, 240);
+      pdf.rect(14, yPosition, 182, 7, 'F');
+      pdf.setFontSize(11);
+      pdf.setFont('helvetica', 'bold');
+      pdf.setTextColor(70, 130, 180);
+      pdf.text('TERMS & CONDITIONS', 16, yPosition + 5);
+      
       yPosition += 12;
+      pdf.setFontSize(8);
+      pdf.setFont('helvetica', 'normal');
+      pdf.setTextColor(0, 0, 0);
+      
+      const terms = [
+        '1. All goods received are subject to quality inspection.',
+        '2. Damaged or defective items must be reported within 24 hours of receipt.',
+        '3. Payment terms as per purchase order agreement.',
+        '4. Any discrepancies in quantity or quality should be reported immediately.',
+        '5. This GRN serves as proof of goods received and accepted.'
+      ];
+      
+      terms.forEach(term => {
+        pdf.text(term, 16, yPosition);
+        yPosition += 5;
+      });
 
       // Notes section
       if (grnDetail.remarks) {
-        pdf.setFontSize(10);
+        yPosition += 5;
         pdf.setFont('helvetica', 'bold');
-        pdf.text('Notes:', 14, yPosition);
-        yPosition += 6;
+        pdf.text('Notes:', 16, yPosition);
+        yPosition += 5;
         pdf.setFont('helvetica', 'normal');
-        pdf.text(grnDetail.remarks.substring(0, 100), 14, yPosition);
-        yPosition += 10;
+        const remarks = pdf.splitTextToSize(grnDetail.remarks, 170);
+        pdf.text(remarks, 16, yPosition);
       }
 
       // Footer with signatures
-      yPosition = 260;
-      pdf.setFontSize(9);
-      pdf.text('Received By: _______________', 14, yPosition);
+      yPosition = 270;
+      pdf.setFontSize(8);
+      pdf.setFont('helvetica', 'normal');
+      pdf.text('Received By: _______________', 16, yPosition);
       pdf.text('Inspected By: _______________', 80, yPosition);
-      pdf.text('Approved By: _______________', 146, yPosition);
+      pdf.text('Approved By: _______________', 144, yPosition);
 
       pdf.save(`GRN_${grnDetail.grn_number}.pdf`);
 
@@ -637,6 +786,42 @@ export function GRNTable({ refreshTrigger, onView, onEdit, onDelete }: GRNTableP
         variant: "destructive",
       });
     }
+  };
+
+  // Helper function to convert number to words
+  const convertNumberToWords = (num: number): string => {
+    const ones = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine'];
+    const tens = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
+    const teens = ['Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'];
+    
+    if (num === 0) return 'Zero Rupees';
+    
+    const convertLessThanThousand = (n: number): string => {
+      if (n === 0) return '';
+      if (n < 10) return ones[n];
+      if (n < 20) return teens[n - 10];
+      if (n < 100) return tens[Math.floor(n / 10)] + (n % 10 !== 0 ? ' ' + ones[n % 10] : '');
+      return ones[Math.floor(n / 100)] + ' Hundred' + (n % 100 !== 0 ? ' ' + convertLessThanThousand(n % 100) : '');
+    };
+    
+    if (num < 1000) return 'Rupees ' + convertLessThanThousand(num);
+    if (num < 100000) {
+      const thousands = Math.floor(num / 1000);
+      const remainder = num % 1000;
+      return 'Rupees ' + convertLessThanThousand(thousands) + ' Thousand' + 
+             (remainder !== 0 ? ' ' + convertLessThanThousand(remainder) : '');
+    }
+    if (num < 10000000) {
+      const lakhs = Math.floor(num / 100000);
+      const remainder = num % 100000;
+      return 'Rupees ' + convertLessThanThousand(lakhs) + ' Lakh' + 
+             (remainder !== 0 ? ' ' + convertNumberToWords(remainder).replace('Rupees ', '') : '');
+    }
+    
+    const crores = Math.floor(num / 10000000);
+    const remainder = num % 10000000;
+    return 'Rupees ' + convertLessThanThousand(crores) + ' Crore' + 
+           (remainder !== 0 ? ' ' + convertNumberToWords(remainder).replace('Rupees ', '') : '');
   };
 
   // Pagination
