@@ -3114,14 +3114,12 @@ export function EnhancedReportsModule() {
                 <FileSpreadsheet className="h-4 w-4 mr-2" />
                 Excel
               </Button>
-              <Button variant="outline" size="sm" onClick={() => exportReport('pdf')}>
-                <FileText className="h-4 w-4 mr-2" />
-                PDF
-              </Button>
-              <Button variant="outline" size="sm" onClick={() => exportReport('json')}>
-                <Download className="h-4 w-4 mr-2" />
-                JSON
-              </Button>
+              {selectedReport?.startsWith('gstr') && (
+                <Button variant="outline" size="sm" onClick={() => exportReport('json')}>
+                  <Download className="h-4 w-4 mr-2" />
+                  JSON
+                </Button>
+              )}
             </div>
           </div>
         </div>
