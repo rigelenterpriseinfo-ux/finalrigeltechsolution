@@ -419,6 +419,23 @@ export function PurchaseOrderTable({
         return;
       }
 
+      // Fetch purchase order items
+      const { data: poItems, error: itemsError } = await supabase
+        .from('purchase_order_items')
+        .select('*')
+        .eq('purchase_order_id', order.id)
+        .order('created_at', { ascending: true });
+
+      if (itemsError) {
+        console.error('Error fetching PO items:', itemsError);
+        toast({
+          title: "Error",
+          description: "Failed to fetch purchase order items",
+          variant: "destructive",
+        });
+        return;
+      }
+
       const doc = new jsPDF();
       let yPos = 15;
       
@@ -603,37 +620,29 @@ export function PurchaseOrderTable({
       
       yPos += 12;
       
-      // Sample line items - In real scenario, fetch from purchase_order_items table
-      const lineItems = [
-        { 
-          sno: 1, 
-          code: 'PROD001', 
-          desc: 'Sample Product Item 1', 
-          hsn: '8517', 
-          qty: 10, 
-          uom: 'PCS', 
-          rate: 1000.00, 
-          disc: 5,
-          discAmt: 500.00, // 10 * 1000 * 0.05
-          tax: 18,
-          taxAmt: 1710.00, // (10000 - 500) * 0.18
-          amount: 11210.00 
-        },
-        { 
-          sno: 2, 
-          code: 'PROD002', 
-          desc: 'Sample Product Item 2', 
-          hsn: '8518', 
-          qty: 5, 
-          uom: 'PCS', 
-          rate: 2000.00, 
-          disc: 0,
-          discAmt: 0.00,
-          tax: 18,
-          taxAmt: 1800.00, // 10000 * 0.18
-          amount: 11800.00 
-        }
-      ];
+      // Map actual purchase order items from database
+      const lineItems = (poItems || []).map((item: any, index: number) => {
+        const subtotal = item.quantity * item.unit_price;
+        const discountAmount = (subtotal * (item.discount_percentage || 0)) / 100;
+        const subtotalAfterDiscount = subtotal - discountAmount;
+        const taxAmount = (item.cgst_amount || 0) + (item.sgst_amount || 0) + (item.igst_amount || 0);
+        const totalTaxRate = (item.cgst_rate || 0) + (item.sgst_rate || 0) + (item.igst_rate || 0);
+        
+        return {
+          sno: index + 1,
+          code: item.item_code || item.product_sku || 'N/A',
+          desc: item.item_description || item.product_name || 'Item',
+          hsn: item.hsn_sac_code || '-',
+          qty: item.quantity || 0,
+          uom: item.unit_of_measure || 'PCS',
+          rate: item.unit_price || 0,
+          disc: item.discount_percentage || 0,
+          discAmt: discountAmount,
+          tax: totalTaxRate,
+          taxAmt: taxAmount,
+          amount: item.line_total || (subtotalAfterDiscount + taxAmount)
+        };
+      });
       
       doc.setFont('helvetica', 'normal');
       doc.setTextColor(0, 0, 0);
@@ -663,13 +672,13 @@ export function PurchaseOrderTable({
         doc.text(item.uom, colPositions.uom, yPos + 4);
         doc.text(item.rate.toFixed(2), colPositions.rate, yPos + 4, { align: 'right' });
         doc.text(item.disc.toString(), colPositions.discPct, yPos + 4, { align: 'right' });
-        doc.text(item.discAmt.toFixed(2), colPositions.discAmt, yPos + 4, { align: 'right' });
+        doc.text(Math.round(item.discAmt).toString(), colPositions.discAmt, yPos + 4, { align: 'right' });
         doc.text(item.tax.toString(), colPositions.taxPct, yPos + 4, { align: 'right' });
-        doc.text(item.taxAmt.toFixed(2), colPositions.taxAmt, yPos + 4, { align: 'right' });
+        doc.text(Math.round(item.taxAmt).toString(), colPositions.taxAmt, yPos + 4, { align: 'right' });
         
-        // Amount in bold
+        // Amount in bold without decimals
         doc.setFont('helvetica', 'bold');
-        doc.text(item.amount.toFixed(2), colPositions.amount, yPos + 4, { align: 'right' });
+        doc.text(Math.round(item.amount).toString(), colPositions.amount, yPos + 4, { align: 'right' });
         doc.setFont('helvetica', 'normal');
         
         yPos += 9;
@@ -695,20 +704,20 @@ export function PurchaseOrderTable({
       doc.setTextColor(60, 60, 60);
       
       doc.text('Subtotal:', totalsX, yPos);
-      doc.text(`${fullPO.currency} ${subtotal.toFixed(2)}`, 193, yPos, { align: 'right' });
+      doc.text(`${fullPO.currency} ${Math.round(subtotal).toLocaleString('en-IN')}`, 193, yPos, { align: 'right' });
       
       yPos += 5;
       doc.text('CGST (9%):', totalsX, yPos);
-      doc.text(`${fullPO.currency} ${cgst.toFixed(2)}`, 193, yPos, { align: 'right' });
+      doc.text(`${fullPO.currency} ${Math.round(cgst).toLocaleString('en-IN')}`, 193, yPos, { align: 'right' });
       
       yPos += 5;
       doc.text('SGST (9%):', totalsX, yPos);
-      doc.text(`${fullPO.currency} ${sgst.toFixed(2)}`, 193, yPos, { align: 'right' });
+      doc.text(`${fullPO.currency} ${Math.round(sgst).toLocaleString('en-IN')}`, 193, yPos, { align: 'right' });
       
       yPos += 5;
       if (fullPO.total_discount_amount && fullPO.total_discount_amount > 0) {
         doc.text('Discount:', totalsX, yPos);
-        doc.text(`${fullPO.currency} ${fullPO.total_discount_amount.toFixed(2)}`, 193, yPos, { align: 'right' });
+        doc.text(`${fullPO.currency} ${Math.round(fullPO.total_discount_amount).toLocaleString('en-IN')}`, 193, yPos, { align: 'right' });
         yPos += 5;
       }
       
@@ -725,9 +734,9 @@ export function PurchaseOrderTable({
       doc.setFont('helvetica', 'bold');
       doc.setTextColor(0, 0, 0);
       
-      // Changed label to "Total:"
+      // Changed label to "Total:" - Remove decimals
       doc.text('Total:', totalsX, yPos);
-      doc.text(`${fullPO.currency} ${fullPO.total_amount.toFixed(2)}`, 193, yPos, { align: 'right' });
+      doc.text(`${fullPO.currency} ${Math.round(fullPO.total_amount).toLocaleString('en-IN')}`, 193, yPos, { align: 'right' });
       
       yPos += 8;
       
