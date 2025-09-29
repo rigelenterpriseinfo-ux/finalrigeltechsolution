@@ -77,6 +77,9 @@ export const DraggableWidgets: React.FC<DraggableWidgetsProps> = ({ onNavigate }
   const [salesTrendData, setSalesTrendData] = useState<SalesTrendItem[]>([]);
   const [backorderData, setBackorderData] = useState<BackorderData[]>([]);
   const [loading, setLoading] = useState(true);
+  const [topVendorsPendingPO, setTopVendorsPendingPO] = useState<Array<{vendor: string, value: number}>>([]);
+  const [totalOpenPOData, setTotalOpenPOData] = useState<{qty: number, value: number}>({qty: 0, value: 0});
+  const [topPendingItems, setTopPendingItems] = useState<Array<{item: string, qty: number}>>([]);
 
   // Fetch warehouse and bin wise good stock data
   const fetchGoodStockData = async () => {
@@ -239,6 +242,34 @@ export const DraggableWidgets: React.FC<DraggableWidgetsProps> = ({ onNavigate }
     if (!profile?.company_id) return;
     
     try {
+      // Fetch top 3 vendors with pending POs
+      const { data: poData, error: poError } = await supabase
+        .from('purchase_orders')
+        .select('supplier_id, total_amount, supplier:suppliers(name)')
+        .eq('company_id', profile.company_id)
+        .in('status', ['draft', 'open', 'partially_received'])
+        .order('total_amount', { ascending: false });
+
+      if (poError) throw poError;
+
+      if (poData) {
+        // Group by supplier and sum values
+        const vendorMap = new Map<string, number>();
+        poData.forEach(po => {
+          const supplierName = po.supplier?.name || 'Unknown';
+          const current = vendorMap.get(supplierName) || 0;
+          vendorMap.set(supplierName, current + Number(po.total_amount));
+        });
+
+        const topVendors = Array.from(vendorMap.entries())
+          .map(([vendor, value]) => ({ vendor, value }))
+          .sort((a, b) => b.value - a.value)
+          .slice(0, 3);
+
+        setTopVendorsPendingPO(topVendors);
+      }
+
+      // Keep original backorder data for backward compatibility
       const { data } = await supabase
         .from('backorder_items')
         .select(`
@@ -271,6 +302,77 @@ export const DraggableWidgets: React.FC<DraggableWidgetsProps> = ({ onNavigate }
       }
     } catch (error) {
       console.error('Error fetching backorder data:', error);
+      setTopVendorsPendingPO([]);
+    }
+  };
+
+  // Fetch total open PO qty and value
+  const fetchTotalOpenPOData = async () => {
+    if (!profile?.company_id) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from('purchase_orders')
+        .select(`
+          total_amount,
+          purchase_order_items(pending_quantity)
+        `)
+        .eq('company_id', profile.company_id)
+        .in('status', ['draft', 'open', 'partially_received']);
+
+      if (error) throw error;
+
+      if (data) {
+        let totalQty = 0;
+        let totalValue = 0;
+        
+        data.forEach(po => {
+          totalValue += Number(po.total_amount) || 0;
+          if (po.purchase_order_items) {
+            po.purchase_order_items.forEach((item: any) => {
+              totalQty += item.pending_quantity || 0;
+            });
+          }
+        });
+
+        setTotalOpenPOData({ qty: totalQty, value: totalValue });
+      }
+    } catch (error) {
+      console.error('Error fetching open PO data:', error);
+      setTotalOpenPOData({ qty: 0, value: 0 });
+    }
+  };
+
+  // Fetch top 5 items pending to receive
+  const fetchTopPendingItems = async () => {
+    if (!profile?.company_id) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from('purchase_order_items')
+        .select(`
+          product:products(name),
+          pending_quantity,
+          purchase_order:purchase_orders!inner(company_id, status)
+        `)
+        .eq('purchase_order.company_id', profile.company_id)
+        .in('purchase_order.status', ['draft', 'open', 'partially_received'])
+        .gt('pending_quantity', 0)
+        .order('pending_quantity', { ascending: false })
+        .limit(5);
+
+      if (error) throw error;
+
+      if (data) {
+        const items = data.map(item => ({
+          item: item.product?.name || 'Unknown',
+          qty: item.pending_quantity
+        }));
+        setTopPendingItems(items);
+      }
+    } catch (error) {
+      console.error('Error fetching top pending items:', error);
+      setTopPendingItems([]);
     }
   };
 
@@ -284,7 +386,9 @@ export const DraggableWidgets: React.FC<DraggableWidgetsProps> = ({ onNavigate }
         fetchLowStockItems(),
         fetchTopValueItems(),
         fetchSalesTrendData(),
-        fetchBackorderData()
+        fetchBackorderData(),
+        fetchTotalOpenPOData(),
+        fetchTopPendingItems()
       ]);
       setLoading(false);
     };
@@ -440,23 +544,79 @@ export const DraggableWidgets: React.FC<DraggableWidgetsProps> = ({ onNavigate }
               <div className={cn("p-1 rounded", widget.color)}>
                 <Icon className="h-4 w-4" />
               </div>
-              <span className="text-xs font-medium">Backorders</span>
+              <span className="text-xs font-medium">Top 3 Vendors - Pending PO</span>
             </div>
             {loading ? (
               <div className="text-xs text-muted-foreground">Loading...</div>
-            ) : backorderData.length === 0 ? (
+            ) : topVendorsPendingPO.length === 0 ? (
               <div className="text-xs text-muted-foreground text-center py-2">
-                No pending backorders
+                No pending POs
               </div>
             ) : (
               <div className="space-y-1 text-xs">
-                {backorderData.slice(0, 2).map((item, idx) => (
+                {topVendorsPendingPO.map((vendor, idx) => (
                   <div key={idx} className="space-y-0.5">
-                    <div className="font-medium text-xs">{item.warehouse_name}</div>
+                    <div className="font-medium text-xs truncate">{vendor.vendor}</div>
                     <div className="flex justify-between text-xs">
-                      <span>Qty: {item.total_qty}</span>
-                      <span>₹{item.total_value.toFixed(0)}</span>
+                      <span>Value:</span>
+                      <span>₹{vendor.value.toLocaleString()}</span>
                     </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        );
+
+      case 'mail':
+        return (
+          <div className="h-full flex flex-col">
+            <div className="flex items-center gap-2 mb-2">
+              <div className={cn("p-1 rounded", widget.color)}>
+                <Icon className="h-4 w-4" />
+              </div>
+              <span className="text-xs font-medium">Total Open PO</span>
+            </div>
+            {loading ? (
+              <div className="text-xs text-muted-foreground">Loading...</div>
+            ) : (
+              <div className="space-y-2 text-xs">
+                <div className="space-y-1">
+                  <div className="flex justify-between items-center">
+                    <span className="text-muted-foreground">Quantity:</span>
+                    <span className="font-semibold">{totalOpenPOData.qty.toLocaleString()}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-muted-foreground">Value:</span>
+                    <span className="font-semibold">₹{totalOpenPOData.value.toLocaleString()}</span>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        );
+
+      case 'payments':
+        return (
+          <div className="h-full flex flex-col">
+            <div className="flex items-center gap-2 mb-2">
+              <div className={cn("p-1 rounded", widget.color)}>
+                <Icon className="h-4 w-4" />
+              </div>
+              <span className="text-xs font-medium">Top 5 Items - Pending Receipt</span>
+            </div>
+            {loading ? (
+              <div className="text-xs text-muted-foreground">Loading...</div>
+            ) : topPendingItems.length === 0 ? (
+              <div className="text-xs text-muted-foreground text-center py-2">
+                No pending items
+              </div>
+            ) : (
+              <div className="space-y-1 text-xs">
+                {topPendingItems.map((item, idx) => (
+                  <div key={idx} className="flex justify-between items-center">
+                    <span className="text-xs truncate flex-1">{item.item}</span>
+                    <span className="font-semibold ml-2">Qty: {item.qty}</span>
                   </div>
                 ))}
               </div>
