@@ -386,6 +386,161 @@ export function EnhancedReportsModule() {
     return { tableData, chartData, invoiceWiseData };
   };
 
+  const fetchStockAgingData = async () => {
+    if (!company?.id) {
+      return { tableData: [], chartData: [] };
+    }
+
+    // Fetch stock aging data with products
+    const { data: agingData, error: agingError } = await supabase
+      .from('current_stock_with_aging')
+      .select(`
+        *,
+        products!inner(
+          name,
+          sku,
+          product_category,
+          product_type,
+          weight_kg,
+          volume_cubic_cm,
+          hsn_code,
+          gst_percentage,
+          mrp,
+          unit_price,
+          cost_price,
+          category_id,
+          company_id
+        )
+      `)
+      .eq('products.company_id', company.id)
+      .gt('current_stock', 0);
+
+    if (agingError) throw agingError;
+
+    // Fetch all warehouse bins for this company
+    const { data: warehouseBins } = await supabase
+      .from('warehouse_bins')
+      .select('*')
+      .eq('company_id', company.id);
+
+    const warehouseBinMap = new Map(warehouseBins?.map(wb => [wb.id, wb]) || []);
+
+    // Fetch product categories
+    const { data: categories } = await supabase
+      .from('product_categories')
+      .select('id, name')
+      .eq('company_id', company.id);
+
+    const categoryMap = new Map(categories?.map(cat => [cat.id, cat.name]) || []);
+
+    // Process aging data
+    const tableData = agingData?.map((stock: any) => {
+      const product = stock.products;
+      if (!product) return null;
+
+      // Get warehouse and bin info
+      const warehouseBin = warehouseBinMap.get(stock.warehouse_id);
+      const binInfo = stock.bin_id ? warehouseBinMap.get(stock.bin_id) : null;
+      
+      const warehouseDisplay = warehouseBin?.warehouse_name 
+        ? `${warehouseBin.warehouse_name}${warehouseBin.warehouse_code ? ` (${warehouseBin.warehouse_code})` : ''}`
+        : 'N/A';
+      
+      const binDisplay = binInfo?.bin_name
+        ? `${binInfo.bin_name}${binInfo.wh_bin_code ? ` (${binInfo.wh_bin_code})` : ''}`
+        : (warehouseBin?.bin_name 
+          ? `${warehouseBin.bin_name}${warehouseBin.wh_bin_code ? ` (${warehouseBin.wh_bin_code})` : ''}`
+          : 'N/A');
+
+      const categoryName = product.category_id ? (categoryMap.get(product.category_id) || 'N/A') : 'N/A';
+
+      // Calculate total value
+      const totalValue = (stock.aging_0_30_value || 0) + 
+                        (stock.aging_31_90_value || 0) + 
+                        (stock.aging_91_180_value || 0) + 
+                        (stock.aging_181_365_value || 0) + 
+                        (stock.aging_365_plus_value || 0);
+
+      return {
+        productName: product.name,
+        sku: product.sku,
+        productType: product.product_type || 'N/A',
+        category: categoryName,
+        weightKg: product.weight_kg || 0,
+        volumeWeight: product.volume_cubic_cm || 0,
+        hsnSacCode: product.hsn_code || 'N/A',
+        gstRatePercent: product.gst_percentage || 0,
+        costPrice: product.cost_price || 0,
+        mrp: product.mrp || 0,
+        sellingPrice: product.unit_price || 0,
+        warehouseNameAndCode: warehouseDisplay,
+        binLocationAndCode: binDisplay,
+        currentStock: stock.current_stock || 0,
+        // Fresh (0-30 days)
+        freshQty: stock.aging_0_30_qty || 0,
+        freshValue: stock.aging_0_30_value || 0,
+        // Good (31-90 days)
+        goodQty: stock.aging_31_90_qty || 0,
+        goodValue: stock.aging_31_90_value || 0,
+        // Aging (91-180 days)
+        agingQty: stock.aging_91_180_qty || 0,
+        agingValue: stock.aging_91_180_value || 0,
+        // Slow (181-365 days)
+        slowQty: stock.aging_181_365_qty || 0,
+        slowValue: stock.aging_181_365_value || 0,
+        // Dead Stock (365+ days)
+        deadStockQty: stock.aging_365_plus_qty || 0,
+        deadStockValue: stock.aging_365_plus_value || 0,
+        // Summary
+        weightedAvgAgeDays: stock.weighted_avg_age_days || 0,
+        agingStatus: stock.aging_status || 'N/A',
+        totalValue: totalValue
+      };
+    }).filter(Boolean) || [];
+
+    // Chart data by aging buckets
+    const agingBuckets = tableData.reduce((acc: any, item: any) => {
+      acc.fresh = (acc.fresh || 0) + (item.freshValue || 0);
+      acc.good = (acc.good || 0) + (item.goodValue || 0);
+      acc.aging = (acc.aging || 0) + (item.agingValue || 0);
+      acc.slow = (acc.slow || 0) + (item.slowValue || 0);
+      acc.deadStock = (acc.deadStock || 0) + (item.deadStockValue || 0);
+      return acc;
+    }, {});
+
+    const total = agingBuckets.fresh + agingBuckets.good + agingBuckets.aging + agingBuckets.slow + agingBuckets.deadStock;
+    
+    const chartData = [
+      { 
+        name: 'Fresh (0-30 days)', 
+        value: agingBuckets.fresh, 
+        percentage: total ? Math.round((agingBuckets.fresh / total) * 100) : 0 
+      },
+      { 
+        name: 'Good (31-90 days)', 
+        value: agingBuckets.good, 
+        percentage: total ? Math.round((agingBuckets.good / total) * 100) : 0 
+      },
+      { 
+        name: 'Aging (91-180 days)', 
+        value: agingBuckets.aging, 
+        percentage: total ? Math.round((agingBuckets.aging / total) * 100) : 0 
+      },
+      { 
+        name: 'Slow (181-365 days)', 
+        value: agingBuckets.slow, 
+        percentage: total ? Math.round((agingBuckets.slow / total) * 100) : 0 
+      },
+      { 
+        name: 'Dead Stock (365+ days)', 
+        value: agingBuckets.deadStock, 
+        percentage: total ? Math.round((agingBuckets.deadStock / total) * 100) : 0 
+      }
+    ];
+
+    return { tableData, chartData };
+  };
+
   const fetchCurrentStockData = async () => {
     if (!company?.id) {
       return { tableData: [], chartData: [] };
@@ -2221,6 +2376,8 @@ export function EnhancedReportsModule() {
           return await fetchNetARAPData(filters);
         case 'current_stock':
           return await fetchCurrentStockData();
+        case 'stock_aging':
+          return await fetchStockAgingData();
         case 'customer_sales':
           return await fetchCustomerSalesData(filters);
         case 'gstr1':
@@ -3299,8 +3456,8 @@ export function EnhancedReportsModule() {
                 </Card>
               )}
 
-              {/* Report Table - Hidden for purchase_orders, customer_sales, current_stock, and stock_movement */}
-              {!['purchase_orders', 'customer_sales', 'current_stock', 'stock_movement'].includes(selectedReport) && (
+              {/* Report Table - Hidden for purchase_orders, customer_sales, current_stock, stock_movement, and stock_aging */}
+              {!['purchase_orders', 'customer_sales', 'current_stock', 'stock_movement', 'stock_aging'].includes(selectedReport) && (
                 <Card>
                   <CardHeader>
                     <CardTitle className="text-lg font-semibold">Report Data</CardTitle>
