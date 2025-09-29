@@ -1584,22 +1584,6 @@ export const DraggableWidgets: React.FC<DraggableWidgetsProps> = ({ onNavigate }
 
   return (
     <div className="space-y-8">
-      {/* Hero Section */}
-      <div className="flex items-start justify-between">
-        <div className="space-y-2">
-          <h2 className="text-3xl font-bold text-foreground tracking-tight">Dashboard Overview</h2>
-          <p className="text-sm text-muted-foreground max-w-2xl">
-            Monitor your business metrics and access key modules. Widgets are organized by business functions and can be rearranged within each section.
-          </p>
-        </div>
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-md bg-muted/50">
-            <Menu className="h-3.5 w-3.5" />
-            <span>Drag to rearrange</span>
-          </div>
-        </div>
-      </div>
-
       {/* Purchase & Procurement Section */}
       <div className="space-y-4">
         <div className="flex items-center gap-3 pb-3 border-b border-border/50">
