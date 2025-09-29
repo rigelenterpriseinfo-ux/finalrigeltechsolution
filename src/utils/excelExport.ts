@@ -16,6 +16,15 @@ export interface ExportOptions {
   companyName?: string;
 }
 
+// Sanitize sheet name to remove invalid Excel characters
+const sanitizeSheetName = (name: string): string => {
+  // Excel sheet names cannot contain: : \ / ? * [ ]
+  // Also limit to 31 characters (Excel limit)
+  return name
+    .replace(/[:\\/\?\*\[\]]/g, '-')
+    .substring(0, 31);
+};
+
 export const exportToExcel = ({
   filename,
   sheetName,
@@ -87,8 +96,8 @@ export const exportToExcel = ({
     }));
     worksheet['!cols'] = columnWidths;
 
-    // Add worksheet to workbook
-    XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
+    // Add worksheet to workbook with sanitized sheet name
+    XLSX.utils.book_append_sheet(workbook, worksheet, sanitizeSheetName(sheetName));
 
     // Generate and download file
     const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
