@@ -546,89 +546,162 @@ export function EnhancedReportsModule() {
       return { tableData: [], chartData: [] };
     }
 
-    // Fetch backorder items with customer and product details
-    const { data: backorderData, error: backorderError } = await supabase
-      .from('backorder_items')
+    // Fetch sales order items with pending/backorder quantities
+    const { data: orderItems, error: itemsError } = await supabase
+      .from('sales_order_items')
       .select(`
         *,
-        customers!inner(
-          name,
-          customer_ref,
-          email,
-          phone
+        sales_orders!inner(
+          id,
+          order_number,
+          order_date,
+          customer_id,
+          status,
+          total_amount
         ),
         products!inner(
           name,
           sku,
-          unit_price,
-          cost_price
+          unit,
+          hsn_code
         )
       `)
-      .eq('company_id', company.id)
-      .gte('created_at', format(filters.dateRange.from, 'yyyy-MM-dd'))
-      .lte('created_at', format(filters.dateRange.to, 'yyyy-MM-dd'))
-      .order('created_at', { ascending: false });
+      .eq('sales_orders.company_id', company.id)
+      .gt('back_order_quantity', 0)
+      .gte('sales_orders.order_date', format(filters.dateRange.from, 'yyyy-MM-dd'))
+      .lte('sales_orders.order_date', format(filters.dateRange.to, 'yyyy-MM-dd'))
+      .order('sales_orders.order_date', { ascending: false });
 
-    if (backorderError) throw backorderError;
+    if (itemsError) throw itemsError;
 
-    // Fetch warehouse bins for location info
-    const { data: warehouseBins } = await supabase
-      .from('warehouse_bins')
-      .select('*')
-      .eq('company_id', company.id);
+    // Get unique customer IDs to fetch customer details
+    const customerIds = [...new Set(orderItems?.map(item => item.sales_orders.customer_id).filter(Boolean))];
+    
+    const { data: customers } = await supabase
+      .from('customers')
+      .select('id, name, customer_ref')
+      .in('id', customerIds);
 
-    const warehouseBinMap = new Map(warehouseBins?.map(wb => [wb.id, wb]) || []);
+    const customerMap = new Map(customers?.map(c => [c.id, c]) || []);
 
-    // Process backorder data
-    const tableData = backorderData?.map((item: any) => {
-      const customer = item.customers;
+    // Fetch delivered quantities from sales invoices
+    const orderItemIds = orderItems?.map(item => item.id) || [];
+    const { data: invoiceItems } = await supabase
+      .from('sales_invoice_items')
+      .select(`
+        product_id,
+        quantity_invoiced,
+        sales_invoices!inner(
+          sales_order_id,
+          status
+        )
+      `)
+      .in('sales_invoices.sales_order_id', [...new Set(orderItems?.map(item => item.sales_orders.id))])
+      .eq('sales_invoices.status', 'finalized');
+
+    // Calculate delivered quantities by order and product
+    const deliveredQtyMap = new Map<string, number>();
+    invoiceItems?.forEach((invoiceItem: any) => {
+      const key = `${invoiceItem.sales_invoices.sales_order_id}_${invoiceItem.product_id}`;
+      deliveredQtyMap.set(key, (deliveredQtyMap.get(key) || 0) + (invoiceItem.quantity_invoiced || 0));
+    });
+
+    // Process data
+    const tableData = orderItems?.map((item: any) => {
+      const order = item.sales_orders;
       const product = item.products;
+      const customer = customerMap.get(order.customer_id);
       
-      // Get warehouse and bin info
-      const warehouseBin = item.warehouse_id ? warehouseBinMap.get(item.warehouse_id) : null;
-      const binInfo = item.bin_id ? warehouseBinMap.get(item.bin_id) : null;
+      // Calculate quantities
+      const orderedQty = item.quantity || item.ordered_quantity || 0;
+      const deliveredKey = `${order.id}_${item.product_id}`;
+      const deliveredQty = deliveredQtyMap.get(deliveredKey) || 0;
+      const pendingQty = item.back_order_quantity || (orderedQty - deliveredQty);
       
-      const warehouseDisplay = warehouseBin?.warehouse_name 
-        ? `${warehouseBin.warehouse_name}${warehouseBin.warehouse_code ? ` (${warehouseBin.warehouse_code})` : ''}`
-        : 'Not Assigned';
+      // Calculate financial details
+      const unitPrice = item.unit_price || 0;
+      const discountPercentage = item.discount_percentage || 0;
+      const gstRate = (item.cgst_rate || 0) + (item.sgst_rate || 0) + (item.igst_rate || 0);
       
-      const binDisplay = binInfo?.bin_name
-        ? `${binInfo.bin_name}${binInfo.wh_bin_code ? ` (${binInfo.wh_bin_code})` : ''}`
-        : 'Not Assigned';
-
-      const backorderValue = item.quantity_backordered * item.unit_price;
-      const daysOpen = Math.floor((new Date().getTime() - new Date(item.created_at).getTime()) / (1000 * 60 * 60 * 24));
+      // Calculate taxable amount (after discount, before tax)
+      const lineSubtotal = orderedQty * unitPrice;
+      const discountAmount = (lineSubtotal * discountPercentage) / 100;
+      const taxableAmount = lineSubtotal - discountAmount;
+      
+      // Total order line amount (with tax)
+      const totalLineAmount = item.total_price || taxableAmount * (1 + gstRate / 100);
+      
+      // Pending order amount
+      const pendingAmount = (pendingQty * unitPrice * (1 - discountPercentage / 100)) * (1 + gstRate / 100);
+      
+      // Calculate days pending
+      const orderDate = new Date(order.order_date);
+      const daysPending = Math.floor((new Date().getTime() - orderDate.getTime()) / (1000 * 60 * 60 * 24));
 
       return {
-        backorderDate: format(new Date(item.created_at), 'dd-MMM-yyyy'),
-        customerName: customer?.name || 'Unknown Customer',
+        customerName: customer?.name || 'Unknown',
         customerRef: customer?.customer_ref || 'N/A',
-        contactInfo: customer?.email || customer?.phone || 'N/A',
-        productName: product?.name || 'Unknown Product',
-        sku: product?.sku || 'N/A',
-        quantityBackordered: item.quantity_backordered || 0,
-        unitPrice: item.unit_price || 0,
-        backorderValue: backorderValue,
-        warehouseNameAndCode: warehouseDisplay,
-        binLocationAndCode: binDisplay,
-        status: item.status || 'pending',
-        daysOpen: daysOpen,
-        priority: daysOpen > 30 ? 'High' : daysOpen > 15 ? 'Medium' : 'Low'
+        salesOrderNo: order.order_number || 'N/A',
+        salesOrderDate: format(new Date(order.order_date), 'dd-MMM-yyyy'),
+        productName: product?.name || 'Unknown',
+        productSku: product?.sku || 'N/A',
+        hsnCode: product?.hsn_code || 'N/A',
+        unit: product?.unit || 'pcs',
+        orderedQty: orderedQty,
+        deliveredQty: deliveredQty,
+        pendingQty: pendingQty,
+        unitPrice: unitPrice,
+        gstPercentage: gstRate,
+        discountPercentage: discountPercentage,
+        taxableAmount: Math.round(taxableAmount * 100) / 100,
+        totalSalesOrderAmount: Math.round(totalLineAmount * 100) / 100,
+        pendingOrderAmount: Math.round(pendingAmount * 100) / 100,
+        orderStatus: order.status || 'confirmed',
+        daysPending: daysPending,
+        priority: daysPending > 30 ? 'High' : daysPending > 15 ? 'Medium' : 'Low'
       };
     }) || [];
 
-    // Chart data by status
-    const statusBreakdown = tableData.reduce((acc: any, item: any) => {
-      const status = item.status.charAt(0).toUpperCase() + item.status.slice(1);
-      acc[status] = (acc[status] || 0) + item.backorderValue;
-      return acc;
-    }, {});
+    // Chart data - Pending amount by customer (Top 5)
+    const customerPendingMap = new Map<string, { name: string; amount: number; count: number }>();
+    tableData.forEach(item => {
+      const existing = customerPendingMap.get(item.customerName) || { name: item.customerName, amount: 0, count: 0 };
+      existing.amount += item.pendingOrderAmount;
+      existing.count += 1;
+      customerPendingMap.set(item.customerName, existing);
+    });
 
-    const chartData = Object.entries(statusBreakdown).map(([name, value]: [string, any]) => ({
-      name,
-      value,
-      count: tableData.filter(item => item.status.charAt(0).toUpperCase() + item.status.slice(1) === name).length
-    }));
+    const customerChartData = Array.from(customerPendingMap.values())
+      .sort((a, b) => b.amount - a.amount)
+      .slice(0, 5)
+      .map(item => ({
+        name: item.name,
+        value: Math.round(item.amount * 100) / 100,
+        count: item.count
+      }));
+
+    // Product pending quantity chart (Top 10)
+    const productPendingMap = new Map<string, { name: string; quantity: number; amount: number }>();
+    tableData.forEach(item => {
+      const existing = productPendingMap.get(item.productName) || { name: item.productName, quantity: 0, amount: 0 };
+      existing.quantity += item.pendingQty;
+      existing.amount += item.pendingOrderAmount;
+      productPendingMap.set(item.productName, existing);
+    });
+
+    const productChartData = Array.from(productPendingMap.values())
+      .sort((a, b) => b.quantity - a.quantity)
+      .slice(0, 10)
+      .map(item => ({
+        name: item.name.length > 20 ? item.name.substring(0, 20) + '...' : item.name,
+        quantity: item.quantity,
+        value: Math.round(item.amount * 100) / 100
+      }));
+
+    const chartData = [
+      { type: 'customer', data: customerChartData },
+      { type: 'product', data: productChartData }
+    ];
 
     return { tableData, chartData };
   };
@@ -3624,8 +3697,120 @@ export function EnhancedReportsModule() {
             </div>
           ) : (
             <div className="space-y-6">
+              {/* Backorder Report Specific Charts */}
+              {selectedReport === 'backorder_report' && chartData.length > 0 && (
+                <>
+                  {/* Summary Cards */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                    <Card>
+                      <CardContent className="pt-6">
+                        <div className="text-sm font-medium text-muted-foreground mb-1">Total Pending Orders</div>
+                        <div className="text-2xl font-bold">{reportData.length}</div>
+                        <div className="text-xs text-muted-foreground mt-1">
+                          Across {new Set(reportData.map((r: any) => r.customerName)).size} customers
+                        </div>
+                      </CardContent>
+                    </Card>
+                    <Card>
+                      <CardContent className="pt-6">
+                        <div className="text-sm font-medium text-muted-foreground mb-1">Total Pending Value</div>
+                        <div className="text-2xl font-bold">
+                          ₹{Number(reportData.reduce((sum: number, item: any) => sum + (item.pendingOrderAmount || 0), 0)).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                        </div>
+                        <div className="text-xs text-muted-foreground mt-1">
+                          {reportData.reduce((sum: number, item: any) => sum + (item.pendingQty || 0), 0)} units pending
+                        </div>
+                      </CardContent>
+                    </Card>
+                    <Card>
+                      <CardContent className="pt-6">
+                        <div className="text-sm font-medium text-muted-foreground mb-1">Average Days Pending</div>
+                        <div className="text-2xl font-bold">
+                          {Math.round(reportData.reduce((sum: number, item: any) => sum + (item.daysPending || 0), 0) / reportData.length)} days
+                        </div>
+                        <div className="text-xs text-muted-foreground mt-1">
+                          {reportData.filter((r: any) => r.priority === 'High').length} high priority orders
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </div>
+
+                  {/* Charts Grid */}
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <Card>
+                      <CardHeader>
+                        <CardTitle className="text-lg font-semibold">Top 5 Customers by Pending Value</CardTitle>
+                        <CardDescription>Customers with highest pending order amounts</CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <ResponsiveContainer width="100%" height={350}>
+                          <PieChart>
+                            <Pie
+                              data={(chartData as any)[0]?.data || []}
+                              cx="50%"
+                              cy="50%"
+                              innerRadius={60}
+                              outerRadius={120}
+                              dataKey="value"
+                              label={({ name, value }) => `₹${Number(value).toLocaleString('en-IN', { maximumFractionDigits: 0 })}`}
+                              labelLine={true}
+                            >
+                              {((chartData as any)[0]?.data || []).map((entry: any, index: number) => (
+                                <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
+                              ))}
+                            </Pie>
+                            <Tooltip 
+                              formatter={(value, name, props) => [
+                                `₹${Number(value).toLocaleString('en-IN', { maximumFractionDigits: 0 })}`,
+                                `${props.payload.count} orders`
+                              ]}
+                              labelFormatter={(label) => label}
+                              contentStyle={{
+                                backgroundColor: 'hsl(var(--card))',
+                                border: '1px solid hsl(var(--border))',
+                                borderRadius: '6px',
+                                fontSize: '14px'
+                              }}
+                            />
+                          </PieChart>
+                        </ResponsiveContainer>
+                      </CardContent>
+                    </Card>
+
+                    <Card>
+                      <CardHeader>
+                        <CardTitle className="text-lg font-semibold">Top 10 Products by Pending Quantity</CardTitle>
+                        <CardDescription>Products with highest pending order quantities</CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <ResponsiveContainer width="100%" height={350}>
+                          <BarChart data={(chartData as any)[1]?.data || []} layout="vertical">
+                            <CartesianGrid strokeDasharray="3 3" />
+                            <XAxis type="number" />
+                            <YAxis type="category" dataKey="name" width={100} />
+                            <Tooltip 
+                              formatter={(value, name) => [
+                                name === 'quantity' ? `${value} units` : `₹${Number(value).toLocaleString('en-IN')}`,
+                                name === 'quantity' ? 'Pending Quantity' : 'Pending Value'
+                              ]}
+                              contentStyle={{
+                                backgroundColor: 'hsl(var(--card))',
+                                border: '1px solid hsl(var(--border))',
+                                borderRadius: '6px',
+                                fontSize: '14px'
+                              }}
+                            />
+                            <Bar dataKey="quantity" fill="#0ea5e9" />
+                          </BarChart>
+                        </ResponsiveContainer>
+                      </CardContent>
+                    </Card>
+                  </div>
+                </>
+              )}
+
               {/* Charts */}
-              {chartData.length > 0 && (
+              {chartData.length > 0 && selectedReport !== 'backorder_report' && (
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                   <Card>
                     <CardHeader>
