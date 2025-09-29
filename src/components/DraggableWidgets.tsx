@@ -113,7 +113,7 @@ export const DraggableWidgets: React.FC<DraggableWidgetsProps> = ({ onNavigate }
           warehouse_id,
           bin_id,
           products!inner(name, cost_price, company_id),
-          warehouse_bins!current_stock_levels_warehouse_id_fkey(warehouse_name, bin_name)
+          warehouse_bins(warehouse_name, bin_name)
         `)
         .eq('products.company_id', profile.company_id)
         .gt('current_stock', 0);
