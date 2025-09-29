@@ -88,6 +88,9 @@ export const DraggableWidgets: React.FC<DraggableWidgetsProps> = ({ onNavigate }
   const [topRSOCustomers, setTopRSOCustomers] = useState<Array<{customer: string, value: number}>>([]);
   const [apAgingData, setAPAgingData] = useState<Array<{bucket: string, value: number}>>([]);
   const [arAgingData, setARAgingData] = useState<Array<{bucket: string, value: number}>>([]);
+  const [topARCustomers, setTopARCustomers] = useState<Array<{customer: string, value: number}>>([]);
+  const [topAPVendors, setTopAPVendors] = useState<Array<{vendor: string, value: number}>>([]);
+  const [shipmentCounts, setShipmentCounts] = useState<{in_transit: number, pending: number, dispatched: number}>({in_transit: 0, pending: 0, dispatched: 0});
 
   // Fetch warehouse and bin wise good stock data
   const fetchGoodStockData = async () => {
@@ -534,6 +537,117 @@ export const DraggableWidgets: React.FC<DraggableWidgetsProps> = ({ onNavigate }
     }
   };
 
+  // Fetch top 5 customers with highest AR
+  const fetchTopARCustomers = async () => {
+    if (!profile?.company_id) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from('sales_orders')
+        .select('customer_id, total_amount, customer:customers(name)')
+        .eq('company_id', profile.company_id)
+        .in('status', ['confirmed', 'partially_delivered'])
+        .order('total_amount', { ascending: false });
+
+      if (error) throw error;
+
+      if (data) {
+        // Group by customer and sum values
+        const customerMap = new Map<string, number>();
+        data.forEach(so => {
+          const customerName = so.customer?.name || 'Unknown';
+          const current = customerMap.get(customerName) || 0;
+          customerMap.set(customerName, current + Number(so.total_amount));
+        });
+
+        const topCustomers = Array.from(customerMap.entries())
+          .map(([customer, value]) => ({ customer, value }))
+          .sort((a, b) => b.value - a.value)
+          .slice(0, 5);
+
+        setTopARCustomers(topCustomers);
+      }
+    } catch (error) {
+      console.error('Error fetching top AR customers:', error);
+      setTopARCustomers([]);
+    }
+  };
+
+  // Fetch top 5 vendors with highest AP
+  const fetchTopAPVendors = async () => {
+    if (!profile?.company_id) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from('purchase_orders')
+        .select('supplier_id, total_amount, supplier:suppliers(name)')
+        .eq('company_id', profile.company_id)
+        .in('status', ['open', 'partially_received'])
+        .order('total_amount', { ascending: false });
+
+      if (error) throw error;
+
+      if (data) {
+        // Group by supplier and sum values
+        const vendorMap = new Map<string, number>();
+        data.forEach(po => {
+          const vendorName = po.supplier?.name || 'Unknown';
+          const current = vendorMap.get(vendorName) || 0;
+          vendorMap.set(vendorName, current + Number(po.total_amount));
+        });
+
+        const topVendors = Array.from(vendorMap.entries())
+          .map(([vendor, value]) => ({ vendor, value }))
+          .sort((a, b) => b.value - a.value)
+          .slice(0, 5);
+
+        setTopAPVendors(topVendors);
+      }
+    } catch (error) {
+      console.error('Error fetching top AP vendors:', error);
+      setTopAPVendors([]);
+    }
+  };
+
+  // Fetch shipment counts by category
+  const fetchShipmentCounts = async () => {
+    if (!profile?.company_id) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from('debit_notes')
+        .select('tracking_status')
+        .eq('company_id', profile.company_id)
+        .not('tracking_status', 'is', null);
+
+      if (error) throw error;
+
+      if (data) {
+        const counts = {
+          in_transit: 0,
+          pending: 0,
+          dispatched: 0
+        };
+
+        data.forEach(item => {
+          const status = item.tracking_status?.toLowerCase() || '';
+          if (status.includes('transit') || status.includes('in_transit')) {
+            counts.in_transit++;
+          } else if (status.includes('pending')) {
+            counts.pending++;
+          } else if (status.includes('dispatch')) {
+            counts.dispatched++;
+          }
+        });
+
+        setShipmentCounts(counts);
+      }
+    } catch (error) {
+      console.error('Error fetching shipment counts:', error);
+      setShipmentCounts({in_transit: 0, pending: 0, dispatched: 0});
+    }
+  };
+
   // Fetch all data on component mount
   useEffect(() => {
     const fetchAllData = async () => {
@@ -554,7 +668,10 @@ export const DraggableWidgets: React.FC<DraggableWidgetsProps> = ({ onNavigate }
         fetchOpenRSOData(),
         fetchTopRSOCustomers(),
         fetchAPAgingData(),
-        fetchARAgingData()
+        fetchARAgingData(),
+        fetchTopARCustomers(),
+        fetchTopAPVendors(),
+        fetchShipmentCounts()
       ]);
       setLoading(false);
   };
@@ -1161,6 +1278,98 @@ export const DraggableWidgets: React.FC<DraggableWidgetsProps> = ({ onNavigate }
                     <span className="font-semibold">₹{bucket.value.toLocaleString()}</span>
                   </div>
                 ))}
+              </div>
+            )}
+          </div>
+        );
+
+      case 'notifications':
+        return (
+          <div className="h-full flex flex-col">
+            <div className="flex items-center gap-2 mb-2">
+              <div className={cn("p-1 rounded", widget.color)}>
+                <Icon className="h-4 w-4" />
+              </div>
+              <span className="text-xs font-medium">Top 5 AR Customers</span>
+            </div>
+            {loading ? (
+              <div className="text-xs text-muted-foreground">Loading...</div>
+            ) : topARCustomers.length === 0 ? (
+              <div className="text-xs text-muted-foreground text-center py-2">
+                No AR data
+              </div>
+            ) : (
+              <div className="space-y-1 text-xs">
+                {topARCustomers.map((customer, idx) => (
+                  <div key={idx} className="space-y-0.5">
+                    <div className="font-medium text-xs truncate">{customer.customer}</div>
+                    <div className="flex justify-between text-xs">
+                      <span>AR:</span>
+                      <span>₹{customer.value.toLocaleString()}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        );
+
+      case 'timesheet':
+        return (
+          <div className="h-full flex flex-col">
+            <div className="flex items-center gap-2 mb-2">
+              <div className={cn("p-1 rounded", widget.color)}>
+                <Icon className="h-4 w-4" />
+              </div>
+              <span className="text-xs font-medium">Top 5 AP Vendors</span>
+            </div>
+            {loading ? (
+              <div className="text-xs text-muted-foreground">Loading...</div>
+            ) : topAPVendors.length === 0 ? (
+              <div className="text-xs text-muted-foreground text-center py-2">
+                No AP data
+              </div>
+            ) : (
+              <div className="space-y-1 text-xs">
+                {topAPVendors.map((vendor, idx) => (
+                  <div key={idx} className="space-y-0.5">
+                    <div className="font-medium text-xs truncate">{vendor.vendor}</div>
+                    <div className="flex justify-between text-xs">
+                      <span>AP:</span>
+                      <span>₹{vendor.value.toLocaleString()}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        );
+
+      case 'tracking':
+        return (
+          <div className="h-full flex flex-col">
+            <div className="flex items-center gap-2 mb-2">
+              <div className={cn("p-1 rounded", widget.color)}>
+                <Icon className="h-4 w-4" />
+              </div>
+              <span className="text-xs font-medium">Shipment Status</span>
+            </div>
+            {loading ? (
+              <div className="text-xs text-muted-foreground">Loading...</div>
+            ) : (
+              <div className="space-y-1 text-xs">
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground">In Transit:</span>
+                  <span className="font-semibold">{shipmentCounts.in_transit}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground">Pending:</span>
+                  <span className="font-semibold">{shipmentCounts.pending}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground">Dispatched:</span>
+                  <span className="font-semibold">{shipmentCounts.dispatched}</span>
+                </div>
               </div>
             )}
           </div>
