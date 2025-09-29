@@ -589,7 +589,7 @@ export function PurchaseOrderTable({
       doc.setFont('helvetica', 'bold');
       doc.setTextColor(255, 255, 255);
       
-      // Optimized column positions - compressed middle, expanded right
+      // Optimized column positions - more space between Disc% and Disc Amt
       const colPositions = {
         sno: 17,
         itemCode: 25,
@@ -597,7 +597,7 @@ export function PurchaseOrderTable({
         hsn: 75,
         qty: 88,
         rate: 104,
-        discPct: 120,
+        discPct: 118,
         discAmt: 136,
         taxPct: 155,
         taxAmt: 174,
