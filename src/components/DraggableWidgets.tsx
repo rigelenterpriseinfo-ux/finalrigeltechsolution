@@ -939,11 +939,11 @@ export const DraggableWidgets: React.FC<DraggableWidgetsProps> = ({ onNavigate }
       case 'logistics':
         return (
           <div className="h-full flex flex-col">
-            <div className="flex items-center gap-2 mb-3">
-              <div className={cn("p-1.5 rounded-md shadow-sm", widget.color)}>
-                <Icon className="h-4 w-4" />
+            <div className="flex items-center gap-1.5 mb-2">
+              <div className={cn("p-1 rounded-md shadow-sm", widget.color)}>
+                <Icon className="h-3.5 w-3.5" />
               </div>
-              <span className="text-xs font-semibold truncate">{widget.title}</span>
+              <span className="text-[10px] font-semibold truncate">{widget.title}</span>
             </div>
             {loading ? (
               <div className="flex items-center justify-center flex-1">
@@ -951,17 +951,17 @@ export const DraggableWidgets: React.FC<DraggableWidgetsProps> = ({ onNavigate }
               </div>
             ) : damageStockData.length === 0 ? (
               <div className="flex items-center justify-center flex-1">
-                <p className="text-xs text-muted-foreground text-center">No damage stock data</p>
+                <p className="text-[10px] text-muted-foreground text-center">No damage stock data</p>
               </div>
             ) : (
-              <div className="space-y-2 text-xs flex-1 overflow-hidden">
+              <div className="space-y-1.5 text-xs flex-1 overflow-hidden">
                 {damageStockData.slice(0, 3).map((item, idx) => (
-                  <div key={idx} className="p-2 rounded-md bg-destructive/10 hover:bg-destructive/20 transition-colors">
-                    <div className="space-y-1">
-                      <div className="font-semibold text-xs truncate">{item.warehouse_name}</div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-muted-foreground text-xs">{item.bin_name}</span>
-                        <span className="font-bold text-destructive text-xs whitespace-nowrap">₹{item.total_value.toFixed(0)}</span>
+                  <div key={idx} className="p-1.5 rounded-md bg-destructive/10 hover:bg-destructive/20 transition-colors">
+                    <div className="space-y-0.5">
+                      <div className="font-semibold text-[10px] truncate">{item.warehouse_name}</div>
+                      <div className="flex items-center justify-between gap-1">
+                        <span className="text-muted-foreground text-[10px] truncate flex-1 min-w-0">{item.bin_name}</span>
+                        <span className="font-bold text-destructive text-[10px] whitespace-nowrap">₹{(item.total_value / 1000).toFixed(1)}K</span>
                       </div>
                     </div>
                   </div>
