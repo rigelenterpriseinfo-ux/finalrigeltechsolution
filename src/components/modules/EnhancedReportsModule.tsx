@@ -111,8 +111,7 @@ const reportCategories: ReportCategory[] = [
       { id: 'stock_movement', name: 'Stock Movement / Ledger', description: 'Stock movement transactions', category: 'inventory', requiresFilters: ['dateRange'], dataFields: ['product', 'transaction', 'quantity', 'balance'] },
       { id: 'stock_aging', name: 'Stock Aging', description: 'Stock aging analysis', category: 'inventory', dataFields: ['product', 'age', 'quantity', 'value'] },
       { id: 'backorder_report', name: 'Backorder Report', description: 'Customer backorders pending fulfillment', category: 'inventory', requiresFilters: ['dateRange'], dataFields: ['customer', 'product', 'quantity', 'status'] },
-      { id: 'bom_consumption', name: 'BOM Consumption', description: 'Bill of materials consumption', category: 'inventory', requiresFilters: ['dateRange'], dataFields: ['product', 'consumed', 'cost'] },
-      { id: 'yield_report', name: 'Yield Report', description: 'Production yield analysis', category: 'inventory', requiresFilters: ['dateRange'], dataFields: ['product', 'produced', 'yield'] }
+      { id: 'bom_consumption', name: 'BOM Consumption', description: 'Bill of materials consumption', category: 'inventory', requiresFilters: ['dateRange'], dataFields: ['product', 'consumed', 'cost'] }
     ]
   }
 ];
@@ -840,138 +839,6 @@ export function EnhancedReportsModule() {
     const chartData = Object.values(productionByProduct)
       .sort((a: any, b: any) => b.totalCost - a.totalCost)
       .slice(0, 10);
-
-    return { tableData, chartData };
-  };
-
-  const fetchYieldReportData = async (filters: FilterState) => {
-    if (!company?.id) {
-      return { tableData: [], chartData: [] };
-    }
-
-    // Fetch production runs with BOM details
-    const { data: productionRuns, error: productionError } = await supabase
-      .from('production_runs')
-      .select(`
-        *,
-        bom_headers!inner(
-          bom_name,
-          version,
-          yield_quantity,
-          finished_product_id,
-          products!bom_headers_finished_product_id_fkey(
-            name,
-            sku,
-            unit
-          )
-        )
-      `)
-      .eq('company_id', company.id)
-      .gte('created_at', format(filters.dateRange.from, 'yyyy-MM-dd'))
-      .lte('created_at', format(filters.dateRange.to, 'yyyy-MM-dd'))
-      .order('created_at', { ascending: false });
-
-    if (productionError) throw productionError;
-
-    // Fetch BOM components to calculate expected vs actual
-    const bomIds = [...new Set(productionRuns?.map(pr => pr.bom_id) || [])];
-    let bomComponents: any[] = [];
-
-    if (bomIds.length > 0) {
-      const { data: components } = await supabase
-        .from('bom_components')
-        .select(`
-          *,
-          products!bom_components_component_product_id_fkey(
-            name,
-            sku
-          )
-        `)
-        .in('bom_id', bomIds);
-      
-      bomComponents = components || [];
-    }
-
-    // Fetch warehouse bins
-    const { data: warehouseBins } = await supabase
-      .from('warehouse_bins')
-      .select('*')
-      .eq('company_id', company.id);
-
-    const warehouseBinMap = new Map(warehouseBins?.map(wb => [wb.id, wb]) || []);
-
-    // Process yield data
-    const tableData = productionRuns?.map((run: any) => {
-      const bomHeader = run.bom_headers;
-      const finishedProduct = bomHeader?.products;
-      
-      // Calculate expected yield based on BOM
-      const expectedYield = bomHeader?.yield_quantity || 1;
-      const actualYield = run.quantity_produced || 0;
-      const yieldPercentage = expectedYield > 0 ? ((actualYield / expectedYield) * 100) : 0;
-      const yieldVariance = actualYield - expectedYield;
-      
-      // Get warehouse and bin info
-      const warehouseBin = run.warehouse_id ? warehouseBinMap.get(run.warehouse_id) : null;
-      const binInfo = run.bin_id ? warehouseBinMap.get(run.bin_id) : null;
-      
-      const warehouseDisplay = warehouseBin?.warehouse_name 
-        ? `${warehouseBin.warehouse_name}${warehouseBin.warehouse_code ? ` (${warehouseBin.warehouse_code})` : ''}`
-        : 'Not Assigned';
-      
-      const binDisplay = binInfo?.bin_name
-        ? `${binInfo.bin_name}${binInfo.wh_bin_code ? ` (${binInfo.wh_bin_code})` : ''}`
-        : 'Not Assigned';
-
-      // Calculate cost per unit
-      const costPerUnit = actualYield > 0 ? (run.total_cost / actualYield) : 0;
-      
-      // Get total components consumed
-      const components = bomComponents.filter(c => c.bom_id === run.bom_id);
-      const totalComponentsConsumed = components.reduce((sum, c) => 
-        sum + (c.quantity_per_unit || 0), 0
-      );
-
-      // Calculate yield efficiency
-      const yieldStatus = yieldPercentage >= 100 ? 'Excellent' :
-                         yieldPercentage >= 90 ? 'Good' :
-                         yieldPercentage >= 75 ? 'Fair' : 'Poor';
-
-      return {
-        productionDate: format(new Date(run.created_at), 'dd-MMM-yyyy'),
-        bomName: bomHeader?.bom_name || 'N/A',
-        bomVersion: bomHeader?.version || 'N/A',
-        finishedProduct: finishedProduct?.name || 'Unknown',
-        finishedProductSku: finishedProduct?.sku || 'N/A',
-        unit: finishedProduct?.unit || 'pcs',
-        expectedYield: expectedYield,
-        actualYield: actualYield,
-        yieldVariance: yieldVariance,
-        yieldPercentage: Math.round(yieldPercentage * 10) / 10,
-        yieldStatus: yieldStatus,
-        warehouseNameAndCode: warehouseDisplay,
-        binLocationAndCode: binDisplay,
-        materialCost: run.material_cost_total || 0,
-        laborCost: run.labor_cost_total || 0,
-        overheadCost: run.overhead_cost_total || 0,
-        totalCost: run.total_cost || 0,
-        costPerUnit: Math.round(costPerUnit * 100) / 100,
-        componentsUsed: totalComponentsConsumed
-      };
-    }) || [];
-
-    // Chart data by yield status
-    const yieldByStatus = tableData.reduce((acc: any, item: any) => {
-      const status = item.yieldStatus;
-      if (!acc[status]) {
-        acc[status] = { name: status, count: 0, totalProduced: 0 };
-      }
-      acc[status].count += 1;
-      acc[status].totalProduced += item.actualYield;
-      return acc;
-    }, {});
-
-    const chartData = Object.values(yieldByStatus);
 
     return { tableData, chartData };
   };
@@ -2817,8 +2684,6 @@ export function EnhancedReportsModule() {
           return await fetchBackorderReportData(filters);
         case 'bom_consumption':
           return await fetchBOMConsumptionData(filters);
-        case 'yield_report':
-          return await fetchYieldReportData(filters);
         case 'customer_sales':
           return await fetchCustomerSalesData(filters);
         case 'gstr1':
@@ -4015,8 +3880,8 @@ export function EnhancedReportsModule() {
                 </Card>
               )}
 
-              {/* Report Table - Hidden for purchase_orders, customer_sales, current_stock, stock_movement, stock_aging, backorder_report, bom_consumption, and yield_report */}
-              {!['purchase_orders', 'customer_sales', 'current_stock', 'stock_movement', 'stock_aging', 'backorder_report', 'bom_consumption', 'yield_report'].includes(selectedReport) && (
+              {/* Report Table - Hidden for purchase_orders, customer_sales, current_stock, stock_movement, stock_aging, backorder_report, and bom_consumption */}
+              {!['purchase_orders', 'customer_sales', 'current_stock', 'stock_movement', 'stock_aging', 'backorder_report', 'bom_consumption'].includes(selectedReport) && (
                 <Card>
                   <CardHeader>
                     <CardTitle className="text-lg font-semibold">Report Data</CardTitle>
