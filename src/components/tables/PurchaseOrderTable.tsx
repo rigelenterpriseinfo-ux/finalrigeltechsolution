@@ -564,23 +564,25 @@ export function PurchaseOrderTable({
       
       yPos += 7;
       
-      // Table Header
+      // Table Header - Updated with separate columns
       doc.setFillColor(41, 128, 185);
       doc.rect(15, yPos, 180, 8, 'F');
       
-      doc.setFontSize(8);
+      doc.setFontSize(7);
       doc.setFont('helvetica', 'bold');
       doc.setTextColor(255, 255, 255);
       doc.text('S.No', 17, yPos + 5);
-      doc.text('Item Code', 28, yPos + 5);
-      doc.text('Description', 52, yPos + 5);
-      doc.text('HSN', 95, yPos + 5);
-      doc.text('Qty', 110, yPos + 5);
-      doc.text('UOM', 122, yPos + 5);
-      doc.text('Rate', 135, yPos + 5);
-      doc.text('Disc%', 150, yPos + 5);
-      doc.text('Tax%', 163, yPos + 5);
-      doc.text('Amount', 178, yPos + 5);
+      doc.text('Item Code', 26, yPos + 5);
+      doc.text('Description', 48, yPos + 5);
+      doc.text('HSN', 82, yPos + 5);
+      doc.text('Qty', 96, yPos + 5);
+      doc.text('UOM', 106, yPos + 5);
+      doc.text('Rate', 118, yPos + 5);
+      doc.text('Disc%', 132, yPos + 5);
+      doc.text('Disc Amt', 144, yPos + 5);
+      doc.text('Tax%', 160, yPos + 5);
+      doc.text('Tax Amt', 172, yPos + 5);
+      doc.text('Amount', 188, yPos + 5, { align: 'right' });
       
       yPos += 10;
       
@@ -594,8 +596,10 @@ export function PurchaseOrderTable({
           qty: 10, 
           uom: 'PCS', 
           rate: 1000.00, 
-          disc: 5, 
+          disc: 5,
+          discAmt: 500.00, // 10 * 1000 * 0.05
           tax: 18,
+          taxAmt: 1710.00, // (10000 - 500) * 0.18
           amount: 11210.00 
         },
         { 
@@ -606,15 +610,17 @@ export function PurchaseOrderTable({
           qty: 5, 
           uom: 'PCS', 
           rate: 2000.00, 
-          disc: 0, 
+          disc: 0,
+          discAmt: 0.00,
           tax: 18,
+          taxAmt: 1800.00, // 10000 * 0.18
           amount: 11800.00 
         }
       ];
       
       doc.setFont('helvetica', 'normal');
       doc.setTextColor(0, 0, 0);
-      doc.setFontSize(8);
+      doc.setFontSize(7);
       
       lineItems.forEach((item, index) => {
         if (index % 2 === 0) {
@@ -623,16 +629,18 @@ export function PurchaseOrderTable({
         }
         
         doc.text(item.sno.toString(), 17, yPos + 2);
-        doc.text(item.code, 28, yPos + 2);
-        const descText = doc.splitTextToSize(item.desc, 40);
-        doc.text(descText[0], 52, yPos + 2);
-        doc.text(item.hsn, 95, yPos + 2);
-        doc.text(item.qty.toString(), 110, yPos + 2);
-        doc.text(item.uom, 122, yPos + 2);
-        doc.text(item.rate.toFixed(2), 135, yPos + 2);
-        doc.text(item.disc.toString(), 150, yPos + 2);
-        doc.text(item.tax.toString(), 163, yPos + 2);
-        doc.text(item.amount.toFixed(2), 178, yPos + 2, { align: 'right' });
+        doc.text(item.code, 26, yPos + 2);
+        const descText = doc.splitTextToSize(item.desc, 30);
+        doc.text(descText[0], 48, yPos + 2);
+        doc.text(item.hsn, 82, yPos + 2);
+        doc.text(item.qty.toString(), 96, yPos + 2);
+        doc.text(item.uom, 106, yPos + 2);
+        doc.text(item.rate.toFixed(2), 118, yPos + 2);
+        doc.text(item.disc.toString(), 132, yPos + 2);
+        doc.text(item.discAmt.toFixed(2), 144, yPos + 2);
+        doc.text(item.tax.toString(), 160, yPos + 2);
+        doc.text(item.taxAmt.toFixed(2), 172, yPos + 2);
+        doc.text(item.amount.toFixed(2), 193, yPos + 2, { align: 'right' });
         
         yPos += 7;
       });
