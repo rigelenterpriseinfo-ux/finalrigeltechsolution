@@ -1583,11 +1583,14 @@ export const DraggableWidgets: React.FC<DraggableWidgetsProps> = ({ onNavigate }
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="space-y-1">
-          <h2 className="text-2xl font-bold text-foreground tracking-tight">Quick Access</h2>
-          <p className="text-sm text-muted-foreground">Widgets are color-coded by function: <span className="text-purple-600 font-medium">Purchase</span>, <span className="text-teal-600 font-medium">Inventory</span>, <span className="text-orange-600 font-medium">Sales</span>, <span className="text-blue-600 font-medium">Operations</span>, <span className="text-slate-600 font-medium">Management</span></p>
+    <div className="space-y-8">
+      {/* Hero Section */}
+      <div className="flex items-start justify-between">
+        <div className="space-y-2">
+          <h2 className="text-3xl font-bold text-foreground tracking-tight">Dashboard Overview</h2>
+          <p className="text-sm text-muted-foreground max-w-2xl">
+            Monitor your business metrics and access key modules. Widgets are organized by business functions and can be rearranged within each section.
+          </p>
         </div>
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
           <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-md bg-muted/50">
@@ -1597,66 +1600,396 @@ export const DraggableWidgets: React.FC<DraggableWidgetsProps> = ({ onNavigate }
         </div>
       </div>
 
-      <DragDropContext onDragEnd={handleDragEnd}>
-        <Droppable droppableId="widgets">
-          {(provided) => (
-            <div
-              {...provided.droppableProps}
-              ref={provided.innerRef}
-              className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4"
-            >
-              {widgets.map((widget, index) => {
-                const Icon = widget.icon;
-                return (
-                  <Draggable key={widget.id} draggableId={widget.id} index={index}>
-                    {(provided, snapshot) => (
-                      <div
-                        ref={provided.innerRef}
-                        {...provided.draggableProps}
-                        {...provided.dragHandleProps}
-                        className={cn(
-                          "transform transition-all duration-200",
-                          snapshot.isDragging && "scale-105 rotate-2 z-50"
+      {/* Purchase & Procurement Section */}
+      <div className="space-y-4">
+        <div className="flex items-center gap-3 pb-3 border-b border-border/50">
+          <div className="p-2 rounded-lg bg-purple-500/10">
+            <ShoppingCart className="h-5 w-5 text-purple-600" />
+          </div>
+          <div>
+            <h3 className="text-lg font-semibold text-foreground">Purchase & Procurement</h3>
+            <p className="text-xs text-muted-foreground">Manage purchase orders, vendors, and payments</p>
+          </div>
+        </div>
+        <DragDropContext onDragEnd={handleDragEnd}>
+          <Droppable droppableId="purchase-widgets" direction="horizontal">
+            {(provided) => (
+              <div
+                {...provided.droppableProps}
+                ref={provided.innerRef}
+                className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4"
+              >
+                {widgets
+                  .filter(w => ['dashboard', 'purchase', 'mail', 'payments'].includes(w.id))
+                  .map((widget, index) => {
+                    const Icon = widget.icon;
+                    return (
+                      <Draggable key={widget.id} draggableId={widget.id} index={index}>
+                        {(provided, snapshot) => (
+                          <div
+                            ref={provided.innerRef}
+                            {...provided.draggableProps}
+                            {...provided.dragHandleProps}
+                            className={cn(
+                              "transform transition-all duration-200",
+                              snapshot.isDragging && "scale-105 rotate-2 z-50"
+                            )}
+                          >
+                            <Card 
+                              className={cn(
+                                "h-36 cursor-pointer transition-all duration-300 group relative overflow-hidden",
+                                "border-2 hover:border-purple-500/30 bg-gradient-to-br from-card to-card/50",
+                                "hover:shadow-xl hover:shadow-purple-500/10 hover:scale-[1.02]",
+                                snapshot.isDragging && "shadow-2xl shadow-purple-500/20 border-purple-500/50 scale-105"
+                              )}
+                              onClick={(e) => {
+                                e.preventDefault();
+                                if (!snapshot.isDragging) {
+                                  widget.onClick();
+                                }
+                              }}
+                            >
+                              <div className="absolute inset-0 bg-gradient-to-br from-purple-500/0 to-purple-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                              <CardContent className="p-3 h-full relative z-10">
+                                {renderWidgetContent(widget)}
+                              </CardContent>
+                              {snapshot.isDragging && (
+                                <div className="absolute top-2 right-2">
+                                  <Menu className="h-4 w-4 text-purple-600 animate-pulse" />
+                                </div>
+                              )}
+                            </Card>
+                          </div>
                         )}
-                      >
-                        <Card 
-                          className={cn(
-                            "h-36 cursor-pointer transition-all duration-300 group relative overflow-hidden",
-                            "border-2 hover:border-primary/30 bg-gradient-to-br from-card to-card/50",
-                            "hover:shadow-xl hover:scale-[1.02]",
-                            snapshot.isDragging && "shadow-2xl border-primary/50 scale-105"
-                          )}
-                          onClick={(e) => {
-                            e.preventDefault();
-                            if (!snapshot.isDragging) {
-                              widget.onClick();
-                            }
-                          }}
-                        >
-                          {/* Gradient overlay on hover */}
-                          <div className="absolute inset-0 bg-gradient-to-br from-primary/0 to-primary/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-                          
-                          <CardContent className="p-3 h-full relative z-10">
-                            {renderWidgetContent(widget)}
-                          </CardContent>
+                      </Draggable>
+                    );
+                  })}
+                {provided.placeholder}
+              </div>
+            )}
+          </Droppable>
+        </DragDropContext>
+      </div>
 
-                          {/* Drag indicator */}
-                          {snapshot.isDragging && (
-                            <div className="absolute top-2 right-2">
-                              <Menu className="h-4 w-4 text-primary animate-pulse" />
-                            </div>
-                          )}
-                        </Card>
-                      </div>
-                    )}
-                  </Draggable>
-                );
-              })}
-              {provided.placeholder}
-            </div>
-          )}
-        </Droppable>
-      </DragDropContext>
+      {/* Inventory & Warehouse Section */}
+      <div className="space-y-4">
+        <div className="flex items-center gap-3 pb-3 border-b border-border/50">
+          <div className="p-2 rounded-lg bg-teal-500/10">
+            <Package className="h-5 w-5 text-teal-600" />
+          </div>
+          <div>
+            <h3 className="text-lg font-semibold text-foreground">Inventory & Warehouse</h3>
+            <p className="text-xs text-muted-foreground">Track stock levels, warehouse operations, and inventory value</p>
+          </div>
+        </div>
+        <DragDropContext onDragEnd={handleDragEnd}>
+          <Droppable droppableId="inventory-widgets" direction="horizontal">
+            {(provided) => (
+              <div
+                {...provided.droppableProps}
+                ref={provided.innerRef}
+                className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4"
+              >
+                {widgets
+                  .filter(w => ['inventory', 'database', 'logistics', 'calculator', 'archive'].includes(w.id))
+                  .map((widget, index) => {
+                    const Icon = widget.icon;
+                    return (
+                      <Draggable key={widget.id} draggableId={widget.id} index={index}>
+                        {(provided, snapshot) => (
+                          <div
+                            ref={provided.innerRef}
+                            {...provided.draggableProps}
+                            {...provided.dragHandleProps}
+                            className={cn(
+                              "transform transition-all duration-200",
+                              snapshot.isDragging && "scale-105 rotate-2 z-50"
+                            )}
+                          >
+                            <Card 
+                              className={cn(
+                                "h-36 cursor-pointer transition-all duration-300 group relative overflow-hidden",
+                                "border-2 hover:border-teal-500/30 bg-gradient-to-br from-card to-card/50",
+                                "hover:shadow-xl hover:shadow-teal-500/10 hover:scale-[1.02]",
+                                snapshot.isDragging && "shadow-2xl shadow-teal-500/20 border-teal-500/50 scale-105"
+                              )}
+                              onClick={(e) => {
+                                e.preventDefault();
+                                if (!snapshot.isDragging) {
+                                  widget.onClick();
+                                }
+                              }}
+                            >
+                              <div className="absolute inset-0 bg-gradient-to-br from-teal-500/0 to-teal-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                              <CardContent className="p-3 h-full relative z-10">
+                                {renderWidgetContent(widget)}
+                              </CardContent>
+                              {snapshot.isDragging && (
+                                <div className="absolute top-2 right-2">
+                                  <Menu className="h-4 w-4 text-teal-600 animate-pulse" />
+                                </div>
+                              )}
+                            </Card>
+                          </div>
+                        )}
+                      </Draggable>
+                    );
+                  })}
+                {provided.placeholder}
+              </div>
+            )}
+          </Droppable>
+        </DragDropContext>
+      </div>
+
+      {/* Sales & Customer Section */}
+      <div className="space-y-4">
+        <div className="flex items-center gap-3 pb-3 border-b border-border/50">
+          <div className="p-2 rounded-lg bg-orange-500/10">
+            <TrendingUp className="h-5 w-5 text-orange-600" />
+          </div>
+          <div>
+            <h3 className="text-lg font-semibold text-foreground">Sales & Customer</h3>
+            <p className="text-xs text-muted-foreground">Monitor sales performance, orders, and customer relationships</p>
+          </div>
+        </div>
+        <DragDropContext onDragEnd={handleDragEnd}>
+          <Droppable droppableId="sales-widgets" direction="horizontal">
+            {(provided) => (
+              <div
+                {...provided.droppableProps}
+                ref={provided.innerRef}
+                className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4"
+              >
+                {widgets
+                  .filter(w => ['sales', 'reports', 'profile', 'returns'].includes(w.id))
+                  .map((widget, index) => {
+                    const Icon = widget.icon;
+                    return (
+                      <Draggable key={widget.id} draggableId={widget.id} index={index}>
+                        {(provided, snapshot) => (
+                          <div
+                            ref={provided.innerRef}
+                            {...provided.draggableProps}
+                            {...provided.dragHandleProps}
+                            className={cn(
+                              "transform transition-all duration-200",
+                              snapshot.isDragging && "scale-105 rotate-2 z-50"
+                            )}
+                          >
+                            <Card 
+                              className={cn(
+                                "h-36 cursor-pointer transition-all duration-300 group relative overflow-hidden",
+                                "border-2 hover:border-orange-500/30 bg-gradient-to-br from-card to-card/50",
+                                "hover:shadow-xl hover:shadow-orange-500/10 hover:scale-[1.02]",
+                                snapshot.isDragging && "shadow-2xl shadow-orange-500/20 border-orange-500/50 scale-105"
+                              )}
+                              onClick={(e) => {
+                                e.preventDefault();
+                                if (!snapshot.isDragging) {
+                                  widget.onClick();
+                                }
+                              }}
+                            >
+                              <div className="absolute inset-0 bg-gradient-to-br from-orange-500/0 to-orange-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                              <CardContent className="p-3 h-full relative z-10">
+                                {renderWidgetContent(widget)}
+                              </CardContent>
+                              {snapshot.isDragging && (
+                                <div className="absolute top-2 right-2">
+                                  <Menu className="h-4 w-4 text-orange-600 animate-pulse" />
+                                </div>
+                              )}
+                            </Card>
+                          </div>
+                        )}
+                      </Draggable>
+                    );
+                  })}
+                {provided.placeholder}
+              </div>
+            )}
+          </Droppable>
+        </DragDropContext>
+      </div>
+
+      {/* Operations & Tracking Section */}
+      <div className="space-y-4">
+        <div className="flex items-center gap-3 pb-3 border-b border-border/50">
+          <div className="p-2 rounded-lg bg-blue-500/10">
+            <MapPin className="h-5 w-5 text-blue-600" />
+          </div>
+          <div>
+            <h3 className="text-lg font-semibold text-foreground">Operations & Tracking</h3>
+            <p className="text-xs text-muted-foreground">Track shipments, monitor activities, and manage timesheets</p>
+          </div>
+        </div>
+        <DragDropContext onDragEnd={handleDragEnd}>
+          <Droppable droppableId="operations-widgets" direction="horizontal">
+            {(provided) => (
+              <div
+                {...provided.droppableProps}
+                ref={provided.innerRef}
+                className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4"
+              >
+                {widgets
+                  .filter(w => ['tracking', 'notifications', 'timesheet'].includes(w.id))
+                  .map((widget, index) => {
+                    const Icon = widget.icon;
+                    return (
+                      <Draggable key={widget.id} draggableId={widget.id} index={index}>
+                        {(provided, snapshot) => (
+                          <div
+                            ref={provided.innerRef}
+                            {...provided.draggableProps}
+                            {...provided.dragHandleProps}
+                            className={cn(
+                              "transform transition-all duration-200",
+                              snapshot.isDragging && "scale-105 rotate-2 z-50"
+                            )}
+                          >
+                            <Card 
+                              className={cn(
+                                "h-36 cursor-pointer transition-all duration-300 group relative overflow-hidden",
+                                "border-2 hover:border-blue-500/30 bg-gradient-to-br from-card to-card/50",
+                                "hover:shadow-xl hover:shadow-blue-500/10 hover:scale-[1.02]",
+                                snapshot.isDragging && "shadow-2xl shadow-blue-500/20 border-blue-500/50 scale-105"
+                              )}
+                              onClick={(e) => {
+                                e.preventDefault();
+                                if (!snapshot.isDragging) {
+                                  widget.onClick();
+                                }
+                              }}
+                            >
+                              <div className="absolute inset-0 bg-gradient-to-br from-blue-500/0 to-blue-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                              <CardContent className="p-3 h-full relative z-10">
+                                {renderWidgetContent(widget)}
+                              </CardContent>
+                              {snapshot.isDragging && (
+                                <div className="absolute top-2 right-2">
+                                  <Menu className="h-4 w-4 text-blue-600 animate-pulse" />
+                                </div>
+                              )}
+                            </Card>
+                          </div>
+                        )}
+                      </Draggable>
+                    );
+                  })}
+                {provided.placeholder}
+              </div>
+            )}
+          </Droppable>
+        </DragDropContext>
+      </div>
+
+      {/* Management & Settings Section */}
+      <div className="space-y-4">
+        <div className="flex items-center gap-3 pb-3 border-b border-border/50">
+          <div className="p-2 rounded-lg bg-slate-500/10">
+            <Settings className="h-5 w-5 text-slate-600" />
+          </div>
+          <div>
+            <h3 className="text-lg font-semibold text-foreground">Management & Settings</h3>
+            <p className="text-xs text-muted-foreground">Manage team members, configure settings, and view calendar</p>
+          </div>
+        </div>
+        <DragDropContext onDragEnd={handleDragEnd}>
+          <Droppable droppableId="management-widgets" direction="horizontal">
+            {(provided) => (
+              <div
+                {...provided.droppableProps}
+                ref={provided.innerRef}
+                className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4"
+              >
+                {widgets
+                  .filter(w => ['users', 'settings', 'calendar'].includes(w.id))
+                  .map((widget, index) => {
+                    const Icon = widget.icon;
+                    return (
+                      <Draggable key={widget.id} draggableId={widget.id} index={index}>
+                        {(provided, snapshot) => (
+                          <div
+                            ref={provided.innerRef}
+                            {...provided.draggableProps}
+                            {...provided.dragHandleProps}
+                            className={cn(
+                              "transform transition-all duration-200",
+                              snapshot.isDragging && "scale-105 rotate-2 z-50"
+                            )}
+                          >
+                            <Card 
+                              className={cn(
+                                "h-36 cursor-pointer transition-all duration-300 group relative overflow-hidden",
+                                "border-2 hover:border-slate-500/30 bg-gradient-to-br from-card to-card/50",
+                                "hover:shadow-xl hover:shadow-slate-500/10 hover:scale-[1.02]",
+                                snapshot.isDragging && "shadow-2xl shadow-slate-500/20 border-slate-500/50 scale-105"
+                              )}
+                              onClick={(e) => {
+                                e.preventDefault();
+                                if (!snapshot.isDragging) {
+                                  widget.onClick();
+                                }
+                              }}
+                            >
+                              <div className="absolute inset-0 bg-gradient-to-br from-slate-500/0 to-slate-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                              <CardContent className="p-3 h-full relative z-10">
+                                {renderWidgetContent(widget)}
+                              </CardContent>
+                              {snapshot.isDragging && (
+                                <div className="absolute top-2 right-2">
+                                  <Menu className="h-4 w-4 text-slate-600 animate-pulse" />
+                                </div>
+                              )}
+                            </Card>
+                          </div>
+                        )}
+                      </Draggable>
+                    );
+                  })}
+                {provided.placeholder}
+              </div>
+            )}
+          </Droppable>
+        </DragDropContext>
+      </div>
+
+      {/* AI Assistant - Featured Section */}
+      <div className="space-y-4">
+        <div className="flex items-center gap-3 pb-3 border-b border-border/50">
+          <div className="p-2 rounded-lg bg-pink-500/10">
+            <Bot className="h-5 w-5 text-pink-600" />
+          </div>
+          <div>
+            <h3 className="text-lg font-semibold text-foreground">AI Assistant</h3>
+            <p className="text-xs text-muted-foreground">Get intelligent insights and automated assistance for your business</p>
+          </div>
+        </div>
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+          {widgets
+            .filter(w => w.id === 'ai')
+            .map((widget) => {
+              const Icon = widget.icon;
+              return (
+                <Card 
+                  key={widget.id}
+                  className={cn(
+                    "h-36 cursor-pointer transition-all duration-300 group relative overflow-hidden",
+                    "border-2 hover:border-pink-500/30 bg-gradient-to-br from-card to-card/50",
+                    "hover:shadow-xl hover:shadow-pink-500/10 hover:scale-[1.02]"
+                  )}
+                  onClick={widget.onClick}
+                >
+                  <div className="absolute inset-0 bg-gradient-to-br from-pink-500/0 to-pink-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                  <CardContent className="p-3 h-full relative z-10">
+                    {renderWidgetContent(widget)}
+                  </CardContent>
+                </Card>
+              );
+            })}
+        </div>
+      </div>
     </div>
   );
 };
