@@ -1573,9 +1573,58 @@ export function EnhancedReportsModule() {
   };
 
   const fetchPurchaseOrdersData = async (filters: FilterState) => {
-    const { data: orders, error } = await supabase
+    // Get company place of supply
+    const { data: companyData } = await supabase
+      .from('companies')
+      .select('state')
+      .eq('id', company?.id)
+      .single();
+    
+    const companyState = companyData?.state || '';
+
+    // Comprehensive query with all joins
+    const { data: poData, error } = await supabase
       .from('purchase_orders')
-      .select('*')
+      .select(`
+        id,
+        po_number,
+        order_date,
+        status,
+        supplier_id,
+        suppliers!inner (
+          id,
+          name,
+          state
+        ),
+        purchase_order_items!inner (
+          id,
+          product_id,
+          item_code,
+          item_description,
+          quantity,
+          unit_price,
+          discount_percentage,
+          discount_amount,
+          cgst_rate,
+          cgst_amount,
+          sgst_rate,
+          sgst_amount,
+          igst_rate,
+          igst_amount,
+          total_price,
+          received_quantity,
+          products!inner (
+            sku,
+            hsn_code
+          )
+        ),
+        grn_header (
+          grn_number,
+          grn_date,
+          supplier_invoice_number,
+          supplier_invoice_date
+        )
+      `)
       .eq('company_id', company?.id)
       .gte('order_date', format(filters.dateRange.from, 'yyyy-MM-dd'))
       .lte('order_date', format(filters.dateRange.to, 'yyyy-MM-dd'))
@@ -1583,22 +1632,70 @@ export function EnhancedReportsModule() {
 
     if (error) throw error;
 
-    const tableData = orders?.map(order => ({
-      orderNumber: order.po_number,
-      vendor: order.supplier_id ? `Supplier ${order.supplier_id.slice(0, 8)}` : 'N/A',
-      date: order.order_date,
-      amount: order.total_amount,
-      status: order.status
-    })) || [];
+    // Flatten data to one row per line item
+    const tableData: any[] = [];
+    
+    poData?.forEach(po => {
+      const vendor = po.suppliers as any;
+      const grnData = Array.isArray(po.grn_header) ? po.grn_header[0] : po.grn_header;
+      
+      (po.purchase_order_items as any[]).forEach(item => {
+        const product = item.products as any;
+        
+        // Calculate total GST
+        const totalGST = (item.cgst_amount || 0) + (item.sgst_amount || 0) + (item.igst_amount || 0);
+        
+        // Calculate taxable amount (before GST)
+        const taxableAmount = item.total_price - totalGST;
+        
+        // Determine GST percentage
+        const gstPercentage = item.cgst_rate 
+          ? (item.cgst_rate + item.sgst_rate) 
+          : item.igst_rate || 0;
+        
+        tableData.push({
+          'Vendor Name': vendor?.name || 'N/A',
+          'Vendor Invoice No': grnData?.supplier_invoice_number || '-',
+          'Invoice Date': grnData?.supplier_invoice_date 
+            ? format(new Date(grnData.supplier_invoice_date), 'dd-MMM-yyyy') 
+            : '-',
+          'Purchase Order No': po.po_number,
+          'PO Date': format(new Date(po.order_date), 'dd-MMM-yyyy'),
+          'Product': item.item_description || '-',
+          'SKU': product?.sku || item.item_code || '-',
+          'GST%': gstPercentage,
+          'Qty Received': item.received_quantity || 0,
+          'Price': item.unit_price || 0,
+          'Discount': item.discount_amount || 0,
+          'Invoice Value': item.total_price || 0,
+          'Taxable Amount': taxableAmount,
+          'Discount Amount': item.discount_amount || 0,
+          'CGST': item.cgst_amount || 0,
+          'SGST': item.sgst_amount || 0,
+          'IGST': item.igst_amount || 0,
+          'Total GST Amount': totalGST,
+          'Place of Supply': vendor?.state || companyState,
+          'PO Receipt Date': grnData?.grn_date 
+            ? format(new Date(grnData.grn_date), 'dd-MMM-yyyy') 
+            : '-'
+        });
+      });
+    });
 
     // Monthly aggregation for chart
-    const monthlyData = orders?.reduce((acc: Record<string, any>, order) => {
-      const month = format(new Date(order.order_date), 'MMM yyyy');
+    const monthlyData = poData?.reduce((acc: Record<string, any>, po) => {
+      const month = format(new Date(po.order_date), 'MMM yyyy');
       if (!acc[month]) {
         acc[month] = { month, orders: 0, spending: 0 };
       }
       acc[month].orders += 1;
-      acc[month].spending += order.total_amount || 0;
+      
+      // Sum up all items in this PO
+      const poTotal = (po.purchase_order_items as any[]).reduce(
+        (sum, item) => sum + (item.total_price || 0), 
+        0
+      );
+      acc[month].spending += poTotal;
       return acc;
     }, {}) || {};
 
@@ -2469,8 +2566,25 @@ export function EnhancedReportsModule() {
           key,
           label: key,
           format: (value: any) => {
-            if (typeof value === 'number' && (key.toLowerCase().includes('amount') || key.toLowerCase().includes('days'))) {
-              return key.toLowerCase().includes('amount') ? `₹${value.toLocaleString()}` : value;
+            // Handle GST percentage
+            if (key.includes('GST%')) {
+              return typeof value === 'number' ? `${value}%` : value;
+            }
+            // Handle all amount/price/value/discount fields
+            if (typeof value === 'number' && (
+              key.toLowerCase().includes('amount') || 
+              key.toLowerCase().includes('price') || 
+              key.toLowerCase().includes('value') || 
+              key.toLowerCase().includes('discount') ||
+              key.toLowerCase().includes('cgst') ||
+              key.toLowerCase().includes('sgst') ||
+              key.toLowerCase().includes('igst')
+            )) {
+              return `₹${value.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+            }
+            // Handle quantity fields
+            if (typeof value === 'number' && key.toLowerCase().includes('qty')) {
+              return value.toLocaleString('en-IN');
             }
             return value;
           }
