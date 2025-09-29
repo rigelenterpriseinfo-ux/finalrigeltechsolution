@@ -41,7 +41,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Area, AreaChart } from 'recharts';
 import { toast } from "sonner";
-import { ProductSelector } from '@/components/ui/product-selector';
+
 import { fetchGSTINOptions, getCompanyPlaceOfSupply, type GSTINOption } from '@/lib/gstinUtils';
 
 interface ReportCategory {
@@ -97,12 +97,8 @@ const reportCategories: ReportCategory[] = [
     name: 'Sales & Procurement',
     icon: ShoppingCart,
     reports: [
-      { id: 'sales_orders', name: 'Sales Orders', description: 'Sales orders analysis', category: 'sales', requiresFilters: ['dateRange'], dataFields: ['orderNumber', 'customer', 'amount', 'status'] },
       { id: 'customer_sales', name: 'Customer Sales', description: 'Customer-wise sales analysis', category: 'sales', requiresFilters: ['dateRange'], dataFields: ['customer', 'totalSales', 'orderCount'] },
-      { id: 'item_wise_sales', name: 'Item wise Sales Report', description: 'Product-wise sales analysis with quantities and revenue', category: 'sales', requiresFilters: ['dateRange', 'product'], dataFields: ['product', 'quantitySold', 'totalRevenue', 'avgPrice'] },
       { id: 'purchase_orders', name: 'Purchase Orders', description: 'Purchase orders analysis', category: 'sales', requiresFilters: ['dateRange'], dataFields: ['orderNumber', 'vendor', 'amount', 'status'] },
-      { id: 'vendor_purchases', name: 'Vendor Purchases', description: 'Vendor-wise purchase analysis', category: 'sales', requiresFilters: ['dateRange'], dataFields: ['vendor', 'totalPurchases', 'orderCount'] },
-      { id: 'item_wise_purchase', name: 'Item wise Purchase Report', description: 'Product-wise purchase analysis with quantities and costs', category: 'sales', requiresFilters: ['dateRange'], dataFields: ['product', 'quantityPurchased', 'totalCost', 'avgPrice'] },
       { id: 'quotation_comparison', name: 'Quotation Comparison', description: 'Vendor quotation comparison', category: 'sales', requiresFilters: ['dateRange'] }
     ]
   },
@@ -131,8 +127,7 @@ export function EnhancedReportsModule() {
     dateRange: {
       from: new Date('2025-09-01'),
       to: new Date('2025-09-30')
-    },
-    product: 'all'
+    }
   });
   const [reportData, setReportData] = useState<any[] | any>([]);
   const [chartData, setChartData] = useState<any[]>([]);
@@ -389,40 +384,6 @@ export function EnhancedReportsModule() {
     ];
 
     return { tableData, chartData, invoiceWiseData };
-  };
-
-  const fetchSalesOrdersData = async (filters: FilterState) => {
-    const { data: orders, error } = await supabase
-      .from('sales_orders')
-      .select('*')
-      .gte('order_date', format(filters.dateRange.from, 'yyyy-MM-dd'))
-      .lte('order_date', format(filters.dateRange.to, 'yyyy-MM-dd'))
-      .order('order_date', { ascending: false });
-
-    if (error) throw error;
-
-    const tableData = orders?.map(order => ({
-      orderNumber: order.order_number,
-      customer: order.account_manager || 'N/A',
-      date: order.order_date,
-      amount: order.total_amount,
-      status: order.status
-    })) || [];
-
-    // Monthly aggregation for chart
-    const monthlyData = orders?.reduce((acc: Record<string, any>, order) => {
-      const month = format(new Date(order.order_date), 'MMM yyyy');
-      if (!acc[month]) {
-        acc[month] = { month, orders: 0, revenue: 0 };
-      }
-      acc[month].orders += 1;
-      acc[month].revenue += order.total_amount || 0;
-      return acc;
-    }, {}) || {};
-
-    const chartData = Object.values(monthlyData);
-
-    return { tableData, chartData };
   };
 
   const fetchCurrentStockData = async () => {
@@ -1704,43 +1665,6 @@ export function EnhancedReportsModule() {
     return { tableData, chartData };
   };
 
-  const fetchVendorPurchasesData = async (filters: FilterState) => {
-    const { data: orders, error } = await supabase
-      .from('purchase_orders')
-      .select('supplier_id, total_amount, order_date')
-      .eq('company_id', company?.id)
-      .in('status', ['confirmed', 'partially_received', 'closed'])
-      .gte('order_date', format(filters.dateRange.from, 'yyyy-MM-dd'))
-      .lte('order_date', format(filters.dateRange.to, 'yyyy-MM-dd'));
-
-    if (error) throw error;
-
-    const vendorPurchases = orders?.reduce((acc: Record<string, any>, order) => {
-      const vendorKey = order.supplier_id || 'Unknown';
-      if (!acc[vendorKey]) {
-        acc[vendorKey] = {
-          vendor: `Supplier ${vendorKey.slice(0, 8)}`,
-          totalPurchases: 0,
-          orderCount: 0,
-          supplierId: order.supplier_id
-        };
-      }
-      acc[vendorKey].totalPurchases += order.total_amount || 0;
-      acc[vendorKey].orderCount += 1;
-      return acc;
-    }, {}) || {};
-
-    const tableData = Object.values(vendorPurchases).sort((a: any, b: any) => b.totalPurchases - a.totalPurchases);
-    
-    const chartData = tableData.slice(0, 10).map((item: any) => ({
-      name: item.vendor,
-      value: item.totalPurchases,
-      orders: item.orderCount
-    }));
-
-    return { tableData, chartData };
-  };
-
   const fetchStockMovementData = async (filters: FilterState) => {
     const { data: transactions, error } = await supabase
       .from('inventory_transactions')
@@ -1782,280 +1706,6 @@ export function EnhancedReportsModule() {
     }, {}) || {};
 
     const chartData = Object.values(dailyMovement);
-
-    return { tableData, chartData };
-  };
-
-  const fetchItemWiseSalesData = async (filters: FilterState) => {
-    console.log('=== fetchItemWiseSalesData START ===');
-    console.log('Filters received:', filters);
-    
-    // If no product selected, show product selection summary
-    if (!filters.product || filters.product === 'all') {
-      console.log('Fetching ALL products summary');
-      
-      // First, get all active products
-      const { data: allProducts, error: productsError } = await supabase
-        .from('products')
-        .select('id, name, sku')
-        .eq('is_active', true)
-        .order('name');
-
-      if (productsError) {
-        console.error('Error fetching products:', productsError);
-        throw productsError;
-      }
-
-      console.log('All active products count:', allProducts?.length || 0);
-
-      // Then get sales data
-      const { data: salesItems, error } = await supabase
-        .from('sales_invoice_items')
-        .select(`
-          *,
-          sales_invoices!inner(
-            invoice_date,
-            status,
-            customer_name
-          )
-        `)
-        .eq('sales_invoices.status', 'finalized')
-        .gte('sales_invoices.invoice_date', format(filters.dateRange.from, 'yyyy-MM-dd'))
-        .lte('sales_invoices.invoice_date', format(filters.dateRange.to, 'yyyy-MM-dd'));
-
-      if (error) {
-        console.error('Error fetching sales items:', error);
-        throw error;
-      }
-
-      console.log('Raw sales items count:', salesItems?.length || 0);
-
-      // Create product lookup map
-      const productMap = (allProducts || []).reduce((acc: Record<string, any>, product) => {
-        acc[product.id] = product;
-        return acc;
-      }, {});
-
-      // Initialize all products with zero sales
-      const productSales = (allProducts || []).reduce((acc: Record<string, any>, product) => {
-        acc[product.id] = {
-          product: product.name,
-          sku: product.sku,
-          quantitySold: 0,
-          totalRevenue: 0,
-          avgPrice: 0,
-          invoiceCount: new Set()
-        };
-        return acc;
-      }, {});
-
-      // Add sales data to products that have sales
-      salesItems?.forEach(item => {
-        const productId = item.product_id;
-        if (productSales[productId]) {
-          productSales[productId].quantitySold += item.quantity_invoiced || 0;
-          productSales[productId].totalRevenue += item.line_total || 0;
-          productSales[productId].invoiceCount.add(item.sales_invoice_id);
-        }
-      });
-
-      console.log('Product sales aggregated:', Object.keys(productSales).length, 'products');
-
-      // Calculate averages and convert Set to count
-      const tableData = Object.values(productSales).map((item: any) => ({
-        ...item,
-        avgPrice: item.quantitySold > 0 ? item.totalRevenue / item.quantitySold : 0,
-        invoiceCount: item.invoiceCount.size
-      })).sort((a: any, b: any) => b.totalRevenue - a.totalRevenue);
-
-      // Chart data - products with sales only, top 10
-      const productsWithSales = tableData.filter((item: any) => item.totalRevenue > 0);
-      const chartData = productsWithSales.slice(0, 10).map((item: any) => ({
-        name: item.product.length > 20 ? item.product.substring(0, 20) + '...' : item.product,
-        value: item.totalRevenue,
-        quantity: item.quantitySold
-      }));
-
-      console.log('Final result - Table data count:', tableData.length);
-      console.log('Final result - Chart data count:', chartData.length);
-      console.log('Products with sales:', productsWithSales.length);
-      console.log('=== fetchItemWiseSalesData END (ALL) ===');
-      
-      return { tableData, chartData };
-    } else {
-      // Show customer breakdown for selected product with month-on-month trends
-      console.log('Fetching data for specific product:', filters.product);
-      const { data: salesItems, error } = await supabase
-        .from('sales_invoice_items')
-        .select(`
-          *,
-          sales_invoices!inner(
-            invoice_date,
-            status,
-            customer_name,
-            customer_id
-          )
-        `)
-        .eq('sales_invoices.status', 'finalized')
-        .eq('product_id', filters.product)
-        .gte('sales_invoices.invoice_date', format(filters.dateRange.from, 'yyyy-MM-dd'))
-        .lte('sales_invoices.invoice_date', format(filters.dateRange.to, 'yyyy-MM-dd'));
-
-      if (error) {
-        console.error('Error fetching specific product data:', error);
-        throw error;
-      }
-
-      console.log('Sales items for specific product:', salesItems?.length || 0, 'items');
-
-    if (!salesItems || salesItems.length === 0) {
-      console.log('No sales data for selected product');
-      // Instead of returning empty arrays, return a message indicating no sales for this product
-      return { 
-        tableData: [{
-          customer: 'No sales data available',
-          quantitySold: 0,
-          totalRevenue: 0,
-          avgPrice: 0,
-          invoiceCount: 0,
-          lastPurchaseDate: 'N/A'
-        }], 
-        chartData: [] 
-      };
-    }
-
-      // Group by customer
-      const customerSales = salesItems?.reduce((acc: Record<string, any>, item) => {
-        const customerKey = item.sales_invoices.customer_id || item.sales_invoices.customer_name || 'unknown';
-        const customerName = item.sales_invoices.customer_name || 'Unknown Customer';
-        
-        if (!acc[customerKey]) {
-          acc[customerKey] = {
-            customer: customerName,
-            quantitySold: 0,
-            totalRevenue: 0,
-            avgPrice: 0,
-            invoiceCount: new Set(),
-            lastPurchaseDate: null
-          };
-        }
-        
-        acc[customerKey].quantitySold += item.quantity_invoiced || 0;
-        acc[customerKey].totalRevenue += item.line_total || 0;
-        acc[customerKey].invoiceCount.add(item.sales_invoice_id);
-        
-        const invoiceDate = new Date(item.sales_invoices.invoice_date);
-        if (!acc[customerKey].lastPurchaseDate || invoiceDate > acc[customerKey].lastPurchaseDate) {
-          acc[customerKey].lastPurchaseDate = invoiceDate;
-        }
-        
-        return acc;
-      }, {}) || {};
-
-      // Calculate averages and format dates
-      const tableData = Object.values(customerSales).map((item: any) => ({
-        ...item,
-        avgPrice: item.quantitySold > 0 ? item.totalRevenue / item.quantitySold : 0,
-        invoiceCount: item.invoiceCount.size,
-        lastPurchaseDate: item.lastPurchaseDate ? format(item.lastPurchaseDate, 'MMM dd, yyyy') : 'N/A'
-      })).sort((a: any, b: any) => b.totalRevenue - a.totalRevenue);
-
-      // Month-on-month chart data
-      const monthlyData = salesItems?.reduce((acc: Record<string, any>, item) => {
-        const month = format(new Date(item.sales_invoices.invoice_date), 'MMM yyyy');
-        if (!acc[month]) {
-          acc[month] = { month, quantity: 0, revenue: 0 };
-        }
-        acc[month].quantity += item.quantity_invoiced || 0;
-        acc[month].revenue += item.line_total || 0;
-        return acc;
-      }, {}) || {};
-
-      const chartData = Object.values(monthlyData).sort((a: any, b: any) => 
-        new Date(a.month + ' 01').getTime() - new Date(b.month + ' 01').getTime()
-      );
-
-      console.log('Specific product result - Table data count:', tableData.length);
-      console.log('Specific product result - Chart data count:', chartData.length);
-      console.log('=== fetchItemWiseSalesData END (SPECIFIC) ===');
-      
-      return { tableData, chartData };
-    }
-  };
-
-  const fetchItemWisePurchaseData = async (filters: FilterState) => {
-    const { data: purchaseItems, error } = await supabase
-      .from('grn_line_items')
-      .select(`
-        *,
-        grn_header!inner(
-          grn_date,
-          status,
-          supplier_name
-        )
-      `)
-      .in('grn_header.status', ['accepted', 'received', 'partially_received'])
-      .gte('grn_header.grn_date', format(filters.dateRange.from, 'yyyy-MM-dd'))
-      .lte('grn_header.grn_date', format(filters.dateRange.to, 'yyyy-MM-dd'));
-
-    if (error) throw error;
-
-    // Get product information separately
-    const productIds = [...new Set(purchaseItems?.map(item => item.product_id).filter(Boolean))] as string[];
-    let productsData: any[] = [];
-    
-    if (productIds.length > 0) {
-      const { data: products } = await supabase
-        .from('products')
-        .select('id, name, sku')
-        .in('id', productIds);
-      productsData = products || [];
-    }
-
-    // Create product lookup map
-    const productMap = productsData.reduce((acc: Record<string, any>, product) => {
-      acc[product.id] = product;
-      return acc;
-    }, {});
-
-    // Group by product
-    const productPurchases = purchaseItems?.reduce((acc: Record<string, any>, item) => {
-      const productKey = item.product_id || 'unknown';
-      const productInfo = productMap[item.product_id];
-      const productName = productInfo?.name || item.product_name || 'Unknown Product';
-      const sku = productInfo?.sku || item.product_sku || 'N/A';
-      
-      if (!acc[productKey]) {
-        acc[productKey] = {
-          product: productName,
-          sku: sku,
-          quantityPurchased: 0,
-          totalCost: 0,
-          avgPrice: 0,
-          grnCount: new Set()
-        };
-      }
-      
-      acc[productKey].quantityPurchased += item.accepted_quantity || 0;
-      acc[productKey].totalCost += item.line_total || 0;
-      acc[productKey].grnCount.add(item.grn_header_id);
-      
-      return acc;
-    }, {}) || {};
-
-    // Calculate averages and convert Set to count
-    const tableData = Object.values(productPurchases).map((item: any) => ({
-      ...item,
-      avgPrice: item.quantityPurchased > 0 ? item.totalCost / item.quantityPurchased : 0,
-      grnCount: item.grnCount.size
-    })).sort((a: any, b: any) => b.totalCost - a.totalCost);
-
-    // Chart data - top 10 products by cost
-    const chartData = tableData.slice(0, 10).map((item: any) => ({
-      name: item.product.length > 20 ? item.product.substring(0, 20) + '...' : item.product,
-      value: item.totalCost,
-      quantity: item.quantityPurchased
-    }));
 
     return { tableData, chartData };
   };
@@ -2432,8 +2082,6 @@ export function EnhancedReportsModule() {
           return await fetchAPAgingData(filters);
         case 'net_arap':
           return await fetchNetARAPData(filters);
-        case 'sales_orders':
-          return await fetchSalesOrdersData(filters);
         case 'current_stock':
           return await fetchCurrentStockData();
         case 'customer_sales':
@@ -2448,16 +2096,10 @@ export function EnhancedReportsModule() {
           return await fetchHSNTaxSummaryData(filters);
         case 'purchase_orders':
           return await fetchPurchaseOrdersData(filters);
-        case 'vendor_purchases':
-          return await fetchVendorPurchasesData(filters);
         case 'stock_movement':
           return await fetchStockMovementData(filters);
         case 'credit_debit_notes':
           return await fetchCreditDebitNotesData(filters);
-        case 'item_wise_sales':
-          return await fetchItemWiseSalesData(filters);
-        case 'item_wise_purchase':
-          return await fetchItemWisePurchaseData(filters);
         case 'quotation_comparison':
           return await fetchQuotationComparisonData(filters);
         default:
@@ -2506,21 +2148,12 @@ export function EnhancedReportsModule() {
     setSelectedReport(reportId);
     setSelectedCategory(categoryId);
     
-    // Reset filters when changing reports
-    if (reportId === 'item_wise_sales') {
-      console.log('Setting product filter to "all" for item wise sales report');
-      setFilters(prev => ({
-        ...prev,
-        product: 'all'
-      }));
-    } else {
-      // Clear product filter for other reports
-      setFilters(prev => {
-        const newFilters = { ...prev };
-        delete newFilters.product;
-        return newFilters;
-      });
-    }
+    // Reset filters when changing reports - clear product filter for all reports
+    setFilters(prev => {
+      const newFilters = { ...prev };
+      delete newFilters.product;
+      return newFilters;
+    });
   };
 
   const exportReport = (exportFormat: 'excel' | 'pdf' | 'json') => {
@@ -2851,16 +2484,6 @@ export function EnhancedReportsModule() {
                     )}
                   </SelectContent>
                 </Select>
-              </div>
-            )}
-
-            {currentReport?.requiresFilters?.includes('product') && (
-              <div className="flex-1 min-w-[200px]">
-                <label className="text-sm font-medium mb-2 block">Product</label>
-                <ProductSelector
-                  value={filters.product}
-                  onChange={(value) => setFilters(prev => ({ ...prev, product: value }))}
-                />
               </div>
             )}
           </div>
@@ -3305,17 +2928,13 @@ export function EnhancedReportsModule() {
                   <Card>
                     <CardHeader>
                       <CardTitle className="text-lg font-semibold">
-                        {selectedReport === 'item_wise_sales' && filters.product && filters.product !== 'all' 
-                          ? 'Month-on-Month Sales Trend' 
-                          : selectedReport === 'customer_sales'
+                        {selectedReport === 'customer_sales'
                           ? 'Month-on-Month Sales by Invoice Value'
                           : 'Visual Analysis'
                         }
                       </CardTitle>
                       <CardDescription>
-                        {selectedReport === 'item_wise_sales' && filters.product && filters.product !== 'all' 
-                          ? 'Volume and revenue trends for selected item' 
-                          : selectedReport === 'customer_sales'
+                        {selectedReport === 'customer_sales'
                           ? 'Monthly sales trends based on invoice values'
                           : selectedReport.includes('aging') ? 'Outstanding amounts by aging period' : 'Data visualization'
                         }
@@ -3350,19 +2969,6 @@ export function EnhancedReportsModule() {
                               }}
                             />
                           </PieChart>
-                         ) : selectedReport === 'item_wise_sales' && filters.product && filters.product !== 'all' ? (
-                           <AreaChart data={chartData}>
-                             <CartesianGrid strokeDasharray="3 3" />
-                             <XAxis dataKey="month" />
-                             <YAxis yAxisId="left" />
-                             <YAxis yAxisId="right" orientation="right" />
-                             <Tooltip formatter={(value, name) => [
-                               name === 'revenue' ? `₹${Number(value).toLocaleString('en-IN')}` : `${value} units`,
-                               name === 'revenue' ? 'Revenue' : 'Quantity'
-                             ]} />
-                             <Area yAxisId="left" type="monotone" dataKey="revenue" stackId="1" stroke="#0ea5e9" fill="#0ea5e9" fillOpacity={0.6} />
-                             <Area yAxisId="right" type="monotone" dataKey="quantity" stackId="2" stroke="#10b981" fill="#10b981" fillOpacity={0.4} />
-                           </AreaChart>
                          ) : selectedReport.includes('sales') || selectedReport.includes('purchase') ? (
                            <AreaChart data={chartData}>
                              <CartesianGrid strokeDasharray="3 3" />
@@ -3391,10 +2997,7 @@ export function EnhancedReportsModule() {
                     <CardHeader>
                       <CardTitle className="text-lg font-semibold">Key Metrics</CardTitle>
                       <CardDescription>
-                        {selectedReport === 'item_wise_sales' && filters.product && filters.product !== 'all' 
-                          ? 'Customer breakdown for selected item' 
-                          : 'Summary of outstanding amounts'
-                        }
+                        Summary of outstanding amounts
                       </CardDescription>
                     </CardHeader>
                     <CardContent>
@@ -3525,22 +3128,14 @@ export function EnhancedReportsModule() {
                   <CardHeader>
                     <CardTitle className="text-lg font-semibold">Report Data</CardTitle>
                     <CardDescription>
-                      {selectedReport === 'item_wise_sales' && filters.product && filters.product !== 'all' 
-                        ? `Customer breakdown for selected product` 
-                        : `Detailed breakdown for ${currentReport?.name}`
-                      }
+                      Detailed breakdown for {currentReport?.name}
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
                     {reportData.length === 0 ? (
                       <div className="text-center py-8">
                         <p className="text-muted-foreground">
-                          {selectedReport === 'item_wise_sales' && filters.product && filters.product !== 'all' 
-                            ? 'No sales data available for the selected product. Try selecting "All Products" to see the complete sales summary.' 
-                            : selectedReport === 'item_wise_sales' && (!filters.product || filters.product === 'all')
-                            ? 'Loading product sales data...'
-                            : 'No data available for the selected criteria'
-                          }
+                          No data available for the selected criteria
                         </p>
                       </div>
                     ) : (
