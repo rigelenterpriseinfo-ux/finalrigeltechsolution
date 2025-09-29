@@ -1190,12 +1190,12 @@ export function PurchaseOrderTable({
                         </div>
 
                         {/* Export Actions Group */}
-                        <div className="flex items-center rounded-lg border border-slate-200 bg-white shadow-sm">
+                        <div className="flex items-center gap-2">
                           <Button
                             variant="ghost"
                             size="sm"
                             onClick={() => exportToExcel(order)}
-                            className="h-9 px-3 rounded-l-lg rounded-r-none border-r border-slate-200 hover:bg-emerald-50 hover:text-emerald-700 transition-all duration-200"
+                            className="h-9 px-3 rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 hover:border-emerald-300 transition-all duration-200 shadow-sm"
                             title="Export Excel"
                           >
                             <FileSpreadsheet className="h-4 w-4" />
@@ -1204,7 +1204,7 @@ export function PurchaseOrderTable({
                             variant="ghost"
                             size="sm"
                             onClick={() => exportToPDF(order)}
-                            className="h-9 px-3 rounded-r-lg rounded-l-none hover:bg-orange-50 hover:text-orange-700 transition-all duration-200"
+                            className="h-9 px-3 rounded-lg border border-red-200 bg-red-50 text-red-700 hover:bg-red-100 hover:border-red-300 transition-all duration-200 shadow-sm"
                             title="Export PDF"
                           >
                             <FileText className="h-4 w-4" />
