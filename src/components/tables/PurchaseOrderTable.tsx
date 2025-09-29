@@ -427,15 +427,46 @@ export function PurchaseOrderTable({
       doc.setFillColor(41, 128, 185); // Professional blue header
       doc.rect(0, 0, 210, 40, 'F');
       
-      doc.setFontSize(18);
-      doc.setTextColor(255, 255, 255);
-      doc.text(companyData?.name || 'YOUR COMPANY NAME', 15, 15);
-      
-      doc.setFontSize(8);
-      doc.text(companyData?.address_line1 || 'Address Line 1', 15, 22);
-      doc.text(`${companyData?.city || 'City'}, ${companyData?.state || 'State'} - ${companyData?.postal_code || 'PIN'}`, 15, 27);
-      doc.text(`GSTIN: ${companyData?.gstn || 'N/A'} | Phone: ${companyData?.phone || 'N/A'}`, 15, 32);
-      doc.text(`Email: ${companyData?.email || 'company@example.com'}`, 15, 37);
+      // Add company logo if available
+      if (companyData?.logo_url) {
+        try {
+          // Add logo - positioned at top left
+          doc.addImage(companyData.logo_url, 'PNG', 15, 8, 25, 25);
+          // Adjust text position to accommodate logo
+          doc.setFontSize(16);
+          doc.setTextColor(255, 255, 255);
+          doc.text(companyData?.name || 'YOUR COMPANY NAME', 45, 18);
+          
+          doc.setFontSize(8);
+          doc.text(companyData?.address_line1 || 'Address Line 1', 45, 24);
+          doc.text(`${companyData?.city || 'City'}, ${companyData?.state || 'State'} - ${companyData?.postal_code || 'PIN'}`, 45, 28);
+          doc.text(`GSTIN: ${companyData?.gstn || 'N/A'} | Phone: ${companyData?.phone || 'N/A'}`, 45, 32);
+          doc.text(`Email: ${companyData?.email || 'company@example.com'}`, 45, 36);
+        } catch (error) {
+          console.error('Error loading logo:', error);
+          // Fallback to text-only header
+          doc.setFontSize(18);
+          doc.setTextColor(255, 255, 255);
+          doc.text(companyData?.name || 'YOUR COMPANY NAME', 15, 15);
+          
+          doc.setFontSize(8);
+          doc.text(companyData?.address_line1 || 'Address Line 1', 15, 22);
+          doc.text(`${companyData?.city || 'City'}, ${companyData?.state || 'State'} - ${companyData?.postal_code || 'PIN'}`, 15, 27);
+          doc.text(`GSTIN: ${companyData?.gstn || 'N/A'} | Phone: ${companyData?.phone || 'N/A'}`, 15, 32);
+          doc.text(`Email: ${companyData?.email || 'company@example.com'}`, 15, 37);
+        }
+      } else {
+        // No logo - use original layout
+        doc.setFontSize(18);
+        doc.setTextColor(255, 255, 255);
+        doc.text(companyData?.name || 'YOUR COMPANY NAME', 15, 15);
+        
+        doc.setFontSize(8);
+        doc.text(companyData?.address_line1 || 'Address Line 1', 15, 22);
+        doc.text(`${companyData?.city || 'City'}, ${companyData?.state || 'State'} - ${companyData?.postal_code || 'PIN'}`, 15, 27);
+        doc.text(`GSTIN: ${companyData?.gstn || 'N/A'} | Phone: ${companyData?.phone || 'N/A'}`, 15, 32);
+        doc.text(`Email: ${companyData?.email || 'company@example.com'}`, 15, 37);
+      }
       
       // PO Title (Right Side) - Fixed margin to prevent cropping
       doc.setFontSize(24);
@@ -657,8 +688,8 @@ export function PurchaseOrderTable({
       doc.setFont('helvetica', 'bold');
       doc.setTextColor(0, 0, 0);
       
-      // Fixed: Proper spacing between label and amount
-      doc.text('TOTAL AMOUNT:', totalsX, yPos);
+      // Changed label to "Total:"
+      doc.text('Total:', totalsX, yPos);
       doc.text(`${fullPO.currency} ${fullPO.total_amount.toFixed(2)}`, 193, yPos, { align: 'right' });
       
       yPos += 8;
