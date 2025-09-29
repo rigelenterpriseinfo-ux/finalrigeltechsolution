@@ -581,7 +581,7 @@ export function PurchaseOrderTable({
       
       yPos += 6;
       
-      // Table Header with improved design and optimized spacing (UOM removed)
+      // Table Header with compressed left columns and expanded right columns
       doc.setFillColor(41, 128, 185);
       doc.rect(15, yPos, 180, 10, 'F');
       
@@ -589,18 +589,18 @@ export function PurchaseOrderTable({
       doc.setFont('helvetica', 'bold');
       doc.setTextColor(255, 255, 255);
       
-      // Optimized column positions without UOM
+      // Optimized column positions - compressed left, expanded right
       const colPositions = {
         sno: 17,
-        itemCode: 27,
-        description: 53,
-        hsn: 90,
-        qty: 107,
-        rate: 127,
-        discPct: 143,
-        discAmt: 159,
-        taxPct: 172,
-        taxAmt: 185,
+        itemCode: 25,
+        description: 45,
+        hsn: 75,
+        qty: 92,
+        rate: 112,
+        discPct: 130,
+        discAmt: 148,
+        taxPct: 165,
+        taxAmt: 182,
         amount: 193
       };
       
@@ -657,19 +657,19 @@ export function PurchaseOrderTable({
         doc.setDrawColor(220, 220, 220);
         doc.line(15, yPos + 7, 195, yPos + 7);
         
-        // Data with proper alignment and spacing (UOM removed, no decimals)
+        // Data with proper alignment and spacing - compressed left columns
         doc.text(item.sno.toString(), colPositions.sno, yPos + 4);
         
-        // Item code with truncation if too long
-        const itemCode = item.code.length > 9 ? item.code.substring(0, 9) : item.code;
+        // Item code - reduced to 7 chars
+        const itemCode = item.code.length > 7 ? item.code.substring(0, 7) : item.code;
         doc.text(itemCode, colPositions.itemCode, yPos + 4);
         
-        // Description with word wrap - limit to 30 chars (more space now)
-        const descText = item.desc.length > 30 ? item.desc.substring(0, 30) + '...' : item.desc;
+        // Description - reduced to 25 chars
+        const descText = item.desc.length > 25 ? item.desc.substring(0, 25) + '...' : item.desc;
         doc.text(descText, colPositions.description, yPos + 4);
         
-        // HSN with truncation if too long
-        const hsnText = item.hsn.length > 12 ? item.hsn.substring(0, 12) : item.hsn;
+        // HSN - reduced to 10 chars
+        const hsnText = item.hsn.length > 10 ? item.hsn.substring(0, 10) : item.hsn;
         doc.text(hsnText, colPositions.hsn, yPos + 4);
         
         doc.text(item.qty.toString(), colPositions.qty, yPos + 4, { align: 'center' });
