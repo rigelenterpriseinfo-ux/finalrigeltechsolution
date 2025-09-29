@@ -80,6 +80,10 @@ export const DraggableWidgets: React.FC<DraggableWidgetsProps> = ({ onNavigate }
   const [topVendorsPendingPO, setTopVendorsPendingPO] = useState<Array<{vendor: string, value: number}>>([]);
   const [totalOpenPOData, setTotalOpenPOData] = useState<{qty: number, value: number}>({qty: 0, value: 0});
   const [topPendingItems, setTopPendingItems] = useState<Array<{item: string, qty: number}>>([]);
+  const [openDebitNoteData, setOpenDebitNoteData] = useState<{qty: number, value: number}>({qty: 0, value: 0});
+  const [topDebitNoteVendors, setTopDebitNoteVendors] = useState<Array<{vendor: string, value: number}>>([]);
+  const [openSalesOrderData, setOpenSalesOrderData] = useState<{count: number, value: number}>({count: 0, value: 0});
+  const [topSalesOrderCustomers, setTopSalesOrderCustomers] = useState<Array<{customer: string, value: number}>>([]);
 
   // Fetch warehouse and bin wise good stock data
   const fetchGoodStockData = async () => {
@@ -376,6 +380,156 @@ export const DraggableWidgets: React.FC<DraggableWidgetsProps> = ({ onNavigate }
     }
   };
 
+  // Fetch total open debit note qty and value
+  const fetchOpenDebitNoteData = async () => {
+    if (!profile?.company_id) return;
+    
+    try {
+      // Fetch debit notes
+      const { data: dnData, error: dnError } = await supabase
+        .from('debit_notes')
+        .select('id, total_amount')
+        .eq('company_id', profile.company_id)
+        .eq('status', 'draft');
+
+      if (dnError) throw dnError;
+
+      let totalQty = 0;
+      let totalValue = 0;
+
+      if (dnData && dnData.length > 0) {
+        // Fetch items for these debit notes
+        const dnIds = dnData.map(dn => dn.id);
+        const { data: itemsData, error: itemsError } = await supabase
+          .from('debit_note_items')
+          .select('pending_quantity')
+          .in('debit_note_id', dnIds);
+
+        if (itemsError) throw itemsError;
+
+        // Calculate totals
+        totalValue = dnData.reduce((sum, dn) => sum + Number(dn.total_amount || 0), 0);
+        totalQty = itemsData?.reduce((sum, item) => sum + (item.pending_quantity || 0), 0) || 0;
+      }
+
+      setOpenDebitNoteData({ qty: totalQty, value: totalValue });
+    } catch (error) {
+      console.error('Error fetching open debit note data:', error);
+      setOpenDebitNoteData({ qty: 0, value: 0 });
+    }
+  };
+
+  // Fetch top 3 debit note vendors
+  const fetchTopDebitNoteVendors = async () => {
+    if (!profile?.company_id) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from('debit_notes')
+        .select('supplier_id, total_amount, supplier_name')
+        .eq('company_id', profile.company_id)
+        .eq('status', 'draft')
+        .order('total_amount', { ascending: false });
+
+      if (error) throw error;
+
+      if (data) {
+        // Group by supplier and sum values
+        const vendorMap = new Map<string, number>();
+        data.forEach(dn => {
+          const supplierName = dn.supplier_name || 'Unknown';
+          const current = vendorMap.get(supplierName) || 0;
+          vendorMap.set(supplierName, current + Number(dn.total_amount));
+        });
+
+        const topVendors = Array.from(vendorMap.entries())
+          .map(([vendor, value]) => ({ vendor, value }))
+          .sort((a, b) => b.value - a.value)
+          .slice(0, 3);
+
+        setTopDebitNoteVendors(topVendors);
+      }
+    } catch (error) {
+      console.error('Error fetching top debit note vendors:', error);
+      setTopDebitNoteVendors([]);
+    }
+  };
+
+  // Fetch open sales orders count and value
+  const fetchOpenSalesOrderData = async () => {
+    if (!profile?.company_id) return;
+    
+    try {
+      // Fetch sales orders
+      const { data: soData, error: soError } = await supabase
+        .from('sales_orders')
+        .select('id, total_amount')
+        .eq('company_id', profile.company_id)
+        .in('status', ['draft', 'confirmed', 'partially_delivered']);
+
+      if (soError) throw soError;
+
+      let totalQty = 0;
+      let totalValue = 0;
+
+      if (soData && soData.length > 0) {
+        // Fetch items for these sales orders
+        const soIds = soData.map(so => so.id);
+        const { data: itemsData, error: itemsError } = await supabase
+          .from('sales_order_items')
+          .select('quantity')
+          .in('sales_order_id', soIds);
+
+        if (itemsError) throw itemsError;
+
+        // Calculate totals
+        totalValue = soData.reduce((sum, so) => sum + Number(so.total_amount || 0), 0);
+        totalQty = itemsData?.reduce((sum, item) => sum + (item.quantity || 0), 0) || 0;
+      }
+
+      setOpenSalesOrderData({ count: totalQty, value: totalValue });
+    } catch (error) {
+      console.error('Error fetching open sales order data:', error);
+      setOpenSalesOrderData({ count: 0, value: 0 });
+    }
+  };
+
+  // Fetch top 3 sales order customers
+  const fetchTopSalesOrderCustomers = async () => {
+    if (!profile?.company_id) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from('sales_orders')
+        .select('customer_id, total_amount, customer:customers(name)')
+        .eq('company_id', profile.company_id)
+        .in('status', ['draft', 'confirmed', 'partially_delivered'])
+        .order('total_amount', { ascending: false });
+
+      if (error) throw error;
+
+      if (data) {
+        // Group by customer and sum values
+        const customerMap = new Map<string, number>();
+        data.forEach(so => {
+          const customerName = so.customer?.name || 'Unknown';
+          const current = customerMap.get(customerName) || 0;
+          customerMap.set(customerName, current + Number(so.total_amount));
+        });
+
+        const topCustomers = Array.from(customerMap.entries())
+          .map(([customer, value]) => ({ customer, value }))
+          .sort((a, b) => b.value - a.value)
+          .slice(0, 3);
+
+        setTopSalesOrderCustomers(topCustomers);
+      }
+    } catch (error) {
+      console.error('Error fetching top sales order customers:', error);
+      setTopSalesOrderCustomers([]);
+    }
+  };
+
   // Fetch all data on component mount
   useEffect(() => {
     const fetchAllData = async () => {
@@ -388,7 +542,11 @@ export const DraggableWidgets: React.FC<DraggableWidgetsProps> = ({ onNavigate }
         fetchSalesTrendData(),
         fetchBackorderData(),
         fetchTotalOpenPOData(),
-        fetchTopPendingItems()
+        fetchTopPendingItems(),
+        fetchOpenDebitNoteData(),
+        fetchTopDebitNoteVendors(),
+        fetchOpenSalesOrderData(),
+        fetchTopSalesOrderCustomers()
       ]);
       setLoading(false);
     };
@@ -617,6 +775,124 @@ export const DraggableWidgets: React.FC<DraggableWidgetsProps> = ({ onNavigate }
                   <div key={idx} className="flex justify-between items-center">
                     <span className="text-xs truncate flex-1">{item.item}</span>
                     <span className="font-semibold ml-2">Qty: {item.qty}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        );
+
+      case 'purchase':
+        return (
+          <div className="h-full flex flex-col">
+            <div className="flex items-center gap-2 mb-2">
+              <div className={cn("p-1 rounded", widget.color)}>
+                <Icon className="h-4 w-4" />
+              </div>
+              <span className="text-xs font-medium">Open Debit Notes</span>
+            </div>
+            {loading ? (
+              <div className="text-xs text-muted-foreground">Loading...</div>
+            ) : (
+              <div className="space-y-2 text-xs">
+                <div className="space-y-1">
+                  <div className="flex justify-between items-center">
+                    <span className="text-muted-foreground">Quantity:</span>
+                    <span className="font-semibold">{openDebitNoteData.qty.toLocaleString()}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-muted-foreground">Value:</span>
+                    <span className="font-semibold">₹{openDebitNoteData.value.toLocaleString()}</span>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        );
+
+      case 'inventory':
+        return (
+          <div className="h-full flex flex-col">
+            <div className="flex items-center gap-2 mb-2">
+              <div className={cn("p-1 rounded", widget.color)}>
+                <Icon className="h-4 w-4" />
+              </div>
+              <span className="text-xs font-medium">Top 3 Debit Note Vendors</span>
+            </div>
+            {loading ? (
+              <div className="text-xs text-muted-foreground">Loading...</div>
+            ) : topDebitNoteVendors.length === 0 ? (
+              <div className="text-xs text-muted-foreground text-center py-2">
+                No open debit notes
+              </div>
+            ) : (
+              <div className="space-y-1 text-xs">
+                {topDebitNoteVendors.map((vendor, idx) => (
+                  <div key={idx} className="space-y-0.5">
+                    <div className="font-medium text-xs truncate">{vendor.vendor}</div>
+                    <div className="flex justify-between text-xs">
+                      <span>Value:</span>
+                      <span>₹{vendor.value.toLocaleString()}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        );
+
+      case 'returns':
+        return (
+          <div className="h-full flex flex-col">
+            <div className="flex items-center gap-2 mb-2">
+              <div className={cn("p-1 rounded", widget.color)}>
+                <Icon className="h-4 w-4" />
+              </div>
+              <span className="text-xs font-medium">Open Sales Orders</span>
+            </div>
+            {loading ? (
+              <div className="text-xs text-muted-foreground">Loading...</div>
+            ) : (
+              <div className="space-y-2 text-xs">
+                <div className="space-y-1">
+                  <div className="flex justify-between items-center">
+                    <span className="text-muted-foreground">Quantity:</span>
+                    <span className="font-semibold">{openSalesOrderData.count.toLocaleString()}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-muted-foreground">Value:</span>
+                    <span className="font-semibold">₹{openSalesOrderData.value.toLocaleString()}</span>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        );
+
+      case 'reports':
+        return (
+          <div className="h-full flex flex-col">
+            <div className="flex items-center gap-2 mb-2">
+              <div className={cn("p-1 rounded", widget.color)}>
+                <Icon className="h-4 w-4" />
+              </div>
+              <span className="text-xs font-medium">Top 3 Sales Order Customers</span>
+            </div>
+            {loading ? (
+              <div className="text-xs text-muted-foreground">Loading...</div>
+            ) : topSalesOrderCustomers.length === 0 ? (
+              <div className="text-xs text-muted-foreground text-center py-2">
+                No open sales orders
+              </div>
+            ) : (
+              <div className="space-y-1 text-xs">
+                {topSalesOrderCustomers.map((customer, idx) => (
+                  <div key={idx} className="space-y-0.5">
+                    <div className="font-medium text-xs truncate">{customer.customer}</div>
+                    <div className="flex justify-between text-xs">
+                      <span>Value:</span>
+                      <span>₹{customer.value.toLocaleString()}</span>
+                    </div>
                   </div>
                 ))}
               </div>
