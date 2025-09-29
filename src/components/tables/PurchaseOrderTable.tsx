@@ -581,27 +581,27 @@ export function PurchaseOrderTable({
       
       yPos += 6;
       
-      // Table Header with improved design
+      // Table Header with improved design and optimized spacing
       doc.setFillColor(41, 128, 185);
       doc.rect(15, yPos, 180, 10, 'F');
       
-      doc.setFontSize(8);
+      doc.setFontSize(7);
       doc.setFont('helvetica', 'bold');
       doc.setTextColor(255, 255, 255);
       
-      // Column positions optimized for readability
+      // Optimized column positions to prevent overlap
       const colPositions = {
-        sno: 18,
-        itemCode: 28,
-        description: 52,
-        hsn: 88,
-        qty: 102,
-        uom: 115,
-        rate: 128,
-        discPct: 142,
-        discAmt: 155,
+        sno: 17,
+        itemCode: 26,
+        description: 48,
+        hsn: 78,
+        qty: 95,
+        uom: 108,
+        rate: 125,
+        discPct: 140,
+        discAmt: 154,
         taxPct: 168,
-        taxAmt: 180,
+        taxAmt: 182,
         amount: 193
       };
       
@@ -609,12 +609,12 @@ export function PurchaseOrderTable({
       doc.text('Item Code', colPositions.itemCode, yPos + 6.5);
       doc.text('Description', colPositions.description, yPos + 6.5);
       doc.text('HSN', colPositions.hsn, yPos + 6.5);
-      doc.text('Qty', colPositions.qty, yPos + 6.5, { align: 'right' });
+      doc.text('Qty', colPositions.qty, yPos + 6.5, { align: 'center' });
       doc.text('UOM', colPositions.uom, yPos + 6.5);
       doc.text('Rate', colPositions.rate, yPos + 6.5, { align: 'right' });
-      doc.text('Disc%', colPositions.discPct, yPos + 6.5, { align: 'right' });
+      doc.text('Disc%', colPositions.discPct, yPos + 6.5, { align: 'center' });
       doc.text('Disc Amt', colPositions.discAmt, yPos + 6.5, { align: 'right' });
-      doc.text('Tax%', colPositions.taxPct, yPos + 6.5, { align: 'right' });
+      doc.text('Tax%', colPositions.taxPct, yPos + 6.5, { align: 'center' });
       doc.text('Tax Amt', colPositions.taxAmt, yPos + 6.5, { align: 'right' });
       doc.text('Amount', colPositions.amount, yPos + 6.5, { align: 'right' });
       
@@ -646,7 +646,7 @@ export function PurchaseOrderTable({
       
       doc.setFont('helvetica', 'normal');
       doc.setTextColor(0, 0, 0);
-      doc.setFontSize(8);
+      doc.setFontSize(7);
       
       lineItems.forEach((item, index) => {
         // Alternating row background with more subtle color
@@ -659,21 +659,27 @@ export function PurchaseOrderTable({
         doc.setDrawColor(220, 220, 220);
         doc.line(15, yPos + 7, 195, yPos + 7);
         
-        // Data with proper alignment
+        // Data with proper alignment and spacing
         doc.text(item.sno.toString(), colPositions.sno, yPos + 4);
-        doc.text(item.code, colPositions.itemCode, yPos + 4);
         
-        // Description with word wrap if needed
-        const descText = doc.splitTextToSize(item.desc, 32);
-        doc.text(descText[0], colPositions.description, yPos + 4);
+        // Item code with truncation if too long
+        const itemCode = item.code.length > 8 ? item.code.substring(0, 8) : item.code;
+        doc.text(itemCode, colPositions.itemCode, yPos + 4);
         
-        doc.text(item.hsn, colPositions.hsn, yPos + 4);
-        doc.text(item.qty.toString(), colPositions.qty, yPos + 4, { align: 'right' });
+        // Description with word wrap - limit to 25 chars
+        const descText = item.desc.length > 25 ? item.desc.substring(0, 25) + '...' : item.desc;
+        doc.text(descText, colPositions.description, yPos + 4);
+        
+        // HSN with truncation if too long
+        const hsnText = item.hsn.length > 10 ? item.hsn.substring(0, 10) : item.hsn;
+        doc.text(hsnText, colPositions.hsn, yPos + 4);
+        
+        doc.text(item.qty.toString(), colPositions.qty, yPos + 4, { align: 'center' });
         doc.text(item.uom, colPositions.uom, yPos + 4);
         doc.text(item.rate.toFixed(2), colPositions.rate, yPos + 4, { align: 'right' });
-        doc.text(item.disc.toString(), colPositions.discPct, yPos + 4, { align: 'right' });
+        doc.text(item.disc.toString(), colPositions.discPct, yPos + 4, { align: 'center' });
         doc.text(Math.round(item.discAmt).toString(), colPositions.discAmt, yPos + 4, { align: 'right' });
-        doc.text(item.tax.toString(), colPositions.taxPct, yPos + 4, { align: 'right' });
+        doc.text(item.tax.toString(), colPositions.taxPct, yPos + 4, { align: 'center' });
         doc.text(Math.round(item.taxAmt).toString(), colPositions.taxAmt, yPos + 4, { align: 'right' });
         
         // Amount in bold without decimals
