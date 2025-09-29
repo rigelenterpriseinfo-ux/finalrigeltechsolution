@@ -1774,12 +1774,17 @@ export function EnhancedReportsModule() {
   };
 
   const fetchStockMovementData = async (filters: FilterState) => {
+    if (!company?.id) {
+      return { tableData: [], chartData: [] };
+    }
+
     const { data: transactions, error } = await supabase
       .from('inventory_transactions')
       .select(`
         *, 
         products(name, sku)
       `)
+      .eq('company_id', company.id)
       .gte('transaction_date', format(filters.dateRange.from, 'yyyy-MM-dd'))
       .lte('transaction_date', format(filters.dateRange.to, 'yyyy-MM-dd'))
       .order('transaction_date', { ascending: false })
@@ -1787,16 +1792,40 @@ export function EnhancedReportsModule() {
 
     if (error) throw error;
 
-    const tableData = transactions?.map(transaction => ({
-      product: transaction.products?.name || 'Unknown Product',
-      sku: transaction.products?.sku || 'N/A',
-      transaction: transaction.transaction_type,
-      quantity: transaction.quantity_change,
-      unitCost: transaction.unit_cost,
-      totalValue: transaction.total_value,
-      date: transaction.transaction_date,
-      reference: transaction.reference_number
-    })) || [];
+    // Fetch warehouse bins to get warehouse/bin names and codes
+    const { data: warehouseBins } = await supabase
+      .from('warehouse_bins')
+      .select('*')
+      .eq('company_id', company.id);
+
+    const warehouseBinMap = new Map(warehouseBins?.map(wb => [wb.id, wb]) || []);
+
+    const tableData = transactions?.map(transaction => {
+      // Get warehouse info
+      const warehouse = warehouseBinMap.get(transaction.warehouse_id);
+      const warehouseDisplay = warehouse?.warehouse_name 
+        ? `${warehouse.warehouse_name}${warehouse.warehouse_code ? ` (${warehouse.warehouse_code})` : ''}`
+        : 'N/A';
+      
+      // Get bin info
+      const bin = transaction.bin_id ? warehouseBinMap.get(transaction.bin_id) : null;
+      const binDisplay = bin?.bin_name
+        ? `${bin.bin_name}${bin.wh_bin_code ? ` (${bin.wh_bin_code})` : ''}`
+        : 'N/A';
+
+      return {
+        product: transaction.products?.name || 'Unknown Product',
+        sku: transaction.products?.sku || 'N/A',
+        transactionType: transaction.transaction_type,
+        fromWarehouseNameAndCode: warehouseDisplay,
+        toBinLocationAndCode: binDisplay,
+        quantity: transaction.quantity_change,
+        unitCost: transaction.unit_cost,
+        totalValue: transaction.total_value,
+        date: transaction.transaction_date,
+        reference: transaction.reference_number || 'N/A'
+      };
+    }) || [];
 
     // Daily movement chart
     const dailyMovement = transactions?.reduce((acc: Record<string, any>, transaction) => {
@@ -3270,8 +3299,8 @@ export function EnhancedReportsModule() {
                 </Card>
               )}
 
-              {/* Report Table - Hidden for purchase_orders, customer_sales, and current_stock */}
-              {!['purchase_orders', 'customer_sales', 'current_stock'].includes(selectedReport) && (
+              {/* Report Table - Hidden for purchase_orders, customer_sales, current_stock, and stock_movement */}
+              {!['purchase_orders', 'customer_sales', 'current_stock', 'stock_movement'].includes(selectedReport) && (
                 <Card>
                   <CardHeader>
                     <CardTitle className="text-lg font-semibold">Report Data</CardTitle>
