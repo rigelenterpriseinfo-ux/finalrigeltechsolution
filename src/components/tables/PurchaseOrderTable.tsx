@@ -237,19 +237,19 @@ export function PurchaseOrderTable({
   const getStatusColor = (status: string) => {
     switch (status.toLowerCase()) {
       case 'draft':
-        return 'bg-gray-100 text-gray-800 hover:bg-gray-200';
+        return 'bg-slate-100 text-slate-700 border border-slate-200 hover:bg-slate-200';
       case 'open':
-        return 'bg-blue-100 text-blue-800 hover:bg-blue-200';
+        return 'bg-blue-100 text-blue-700 border border-blue-200 hover:bg-blue-200';
       case 'confirmed':
-        return 'bg-green-100 text-green-800 hover:bg-green-200';
+        return 'bg-emerald-100 text-emerald-700 border border-emerald-200 hover:bg-emerald-200';
       case 'partially_received':
-        return 'bg-yellow-100 text-yellow-800 hover:bg-yellow-200';
+        return 'bg-amber-100 text-amber-700 border border-amber-200 hover:bg-amber-200';
       case 'closed':
-        return 'bg-purple-100 text-purple-800 hover:bg-purple-200';
+        return 'bg-purple-100 text-purple-700 border border-purple-200 hover:bg-purple-200';
       case 'cancelled':
-        return 'bg-red-100 text-red-800 hover:bg-red-200';
+        return 'bg-red-100 text-red-700 border border-red-200 hover:bg-red-200';
       default:
-        return 'bg-gray-100 text-gray-800 hover:bg-gray-200';
+        return 'bg-slate-100 text-slate-700 border border-slate-200 hover:bg-slate-200';
     }
   };
 
@@ -1000,191 +1000,216 @@ export function PurchaseOrderTable({
           </div>
         </div>
 
-        {/* Table */}
+        {/* Table - Enhanced Design */}
         <div className="overflow-x-auto">
           <Table>
             <TableHeader>
-              <TableRow className="bg-gray-50 hover:bg-gray-50">
+              <TableRow className="bg-gradient-to-r from-slate-50 to-slate-100 border-b-2 border-slate-200 hover:from-slate-50 hover:to-slate-100">
                 <TableHead 
-                  className="font-semibold text-gray-700 cursor-pointer hover:bg-gray-100 transition-colors"
+                  className="font-bold text-slate-800 cursor-pointer hover:bg-slate-100 transition-all duration-200 py-4"
                   onClick={() => handleSort('po_number')}
                 >
                   <div className="flex items-center gap-2">
-                    PO Number
+                    <span className="text-xs uppercase tracking-wider">PO Number</span>
                     {getSortIcon('po_number')}
                   </div>
                 </TableHead>
                 <TableHead 
-                  className="font-semibold text-gray-700 cursor-pointer hover:bg-gray-100 transition-colors"
+                  className="font-bold text-slate-800 cursor-pointer hover:bg-slate-100 transition-all duration-200 py-4"
                   onClick={() => handleSort('supplier_name')}
                 >
                   <div className="flex items-center gap-2">
-                    Supplier
+                    <span className="text-xs uppercase tracking-wider">Supplier</span>
                     {getSortIcon('supplier_name')}
                   </div>
                 </TableHead>
                 <TableHead 
-                  className="font-semibold text-gray-700 cursor-pointer hover:bg-gray-100 transition-colors"
+                  className="font-bold text-slate-800 cursor-pointer hover:bg-slate-100 transition-all duration-200 py-4"
                   onClick={() => handleSort('order_date')}
                 >
                   <div className="flex items-center gap-2">
-                    Order Date
+                    <span className="text-xs uppercase tracking-wider">Order Date</span>
                     {getSortIcon('order_date')}
                   </div>
                 </TableHead>
                 <TableHead 
-                  className="font-semibold text-gray-700 cursor-pointer hover:bg-gray-100 transition-colors"
+                  className="font-bold text-slate-800 cursor-pointer hover:bg-slate-100 transition-all duration-200 py-4"
                   onClick={() => handleSort('expected_date')}
                 >
                   <div className="flex items-center gap-2">
-                    Expected Delivery
+                    <span className="text-xs uppercase tracking-wider">Expected Delivery</span>
                     {getSortIcon('expected_date')}
                   </div>
                 </TableHead>
                 <TableHead 
-                  className="font-semibold text-gray-700 cursor-pointer hover:bg-gray-100 transition-colors"
+                  className="font-bold text-slate-800 cursor-pointer hover:bg-slate-100 transition-all duration-200 py-4 text-right"
                   onClick={() => handleSort('total_amount')}
                 >
-                  <div className="flex items-center gap-2">
-                    Total Amount
+                  <div className="flex items-center justify-end gap-2">
+                    <span className="text-xs uppercase tracking-wider">Total Amount</span>
                     {getSortIcon('total_amount')}
                   </div>
                 </TableHead>
                 <TableHead 
-                  className="font-semibold text-gray-700 cursor-pointer hover:bg-gray-100 transition-colors"
+                  className="font-bold text-slate-800 cursor-pointer hover:bg-slate-100 transition-all duration-200 py-4 text-right"
                   onClick={() => handleSort('received_amount')}
                 >
-                  <div className="flex items-center gap-2">
-                    Received Amount
+                  <div className="flex items-center justify-end gap-2">
+                    <span className="text-xs uppercase tracking-wider">Received</span>
                     {getSortIcon('received_amount')}
                   </div>
                 </TableHead>
                 <TableHead 
-                  className="font-semibold text-gray-700 cursor-pointer hover:bg-gray-100 transition-colors"
+                  className="font-bold text-slate-800 cursor-pointer hover:bg-slate-100 transition-all duration-200 py-4 text-right"
                   onClick={() => handleSort('pending_amount')}
                 >
-                  <div className="flex items-center gap-2">
-                    Pending Amount
+                  <div className="flex items-center justify-end gap-2">
+                    <span className="text-xs uppercase tracking-wider">Pending</span>
                     {getSortIcon('pending_amount')}
                   </div>
                 </TableHead>
                 <TableHead 
-                  className="font-semibold text-gray-700 cursor-pointer hover:bg-gray-100 transition-colors"
+                  className="font-bold text-slate-800 cursor-pointer hover:bg-slate-100 transition-all duration-200 py-4"
                   onClick={() => handleSort('status')}
                 >
                   <div className="flex items-center gap-2">
-                    Status
+                    <span className="text-xs uppercase tracking-wider">Status</span>
                     {getSortIcon('status')}
                   </div>
                 </TableHead>
-                <TableHead className="font-semibold text-muted-foreground text-center min-w-[200px]">Actions</TableHead>
+                <TableHead className="font-bold text-slate-800 text-center py-4 min-w-[200px]">
+                  <span className="text-xs uppercase tracking-wider">Actions</span>
+                </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {currentOrders.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
-                    {searchTerm ? 'No purchase orders found matching your search.' : 'No purchase orders found.'}
+                  <TableCell colSpan={9} className="text-center py-12">
+                    <div className="flex flex-col items-center gap-2 text-slate-400">
+                      <FileText className="h-12 w-12 opacity-40" />
+                      <p className="font-medium">
+                        {searchTerm ? 'No purchase orders found matching your search.' : 'No purchase orders found.'}
+                      </p>
+                    </div>
                   </TableCell>
                 </TableRow>
               ) : (
                 currentOrders.map((order) => (
-                  <TableRow key={order.id} className="hover:bg-gray-50 transition-colors">
-                    <TableCell className="font-medium text-blue-600">
+                  <TableRow 
+                    key={order.id} 
+                    className="hover:bg-slate-50 transition-all duration-200 border-b border-slate-100 group"
+                  >
+                    <TableCell className="font-semibold text-blue-600 py-4">
                       {order.po_number}
                     </TableCell>
-                    <TableCell className="font-medium">
+                    <TableCell className="font-medium text-slate-700 py-4">
                       {order.supplier.name}
                     </TableCell>
-                    <TableCell>
-                      {new Date(order.order_date).toLocaleDateString()}
+                    <TableCell className="text-slate-600 py-4">
+                      {new Date(order.order_date).toLocaleDateString('en-IN', { 
+                        day: '2-digit', 
+                        month: 'short', 
+                        year: 'numeric' 
+                      })}
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="text-slate-600 py-4">
                       {order.expected_date 
-                        ? new Date(order.expected_date).toLocaleDateString()
-                        : 'Not specified'
+                        ? new Date(order.expected_date).toLocaleDateString('en-IN', { 
+                            day: '2-digit', 
+                            month: 'short', 
+                            year: 'numeric' 
+                          })
+                        : <span className="text-slate-400 italic">Not set</span>
                       }
                     </TableCell>
-                    <TableCell className="font-semibold">
-                      {order.currency} {order.total_amount.toLocaleString()}
+                    <TableCell className="font-bold text-slate-900 py-4 text-right">
+                      {order.currency} {order.total_amount.toLocaleString('en-IN')}
                     </TableCell>
-                    <TableCell className="font-semibold text-green-600">
-                      {order.currency} {order.received_amount.toLocaleString()}
+                    <TableCell className="font-semibold text-emerald-600 py-4 text-right">
+                      {order.currency} {order.received_amount.toLocaleString('en-IN')}
                     </TableCell>
-                    <TableCell className="font-semibold text-orange-600">
-                      {order.currency} {order.pending_amount.toLocaleString()}
+                    <TableCell className="font-semibold text-amber-600 py-4 text-right">
+                      {order.currency} {order.pending_amount.toLocaleString('en-IN')}
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="py-4">
                       <Badge 
                         variant="secondary" 
-                        className={getStatusColor(order.status)}
+                        className={`${getStatusColor(order.status)} font-medium px-3 py-1 rounded-full text-xs`}
                       >
                         {order.status.replace('_', ' ').toUpperCase()}
                       </Badge>
                     </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-1.5 justify-center flex-wrap">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => onView(order)}
-                          className="h-8 w-8 p-0 border-blue-200 bg-blue-50 hover:bg-blue-100 hover:border-blue-300 text-blue-700 transition-all duration-200"
-                          title="View Purchase Order Details"
-                        >
-                          <Eye className="h-3.5 w-3.5" />
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => onEdit(order)}
-                          disabled={order.status === 'closed'}
-                          className={`h-8 w-8 p-0 transition-all duration-200 ${
-                            order.status === 'closed' 
-                              ? 'border-gray-200 bg-gray-50 text-gray-400 cursor-not-allowed' 
-                              : 'border-emerald-200 bg-emerald-50 hover:bg-emerald-100 hover:border-emerald-300 text-emerald-700'
-                          }`}
-                          title={order.status === 'closed' ? 'Cannot edit closed purchase order' : 'Edit Purchase Order'}
-                        >
-                          <Edit className="h-3.5 w-3.5" />
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => onDelete(order.id)}
-                          disabled={order.status === 'closed' || order.status === 'partially_received' || posWithTransactions.has(order.id)}
-                          className={`h-8 w-8 p-0 transition-all duration-200 ${
-                            order.status === 'closed' || order.status === 'partially_received' || posWithTransactions.has(order.id)
-                              ? 'border-gray-200 bg-gray-50 text-gray-400 cursor-not-allowed' 
-                              : 'border-red-200 bg-red-50 hover:bg-red-100 hover:border-red-300 text-red-700'
-                          }`}
-                          title={
-                            posWithTransactions.has(order.id)
-                              ? 'Cannot delete purchase order with existing transactions'
-                              : order.status === 'closed' || order.status === 'partially_received'
-                              ? 'Cannot delete purchase order with this status' 
-                              : 'Delete Purchase Order'
-                          }
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => exportToExcel(order)}
-                          className="h-8 w-8 p-0 border-green-200 bg-green-50 hover:bg-green-100 hover:border-green-300 text-green-700 transition-all duration-200"
-                          title="Export to Excel Spreadsheet"
-                        >
-                          <FileSpreadsheet className="h-3.5 w-3.5" />
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => exportToPDF(order)}
-                          className="h-8 w-8 p-0 border-orange-200 bg-orange-50 hover:bg-orange-100 hover:border-orange-300 text-orange-700 transition-all duration-200"
-                          title="Export to PDF Document"
-                        >
-                          <FileText className="h-3.5 w-3.5" />
-                        </Button>
+                    <TableCell className="py-4">
+                      <div className="flex items-center gap-2 justify-center">
+                        {/* Primary Actions Group */}
+                        <div className="flex items-center rounded-lg border border-slate-200 bg-white shadow-sm">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => onView(order)}
+                            className="h-9 px-3 rounded-l-lg rounded-r-none border-r border-slate-200 hover:bg-blue-50 hover:text-blue-700 transition-all duration-200"
+                            title="View Details"
+                          >
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => onEdit(order)}
+                            disabled={order.status === 'closed'}
+                            className={`h-9 px-3 rounded-none border-r border-slate-200 transition-all duration-200 ${
+                              order.status === 'closed' 
+                                ? 'text-slate-300 cursor-not-allowed' 
+                                : 'hover:bg-emerald-50 hover:text-emerald-700'
+                            }`}
+                            title={order.status === 'closed' ? 'Cannot edit closed order' : 'Edit Order'}
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => onDelete(order.id)}
+                            disabled={order.status === 'closed' || order.status === 'partially_received' || posWithTransactions.has(order.id)}
+                            className={`h-9 px-3 rounded-r-lg rounded-l-none transition-all duration-200 ${
+                              order.status === 'closed' || order.status === 'partially_received' || posWithTransactions.has(order.id)
+                                ? 'text-slate-300 cursor-not-allowed' 
+                                : 'hover:bg-red-50 hover:text-red-700'
+                            }`}
+                            title={
+                              posWithTransactions.has(order.id)
+                                ? 'Has existing transactions'
+                                : order.status === 'closed' || order.status === 'partially_received'
+                                ? 'Cannot delete this order' 
+                                : 'Delete Order'
+                            }
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+
+                        {/* Export Actions Group */}
+                        <div className="flex items-center rounded-lg border border-slate-200 bg-white shadow-sm">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => exportToExcel(order)}
+                            className="h-9 px-3 rounded-l-lg rounded-r-none border-r border-slate-200 hover:bg-emerald-50 hover:text-emerald-700 transition-all duration-200"
+                            title="Export Excel"
+                          >
+                            <FileSpreadsheet className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => exportToPDF(order)}
+                            className="h-9 px-3 rounded-r-lg rounded-l-none hover:bg-orange-50 hover:text-orange-700 transition-all duration-200"
+                            title="Export PDF"
+                          >
+                            <FileText className="h-4 w-4" />
+                          </Button>
+                        </div>
                       </div>
                     </TableCell>
                   </TableRow>
@@ -1194,11 +1219,13 @@ export function PurchaseOrderTable({
           </Table>
         </div>
 
-        {/* Pagination */}
+        {/* Pagination - Enhanced Design */}
         {totalPages > 1 && (
-          <div className="flex items-center justify-between p-6 border-t bg-gray-50">
-            <div className="text-sm text-muted-foreground">
-              Showing {startIndex + 1} to {Math.min(endIndex, filteredOrders.length)} of {filteredOrders.length} results
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-6 border-t bg-gradient-to-r from-slate-50 to-slate-100">
+            <div className="text-sm font-medium text-slate-600">
+              Showing <span className="font-bold text-slate-900">{startIndex + 1}</span> to{' '}
+              <span className="font-bold text-slate-900">{Math.min(endIndex, filteredOrders.length)}</span> of{' '}
+              <span className="font-bold text-slate-900">{filteredOrders.length}</span> results
             </div>
             
             <div className="flex items-center gap-2">
@@ -1207,24 +1234,41 @@ export function PurchaseOrderTable({
                 size="sm"
                 onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
                 disabled={currentPage === 1}
-                className="hover:bg-gray-200"
+                className="h-9 px-4 hover:bg-white hover:shadow-md transition-all duration-200 disabled:opacity-50"
               >
-                <ChevronLeft className="h-4 w-4" />
+                <ChevronLeft className="h-4 w-4 mr-1" />
                 Previous
               </Button>
               
               <div className="flex items-center gap-1">
-                {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-                  <Button
-                    key={page}
-                    variant={currentPage === page ? "default" : "ghost"}
-                    size="sm"
-                    onClick={() => setCurrentPage(page)}
-                    className={currentPage === page ? "bg-blue-600 hover:bg-blue-700" : "hover:bg-gray-200"}
-                  >
-                    {page}
-                  </Button>
-                ))}
+                {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
+                  let page;
+                  if (totalPages <= 5) {
+                    page = i + 1;
+                  } else if (currentPage <= 3) {
+                    page = i + 1;
+                  } else if (currentPage >= totalPages - 2) {
+                    page = totalPages - 4 + i;
+                  } else {
+                    page = currentPage - 2 + i;
+                  }
+                  
+                  return (
+                    <Button
+                      key={page}
+                      variant={currentPage === page ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setCurrentPage(page)}
+                      className={`h-9 w-9 p-0 transition-all duration-200 ${
+                        currentPage === page 
+                          ? "bg-blue-600 hover:bg-blue-700 text-white shadow-md" 
+                          : "hover:bg-white hover:shadow-md"
+                      }`}
+                    >
+                      {page}
+                    </Button>
+                  );
+                })}
               </div>
               
               <Button
@@ -1232,10 +1276,10 @@ export function PurchaseOrderTable({
                 size="sm"
                 onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
                 disabled={currentPage === totalPages}
-                className="hover:bg-gray-200"
+                className="h-9 px-4 hover:bg-white hover:shadow-md transition-all duration-200 disabled:opacity-50"
               >
                 Next
-                <ChevronRight className="h-4 w-4" />
+                <ChevronRight className="h-4 w-4 ml-1" />
               </Button>
             </div>
           </div>
