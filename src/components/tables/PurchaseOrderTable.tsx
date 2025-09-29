@@ -253,95 +253,200 @@ export function PurchaseOrderTable({
     }
   };
 
-  const exportToExcel = (order: PurchaseOrder) => {
+  const exportToExcel = async (order: PurchaseOrder) => {
     try {
-      // Company Header Info with real data
+      // Fetch complete purchase order details from database
+      const { data: fullPO, error: poError } = await supabase
+        .from('purchase_orders')
+        .select(`
+          *,
+          supplier:suppliers(*)
+        `)
+        .eq('id', order.id)
+        .single();
+
+      if (poError || !fullPO) {
+        console.error('Error fetching PO details:', poError);
+        toast({
+          title: "Error",
+          description: "Failed to fetch complete purchase order details",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Fetch purchase order items
+      const { data: poItems, error: itemsError } = await supabase
+        .from('purchase_order_items')
+        .select('*')
+        .eq('purchase_order_id', order.id)
+        .order('created_at', { ascending: true });
+
+      if (itemsError) {
+        console.error('Error fetching PO items:', itemsError);
+        toast({
+          title: "Error",
+          description: "Failed to fetch purchase order items",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Company Header with logo placeholder
       const companyInfo = [
         ['PURCHASE ORDER'],
         [''],
-        [companyData?.name || 'Your Company Name'],
-        [companyData?.address_line1 || 'Company Address Line 1'],
-        [`${companyData?.city || 'City'}, ${companyData?.state || 'State'}, ${companyData?.postal_code || 'ZIP Code'}`],
-        [`Phone: ${companyData?.phone || '(555) 123-4567'} | Email: ${companyData?.email || 'orders@company.com'}`],
+        [`Company: ${companyData?.name || 'Your Company Name'}`],
+        [companyData?.address_line1 || 'Address Line 1'],
+        [`${companyData?.city || 'City'}, ${companyData?.state || 'State'} - ${companyData?.postal_code || 'PIN'}`],
+        [`GSTIN: ${companyData?.gstn || 'N/A'} | Phone: ${companyData?.phone || 'N/A'}`],
+        [`Email: ${companyData?.email || 'company@example.com'}`],
         ['']
       ];
 
       // PO Header Details
       const poHeader = [
-        ['PO Number:', order.po_number, '', '', 'Order Date:', new Date(order.order_date).toLocaleDateString()],
-        ['Supplier:', order.supplier.name, '', '', 'Expected Date:', order.expected_date ? new Date(order.expected_date).toLocaleDateString() : 'N/A'],
-        ['Status:', order.status.toUpperCase(), '', '', 'Currency:', order.currency],
+        ['PO Number:', fullPO.po_number, '', 'Date:', new Date(fullPO.order_date).toLocaleDateString('en-IN')],
+        [''],
+      ];
+
+      // Vendor Details Section
+      const vendorDetails = [
+        ['VENDOR DETAILS', '', '', 'SHIP TO / DELIVERY ADDRESS'],
+        [`${fullPO.supplier?.name || 'Supplier Name'}`, '', '', `${companyData?.name || 'Company Name'}`],
+        [fullPO.supplier?.address || fullPO.supplier?.address_line1 || 'Supplier Address', '', '', fullPO.delivery_address_line1 || companyData?.address_line1 || 'Delivery Address'],
+        [`Contact: ${fullPO.supplier_contact_person || fullPO.supplier?.contact_person || 'N/A'}`, '', '', `${fullPO.delivery_city || companyData?.city || 'City'}, ${fullPO.delivery_state || companyData?.state || 'State'}`],
+        [`Phone: ${fullPO.supplier_contact_phone || fullPO.supplier?.phone || 'N/A'}`, '', '', `PIN: ${fullPO.delivery_postal_code || companyData?.postal_code || 'N/A'}`],
+        [`Email: ${fullPO.supplier_contact_email || fullPO.supplier?.email || 'N/A'}`, '', '', `Place of Supply: ${fullPO.company_place_of_supply || companyData?.state || 'N/A'}`],
+        [`GSTIN: ${fullPO.supplier_gstin || fullPO.supplier?.gst_number || 'N/A'}`],
         ['']
       ];
 
-      // Line Items Header (Industry Standard)
-      const lineItemsHeader = [
-        ['Line', 'Item Code', 'Description', 'Unit Price', 'Quantity', 'UOM', 'Total Amount']
+      // Order Details Section
+      const orderDetails = [
+        ['ORDER DETAILS'],
+        ['PO Date:', new Date(fullPO.order_date).toLocaleDateString('en-IN'), '', 'PO Reference:', fullPO.external_po_ref || '-'],
+        ['Expected Delivery:', fullPO.expected_date ? new Date(fullPO.expected_date).toLocaleDateString('en-IN') : 'TBD', '', 'Currency:', fullPO.currency || 'INR'],
+        ['Payment Terms:', fullPO.payment_terms || 'Net 30 Days', '', 'Status:', fullPO.status.toUpperCase()],
+        ['']
       ];
 
-      // Sample line items (since we don't have actual items in the interface yet)
-      const lineItems = [
-        [1, 'ITEM001', 'Sample Product 1', 100.00, 5, 'EA', 500.00],
-        [2, 'ITEM002', 'Sample Product 2', 250.00, 2, 'EA', 500.00]
+      // Line Items Header
+      const lineItemsHeader = [
+        ['LINE ITEMS'],
+        ['S.No', 'Item Code', 'Description', 'HSN', 'Qty', 'Rate', 'Disc%', 'Disc Amt', 'Tax%', 'Tax Amt', 'Amount']
       ];
+
+      // Map actual purchase order items
+      const lineItems = (poItems || []).map((item: any, index: number) => {
+        const subtotal = item.quantity * item.unit_price;
+        const discountAmount = (subtotal * (item.discount_percentage || 0)) / 100;
+        const taxAmount = (item.cgst_amount || 0) + (item.sgst_amount || 0) + (item.igst_amount || 0);
+        const totalTaxRate = (item.cgst_rate || 0) + (item.sgst_rate || 0) + (item.igst_rate || 0);
+        const lineTotal = item.line_total || (subtotal - discountAmount + taxAmount);
+        
+        return [
+          index + 1,
+          item.item_code || item.product_sku || 'N/A',
+          item.item_description || item.product_name || 'Item',
+          item.hsn_sac_code || '-',
+          item.quantity || 0,
+          Math.round(item.unit_price || 0),
+          item.discount_percentage || 0,
+          Math.round(discountAmount),
+          totalTaxRate,
+          Math.round(taxAmount),
+          Math.round(lineTotal)
+        ];
+      });
 
       // Totals Section
+      const subtotal = fullPO.subtotal_amount || (fullPO.total_amount / 1.18);
+      const cgst = ((subtotal * 9) / 100);
+      const sgst = ((subtotal * 9) / 100);
+      
       const totalsSection = [
         [''],
-        ['', '', '', '', 'Subtotal:', '', order.total_amount - (order.total_amount * 0.1)],
-        ['', '', '', '', 'Tax (10%):', '', order.total_amount * 0.1],
-        ['', '', '', '', 'TOTAL:', '', order.total_amount]
+        ['', '', '', '', '', '', '', '', 'Subtotal:', `${fullPO.currency} ${Math.round(subtotal).toLocaleString('en-IN')}`],
+        ['', '', '', '', '', '', '', '', 'CGST (9%):', `${fullPO.currency} ${Math.round(cgst).toLocaleString('en-IN')}`],
+        ['', '', '', '', '', '', '', '', 'SGST (9%):', `${fullPO.currency} ${Math.round(sgst).toLocaleString('en-IN')}`],
       ];
+
+      if (fullPO.total_discount_amount && fullPO.total_discount_amount > 0) {
+        totalsSection.push(['', '', '', '', '', '', '', '', 'Discount:', `${fullPO.currency} ${Math.round(fullPO.total_discount_amount).toLocaleString('en-IN')}`]);
+      }
+
+      totalsSection.push(['', '', '', '', '', '', '', '', 'Total:', `${fullPO.currency} ${Math.round(fullPO.total_amount).toLocaleString('en-IN')}`]);
+      
+      const amountInWords = convertNumberToWords(fullPO.total_amount);
+      totalsSection.push(['', '', '', '', '', '', '', '', 'Amount in words:', amountInWords]);
 
       // Terms and Conditions
       const termsSection = [
         [''],
-        ['TERMS & CONDITIONS:'],
-        ['• Payment Terms: Net 30 days'],
-        ['• Delivery: FOB Destination'],
-        ['• Quality: As per specifications'],
-        ['• Returns: Prior authorization required'],
+        ['TERMS & CONDITIONS'],
+        ['1. Payment Terms: Payment to be made as per agreed payment terms. Late payments may attract interest.'],
+        ['2. Delivery: Supplier shall deliver goods as per the agreed delivery schedule. Any delays must be communicated in advance.'],
+        ['3. Quality Standards: All goods must conform to agreed specifications and quality standards. Goods are subject to inspection.'],
+        ['4. Warranty: Standard manufacturer warranty applies unless otherwise specified.'],
+        ['5. Returns & Rejections: Defective or non-conforming goods may be returned at supplier\'s expense with prior authorization.'],
+        ['6. Force Majeure: Neither party shall be liable for failure to perform due to circumstances beyond reasonable control.'],
+        ['7. Governing Law: This PO is governed by the laws of India and subject to jurisdiction of local courts.'],
+        ['']
+      ];
+
+      if (fullPO.notes) {
+        termsSection.push(['Special Instructions:', fullPO.notes]);
+        termsSection.push(['']);
+      }
+
+      // Authorization Section
+      const authSection = [
+        ['AUTHORIZATION'],
+        ['Prepared By:', '', '', 'Approved By:'],
+        ['Name & Signature:', '', '', 'Name & Signature:'],
+        [`Date: ${new Date().toLocaleDateString('en-IN')}`, '', '', `Date: ${new Date().toLocaleDateString('en-IN')}`],
         [''],
-        ['Notes:', order.notes || 'No additional notes']
+        [`Generated on: ${new Date().toLocaleString('en-IN')}`, '', '', 'This is a computer-generated document']
       ];
 
       // Combine all sections
       const fullData = [
         ...companyInfo,
         ...poHeader,
+        ...vendorDetails,
+        ...orderDetails,
         ...lineItemsHeader,
         ...lineItems,
         ...totalsSection,
-        ...termsSection
+        ...termsSection,
+        ...authSection
       ];
 
       const ws = XLSX.utils.aoa_to_sheet(fullData);
       const wb = XLSX.utils.book_new();
 
-      // Styling and formatting
-      const headerRange = XLSX.utils.encode_range({ s: { c: 0, r: 0 }, e: { c: 6, r: 0 } });
-      ws['!merges'] = [
-        { s: { r: 0, c: 0 }, e: { r: 0, c: 6 } }, // Title merge
-        { s: { r: 2, c: 0 }, e: { r: 2, c: 6 } }, // Company name merge
-      ];
-
       // Set column widths
       ws['!cols'] = [
-        { wch: 8 },   // Line
+        { wch: 6 },   // S.No
         { wch: 12 },  // Item Code
-        { wch: 25 },  // Description
-        { wch: 12 },  // Unit Price
-        { wch: 10 },  // Quantity
-        { wch: 8 },   // UOM
-        { wch: 15 }   // Total Amount
+        { wch: 30 },  // Description
+        { wch: 12 },  // HSN
+        { wch: 8 },   // Qty
+        { wch: 12 },  // Rate
+        { wch: 8 },   // Disc%
+        { wch: 12 },  // Disc Amt
+        { wch: 8 },   // Tax%
+        { wch: 12 },  // Tax Amt
+        { wch: 15 }   // Amount
       ];
 
       XLSX.utils.book_append_sheet(wb, ws, 'Purchase Order');
-      XLSX.writeFile(wb, `PO_${order.po_number}_Complete.xlsx`);
+      XLSX.writeFile(wb, `PO_${fullPO.po_number}_${new Date().toISOString().split('T')[0]}.xlsx`);
       
       toast({
         title: "Excel Export Successful",
-        description: `Complete Purchase Order ${order.po_number} exported to Excel`,
+        description: `Purchase Order ${fullPO.po_number} has been exported`,
       });
     } catch (error) {
       console.error('Export to Excel failed:', error);
