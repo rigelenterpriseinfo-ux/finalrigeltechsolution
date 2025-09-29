@@ -91,39 +91,63 @@ serve(async (req) => {
 
     const admin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, { auth: { persistSession: false } });
 
-    // Optional requester auth: proceed even without token
-    let requesterId: string | null = null;
-
-    // Verify requester is authenticated and is admin/owner of the same company (optional)
+    // Verify authentication (JWT is automatically validated by Supabase with verify_jwt = true)
     const authHeader = req.headers.get('Authorization');
-    const token = authHeader?.replace('Bearer ', '');
-
-    if (token) {
-      try {
-        const { data: requesterData, error: requesterErr } = await admin.auth.getUser(token);
-        if (requesterErr || !requesterData.user) {
-          console.log('Token verification failed, continuing unauthenticated:', requesterErr?.message);
-        } else {
-          requesterId = requesterData.user.id;
-          const { data: requesterProfile, error: profileFetchErr } = await admin
-            .from('profiles')
-            .select('role, company_id')
-            .eq('user_id', requesterId)
-            .maybeSingle();
-          if (profileFetchErr) {
-            console.log('Profile fetch error, continuing unauthenticated:', profileFetchErr.message);
-          } else if (!requesterProfile || !['owner','admin'].includes(requesterProfile.role) || requesterProfile.company_id !== company_id) {
-            console.log('Requester lacks permissions; proceeding because auth is optional.');
-          } else {
-            console.log('Requester verified as admin/owner for company.');
-          }
-        }
-      } catch (e) {
-        console.log('Auth check exception, continuing unauthenticated:', e?.message || e);
-      }
-    } else {
-      console.log('No authorization token provided - proceeding unauthenticated');
+    if (!authHeader) {
+      console.error('Missing authorization header');
+      return new Response(JSON.stringify({ error: 'Authentication required' }), {
+        status: 401,
+        headers: { "Content-Type": "application/json", ...corsHeaders },
+      });
     }
+
+    const token = authHeader.replace('Bearer ', '');
+    const { data: requesterData, error: requesterErr } = await admin.auth.getUser(token);
+    
+    if (requesterErr || !requesterData.user) {
+      console.error('Invalid authentication token:', requesterErr?.message);
+      return new Response(JSON.stringify({ error: 'Invalid authentication' }), {
+        status: 401,
+        headers: { "Content-Type": "application/json", ...corsHeaders },
+      });
+    }
+
+    const requesterId = requesterData.user.id;
+    console.log('Request from user:', requesterId);
+
+    // Verify requester has admin/owner permissions for the target company
+    const { data: requesterProfile, error: profileFetchErr } = await admin
+      .from('profiles')
+      .select('role, company_id')
+      .eq('user_id', requesterId)
+      .single();
+
+    if (profileFetchErr || !requesterProfile) {
+      console.error('Failed to fetch requester profile:', profileFetchErr?.message);
+      return new Response(JSON.stringify({ error: 'User profile not found' }), {
+        status: 403,
+        headers: { "Content-Type": "application/json", ...corsHeaders },
+      });
+    }
+
+    // Verify requester is admin/owner of the target company
+    if (!['owner', 'admin'].includes(requesterProfile.role)) {
+      console.error('Insufficient permissions - user role:', requesterProfile.role);
+      return new Response(JSON.stringify({ error: 'Insufficient permissions. Only admins and owners can invite users.' }), {
+        status: 403,
+        headers: { "Content-Type": "application/json", ...corsHeaders },
+      });
+    }
+
+    if (requesterProfile.company_id !== company_id) {
+      console.error('Company mismatch - requester company:', requesterProfile.company_id, 'target company:', company_id);
+      return new Response(JSON.stringify({ error: 'You can only invite users to your own company' }), {
+        status: 403,
+        headers: { "Content-Type": "application/json", ...corsHeaders },
+      });
+    }
+
+    console.log('Authorization verified - admin/owner inviting user to their company');
 
     // Verify company exists
     const { data: company, error: companyError } = await admin

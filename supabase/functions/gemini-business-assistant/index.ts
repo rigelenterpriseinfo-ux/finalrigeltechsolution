@@ -18,6 +18,18 @@ serve(async (req) => {
   }
 
   try {
+    // Verify authentication (JWT is automatically validated by Supabase)
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      return new Response(JSON.stringify({ 
+        error: 'Authentication required',
+        response: 'Please log in to use the AI assistant.' 
+      }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     const { message, companyId, userId } = await req.json();
 
     if (!GEMINI_API_KEY) {
@@ -26,9 +38,43 @@ serve(async (req) => {
 
     // Initialize Supabase client with service role for database queries
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+    
+    // Verify user has access to this company
+    const token = authHeader.replace('Bearer ', '');
+    const { data: userData, error: userError } = await supabase.auth.getUser(token);
+    
+    if (userError || !userData.user) {
+      console.error('User verification failed:', userError);
+      return new Response(JSON.stringify({ 
+        error: 'Invalid authentication',
+        response: 'Please log in again to continue.' 
+      }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+    
+    // Verify user belongs to the requested company
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('company_id')
+      .eq('user_id', userData.user.id)
+      .single();
+    
+    if (!profile || profile.company_id !== companyId) {
+      console.error('Unauthorized company access attempt');
+      return new Response(JSON.stringify({ 
+        error: 'Unauthorized',
+        response: 'You do not have access to this company data.' 
+      }), {
+        status: 403,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
 
     console.log('Processing business query:', message);
     console.log('Company ID:', companyId);
+    console.log('User ID:', userData.user.id);
 
     // Check if user wants conversation history
     if (message.toLowerCase().includes('conversation history') || message.toLowerCase().includes('chat history') || message.toLowerCase().includes('previous messages')) {

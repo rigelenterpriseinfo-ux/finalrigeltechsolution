@@ -110,6 +110,37 @@ serve(async (req) => {
       { auth: { persistSession: false } }
     );
 
+    // Check rate limiting BEFORE querying database
+    try {
+      const emailHash = Array.from(
+        new Uint8Array(
+          await crypto.subtle.digest('SHA-256', new TextEncoder().encode(normalizedUsername))
+        )
+      ).map(b => b.toString(16).padStart(2, '0')).join('');
+      
+      const { data: rateLimit } = await supabase
+        .from('auth_rate_limits')
+        .select('*')
+        .eq('hashed_email', emailHash)
+        .maybeSingle();
+      
+      if (rateLimit?.blocked_until && new Date(rateLimit.blocked_until) > new Date()) {
+        const minutesLeft = Math.ceil((new Date(rateLimit.blocked_until).getTime() - Date.now()) / 60000);
+        console.log(`Login blocked for ${normalizedUsername} - ${minutesLeft} minutes remaining`);
+        return new Response(
+          JSON.stringify({ 
+            success: false, 
+            blocked: true,
+            error: `Too many failed login attempts. Please try again in ${minutesLeft} minutes.` 
+          }),
+          { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+    } catch (rateLimitError) {
+      console.warn('Rate limit check failed:', rateLimitError);
+      // Continue with login attempt - fail open for availability
+    }
+
     // Query company_users with case-insensitive matching on both username and email
     let query = supabase
       .from("company_users")
@@ -166,7 +197,49 @@ serve(async (req) => {
     // Verify password with enhanced security
     const passwordMatches = await verifyPassword(trimmedPassword, userData.password_hash);
     if (!passwordMatches) {
-      console.log(`Password verification failed for user: ${userData.email}`);
+    console.log(`Password verification failed for user: ${userData.email}`);
+      
+      // Extract real client IP
+      const clientIp = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 
+                       req.headers.get('x-real-ip') || 
+                       '127.0.0.1';
+      const userAgent = req.headers.get('user-agent') || 'unknown';
+      
+      // Implement rate limiting for failed attempts
+      try {
+        // Hash email for privacy in rate limits table
+        const emailHash = Array.from(
+          new Uint8Array(
+            await crypto.subtle.digest('SHA-256', new TextEncoder().encode(userData.email))
+          )
+        ).map(b => b.toString(16).padStart(2, '0')).join('');
+        
+        // Check current rate limit
+        const { data: rateLimit } = await supabase
+          .from('auth_rate_limits')
+          .select('*')
+          .eq('hashed_email', emailHash)
+          .maybeSingle();
+        
+        const attemptCount = (rateLimit?.attempt_count || 0) + 1;
+        const blockUntil = attemptCount >= 5 
+          ? new Date(Date.now() + 15 * 60 * 1000).toISOString() // Block for 15 minutes
+          : null;
+        
+        await supabase.from('auth_rate_limits').upsert({
+          hashed_email: emailHash,
+          ip_address: clientIp,
+          attempt_count: attemptCount,
+          last_attempt: new Date().toISOString(),
+          blocked_until: blockUntil
+        }, { onConflict: 'hashed_email' });
+        
+        if (blockUntil) {
+          console.log(`Account temporarily blocked due to ${attemptCount} failed attempts`);
+        }
+      } catch (rateLimitError) {
+        console.warn('Rate limit tracking failed:', rateLimitError);
+      }
       
       // Log security event for failed login
       try {
@@ -175,7 +248,8 @@ serve(async (req) => {
           details: {
             email: userData.email,
             reason: 'invalid_password',
-            ip_address: '127.0.0.1'
+            ip_address: clientIp,
+            user_agent: userAgent
           }
         });
       } catch (logError) {
@@ -189,6 +263,32 @@ serve(async (req) => {
     }
 
     console.log(`Password verified for user: ${userData.email}`);
+
+    // Extract real client IP for rate limiting
+    const clientIp = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 
+                     req.headers.get('x-real-ip') || 
+                     '127.0.0.1';
+    
+    // Check and update rate limiting
+    try {
+      // Hash email for privacy in rate limits table
+      const emailHash = Array.from(
+        new Uint8Array(
+          await crypto.subtle.digest('SHA-256', new TextEncoder().encode(userData.email))
+        )
+      ).map(b => b.toString(16).padStart(2, '0')).join('');
+      
+      // Reset failed attempts on successful login
+      await supabase.from('auth_rate_limits').upsert({
+        hashed_email: emailHash,
+        ip_address: clientIp,
+        attempt_count: 0,
+        last_attempt: new Date().toISOString(),
+        blocked_until: null
+      }, { onConflict: 'hashed_email' });
+    } catch (rateLimitError) {
+      console.warn('Rate limit update failed:', rateLimitError);
+    }
 
     // Upgrade password hash if using legacy format
     if (!isBcryptHash(userData.password_hash)) {
@@ -285,6 +385,12 @@ serve(async (req) => {
       is_active: true,
     }, { onConflict: 'user_id' });
 
+    // Extract real client IP
+    const clientIp = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 
+                     req.headers.get('x-real-ip') || 
+                     '127.0.0.1';
+    const userAgent = req.headers.get('user-agent') || 'unknown';
+    
     // Log successful login for security monitoring
     try {
       await supabase.from('security_audit_log').insert({
@@ -293,7 +399,8 @@ serve(async (req) => {
           email: userData.email,
           company_id: userData.company_id,
           role: mapRoleToProfile(userData.access_type),
-          ip_address: '127.0.0.1'
+          ip_address: clientIp,
+          user_agent: userAgent
         }
       });
     } catch (logError) {

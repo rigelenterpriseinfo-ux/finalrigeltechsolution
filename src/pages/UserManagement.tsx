@@ -565,7 +565,7 @@ const UserManagement = () => {
           // If no password fields have content, that's valid (keeping existing password)
           
           const result = basicInfoValid && passwordValid;
-          console.log('Edit user validation result:', result, { basicInfoValid, passwordValid, hasPassword, hasConfirmPassword });
+          console.log('Edit user validation result:', result, { basicInfoValid, passwordValid });
           return result;
         } else {
           // For new users: password is required and must match confirmation
@@ -574,7 +574,7 @@ const UserManagement = () => {
           const passwordValid = hasPassword && hasConfirmPassword && formData.password === formData.confirmPassword;
           
           const result = basicInfoValid && passwordValid;
-          console.log('New user validation result:', result, { basicInfoValid, passwordValid, hasPassword, hasConfirmPassword });
+          console.log('New user validation result:', result, { basicInfoValid, passwordValid });
           return result;
         }
       case 2:

@@ -7,10 +7,10 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.gemini-business-assistant]
-verify_jwt = false
+verify_jwt = true
 
 [functions.invite-business-user]
-verify_jwt = false
+verify_jwt = true
 
 [functions.signin]
 verify_jwt = false
