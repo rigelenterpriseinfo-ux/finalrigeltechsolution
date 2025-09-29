@@ -387,31 +387,130 @@ export function EnhancedReportsModule() {
   };
 
   const fetchCurrentStockData = async () => {
-    const { data: products, error } = await supabase
-      .from('products')
-      .select('*')
-      .eq('is_active', true);
+    if (!company?.id) {
+      return { tableData: [], chartData: [] };
+    }
 
-    if (error) throw error;
+    // Fetch current stock with warehouse/bin details
+    const { data: stockData, error: stockError } = await supabase
+      .from('current_stock_levels')
+      .select(`
+        *,
+        products(
+          name,
+          sku,
+          product_category,
+          product_type,
+          weight_kg,
+          volume_cubic_cm,
+          hsn_code,
+          gst_percentage,
+          mrp,
+          unit_price,
+          cost_price,
+          min_stock_level,
+          max_stock_level,
+          category_id
+        ),
+        warehouse_bins(
+          warehouse_name,
+          warehouse_code,
+          bin_name,
+          wh_bin_code
+        )
+      `)
+      .eq('company_id', company.id);
 
-    const tableData = products?.map(product => {
-      const stockStatus = product.stock_quantity <= product.min_stock_level ? 'Low' :
-                         product.stock_quantity >= (product.max_stock_level || product.min_stock_level * 10) ? 'Overstock' : 'Good';
+    if (stockError) throw stockError;
+
+    // Fetch product categories
+    const { data: categories, error: categoriesError } = await supabase
+      .from('product_categories')
+      .select('id, name')
+      .eq('company_id', company.id);
+
+    if (categoriesError) throw categoriesError;
+
+    const categoryMap = new Map(categories?.map(cat => [cat.id, cat.name]) || []);
+
+    // Fetch average purchase costs from GRN line items
+    const { data: purchaseCosts, error: purchaseCostsError } = await supabase
+      .from('grn_line_items')
+      .select(`
+        product_id,
+        accepted_quantity,
+        unit_price,
+        grn_header_id,
+        grn_header!inner(company_id, status)
+      `)
+      .eq('grn_header.company_id', company.id)
+      .in('grn_header.status', ['accepted', 'received', 'partially_received']);
+
+    if (purchaseCostsError) throw purchaseCostsError;
+
+    // Calculate average purchase cost per product
+    const avgPurchaseCosts = new Map<string, number>();
+    const productPurchaseData = new Map<string, { totalCost: number; totalQty: number }>();
+
+    purchaseCosts?.forEach((item: any) => {
+      const existing = productPurchaseData.get(item.product_id) || { totalCost: 0, totalQty: 0 };
+      existing.totalCost += (item.accepted_quantity || 0) * (item.unit_price || 0);
+      existing.totalQty += (item.accepted_quantity || 0);
+      productPurchaseData.set(item.product_id, existing);
+    });
+
+    productPurchaseData.forEach((data, productId) => {
+      if (data.totalQty > 0) {
+        avgPurchaseCosts.set(productId, data.totalCost / data.totalQty);
+      }
+    });
+
+    // Process stock data
+    const tableData = stockData?.map((stock: any) => {
+      const product = stock.products;
+      if (!product) return null;
+
+      const currentStock = stock.current_stock || 0;
+      const stockStatus = currentStock <= (product.min_stock_level || 0) ? 'Low' :
+                         currentStock >= (product.max_stock_level || product.min_stock_level * 10) ? 'Overstock' : 'Good';
       
+      const warehouseBin = stock.warehouse_bins;
+      const warehouseDisplay = warehouseBin?.warehouse_name 
+        ? `${warehouseBin.warehouse_name}${warehouseBin.warehouse_code ? ` (${warehouseBin.warehouse_code})` : ''}`
+        : 'N/A';
+      
+      const binDisplay = warehouseBin?.bin_name
+        ? `${warehouseBin.bin_name}${warehouseBin.wh_bin_code ? ` (${warehouseBin.wh_bin_code})` : ''}`
+        : 'N/A';
+
+      const categoryName = product.category_id ? (categoryMap.get(product.category_id) || 'N/A') : 'N/A';
+      const avgPurchaseCost = avgPurchaseCosts.get(stock.product_id) || 0;
+
       return {
         product: product.name,
         sku: product.sku,
-        currentStock: product.stock_quantity,
-        minStock: product.min_stock_level,
-        maxStock: product.max_stock_level || product.min_stock_level * 10,
-        value: product.stock_quantity * product.cost_price,
-        costPrice: product.cost_price,
+        warehouseNameWithCode: warehouseDisplay,
+        binLocationWithCode: binDisplay,
+        productType: product.product_type || 'N/A',
+        weightKg: product.weight_kg || 0,
+        volumeWeight: product.volume_cubic_cm || 0,
+        hsnSacCode: product.hsn_code || 'N/A',
+        gstRatePercent: product.gst_percentage || 0,
+        category: categoryName,
+        mrp: product.mrp || 0,
+        sellingPrice: product.unit_price || 0,
+        averageCostPerUnit: avgPurchaseCost,
+        currentStock: currentStock,
+        minStock: product.min_stock_level || 0,
+        maxStock: product.max_stock_level || (product.min_stock_level || 0) * 10,
+        value: currentStock * (product.cost_price || 0),
+        costPrice: product.cost_price || 0,
         status: stockStatus
       };
-    }) || [];
+    }).filter(Boolean) || [];
 
     // Chart data by status
-    const statusCounts = tableData.reduce((acc: Record<string, number>, item) => {
+    const statusCounts = tableData.reduce((acc: Record<string, number>, item: any) => {
       acc[item.status] = (acc[item.status] || 0) + item.currentStock;
       return acc;
     }, {});
