@@ -3519,77 +3519,79 @@ export function EnhancedReportsModule() {
                 </Card>
               )}
 
-              {/* Report Table */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg font-semibold">Report Data</CardTitle>
-                  <CardDescription>
-                    {selectedReport === 'item_wise_sales' && filters.product && filters.product !== 'all' 
-                      ? `Customer breakdown for selected product` 
-                      : `Detailed breakdown for ${currentReport?.name}`
-                    }
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  {reportData.length === 0 ? (
-                    <div className="text-center py-8">
-                      <p className="text-muted-foreground">
-                        {selectedReport === 'item_wise_sales' && filters.product && filters.product !== 'all' 
-                          ? 'No sales data available for the selected product. Try selecting "All Products" to see the complete sales summary.' 
-                          : selectedReport === 'item_wise_sales' && (!filters.product || filters.product === 'all')
-                          ? 'Loading product sales data...'
-                          : 'No data available for the selected criteria'
-                        }
-                      </p>
-                    </div>
-                  ) : (
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-sm">
-                        <thead>
-                          <tr className="border-b bg-muted/50">
-                            {reportData.length > 0 && Object.keys(reportData[0]).map((key) => (
-                              <th key={key} className="text-left p-3 font-semibold text-foreground">
-                                {key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}
-                              </th>
-                            ))}
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {reportData.map((row, index) => (
-                            <tr key={index} className="border-b hover:bg-muted/30 transition-colors">
-                              {Object.entries(row).map(([key, value]) => (
-                                <td key={key} className="p-3 max-w-[200px]">
-                                  {typeof value === 'number' && (key.toLowerCase().includes('amount') || key.toLowerCase().includes('total') || key.toLowerCase().includes('revenue') || key.toLowerCase().includes('value')) ? 
-                                    <span className="font-medium tabular-nums">
-                                      ₹{Number(value).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
-                                    </span> : 
-                                    typeof value === 'number' && (key.toLowerCase().includes('quantity') || key.toLowerCase().includes('sold') || key.toLowerCase().includes('count')) ? 
-                                      <span className="font-medium tabular-nums">
-                                        {Number(value).toLocaleString('en-IN')}
-                                      </span> :
-                                    key === 'status' ? (
-                                      <Badge variant={
-                                        value === 'Delivered' ? 'default' :
-                                        value === 'Shipped' ? 'secondary' :
-                                        value === 'Low' ? 'destructive' :
-                                        'outline'
-                                      }>
-                                        {String(value)}
-                                      </Badge>
-                                    ) : (
-                                      <span className="break-words">{String(value)}</span>
-                                    )
-                                  }
-                                </td>
+              {/* Report Table - Hidden for purchase_orders and customer_sales */}
+              {!['purchase_orders', 'customer_sales'].includes(selectedReport) && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-lg font-semibold">Report Data</CardTitle>
+                    <CardDescription>
+                      {selectedReport === 'item_wise_sales' && filters.product && filters.product !== 'all' 
+                        ? `Customer breakdown for selected product` 
+                        : `Detailed breakdown for ${currentReport?.name}`
+                      }
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    {reportData.length === 0 ? (
+                      <div className="text-center py-8">
+                        <p className="text-muted-foreground">
+                          {selectedReport === 'item_wise_sales' && filters.product && filters.product !== 'all' 
+                            ? 'No sales data available for the selected product. Try selecting "All Products" to see the complete sales summary.' 
+                            : selectedReport === 'item_wise_sales' && (!filters.product || filters.product === 'all')
+                            ? 'Loading product sales data...'
+                            : 'No data available for the selected criteria'
+                          }
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-sm">
+                          <thead>
+                            <tr className="border-b bg-muted/50">
+                              {reportData.length > 0 && Object.keys(reportData[0]).map((key) => (
+                                <th key={key} className="text-left p-3 font-semibold text-foreground">
+                                  {key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}
+                                </th>
                               ))}
                             </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
+                          </thead>
+                          <tbody>
+                            {reportData.map((row, index) => (
+                              <tr key={index} className="border-b hover:bg-muted/30 transition-colors">
+                                {Object.entries(row).map(([key, value]) => (
+                                  <td key={key} className="p-3 max-w-[200px]">
+                                    {typeof value === 'number' && (key.toLowerCase().includes('amount') || key.toLowerCase().includes('total') || key.toLowerCase().includes('revenue') || key.toLowerCase().includes('value')) ? 
+                                      <span className="font-medium tabular-nums">
+                                        ₹{Number(value).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                                      </span> : 
+                                      typeof value === 'number' && (key.toLowerCase().includes('quantity') || key.toLowerCase().includes('sold') || key.toLowerCase().includes('count')) ? 
+                                        <span className="font-medium tabular-nums">
+                                          {Number(value).toLocaleString('en-IN')}
+                                        </span> :
+                                      key === 'status' ? (
+                                        <Badge variant={
+                                          value === 'Delivered' ? 'default' :
+                                          value === 'Shipped' ? 'secondary' :
+                                          value === 'Low' ? 'destructive' :
+                                          'outline'
+                                        }>
+                                          {String(value)}
+                                        </Badge>
+                                      ) : (
+                                        <span className="break-words">{String(value)}</span>
+                                      )
+                                    }
+                                  </td>
+                                ))}
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
             </div>
           )}
         </div>
