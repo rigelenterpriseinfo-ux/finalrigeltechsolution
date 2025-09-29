@@ -100,7 +100,7 @@ export const DraggableWidgets: React.FC<DraggableWidgetsProps> = ({ onNavigate }
   const [shipmentCounts, setShipmentCounts] = useState<{in_transit: number, pending: number, dispatched: number}>({in_transit: 0, pending: 0, dispatched: 0});
   const [weeklySalesData, setWeeklySalesData] = useState<WeeklySalesData[]>([]);
 
-  // Fetch warehouse and bin wise good stock data
+  // Fetch warehouse wise good stock data
   const fetchGoodStockData = async () => {
     if (!profile?.company_id) return;
     
@@ -129,11 +129,11 @@ export const DraggableWidgets: React.FC<DraggableWidgetsProps> = ({ onNavigate }
         const aggregatedData: { [key: string]: StockData } = {};
         
         data.forEach((item: any) => {
-          const key = `${item.warehouse_id || 'unknown'}-${item.bin_id || 'unknown'}`;
+          const key = `${item.warehouse_id || 'unknown'}`;
           if (!aggregatedData[key]) {
             aggregatedData[key] = {
               warehouse_name: item.warehouse_bins?.warehouse_name || 'Unknown Warehouse',
-              bin_name: item.warehouse_bins?.bin_name || 'Unknown Bin',
+              bin_name: '', // Not needed for warehouse-level aggregation
               total_qty: 0,
               total_value: 0
             };
@@ -143,8 +143,11 @@ export const DraggableWidgets: React.FC<DraggableWidgetsProps> = ({ onNavigate }
           aggregatedData[key].total_value += (item.current_stock || 0) * (item.products?.cost_price || 0);
         });
         
-        const result = Object.values(aggregatedData).slice(0, 3);
-        console.log('Aggregated Good Stock Data:', result);
+        // Sort by total value descending and get top 3
+        const result = Object.values(aggregatedData)
+          .sort((a, b) => b.total_value - a.total_value)
+          .slice(0, 3);
+        console.log('Aggregated Good Stock Data by Warehouse:', result);
         setGoodStockData(result);
       } else {
         console.log('No good stock data found');
@@ -922,12 +925,11 @@ export const DraggableWidgets: React.FC<DraggableWidgetsProps> = ({ onNavigate }
               <div className="space-y-2 text-xs flex-1 overflow-hidden">
                 {goodStockData.slice(0, 3).map((item, idx) => (
                   <div key={idx} className="p-2 rounded-md bg-muted/30 hover:bg-muted/50 transition-colors">
-                    <div className="space-y-1">
-                      <div className="font-semibold text-xs truncate">{item.warehouse_name}</div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-muted-foreground text-xs">{item.bin_name}</span>
-                        <span className="font-bold text-primary text-xs whitespace-nowrap">₹{item.total_value.toFixed(0)}</span>
-                      </div>
+                    <div className="flex items-center justify-between">
+                      <span className="font-semibold text-xs truncate flex-1 min-w-0 mr-2">{item.warehouse_name}</span>
+                      <span className="font-bold text-primary text-xs whitespace-nowrap">
+                        ₹{(item.total_value / 100000).toFixed(1)}L
+                      </span>
                     </div>
                   </div>
                 ))}
