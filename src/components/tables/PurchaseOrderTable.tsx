@@ -422,62 +422,59 @@ export function PurchaseOrderTable({
       const doc = new jsPDF();
       let yPos = 15;
       
-      // ========== HEADER SECTION ==========
-      // Company Logo & Details (Left Side)
-      doc.setFillColor(41, 128, 185); // Professional blue header
-      doc.rect(0, 0, 210, 40, 'F');
+      // ========== MODERN HEADER SECTION ==========
+      // Top blue accent bar
+      doc.setFillColor(41, 128, 185);
+      doc.rect(0, 0, 210, 50, 'F');
       
       // Add company logo if available
       if (companyData?.logo_url) {
         try {
-          // Add logo - positioned at top left
-          doc.addImage(companyData.logo_url, 'PNG', 15, 8, 25, 25);
-          // Adjust text position to accommodate logo
-          doc.setFontSize(16);
-          doc.setTextColor(255, 255, 255);
-          doc.text(companyData?.name || 'YOUR COMPANY NAME', 45, 18);
-          
-          doc.setFontSize(8);
-          doc.text(companyData?.address_line1 || 'Address Line 1', 45, 24);
-          doc.text(`${companyData?.city || 'City'}, ${companyData?.state || 'State'} - ${companyData?.postal_code || 'PIN'}`, 45, 28);
-          doc.text(`GSTIN: ${companyData?.gstn || 'N/A'} | Phone: ${companyData?.phone || 'N/A'}`, 45, 32);
-          doc.text(`Email: ${companyData?.email || 'company@example.com'}`, 45, 36);
+          // Logo with white background circle for contrast
+          doc.setFillColor(255, 255, 255);
+          doc.circle(25, 25, 12, 'F');
+          doc.addImage(companyData.logo_url, 'PNG', 16, 16, 18, 18);
         } catch (error) {
           console.error('Error loading logo:', error);
-          // Fallback to text-only header
-          doc.setFontSize(18);
-          doc.setTextColor(255, 255, 255);
-          doc.text(companyData?.name || 'YOUR COMPANY NAME', 15, 15);
-          
-          doc.setFontSize(8);
-          doc.text(companyData?.address_line1 || 'Address Line 1', 15, 22);
-          doc.text(`${companyData?.city || 'City'}, ${companyData?.state || 'State'} - ${companyData?.postal_code || 'PIN'}`, 15, 27);
-          doc.text(`GSTIN: ${companyData?.gstn || 'N/A'} | Phone: ${companyData?.phone || 'N/A'}`, 15, 32);
-          doc.text(`Email: ${companyData?.email || 'company@example.com'}`, 15, 37);
         }
-      } else {
-        // No logo - use original layout
-        doc.setFontSize(18);
-        doc.setTextColor(255, 255, 255);
-        doc.text(companyData?.name || 'YOUR COMPANY NAME', 15, 15);
-        
-        doc.setFontSize(8);
-        doc.text(companyData?.address_line1 || 'Address Line 1', 15, 22);
-        doc.text(`${companyData?.city || 'City'}, ${companyData?.state || 'State'} - ${companyData?.postal_code || 'PIN'}`, 15, 27);
-        doc.text(`GSTIN: ${companyData?.gstn || 'N/A'} | Phone: ${companyData?.phone || 'N/A'}`, 15, 32);
-        doc.text(`Email: ${companyData?.email || 'company@example.com'}`, 15, 37);
       }
       
-      // PO Title (Right Side) - Fixed margin to prevent cropping
-      doc.setFontSize(24);
+      // Company name and details (Left side with better spacing)
+      doc.setFontSize(16);
       doc.setFont('helvetica', 'bold');
-      doc.text('PURCHASE ORDER', 195, 22, { align: 'right' });
-      doc.setFontSize(10);
-      doc.setFont('helvetica', 'normal');
-      doc.text(`PO #: ${fullPO.po_number}`, 195, 30, { align: 'right' });
-      doc.text(`Date: ${new Date(fullPO.order_date).toLocaleDateString('en-IN')}`, 195, 36, { align: 'right' });
+      doc.setTextColor(255, 255, 255);
+      doc.text(companyData?.name || 'YOUR COMPANY NAME', 45, 16);
       
-      yPos = 50;
+      doc.setFontSize(8);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(255, 255, 255);
+      
+      const companyDetails = [
+        companyData?.address_line1 || 'Address Line 1',
+        `${companyData?.city || 'City'}, ${companyData?.state || 'State'} - ${companyData?.postal_code || 'PIN'}`,
+        `GSTIN: ${companyData?.gstn || 'N/A'} | Phone: ${companyData?.phone || 'N/A'}`,
+        `Email: ${companyData?.email || 'company@example.com'}`
+      ];
+      
+      let detailY = 22;
+      companyDetails.forEach(detail => {
+        doc.text(detail, 45, detailY);
+        detailY += 4;
+      });
+      
+      // Document title and info (Right side with clean layout)
+      doc.setFontSize(20);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(255, 255, 255);
+      doc.text('PURCHASE ORDER', 195, 18, { align: 'right' });
+      
+      // Info box on the right
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'normal');
+      doc.text(`PO #: ${fullPO.po_number}`, 195, 28, { align: 'right' });
+      doc.text(`Date: ${new Date(fullPO.order_date).toLocaleDateString('en-IN')}`, 195, 34, { align: 'right' });
+      
+      yPos = 58;
       
       // ========== VENDOR & BUYER INFORMATION SECTION ==========
       doc.setFillColor(245, 245, 245);
