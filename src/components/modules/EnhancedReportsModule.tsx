@@ -391,12 +391,12 @@ export function EnhancedReportsModule() {
       return { tableData: [], chartData: [] };
     }
 
-    // Fetch current stock with warehouse/bin details
+    // Fetch current stock with products
     const { data: stockData, error: stockError } = await supabase
       .from('current_stock_levels')
       .select(`
         *,
-        products(
+        products!inner(
           name,
           sku,
           product_category,
@@ -410,60 +410,64 @@ export function EnhancedReportsModule() {
           cost_price,
           min_stock_level,
           max_stock_level,
-          category_id
-        ),
-        warehouse_bins(
-          warehouse_name,
-          warehouse_code,
-          bin_name,
-          wh_bin_code
+          category_id,
+          company_id
         )
       `)
-      .eq('company_id', company.id);
+      .eq('products.company_id', company.id);
 
     if (stockError) throw stockError;
 
+    // Fetch all warehouse bins for this company
+    const { data: warehouseBins } = await supabase
+      .from('warehouse_bins')
+      .select('*')
+      .eq('company_id', company.id);
+
+    const warehouseBinMap = new Map(warehouseBins?.map(wb => [wb.id, wb]) || []);
+
     // Fetch product categories
-    const { data: categories, error: categoriesError } = await supabase
+    const { data: categories } = await supabase
       .from('product_categories')
       .select('id, name')
       .eq('company_id', company.id);
 
-    if (categoriesError) throw categoriesError;
-
     const categoryMap = new Map(categories?.map(cat => [cat.id, cat.name]) || []);
 
-    // Fetch average purchase costs from GRN line items
-    const { data: purchaseCosts, error: purchaseCostsError } = await supabase
-      .from('grn_line_items')
-      .select(`
-        product_id,
-        accepted_quantity,
-        unit_price,
-        grn_header_id,
-        grn_header!inner(company_id, status)
-      `)
-      .eq('grn_header.company_id', company.id)
-      .in('grn_header.status', ['accepted', 'received', 'partially_received']);
-
-    if (purchaseCostsError) throw purchaseCostsError;
-
-    // Calculate average purchase cost per product
+    // Fetch average purchase costs from GRN line items (non-blocking)
     const avgPurchaseCosts = new Map<string, number>();
-    const productPurchaseData = new Map<string, { totalCost: number; totalQty: number }>();
+    try {
+      const { data: grnData } = await supabase
+        .from('grn_line_items')
+        .select(`
+          product_id,
+          accepted_quantity,
+          unit_price,
+          grn_header!inner(company_id, status)
+        `)
+        .eq('grn_header.company_id', company.id)
+        .in('grn_header.status', ['accepted', 'received', 'partially_received']);
 
-    purchaseCosts?.forEach((item: any) => {
-      const existing = productPurchaseData.get(item.product_id) || { totalCost: 0, totalQty: 0 };
-      existing.totalCost += (item.accepted_quantity || 0) * (item.unit_price || 0);
-      existing.totalQty += (item.accepted_quantity || 0);
-      productPurchaseData.set(item.product_id, existing);
-    });
+      if (grnData) {
+        const productPurchaseData = new Map<string, { totalCost: number; totalQty: number }>();
+        
+        grnData.forEach((item: any) => {
+          const existing = productPurchaseData.get(item.product_id) || { totalCost: 0, totalQty: 0 };
+          existing.totalCost += (item.accepted_quantity || 0) * (item.unit_price || 0);
+          existing.totalQty += (item.accepted_quantity || 0);
+          productPurchaseData.set(item.product_id, existing);
+        });
 
-    productPurchaseData.forEach((data, productId) => {
-      if (data.totalQty > 0) {
-        avgPurchaseCosts.set(productId, data.totalCost / data.totalQty);
+        productPurchaseData.forEach((data, productId) => {
+          if (data.totalQty > 0) {
+            avgPurchaseCosts.set(productId, data.totalCost / data.totalQty);
+          }
+        });
       }
-    });
+    } catch (error) {
+      console.warn('Could not fetch average purchase costs:', error);
+      // Continue without average costs
+    }
 
     // Process stock data
     const tableData = stockData?.map((stock: any) => {
@@ -474,14 +478,19 @@ export function EnhancedReportsModule() {
       const stockStatus = currentStock <= (product.min_stock_level || 0) ? 'Low' :
                          currentStock >= (product.max_stock_level || product.min_stock_level * 10) ? 'Overstock' : 'Good';
       
-      const warehouseBin = stock.warehouse_bins;
+      // Get warehouse and bin info
+      const warehouseBin = warehouseBinMap.get(stock.warehouse_id);
+      const binInfo = stock.bin_id ? warehouseBinMap.get(stock.bin_id) : null;
+      
       const warehouseDisplay = warehouseBin?.warehouse_name 
         ? `${warehouseBin.warehouse_name}${warehouseBin.warehouse_code ? ` (${warehouseBin.warehouse_code})` : ''}`
         : 'N/A';
       
-      const binDisplay = warehouseBin?.bin_name
-        ? `${warehouseBin.bin_name}${warehouseBin.wh_bin_code ? ` (${warehouseBin.wh_bin_code})` : ''}`
-        : 'N/A';
+      const binDisplay = binInfo?.bin_name
+        ? `${binInfo.bin_name}${binInfo.wh_bin_code ? ` (${binInfo.wh_bin_code})` : ''}`
+        : (warehouseBin?.bin_name 
+          ? `${warehouseBin.bin_name}${warehouseBin.wh_bin_code ? ` (${warehouseBin.wh_bin_code})` : ''}`
+          : 'N/A');
 
       const categoryName = product.category_id ? (categoryMap.get(product.category_id) || 'N/A') : 'N/A';
       const avgPurchaseCost = avgPurchaseCosts.get(stock.product_id) || 0;
