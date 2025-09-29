@@ -353,6 +353,50 @@ export function PurchaseOrderTable({
     }
   };
 
+  // Helper function to convert number to words (Indian format)
+  const convertNumberToWords = (num: number): string => {
+    if (num === 0) return 'Zero Rupees Only';
+    
+    const ones = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine'];
+    const tens = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
+    const teens = ['Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'];
+    
+    const convertLessThanThousand = (n: number): string => {
+      if (n === 0) return '';
+      if (n < 10) return ones[n];
+      if (n < 20) return teens[n - 10];
+      if (n < 100) return tens[Math.floor(n / 10)] + (n % 10 !== 0 ? ' ' + ones[n % 10] : '');
+      return ones[Math.floor(n / 100)] + ' Hundred' + (n % 100 !== 0 ? ' ' + convertLessThanThousand(n % 100) : '');
+    };
+    
+    // Split into integer and decimal parts
+    const [integerPart, decimalPart] = num.toFixed(2).split('.');
+    const intNum = parseInt(integerPart);
+    const decNum = parseInt(decimalPart);
+    
+    if (intNum === 0 && decNum === 0) return 'Zero Rupees Only';
+    
+    let words = 'Rupees ';
+    
+    // Indian numbering system: crores, lakhs, thousands, hundreds
+    const crore = Math.floor(intNum / 10000000);
+    const lakh = Math.floor((intNum % 10000000) / 100000);
+    const thousand = Math.floor((intNum % 100000) / 1000);
+    const hundred = intNum % 1000;
+    
+    if (crore > 0) words += convertLessThanThousand(crore) + ' Crore ';
+    if (lakh > 0) words += convertLessThanThousand(lakh) + ' Lakh ';
+    if (thousand > 0) words += convertLessThanThousand(thousand) + ' Thousand ';
+    if (hundred > 0) words += convertLessThanThousand(hundred) + ' ';
+    
+    // Add paise if present
+    if (decNum > 0) {
+      words += 'and ' + convertLessThanThousand(decNum) + ' Paise ';
+    }
+    
+    return words.trim() + ' Only';
+  };
+
   const exportToPDF = async (order: PurchaseOrder) => {
     try {
       // Fetch complete purchase order details from database
@@ -393,14 +437,14 @@ export function PurchaseOrderTable({
       doc.text(`GSTIN: ${companyData?.gstn || 'N/A'} | Phone: ${companyData?.phone || 'N/A'}`, 15, 32);
       doc.text(`Email: ${companyData?.email || 'company@example.com'}`, 15, 37);
       
-      // PO Title (Right Side)
+      // PO Title (Right Side) - Fixed margin to prevent cropping
       doc.setFontSize(24);
       doc.setFont('helvetica', 'bold');
-      doc.text('PURCHASE ORDER', 210, 22, { align: 'right' });
+      doc.text('PURCHASE ORDER', 195, 22, { align: 'right' });
       doc.setFontSize(10);
       doc.setFont('helvetica', 'normal');
-      doc.text(`PO #: ${fullPO.po_number}`, 210, 30, { align: 'right' });
-      doc.text(`Date: ${new Date(fullPO.order_date).toLocaleDateString('en-IN')}`, 210, 36, { align: 'right' });
+      doc.text(`PO #: ${fullPO.po_number}`, 195, 30, { align: 'right' });
+      doc.text(`Date: ${new Date(fullPO.order_date).toLocaleDateString('en-IN')}`, 195, 36, { align: 'right' });
       
       yPos = 50;
       
@@ -607,16 +651,22 @@ export function PurchaseOrderTable({
       doc.setFontSize(11);
       doc.setFont('helvetica', 'bold');
       doc.setTextColor(0, 0, 0);
+      
+      // Fixed: Add proper spacing to prevent overlap
       doc.text('TOTAL AMOUNT:', totalsX, yPos);
-      doc.text(`${fullPO.currency} ${fullPO.total_amount.toFixed(2)}`, 193, yPos, { align: 'right' });
+      doc.setFillColor(255, 255, 255);
+      doc.rect(165, yPos - 4, 30, 6, 'F'); // White background for amount
+      doc.text(`${fullPO.currency}${fullPO.total_amount.toFixed(2)}`, 193, yPos, { align: 'right' });
       
       yPos += 8;
       
-      // Amount in words
+      // Amount in words - Convert actual total to words
+      const amountInWords = convertNumberToWords(fullPO.total_amount);
       doc.setFontSize(8);
       doc.setFont('helvetica', 'italic');
       doc.setTextColor(60, 60, 60);
-      doc.text('Amount in words: Rupees Twenty Three Thousand Ten Only', 17, yPos);
+      const amountWordsLines = doc.splitTextToSize(`Amount in words: ${amountInWords}`, 180);
+      doc.text(amountWordsLines, 17, yPos);
       
       yPos += 8;
       
