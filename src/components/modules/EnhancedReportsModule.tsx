@@ -2850,21 +2850,29 @@ export function EnhancedReportsModule() {
   // Update state when query data changes
   useEffect(() => {
     if (reportResult) {
-      // For GSTR-1, store the entire result object so we can access summary data
-      if (selectedReport === 'gstr1') {
-        setReportData(reportResult); // Store entire object for GSTR-1
-        setChartData(reportResult.chartData);
+      // Ensure we always have an array for reportData
+      if (Array.isArray(reportResult)) {
+        // Direct array response
+        setReportData(reportResult);
+        setChartData([]);
+        setInvoiceWiseData([]);
+      } else if (reportResult && typeof reportResult === 'object') {
+        // Object response with tableData
+        setReportData(Array.isArray(reportResult.tableData) ? reportResult.tableData : []);
+        setChartData(Array.isArray(reportResult.chartData) ? reportResult.chartData : []);
+        
+        // Handle optional invoiceWiseData for aging reports and itemWiseData for GSTR-1
+        if ('invoiceWiseData' in reportResult && Array.isArray(reportResult.invoiceWiseData)) {
+          setInvoiceWiseData(reportResult.invoiceWiseData);
+        } else if ('itemWiseData' in reportResult && Array.isArray(reportResult.itemWiseData)) {
+          setInvoiceWiseData(reportResult.itemWiseData);
+        } else {
+          setInvoiceWiseData([]);
+        }
       } else {
-        setReportData(reportResult.tableData);
-        setChartData(reportResult.chartData);
-      }
-      
-      // Handle optional invoiceWiseData for aging reports and itemWiseData for GSTR-1
-      if ('invoiceWiseData' in reportResult && Array.isArray(reportResult.invoiceWiseData)) {
-        setInvoiceWiseData(reportResult.invoiceWiseData);
-      } else if ('itemWiseData' in reportResult && Array.isArray(reportResult.itemWiseData)) {
-        setInvoiceWiseData(reportResult.itemWiseData); // Store item-wise data in same state
-      } else {
+        // Fallback - ensure arrays
+        setReportData([]);
+        setChartData([]);
         setInvoiceWiseData([]);
       }
     }
@@ -3588,7 +3596,7 @@ export function EnhancedReportsModule() {
                   <CardDescription>Detailed breakdown by HSN/SAC codes with tax calculations</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  {reportData.length === 0 ? (
+                  {!Array.isArray(reportData) || reportData.length === 0 ? (
                     <div className="text-center py-8">
                       <p className="text-muted-foreground">No HSN/Tax data available for the selected period</p>
                     </div>
@@ -3703,9 +3711,9 @@ export function EnhancedReportsModule() {
                     <Card>
                       <CardContent className="pt-6">
                         <div className="text-sm font-medium text-muted-foreground mb-1">Total Pending Orders</div>
-                        <div className="text-2xl font-bold">{reportData.length}</div>
+                        <div className="text-2xl font-bold">{Array.isArray(reportData) ? reportData.length : 0}</div>
                         <div className="text-xs text-muted-foreground mt-1">
-                          Across {new Set(reportData.map((r: any) => r.customerName)).size} customers
+                          Across {Array.isArray(reportData) ? new Set(reportData.map((r: any) => r.customerName)).size : 0} customers
                         </div>
                       </CardContent>
                     </Card>
@@ -3713,7 +3721,7 @@ export function EnhancedReportsModule() {
                       <CardContent className="pt-6">
                         <div className="text-sm font-medium text-muted-foreground mb-1">Total Pending Value</div>
                         <div className="text-2xl font-bold">
-                          ₹{Number(reportData.reduce((sum: number, item: any) => sum + (item.pendingOrderAmount || 0), 0)).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                          ₹{Array.isArray(reportData) ? Number(reportData.reduce((sum: number, item: any) => sum + (item.pendingOrderAmount || 0), 0)).toLocaleString('en-IN', { maximumFractionDigits: 0 }) : 0}
                         </div>
                         <div className="text-xs text-muted-foreground mt-1">
                           {reportData.reduce((sum: number, item: any) => sum + (item.pendingQty || 0), 0)} units pending
@@ -4017,7 +4025,7 @@ export function EnhancedReportsModule() {
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
-                    {reportData.length === 0 ? (
+                    {!Array.isArray(reportData) || reportData.length === 0 ? (
                       <div className="text-center py-8">
                         <p className="text-muted-foreground">
                           No data available for the selected criteria
@@ -4028,7 +4036,7 @@ export function EnhancedReportsModule() {
                         <table className="w-full text-sm">
                           <thead>
                             <tr className="border-b bg-muted/50">
-                              {reportData.length > 0 && Object.keys(reportData[0]).map((key) => (
+                              {Object.keys(reportData[0]).map((key) => (
                                 <th key={key} className="text-left p-3 font-semibold text-foreground">
                                   {key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}
                                 </th>
