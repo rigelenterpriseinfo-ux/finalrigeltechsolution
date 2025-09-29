@@ -10,7 +10,7 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "13.0.4"
+    PostgrestVersion: "13.0.5"
   }
   public: {
     Tables: {
@@ -49,7 +49,7 @@ export type Database = {
           attempt_count: number
           blocked_until: string | null
           created_at: string
-          email: string | null
+          hashed_email: string | null
           id: string
           ip_address: unknown
           last_attempt: string
@@ -58,7 +58,7 @@ export type Database = {
           attempt_count?: number
           blocked_until?: string | null
           created_at?: string
-          email?: string | null
+          hashed_email?: string | null
           id?: string
           ip_address: unknown
           last_attempt?: string
@@ -67,7 +67,7 @@ export type Database = {
           attempt_count?: number
           blocked_until?: string | null
           created_at?: string
-          email?: string | null
+          hashed_email?: string | null
           id?: string
           ip_address?: unknown
           last_attempt?: string
@@ -3637,12 +3637,13 @@ export type Database = {
           aging_365_plus_value: number | null
           aging_91_180_qty: number | null
           aging_91_180_value: number | null
-          aging_status: string | null
           bin_id: string | null
           company_id: string | null
           current_stock: number | null
           last_transaction_date: string | null
           product_id: string | null
+          total_current_qty: number | null
+          total_current_value: number | null
           transaction_count: number | null
           warehouse_id: string | null
           weighted_avg_age_days: number | null
