@@ -589,18 +589,18 @@ export function PurchaseOrderTable({
       doc.setFont('helvetica', 'bold');
       doc.setTextColor(255, 255, 255);
       
-      // Optimized column positions - compressed left, expanded right
+      // Optimized column positions - compressed middle, expanded right
       const colPositions = {
         sno: 17,
         itemCode: 25,
         description: 45,
         hsn: 75,
-        qty: 92,
-        rate: 112,
-        discPct: 130,
-        discAmt: 148,
-        taxPct: 165,
-        taxAmt: 182,
+        qty: 88,
+        rate: 104,
+        discPct: 120,
+        discAmt: 136,
+        taxPct: 155,
+        taxAmt: 174,
         amount: 193
       };
       
