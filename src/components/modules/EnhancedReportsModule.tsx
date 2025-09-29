@@ -2195,12 +2195,52 @@ export function EnhancedReportsModule() {
     } else if (exportFormat === 'excel') {
       // Use the existing exportToExcel utility from utils
       import('@/utils/excelExport').then(({ exportToExcel }) => {
+        // Helper function to convert camelCase to Title Case
+        const toTitleCase = (str: string) => {
+          // Special cases for common abbreviations
+          const specialCases: Record<string, string> = {
+            'gst': 'GST',
+            'gstin': 'GSTIN',
+            'cgst': 'CGST',
+            'sgst': 'SGST',
+            'igst': 'IGST',
+            'hsn': 'HSN',
+            'sac': 'SAC',
+            'po': 'PO',
+            'qty': 'Qty',
+            'sku': 'SKU',
+            'uom': 'UOM',
+            'id': 'ID',
+            'no': 'No',
+            'grn': 'GRN',
+            'ar': 'AR',
+            'ap': 'AP'
+          };
+
+          // First, convert camelCase to spaces
+          let result = str.replace(/([A-Z])/g, ' $1').trim();
+          
+          // Split into words
+          const words = result.split(/\s+/);
+          
+          // Process each word
+          return words.map(word => {
+            const lowerWord = word.toLowerCase();
+            // Check if it's a special case
+            if (specialCases[lowerWord]) {
+              return specialCases[lowerWord];
+            }
+            // Otherwise capitalize first letter
+            return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+          }).join(' ');
+        };
+
         const columns = Object.keys(dataToExport[0]).map(key => ({
           key,
-          label: key,
+          label: toTitleCase(key),
           format: (value: any) => {
             // Handle GST percentage
-            if (key.includes('GST%')) {
+            if (key.includes('GST%') || key.toLowerCase().includes('gstpercent')) {
               return typeof value === 'number' ? `${value}%` : value;
             }
             // Handle all amount/price/value/discount fields
