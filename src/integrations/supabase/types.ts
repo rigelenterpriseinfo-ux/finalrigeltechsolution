@@ -1435,6 +1435,27 @@ export type Database = {
           },
         ]
       }
+      password_history: {
+        Row: {
+          created_at: string
+          id: string
+          password_hash: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          password_hash: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          password_hash?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       password_resets: {
         Row: {
           created_at: string | null
@@ -1929,8 +1950,6 @@ export type Database = {
           id: string
           is_active: boolean
           last_name: string | null
-          otp_code: string | null
-          otp_expires_at: string | null
           phone: string | null
           phone_verified: boolean | null
           role: Database["public"]["Enums"]["app_role"]
@@ -1948,8 +1967,6 @@ export type Database = {
           id?: string
           is_active?: boolean
           last_name?: string | null
-          otp_code?: string | null
-          otp_expires_at?: string | null
           phone?: string | null
           phone_verified?: boolean | null
           role?: Database["public"]["Enums"]["app_role"]
@@ -1967,8 +1984,6 @@ export type Database = {
           id?: string
           is_active?: boolean
           last_name?: string | null
-          otp_code?: string | null
-          otp_expires_at?: string | null
           phone?: string | null
           phone_verified?: boolean | null
           role?: Database["public"]["Enums"]["app_role"]
@@ -3020,6 +3035,50 @@ export type Database = {
         }
         Relationships: []
       }
+      security_settings: {
+        Row: {
+          company_id: string
+          created_at: string
+          id: string
+          lockout_duration_minutes: number
+          max_failed_attempts: number
+          password_expiry_days: number
+          require_mfa: boolean
+          session_timeout_minutes: number
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          id?: string
+          lockout_duration_minutes?: number
+          max_failed_attempts?: number
+          password_expiry_days?: number
+          require_mfa?: boolean
+          session_timeout_minutes?: number
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          id?: string
+          lockout_duration_minutes?: number
+          max_failed_attempts?: number
+          password_expiry_days?: number
+          require_mfa?: boolean
+          session_timeout_minutes?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "security_settings_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: true
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       stock_transfers: {
         Row: {
           company_id: string
@@ -3573,6 +3632,59 @@ export type Database = {
       }
     }
     Views: {
+      company_users_safe: {
+        Row: {
+          access_type: string | null
+          company_id: string | null
+          created_at: string | null
+          created_by: string | null
+          designation: string | null
+          email: string | null
+          full_name: string | null
+          id: string | null
+          status: string | null
+          updated_at: string | null
+          user_id: string | null
+          username: string | null
+        }
+        Insert: {
+          access_type?: string | null
+          company_id?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          designation?: string | null
+          email?: string | null
+          full_name?: string | null
+          id?: string | null
+          status?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+          username?: string | null
+        }
+        Update: {
+          access_type?: string | null
+          company_id?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          designation?: string | null
+          email?: string | null
+          full_name?: string | null
+          id?: string | null
+          status?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+          username?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "company_users_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       credit_note_stats: {
         Row: {
           company_id: string | null
@@ -3717,6 +3829,10 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: undefined
       }
+      cleanup_expired_security_data: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
       cleanup_expired_tokens: {
         Args: Record<PropertyKey, never>
         Returns: undefined
@@ -3769,6 +3885,15 @@ export type Database = {
       delete_confirmed_return_order: {
         Args: { p_return_order_id: string }
         Returns: Json
+      }
+      detect_security_anomalies: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          anomaly_type: string
+          details: Json
+          detected_at: string
+          severity: string
+        }[]
       }
       find_and_fix_missing_grn_transactions: {
         Args: { p_company_id?: string }
@@ -4006,6 +4131,10 @@ export type Database = {
           total_value: number
           warehouse_name: string
         }[]
+      }
+      is_password_reused: {
+        Args: { p_new_password_hash: string; p_user_id: string }
+        Returns: boolean
       }
       is_user_admin: {
         Args: Record<PropertyKey, never>
