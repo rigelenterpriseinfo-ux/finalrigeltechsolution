@@ -929,11 +929,11 @@ export const DraggableWidgets: React.FC<DraggableWidgetsProps> = ({ onNavigate }
                 <div className="animate-spin rounded-full h-4 w-4 border-2 border-primary border-t-transparent"></div>
               </div>
             ) : (
-              <div className="space-y-1.5 text-xs overflow-hidden">
+              <div className="space-y-1 text-xs overflow-hidden">
                 {lowStockItems.slice(0, 3).map((item, idx) => (
-                  <div key={idx} className="flex items-center justify-between gap-2 p-1.5 rounded bg-muted/30 hover:bg-muted/50 transition-colors">
-                    <span className="text-xs font-medium truncate flex-1 min-w-0">{item.name}</span>
-                    <span className="text-xs font-bold whitespace-nowrap">{item.stock_quantity}</span>
+                  <div key={idx} className="flex items-center justify-between gap-1.5 p-1.5 rounded bg-muted/30 hover:bg-muted/50 transition-colors">
+                    <span className="text-[10px] font-medium truncate flex-1 min-w-0">{item.name}</span>
+                    <span className="text-[10px] font-bold whitespace-nowrap">{item.stock_quantity}</span>
                   </div>
                 ))}
               </div>
@@ -955,11 +955,11 @@ export const DraggableWidgets: React.FC<DraggableWidgetsProps> = ({ onNavigate }
                 <div className="animate-spin rounded-full h-4 w-4 border-2 border-primary border-t-transparent"></div>
               </div>
             ) : (
-              <div className="space-y-1.5 text-xs overflow-hidden">
+              <div className="space-y-1 text-xs overflow-hidden">
                 {topValueItems.slice(0, 3).map((item, idx) => (
-                  <div key={idx} className="flex items-center justify-between gap-2 p-1.5 rounded bg-muted/30 hover:bg-muted/50 transition-colors">
-                    <span className="text-xs font-medium truncate flex-1 min-w-0">{item.name}</span>
-                    <span className="text-xs font-bold whitespace-nowrap">₹{item.value.toFixed(0)}</span>
+                  <div key={idx} className="flex items-center justify-between gap-1.5 p-1.5 rounded bg-muted/30 hover:bg-muted/50 transition-colors">
+                    <span className="text-[10px] font-medium truncate flex-1 min-w-0">{item.name}</span>
+                    <span className="text-[10px] font-bold whitespace-nowrap">₹{(item.value / 100000).toFixed(1)}L</span>
                   </div>
                 ))}
               </div>
@@ -1003,11 +1003,11 @@ export const DraggableWidgets: React.FC<DraggableWidgetsProps> = ({ onNavigate }
       case 'dashboard':
         return (
           <div className="h-full flex flex-col">
-            <div className="flex items-center gap-2 mb-3">
+            <div className="flex items-center gap-2 mb-2">
               <div className={cn("p-1.5 rounded-md shadow-sm", widget.color)}>
                 <Icon className="h-4 w-4" />
               </div>
-              <span className="text-xs font-semibold leading-tight">Top 3 Vendors - Pending PO</span>
+              <span className="text-[10px] font-semibold leading-tight truncate">Top 3 Vendors - Pending PO</span>
             </div>
             {loading ? (
               <div className="flex items-center justify-center flex-1">
@@ -1018,11 +1018,11 @@ export const DraggableWidgets: React.FC<DraggableWidgetsProps> = ({ onNavigate }
                 <p className="text-xs text-muted-foreground text-center">No pending POs</p>
               </div>
             ) : (
-              <div className="space-y-1.5 flex-1 overflow-hidden">
+              <div className="space-y-1 flex-1 overflow-hidden">
                 {topVendorsPendingPO.map((vendor, idx) => (
-                  <div key={idx} className="flex items-center justify-between gap-2 p-1.5 rounded bg-muted/30 hover:bg-muted/50 transition-colors">
-                    <span className="text-xs font-semibold truncate flex-1 min-w-0">{vendor.vendor}</span>
-                    <span className="text-xs font-bold text-primary whitespace-nowrap">₹{vendor.value.toLocaleString()}</span>
+                  <div key={idx} className="flex items-center justify-between gap-1.5 p-1.5 rounded bg-muted/30 hover:bg-muted/50 transition-colors">
+                    <span className="text-[10px] font-semibold truncate flex-1 min-w-0">{vendor.vendor}</span>
+                    <span className="text-[10px] font-bold text-primary whitespace-nowrap">₹{(vendor.value / 100000).toFixed(1)}L</span>
                   </div>
                 ))}
               </div>
@@ -1033,7 +1033,7 @@ export const DraggableWidgets: React.FC<DraggableWidgetsProps> = ({ onNavigate }
       case 'mail':
         return (
           <div className="h-full flex flex-col">
-            <div className="flex items-center gap-2 mb-3">
+            <div className="flex items-center gap-2 mb-2">
               <div className={cn("p-1.5 rounded-md shadow-sm", widget.color)}>
                 <Icon className="h-4 w-4" />
               </div>
@@ -1044,17 +1044,17 @@ export const DraggableWidgets: React.FC<DraggableWidgetsProps> = ({ onNavigate }
                 <div className="animate-spin rounded-full h-4 w-4 border-2 border-primary border-t-transparent"></div>
               </div>
             ) : (
-              <div className="space-y-3 flex-1 flex flex-col justify-center">
-                <div className="p-2 rounded-md bg-primary/10 space-y-1">
+              <div className="space-y-2 flex-1 flex flex-col justify-center">
+                <div className="p-2 rounded-md bg-primary/10">
                   <div className="flex justify-between items-center">
-                    <span className="text-xs text-muted-foreground">Quantity:</span>
-                    <span className="text-sm font-bold">{totalOpenPOData.qty.toLocaleString()}</span>
+                    <span className="text-[10px] text-muted-foreground">Quantity:</span>
+                    <span className="text-xs font-bold">{totalOpenPOData.qty.toLocaleString()}</span>
                   </div>
                 </div>
-                <div className="p-2 rounded-md bg-primary/10 space-y-1">
+                <div className="p-2 rounded-md bg-primary/10">
                   <div className="flex justify-between items-center">
-                    <span className="text-xs text-muted-foreground">Value:</span>
-                    <span className="text-sm font-bold text-primary">₹{totalOpenPOData.value.toLocaleString()}</span>
+                    <span className="text-[10px] text-muted-foreground">Value:</span>
+                    <span className="text-xs font-bold text-primary">₹{(totalOpenPOData.value / 10000000).toFixed(1)}Cr</span>
                   </div>
                 </div>
               </div>
@@ -1065,11 +1065,11 @@ export const DraggableWidgets: React.FC<DraggableWidgetsProps> = ({ onNavigate }
       case 'payments':
         return (
           <div className="h-full flex flex-col">
-            <div className="flex items-center gap-2 mb-3">
+            <div className="flex items-center gap-2 mb-2">
               <div className={cn("p-1.5 rounded-md shadow-sm", widget.color)}>
                 <Icon className="h-4 w-4" />
               </div>
-              <span className="text-xs font-semibold leading-tight">Top 3 Items - Pending</span>
+              <span className="text-[10px] font-semibold leading-tight">Top 3 Items - Pending</span>
             </div>
             {loading ? (
               <div className="flex items-center justify-center flex-1">
@@ -1083,8 +1083,8 @@ export const DraggableWidgets: React.FC<DraggableWidgetsProps> = ({ onNavigate }
               <div className="space-y-1 flex-1 overflow-hidden">
                 {topPendingItems.map((item, idx) => (
                   <div key={idx} className="flex justify-between items-center p-1.5 rounded bg-muted/30 hover:bg-muted/50 transition-colors">
-                    <span className="text-xs truncate flex-1 font-medium">{item.item}</span>
-                    <span className="text-xs font-bold ml-2 whitespace-nowrap">{item.qty}</span>
+                    <span className="text-[10px] truncate flex-1 font-medium">{item.item}</span>
+                    <span className="text-[10px] font-bold ml-2 whitespace-nowrap">{item.qty}</span>
                   </div>
                 ))}
               </div>
@@ -1102,18 +1102,18 @@ export const DraggableWidgets: React.FC<DraggableWidgetsProps> = ({ onNavigate }
               <span className="text-xs font-medium">Open Debit Notes</span>
             </div>
             {loading ? (
-              <div className="text-xs text-muted-foreground">Loading...</div>
+              <div className="flex items-center justify-center flex-1">
+                <div className="animate-spin rounded-full h-4 w-4 border-2 border-primary border-t-transparent"></div>
+              </div>
             ) : (
-              <div className="space-y-2 text-xs">
-                <div className="space-y-1">
-                  <div className="flex justify-between items-center">
-                    <span className="text-muted-foreground">Quantity:</span>
-                    <span className="font-semibold">{openDebitNoteData.qty.toLocaleString()}</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-muted-foreground">Value:</span>
-                    <span className="font-semibold">₹{openDebitNoteData.value.toLocaleString()}</span>
-                  </div>
+              <div className="space-y-2 text-xs flex-1 flex flex-col justify-center">
+                <div className="flex justify-between items-center p-2 rounded bg-muted/30">
+                  <span className="text-[10px] text-muted-foreground">Quantity:</span>
+                  <span className="text-xs font-semibold">{openDebitNoteData.qty.toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between items-center p-2 rounded bg-muted/30">
+                  <span className="text-[10px] text-muted-foreground">Value:</span>
+                  <span className="text-xs font-semibold">₹{(openDebitNoteData.value / 1000).toFixed(0)}K</span>
                 </div>
               </div>
             )}
@@ -1127,7 +1127,7 @@ export const DraggableWidgets: React.FC<DraggableWidgetsProps> = ({ onNavigate }
               <div className={cn("p-1 rounded", widget.color)}>
                 <Icon className="h-4 w-4" />
               </div>
-              <span className="text-xs font-medium">Top 3 Debit Note Vendors</span>
+              <span className="text-[10px] font-medium">Top 3 Debit Note Vendors</span>
             </div>
             {loading ? (
               <div className="flex items-center justify-center flex-1">
@@ -1138,11 +1138,11 @@ export const DraggableWidgets: React.FC<DraggableWidgetsProps> = ({ onNavigate }
                 No open debit notes
               </div>
             ) : (
-              <div className="space-y-1.5 text-xs overflow-hidden">
+              <div className="space-y-1 text-xs overflow-hidden">
                 {topDebitNoteVendors.map((vendor, idx) => (
-                  <div key={idx} className="flex items-center justify-between gap-2 p-1.5 rounded bg-muted/30 hover:bg-muted/50 transition-colors">
-                    <span className="text-xs font-medium truncate flex-1 min-w-0">{vendor.vendor}</span>
-                    <span className="text-xs font-bold whitespace-nowrap">₹{vendor.value.toLocaleString()}</span>
+                  <div key={idx} className="flex items-center justify-between gap-1.5 p-1.5 rounded bg-muted/30 hover:bg-muted/50 transition-colors">
+                    <span className="text-[10px] font-medium truncate flex-1 min-w-0">{vendor.vendor}</span>
+                    <span className="text-[10px] font-bold whitespace-nowrap">₹{(vendor.value / 1000).toFixed(0)}K</span>
                   </div>
                 ))}
               </div>
@@ -1160,18 +1160,18 @@ export const DraggableWidgets: React.FC<DraggableWidgetsProps> = ({ onNavigate }
               <span className="text-xs font-medium">Open Sales Orders</span>
             </div>
             {loading ? (
-              <div className="text-xs text-muted-foreground">Loading...</div>
+              <div className="flex items-center justify-center flex-1">
+                <div className="animate-spin rounded-full h-4 w-4 border-2 border-primary border-t-transparent"></div>
+              </div>
             ) : (
-              <div className="space-y-2 text-xs">
-                <div className="space-y-1">
-                  <div className="flex justify-between items-center">
-                    <span className="text-muted-foreground">Quantity:</span>
-                    <span className="font-semibold">{openSalesOrderData.count.toLocaleString()}</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-muted-foreground">Value:</span>
-                    <span className="font-semibold">₹{openSalesOrderData.value.toLocaleString()}</span>
-                  </div>
+              <div className="space-y-2 text-xs flex-1 flex flex-col justify-center">
+                <div className="flex justify-between items-center p-2 rounded bg-muted/30">
+                  <span className="text-[10px] text-muted-foreground">Quantity:</span>
+                  <span className="text-xs font-semibold">{openSalesOrderData.count.toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between items-center p-2 rounded bg-muted/30">
+                  <span className="text-[10px] text-muted-foreground">Value:</span>
+                  <span className="text-xs font-semibold">₹{(openSalesOrderData.value / 10000000).toFixed(1)}Cr</span>
                 </div>
               </div>
             )}
@@ -1185,7 +1185,7 @@ export const DraggableWidgets: React.FC<DraggableWidgetsProps> = ({ onNavigate }
               <div className={cn("p-1 rounded", widget.color)}>
                 <Icon className="h-4 w-4" />
               </div>
-              <span className="text-xs font-medium">Top 3 Sales Order Customers</span>
+              <span className="text-[10px] font-medium">Top 3 Sales Order Customers</span>
             </div>
             {loading ? (
               <div className="flex items-center justify-center flex-1">
@@ -1196,11 +1196,11 @@ export const DraggableWidgets: React.FC<DraggableWidgetsProps> = ({ onNavigate }
                 No open sales orders
               </div>
             ) : (
-              <div className="space-y-1.5 text-xs overflow-hidden">
+              <div className="space-y-1 text-xs overflow-hidden">
                 {topSalesOrderCustomers.map((customer, idx) => (
-                  <div key={idx} className="flex items-center justify-between gap-2 p-1.5 rounded bg-muted/30 hover:bg-muted/50 transition-colors">
-                    <span className="text-xs font-medium truncate flex-1 min-w-0">{customer.customer}</span>
-                    <span className="text-xs font-bold whitespace-nowrap">₹{customer.value.toLocaleString()}</span>
+                  <div key={idx} className="flex items-center justify-between gap-1.5 p-1.5 rounded bg-muted/30 hover:bg-muted/50 transition-colors">
+                    <span className="text-[10px] font-medium truncate flex-1 min-w-0">{customer.customer}</span>
+                    <span className="text-[10px] font-bold whitespace-nowrap">₹{(customer.value / 100000).toFixed(1)}L</span>
                   </div>
                 ))}
               </div>
@@ -1218,18 +1218,18 @@ export const DraggableWidgets: React.FC<DraggableWidgetsProps> = ({ onNavigate }
               <span className="text-xs font-medium">Open RSO</span>
             </div>
             {loading ? (
-              <div className="text-xs text-muted-foreground">Loading...</div>
+              <div className="flex items-center justify-center flex-1">
+                <div className="animate-spin rounded-full h-4 w-4 border-2 border-primary border-t-transparent"></div>
+              </div>
             ) : (
-              <div className="space-y-2 text-xs">
-                <div className="space-y-1">
-                  <div className="flex justify-between items-center">
-                    <span className="text-muted-foreground">Count:</span>
-                    <span className="font-semibold">{openRSOData.count.toLocaleString()}</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-muted-foreground">Value:</span>
-                    <span className="font-semibold">₹{openRSOData.value.toLocaleString()}</span>
-                  </div>
+              <div className="space-y-2 text-xs flex-1 flex flex-col justify-center">
+                <div className="flex justify-between items-center p-2 rounded bg-muted/30">
+                  <span className="text-[10px] text-muted-foreground">Count:</span>
+                  <span className="text-xs font-semibold">{openRSOData.count.toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between items-center p-2 rounded bg-muted/30">
+                  <span className="text-[10px] text-muted-foreground">Value:</span>
+                  <span className="text-xs font-semibold">₹{(openRSOData.value / 1000).toFixed(0)}K</span>
                 </div>
               </div>
             )}
@@ -1243,7 +1243,7 @@ export const DraggableWidgets: React.FC<DraggableWidgetsProps> = ({ onNavigate }
               <div className={cn("p-1 rounded", widget.color)}>
                 <Icon className="h-4 w-4" />
               </div>
-              <span className="text-xs font-medium">Top 3 RSO Customers</span>
+              <span className="text-[10px] font-medium">Top 3 RSO Customers</span>
             </div>
             {loading ? (
               <div className="flex items-center justify-center flex-1">
@@ -1254,11 +1254,11 @@ export const DraggableWidgets: React.FC<DraggableWidgetsProps> = ({ onNavigate }
                 No open RSOs
               </div>
             ) : (
-              <div className="space-y-1.5 text-xs overflow-hidden">
+              <div className="space-y-1 text-xs overflow-hidden">
                 {topRSOCustomers.map((customer, idx) => (
-                  <div key={idx} className="flex items-center justify-between gap-2 p-1.5 rounded bg-muted/30 hover:bg-muted/50 transition-colors">
-                    <span className="text-xs font-medium truncate flex-1 min-w-0">{customer.customer}</span>
-                    <span className="text-xs font-bold whitespace-nowrap">₹{customer.value.toLocaleString()}</span>
+                  <div key={idx} className="flex items-center justify-between gap-1.5 p-1.5 rounded bg-muted/30 hover:bg-muted/50 transition-colors">
+                    <span className="text-[10px] font-medium truncate flex-1 min-w-0">{customer.customer}</span>
+                    <span className="text-[10px] font-bold whitespace-nowrap">₹{(customer.value / 1000).toFixed(0)}K</span>
                   </div>
                 ))}
               </div>
@@ -1284,11 +1284,11 @@ export const DraggableWidgets: React.FC<DraggableWidgetsProps> = ({ onNavigate }
                 No AP data
               </div>
             ) : (
-              <div className="space-y-1.5 text-xs overflow-hidden">
+              <div className="space-y-1 text-xs overflow-hidden">
                 {apAgingData.map((bucket, idx) => (
-                  <div key={idx} className="flex items-center justify-between gap-2 p-1.5 rounded bg-muted/30 hover:bg-muted/50 transition-colors">
-                    <span className="text-xs font-medium truncate">{bucket.bucket} days</span>
-                    <span className="text-xs font-bold whitespace-nowrap">₹{bucket.value.toLocaleString()}</span>
+                  <div key={idx} className="flex items-center justify-between gap-1.5 p-1.5 rounded bg-muted/30 hover:bg-muted/50 transition-colors">
+                    <span className="text-[10px] font-medium truncate">{bucket.bucket} days</span>
+                    <span className="text-[10px] font-bold whitespace-nowrap">₹{(bucket.value / 100000).toFixed(1)}L</span>
                   </div>
                 ))}
               </div>
@@ -1314,11 +1314,11 @@ export const DraggableWidgets: React.FC<DraggableWidgetsProps> = ({ onNavigate }
                 No AR data
               </div>
             ) : (
-              <div className="space-y-1.5 text-xs overflow-hidden">
+              <div className="space-y-1 text-xs overflow-hidden">
                 {arAgingData.map((bucket, idx) => (
-                  <div key={idx} className="flex items-center justify-between gap-2 p-1.5 rounded bg-muted/30 hover:bg-muted/50 transition-colors">
-                    <span className="text-xs font-medium truncate">{bucket.bucket} days</span>
-                    <span className="text-xs font-bold whitespace-nowrap">₹{bucket.value.toLocaleString()}</span>
+                  <div key={idx} className="flex items-center justify-between gap-1.5 p-1.5 rounded bg-muted/30 hover:bg-muted/50 transition-colors">
+                    <span className="text-[10px] font-medium truncate">{bucket.bucket} days</span>
+                    <span className="text-[10px] font-bold whitespace-nowrap">₹{(bucket.value / 100000).toFixed(1)}L</span>
                   </div>
                 ))}
               </div>
@@ -1333,7 +1333,7 @@ export const DraggableWidgets: React.FC<DraggableWidgetsProps> = ({ onNavigate }
               <div className={cn("p-1 rounded", widget.color)}>
                 <Icon className="h-4 w-4" />
               </div>
-              <span className="text-xs font-medium">Top 5 AR Customers</span>
+              <span className="text-[10px] font-medium">Top 5 AR Customers</span>
             </div>
             {loading ? (
               <div className="flex items-center justify-center flex-1">
@@ -1346,9 +1346,9 @@ export const DraggableWidgets: React.FC<DraggableWidgetsProps> = ({ onNavigate }
             ) : (
               <div className="space-y-1 text-xs overflow-hidden">
                 {topARCustomers.map((customer, idx) => (
-                  <div key={idx} className="flex items-center justify-between gap-2 p-1.5 rounded bg-muted/30 hover:bg-muted/50 transition-colors">
-                    <span className="text-xs font-medium truncate flex-1 min-w-0">{customer.customer}</span>
-                    <span className="text-xs font-bold whitespace-nowrap">₹{customer.value.toLocaleString()}</span>
+                  <div key={idx} className="flex items-center justify-between gap-1.5 p-1.5 rounded bg-muted/30 hover:bg-muted/50 transition-colors">
+                    <span className="text-[10px] font-medium truncate flex-1 min-w-0">{customer.customer}</span>
+                    <span className="text-[10px] font-bold whitespace-nowrap">₹{(customer.value / 100000).toFixed(1)}L</span>
                   </div>
                 ))}
               </div>
@@ -1363,7 +1363,7 @@ export const DraggableWidgets: React.FC<DraggableWidgetsProps> = ({ onNavigate }
               <div className={cn("p-1 rounded", widget.color)}>
                 <Icon className="h-4 w-4" />
               </div>
-              <span className="text-xs font-medium">Top 5 AP Vendors</span>
+              <span className="text-[10px] font-medium">Top 5 AP Vendors</span>
             </div>
             {loading ? (
               <div className="flex items-center justify-center flex-1">
@@ -1376,9 +1376,9 @@ export const DraggableWidgets: React.FC<DraggableWidgetsProps> = ({ onNavigate }
             ) : (
               <div className="space-y-1 text-xs overflow-hidden">
                 {topAPVendors.map((vendor, idx) => (
-                  <div key={idx} className="flex items-center justify-between gap-2 p-1.5 rounded bg-muted/30 hover:bg-muted/50 transition-colors">
-                    <span className="text-xs font-medium truncate flex-1 min-w-0">{vendor.vendor}</span>
-                    <span className="text-xs font-bold whitespace-nowrap">₹{vendor.value.toLocaleString()}</span>
+                  <div key={idx} className="flex items-center justify-between gap-1.5 p-1.5 rounded bg-muted/30 hover:bg-muted/50 transition-colors">
+                    <span className="text-[10px] font-medium truncate flex-1 min-w-0">{vendor.vendor}</span>
+                    <span className="text-[10px] font-bold whitespace-nowrap">₹{(vendor.value / 100000).toFixed(1)}L</span>
                   </div>
                 ))}
               </div>
