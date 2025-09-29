@@ -3270,8 +3270,8 @@ export function EnhancedReportsModule() {
                 </Card>
               )}
 
-              {/* Report Table - Hidden for purchase_orders and customer_sales */}
-              {!['purchase_orders', 'customer_sales'].includes(selectedReport) && (
+              {/* Report Table - Hidden for purchase_orders, customer_sales, and current_stock */}
+              {!['purchase_orders', 'customer_sales', 'current_stock'].includes(selectedReport) && (
                 <Card>
                   <CardHeader>
                     <CardTitle className="text-lg font-semibold">Report Data</CardTitle>
