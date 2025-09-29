@@ -105,7 +105,7 @@ export const DraggableWidgets: React.FC<DraggableWidgetsProps> = ({ onNavigate }
     if (!profile?.company_id) return;
     
     try {
-      const { data, error } = await supabase
+      const { data, error} = await supabase
         .from('current_stock_levels')
         .select(`
           current_stock,
@@ -113,7 +113,7 @@ export const DraggableWidgets: React.FC<DraggableWidgetsProps> = ({ onNavigate }
           warehouse_id,
           bin_id,
           products!inner(name, cost_price, company_id),
-          warehouse_bins(warehouse_name, bin_name)
+          warehouse_bins!fk_inventory_transactions_warehouse_id(warehouse_name, bin_name)
         `)
         .eq('products.company_id', profile.company_id)
         .gt('current_stock', 0);

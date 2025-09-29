@@ -221,15 +221,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       } as any);
 
       if (!authError) {
-        // Reset rate limiting counter for this email on successful login
-        try {
-          await supabase
-            .from('auth_rate_limits')
-            .delete()
-            .eq('email', normalizedEmail);
-        } catch (e) {
-          console.warn('Failed to reset rate limit after successful login', e);
-        }
         // Authentication successful
         await logSecurityEvent(supabase, 'login_success', { email: normalizedEmail }, undefined, SecuritySeverity.LOW);
         toast({ title: 'Welcome back!', description: 'You have been signed in successfully.' });
