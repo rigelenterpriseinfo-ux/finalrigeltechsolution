@@ -388,7 +388,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         .from('profiles')
         .select('*, companies(*)')
         .eq('user_id', user.id)
-        .single();
+        .maybeSingle();
 
       if (!existingProfile && user.user_metadata) {
         console.log('Creating missing user records for:', user.email);
@@ -409,7 +409,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             address: [userData.city, userData.state, userData.country].filter(Boolean).join(', ')
           })
           .select()
-          .single();
+          .maybeSingle();
 
         if (companyError) {
           console.error('Company creation error:', companyError);

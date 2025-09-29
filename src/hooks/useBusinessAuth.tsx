@@ -40,11 +40,11 @@ export const useBusinessAuth = () => {
         .select('*')
         .eq('email', user?.email)
         .eq('company_id', company?.id)
-        .single();
+        .maybeSingle();
 
       console.log('BusinessAuth: Company users query result:', { data, error });
 
-      if (error && error.code !== 'PGRST116') { // Not found error
+      if (error) {
         console.error('Error fetching business user:', error);
       } else {
         setBusinessUser(data as BusinessUser);
@@ -65,9 +65,9 @@ export const useBusinessAuth = () => {
         .select('access_sections')
         .eq('company_id', company.id)
         .eq('user_email', user.email)
-        .single();
+        .maybeSingle();
 
-      if (error && error.code !== 'PGRST116') { // Not found error
+      if (error) {
         console.error('Error fetching section permissions:', error);
       } else if (data && data.access_sections) {
         setSectionPermissions(data.access_sections as SectionPermissions);
