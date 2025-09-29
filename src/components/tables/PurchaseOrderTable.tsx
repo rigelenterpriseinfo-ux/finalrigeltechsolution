@@ -647,16 +647,19 @@ export function PurchaseOrderTable({
       doc.setDrawColor(100, 100, 100);
       doc.line(totalsX, yPos, 193, yPos);
       
-      yPos += 6;
+      yPos += 7;
+      
+      // Draw background for total row
+      doc.setFillColor(245, 245, 245);
+      doc.rect(totalsX - 2, yPos - 5, 55, 8, 'F');
+      
       doc.setFontSize(11);
       doc.setFont('helvetica', 'bold');
       doc.setTextColor(0, 0, 0);
       
-      // Fixed: Add proper spacing to prevent overlap
+      // Fixed: Proper spacing between label and amount
       doc.text('TOTAL AMOUNT:', totalsX, yPos);
-      doc.setFillColor(255, 255, 255);
-      doc.rect(165, yPos - 4, 30, 6, 'F'); // White background for amount
-      doc.text(`${fullPO.currency}${fullPO.total_amount.toFixed(2)}`, 193, yPos, { align: 'right' });
+      doc.text(`${fullPO.currency} ${fullPO.total_amount.toFixed(2)}`, 193, yPos, { align: 'right' });
       
       yPos += 8;
       
