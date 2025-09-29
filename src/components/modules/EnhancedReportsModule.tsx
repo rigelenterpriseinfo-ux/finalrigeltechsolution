@@ -31,7 +31,8 @@ import {
   CheckCircle,
   Clock,
   Target,
-  RefreshCw
+  RefreshCw,
+  X
 } from 'lucide-react';
 import { format, subDays, startOfMonth, endOfMonth, differenceInDays } from 'date-fns';
 import { cn } from '@/lib/utils';
@@ -39,10 +40,14 @@ import { supabase } from '@/integrations/supabase/client';
 import { useBusinessAuth } from '@/hooks/useBusinessAuth';
 import { useAuth } from '@/hooks/useAuth';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Area, AreaChart } from 'recharts';
+import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Area, AreaChart, Legend } from 'recharts';
 import { toast } from "sonner";
 
 import { fetchGSTINOptions, getCompanyPlaceOfSupply, type GSTINOption } from '@/lib/gstinUtils';
+import { MetricsCard } from '@/components/reports/MetricsCard';
+import { ChartWrapper } from '@/components/reports/ChartWrapper';
+import { EnhancedTable, formatCurrency, formatDate, formatStatus } from '@/components/reports/EnhancedTable';
+import { CHART_COLOR_ARRAY, customTooltipStyle, formatCurrencyTooltip, chartAnimationConfig, gridStyle, axisStyle } from '@/lib/chartConfig';
 
 interface ReportCategory {
   id: string;
@@ -73,7 +78,7 @@ interface FilterState {
   product?: string;
 }
 
-const CHART_COLORS = ['#0ea5e9', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#84cc16', '#f97316'];
+const CHART_COLORS = CHART_COLOR_ARRAY;
 
 const reportCategories: ReportCategory[] = [
   {
@@ -2971,39 +2976,106 @@ export function EnhancedReportsModule() {
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col">
-        {/* Header */}
-        <div className="border-b border-border p-6 bg-card">
-          <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
-            <div>
-              <h1 className="text-2xl font-bold">{currentReport?.name}</h1>
-              <p className="text-muted-foreground">{currentReport?.description}</p>
-            </div>
-            <div className="flex gap-2">
-              <Button variant="outline" size="sm" onClick={handleRefresh} disabled={isLoading}>
-                <RefreshCw className={cn("h-4 w-4 mr-2", isLoading && "animate-spin")} />
-                Refresh
-              </Button>
-              <Button variant="outline" size="sm" onClick={() => exportReport('excel')}>
-                <FileSpreadsheet className="h-4 w-4 mr-2" />
-                Excel
-              </Button>
-              {selectedReport?.startsWith('gstr') && (
-                <Button variant="outline" size="sm" onClick={() => exportReport('json')}>
-                  <Download className="h-4 w-4 mr-2" />
-                  JSON
+        {/* Enhanced Header */}
+        <div className="sticky top-0 z-10 border-b bg-gradient-to-r from-card to-card/95 backdrop-blur-sm shadow-sm">
+          <div className="p-6">
+            <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
+              <div className="space-y-2">
+                <div className="flex items-center gap-3">
+                  <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-primary via-primary to-primary/70 bg-clip-text text-transparent">
+                    {currentReport?.name}
+                  </h1>
+                  {isLoading && (
+                    <Badge variant="secondary" className="gap-1.5 animate-pulse">
+                      <div className="h-2 w-2 rounded-full bg-primary" />
+                      <span className="text-xs">Updating</span>
+                    </Badge>
+                  )}
+                </div>
+                <p className="text-sm text-muted-foreground max-w-2xl">
+                  {currentReport?.description}
+                </p>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Badge variant="outline" className="text-xs font-normal gap-1.5">
+                    <Clock className="h-3 w-3" />
+                    Updated: {format(new Date(), 'HH:mm:ss')}
+                  </Badge>
+                  {reportData && Array.isArray(reportData) && reportData.length > 0 && (
+                    <Badge variant="secondary" className="text-xs font-normal">
+                      {reportData.length} records
+                    </Badge>
+                  )}
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={handleRefresh} 
+                  disabled={isLoading}
+                  className="gap-2 hover:border-primary/50 transition-all"
+                >
+                  <RefreshCw className={cn("h-4 w-4", isLoading && "animate-spin")} />
+                  Refresh
                 </Button>
-              )}
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={() => exportReport('excel')}
+                  className="gap-2 hover:border-primary/50 transition-all"
+                >
+                  <FileSpreadsheet className="h-4 w-4" />
+                  Excel
+                </Button>
+                {selectedReport?.startsWith('gstr') && (
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => exportReport('json')}
+                    className="gap-2 hover:border-primary/50 transition-all"
+                  >
+                    <Download className="h-4 w-4" />
+                    JSON
+                  </Button>
+                )}
+              </div>
             </div>
           </div>
         </div>
 
-        {/* Filters */}
-        <div className="border-b border-border p-6 bg-card">
-          <div className="flex flex-wrap gap-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 flex-1 min-w-[400px]">
-              {/* Start Date Picker */}
-              <div>
-                <label className="text-sm font-medium mb-2 block">Start Date</label>
+        {/* Enhanced Filters */}
+        <div className="border-b bg-gradient-to-br from-muted/30 to-background">
+          <Card className="border-0 shadow-none rounded-none">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <Filter className="h-4 w-4 text-primary" />
+                  <h3 className="font-semibold">Filters</h3>
+                </div>
+                {(filters.customer || filters.gstin) && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setFilters(prev => ({
+                      ...prev,
+                      customer: undefined,
+                      gstin: undefined
+                    }))}
+                    className="h-7 text-xs gap-1"
+                  >
+                    <X className="h-3 w-3" />
+                    Clear Filters
+                  </Button>
+                )}
+              </div>
+              <div className="flex flex-wrap gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 flex-1 min-w-[400px]">
+                  {/* Start Date Picker */}
+                  <div>
+                    <label className="text-sm font-semibold mb-2 block flex items-center gap-1.5">
+                      <CalendarIcon className="h-3.5 w-3.5 text-primary" />
+                      Start Date
+                    </label>
                 <Popover>
                   <PopoverTrigger asChild>
                     <Button
@@ -3132,80 +3204,120 @@ export function EnhancedReportsModule() {
                 </Select>
               </div>
             )}
-          </div>
+              </div>
+            </CardContent>
+          </Card>
         </div>
 
         {/* Content */}
         <div className="flex-1 p-6 overflow-y-auto">
-          {loading ? (
-            <div className="flex items-center justify-center h-64">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-              <span className="ml-3 text-muted-foreground">Loading report data...</span>
+          {loading || isLoading ? (
+            <div className="space-y-6 animate-pulse">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                {[...Array(4)].map((_, i) => (
+                  <Card key={i} className="overflow-hidden">
+                    <CardContent className="p-6">
+                      <div className="space-y-4">
+                        <div className="flex items-start justify-between">
+                          <div className="h-4 w-24 bg-muted rounded" />
+                          <div className="h-10 w-10 bg-muted rounded-lg" />
+                        </div>
+                        <div className="space-y-2">
+                          <div className="h-8 w-32 bg-muted rounded" />
+                          <div className="h-3 w-20 bg-muted rounded" />
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {[...Array(2)].map((_, i) => (
+                  <Card key={i}>
+                    <CardHeader>
+                      <div className="h-6 w-48 bg-muted rounded" />
+                      <div className="h-4 w-64 bg-muted rounded mt-2" />
+                    </CardHeader>
+                    <CardContent>
+                      <div className="h-80 bg-muted rounded" />
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
             </div>
           ) : selectedReport === 'gstr1' ? (
             // GSTR-1 Specific Layout
             <div className="space-y-6">
-              {/* GSTR-1 Summary Cards */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                <Card className="bg-gradient-to-r from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 border-blue-200 dark:border-blue-800">
-                  <CardContent className="p-4">
-                    <div className="text-sm font-medium text-blue-700 dark:text-blue-300">Total Invoices</div>
-                    <div className="text-2xl font-bold text-blue-900 dark:text-blue-100">
-                      {(reportData as any)?.summary?.totalInvoices || 0}
-                    </div>
-                  </CardContent>
-                </Card>
-                <Card className="bg-gradient-to-r from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/20 border-green-200 dark:border-green-800">
-                  <CardContent className="p-4">
-                    <div className="text-sm font-medium text-green-700 dark:text-green-300">Taxable Value</div>
-                    <div className="text-2xl font-bold text-green-900 dark:text-green-100">
-                      ₹{Number((reportData as any)?.summary?.totalTaxableValue || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
-                    </div>
-                  </CardContent>
-                </Card>
-                <Card className="bg-gradient-to-r from-orange-50 to-orange-100 dark:from-orange-900/20 dark:to-orange-800/20 border-orange-200 dark:border-orange-800">
-                  <CardContent className="p-4">
-                    <div className="text-sm font-medium text-orange-700 dark:text-orange-300">Total Tax</div>
-                    <div className="text-2xl font-bold text-orange-900 dark:text-orange-100">
-                      ₹{Number((reportData as any)?.summary?.totalTaxAmount || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
-                    </div>
-                  </CardContent>
-                </Card>
-                <Card className="bg-gradient-to-r from-purple-50 to-purple-100 dark:from-purple-900/20 dark:to-purple-800/20 border-purple-200 dark:border-purple-800">
-                  <CardContent className="p-4">
-                    <div className="text-sm font-medium text-purple-700 dark:text-purple-300">HSN Codes</div>
-                    <div className="text-2xl font-bold text-purple-900 dark:text-purple-100">
-                      {(reportData as any)?.summary?.totalHSNs || 0}
-                    </div>
-                  </CardContent>
-                </Card>
+              {/* GSTR-1 Summary Cards - Enhanced */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 animate-fade-in">
+                <MetricsCard
+                  title="Total Invoices"
+                  value={(reportData as any)?.summary?.totalInvoices || 0}
+                  icon={FileText}
+                  variant="info"
+                  loading={isLoading}
+                />
+                <MetricsCard
+                  title="Taxable Value"
+                  value={`₹${Number((reportData as any)?.summary?.totalTaxableValue || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 })}`}
+                  icon={DollarSign}
+                  variant="success"
+                  loading={isLoading}
+                />
+                <MetricsCard
+                  title="Total Tax"
+                  value={`₹${Number((reportData as any)?.summary?.totalTaxAmount || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 })}`}
+                  icon={Target}
+                  variant="warning"
+                  loading={isLoading}
+                />
+                <MetricsCard
+                  title="HSN Codes"
+                  value={(reportData as any)?.summary?.totalHSNs || 0}
+                  icon={Package}
+                  variant="default"
+                  loading={isLoading}
+                />
               </div>
 
-              {/* HSN Summary Chart */}
+              {/* HSN Summary Chart - Enhanced */}
               {chartData.length > 0 && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle>HSN-wise Taxable Value Distribution</CardTitle>
-                    <CardDescription>Visual breakdown of taxable value by HSN codes</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <ResponsiveContainer width="100%" height={400}>
-                      <BarChart data={chartData.slice(0, 10)}>
-                        <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis dataKey="name" />
-                        <YAxis />
-                        <Tooltip 
-                          formatter={(value, name) => [
-                            name === 'value' ? `₹${Number(value).toLocaleString('en-IN')}` : `₹${Number(value).toLocaleString('en-IN')}`,
-                            name === 'value' ? 'Taxable Value' : 'Tax Amount'
-                          ]}
-                        />
-                        <Bar dataKey="value" fill="#0ea5e9" name="Taxable Value" />
-                        <Bar dataKey="tax" fill="#10b981" name="Tax Amount" />
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </CardContent>
-                </Card>
+                <ChartWrapper
+                  title="HSN-wise Taxable Value Distribution"
+                  description="Visual breakdown of taxable value by HSN codes"
+                  loading={isLoading}
+                  className="animate-fade-in"
+                >
+                  <ResponsiveContainer width="100%" height={400}>
+                    <BarChart data={chartData.slice(0, 10)}>
+                      <CartesianGrid {...gridStyle} />
+                      <XAxis dataKey="name" {...axisStyle} angle={-45} textAnchor="end" height={80} />
+                      <YAxis {...axisStyle} />
+                      <Tooltip 
+                        {...customTooltipStyle}
+                        formatter={(value, name) => [
+                          formatCurrencyTooltip(Number(value)),
+                          name === 'value' ? 'Taxable Value' : 'Tax Amount'
+                        ]}
+                      />
+                      <Legend />
+                      <Bar 
+                        dataKey="value" 
+                        fill={CHART_COLORS[0]} 
+                        name="Taxable Value"
+                        radius={[8, 8, 0, 0]}
+                        {...chartAnimationConfig}
+                      />
+                      <Bar 
+                        dataKey="tax" 
+                        fill={CHART_COLORS[1]} 
+                        name="Tax Amount"
+                        radius={[8, 8, 0, 0]}
+                        {...chartAnimationConfig}
+                      />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </ChartWrapper>
               )}
 
               {/* GSTR-1 Sections */}
@@ -3699,54 +3811,79 @@ export function EnhancedReportsModule() {
                       </CardDescription>
                     </CardHeader>
                     <CardContent>
-                      <ResponsiveContainer width="100%" height={350}>
+                  <ResponsiveContainer width="100%" height={350}>
                         {selectedReport.includes('aging') ? (
                           <PieChart>
                             <Pie
                               data={chartData}
                               cx="50%"
                               cy="50%"
-                              innerRadius={60}
-                              outerRadius={120}
+                              innerRadius={70}
+                              outerRadius={130}
                               dataKey="value"
                               label={({ name, percentage }) => percentage > 5 ? `${percentage}%` : ''}
-                              labelLine={false}
+                              labelLine={true}
+                              {...chartAnimationConfig}
                             >
                               {chartData.map((entry, index) => (
-                                <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
+                                <Cell 
+                                  key={`cell-${index}`} 
+                                  fill={CHART_COLORS[index % CHART_COLORS.length]}
+                                  className="hover:opacity-80 transition-opacity cursor-pointer"
+                                />
                               ))}
                             </Pie>
                             <Tooltip 
-                              formatter={(value) => [`₹${Number(value).toLocaleString('en-IN', { maximumFractionDigits: 0 })}`, 'Amount']}
-                              labelFormatter={(label) => `${label}`}
-                              contentStyle={{
-                                backgroundColor: 'hsl(var(--card))',
-                                border: '1px solid hsl(var(--border))',
-                                borderRadius: '6px',
-                                fontSize: '14px'
-                              }}
+                              {...customTooltipStyle}
+                              formatter={(value) => [formatCurrencyTooltip(Number(value)), 'Amount']}
+                            />
+                            <Legend 
+                              verticalAlign="bottom" 
+                              height={36}
+                              iconType="circle"
                             />
                           </PieChart>
                          ) : selectedReport.includes('sales') || selectedReport.includes('purchase') ? (
                            <AreaChart data={chartData}>
-                             <CartesianGrid strokeDasharray="3 3" />
-                             <XAxis dataKey="month" />
-                             <YAxis />
-                             <Tooltip formatter={(value, name) => [
-                               name === 'revenue' ? `₹${Number(value).toLocaleString('en-IN')}` : value,
-                               name === 'revenue' ? 'Revenue' : 'Orders'
-                             ]} />
-                             <Area type="monotone" dataKey="revenue" stackId="1" stroke="#0ea5e9" fill="#0ea5e9" fillOpacity={0.6} />
+                             <defs>
+                               <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
+                                 <stop offset="5%" stopColor={CHART_COLORS[0]} stopOpacity={0.8}/>
+                                 <stop offset="95%" stopColor={CHART_COLORS[0]} stopOpacity={0.1}/>
+                               </linearGradient>
+                             </defs>
+                             <CartesianGrid {...gridStyle} />
+                             <XAxis dataKey="month" {...axisStyle} />
+                             <YAxis {...axisStyle} />
+                             <Tooltip 
+                               {...customTooltipStyle}
+                               formatter={(value, name) => [
+                                 name === 'revenue' ? formatCurrencyTooltip(Number(value)) : value,
+                                 name === 'revenue' ? 'Revenue' : 'Orders'
+                               ]}
+                             />
+                             <Area 
+                               type="monotone" 
+                               dataKey="revenue" 
+                               stroke={CHART_COLORS[0]} 
+                               fill="url(#colorRevenue)" 
+                               strokeWidth={2}
+                               {...chartAnimationConfig}
+                             />
                            </AreaChart>
-                        ) : (
-                          <BarChart data={chartData}>
-                            <CartesianGrid strokeDasharray="3 3" />
-                            <XAxis dataKey="name" />
-                            <YAxis />
-                            <Tooltip />
-                            <Bar dataKey="value" fill="#0ea5e9" />
-                          </BarChart>
-                        )}
+                         ) : (
+                           <BarChart data={chartData}>
+                             <CartesianGrid {...gridStyle} />
+                             <XAxis dataKey="name" {...axisStyle} />
+                             <YAxis {...axisStyle} />
+                             <Tooltip {...customTooltipStyle} />
+                             <Bar 
+                               dataKey="value" 
+                               fill={CHART_COLORS[0]} 
+                               radius={[8, 8, 0, 0]}
+                               {...chartAnimationConfig}
+                             />
+                           </BarChart>
+                         )}
                       </ResponsiveContainer>
                     </CardContent>
                   </Card>
