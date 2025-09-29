@@ -27,6 +27,7 @@ import {
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 
 interface StockData {
   warehouse_name?: string;
@@ -48,6 +49,11 @@ interface TopValueItem {
 interface SalesTrendItem {
   month: string;
   qty: number;
+  value: number;
+}
+
+interface WeeklySalesData {
+  week: string;
   value: number;
 }
 
@@ -92,6 +98,7 @@ export const DraggableWidgets: React.FC<DraggableWidgetsProps> = ({ onNavigate }
   const [topARCustomers, setTopARCustomers] = useState<Array<{customer: string, value: number}>>([]);
   const [topAPVendors, setTopAPVendors] = useState<Array<{vendor: string, value: number}>>([]);
   const [shipmentCounts, setShipmentCounts] = useState<{in_transit: number, pending: number, dispatched: number}>({in_transit: 0, pending: 0, dispatched: 0});
+  const [weeklySalesData, setWeeklySalesData] = useState<WeeklySalesData[]>([]);
 
   // Fetch warehouse and bin wise good stock data
   const fetchGoodStockData = async () => {
@@ -208,6 +215,55 @@ export const DraggableWidgets: React.FC<DraggableWidgetsProps> = ({ onNavigate }
       }
     } catch (error) {
       console.error('Error fetching top value items:', error);
+    }
+  };
+
+  // Fetch weekly sales trend data for last 4 weeks
+  const fetchWeeklySalesData = async () => {
+    if (!profile?.company_id) return;
+    
+    try {
+      const today = new Date();
+      const fourWeeksAgo = new Date(today);
+      fourWeeksAgo.setDate(today.getDate() - 28);
+
+      const { data } = await supabase
+        .from('sales_invoices')
+        .select('invoice_date, total_amount')
+        .eq('company_id', profile.company_id)
+        .eq('status', 'finalized')
+        .gte('invoice_date', fourWeeksAgo.toISOString().split('T')[0])
+        .order('invoice_date', { ascending: true });
+
+      if (data) {
+        // Group by week
+        const weeklyData: { [key: string]: number } = {};
+        
+        data.forEach((invoice: any) => {
+          const invoiceDate = new Date(invoice.invoice_date);
+          const weekStart = new Date(invoiceDate);
+          weekStart.setDate(invoiceDate.getDate() - invoiceDate.getDay()); // Start of week (Sunday)
+          
+          const weekKey = `Week ${Math.ceil((today.getTime() - weekStart.getTime()) / (7 * 24 * 60 * 60 * 1000))}`;
+          
+          if (!weeklyData[weekKey]) {
+            weeklyData[weekKey] = 0;
+          }
+          
+          weeklyData[weekKey] += Number(invoice.total_amount || 0);
+        });
+        
+        // Create array with last 4 weeks
+        const weeks = ['Week 4', 'Week 3', 'Week 2', 'Week 1'];
+        const weeklyArray = weeks.map(week => ({
+          week,
+          value: weeklyData[week] || 0
+        })).reverse();
+        
+        setWeeklySalesData(weeklyArray);
+      }
+    } catch (error) {
+      console.error('Error fetching weekly sales data:', error);
     }
   };
 
@@ -672,7 +728,7 @@ export const DraggableWidgets: React.FC<DraggableWidgetsProps> = ({ onNavigate }
         fetchDamageStockData(),
         fetchLowStockItems(),
         fetchTopValueItems(),
-        fetchSalesTrendData(),
+        fetchWeeklySalesData(),
         fetchBackorderData(),
         fetchTotalOpenPOData(),
         fetchTopPendingItems(),
@@ -974,27 +1030,49 @@ export const DraggableWidgets: React.FC<DraggableWidgetsProps> = ({ onNavigate }
               <div className={cn("p-1 rounded", widget.color)}>
                 <Icon className="h-4 w-4" />
               </div>
-              <span className="text-xs font-medium">{widget.title}</span>
+              <span className="text-xs font-medium">Last 4 Weeks Sales</span>
             </div>
             {loading ? (
               <div className="flex items-center justify-center flex-1">
                 <div className="animate-spin rounded-full h-4 w-4 border-2 border-primary border-t-transparent"></div>
               </div>
-            ) : salesTrendData.length === 0 ? (
+            ) : weeklySalesData.length === 0 ? (
               <div className="text-xs text-muted-foreground text-center py-2">
                 No sales data
               </div>
             ) : (
-              <div className="space-y-1.5 text-xs overflow-hidden">
-                {salesTrendData.slice(0, 3).map((item, idx) => (
-                  <div key={idx} className="p-1.5 rounded bg-muted/30 hover:bg-muted/50 transition-colors space-y-0.5">
-                    <div className="font-medium text-xs">{item.month}</div>
-                    <div className="flex justify-between text-xs">
-                      <span className="text-muted-foreground">Qty: {item.qty}</span>
-                      <span className="font-bold">₹{item.value.toFixed(0)}</span>
-                    </div>
-                  </div>
-                ))}
+              <div className="flex-1 w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={weeklySalesData} margin={{ top: 5, right: 5, bottom: 20, left: 5 }}>
+                    <XAxis 
+                      dataKey="week" 
+                      tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
+                      stroke="hsl(var(--border))"
+                    />
+                    <YAxis 
+                      tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
+                      stroke="hsl(var(--border))"
+                      tickFormatter={(value) => `₹${(value / 1000).toFixed(0)}K`}
+                    />
+                    <Tooltip 
+                      contentStyle={{
+                        backgroundColor: 'hsl(var(--card))',
+                        border: '1px solid hsl(var(--border))',
+                        borderRadius: '6px',
+                        fontSize: '11px'
+                      }}
+                      formatter={(value: number) => [`₹${value.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`, 'Sales']}
+                    />
+                    <Line 
+                      type="monotone" 
+                      dataKey="value" 
+                      stroke="hsl(var(--primary))" 
+                      strokeWidth={2}
+                      dot={{ fill: 'hsl(var(--primary))', r: 3 }}
+                      activeDot={{ r: 5 }}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
               </div>
             )}
           </div>
