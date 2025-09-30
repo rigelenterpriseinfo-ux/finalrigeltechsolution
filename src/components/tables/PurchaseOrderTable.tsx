@@ -25,6 +25,7 @@ import {
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
+import { format } from 'date-fns';
 import { PurchaseOrderTableMobile } from './PurchaseOrderTableMobile';
 
 interface PurchaseOrder {
@@ -987,6 +988,32 @@ export function PurchaseOrderTable({
                 }}
                 className="bg-white"
               />
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  // Export all filtered purchase orders
+                  const wsData = filteredOrders.map(order => ({
+                    'PO Number': order.po_number,
+                    'Supplier': order.supplier?.name || 'Unknown',
+                    'Order Date': format(new Date(order.order_date), 'dd/MM/yyyy'),
+                    'Expected Delivery': order.expected_date ? format(new Date(order.expected_date), 'dd/MM/yyyy') : '-',
+                    'Total Amount': order.total_amount,
+                    'Received Amount': order.received_amount || 0,
+                    'Pending Amount': order.pending_amount || 0,
+                    'Status': order.status.toUpperCase()
+                  }));
+                  const ws = XLSX.utils.json_to_sheet(wsData);
+                  const wb = XLSX.utils.book_new();
+                  XLSX.utils.book_append_sheet(wb, ws, 'Purchase Orders');
+                  XLSX.writeFile(wb, `PurchaseOrders_${format(new Date(), 'yyyy-MM-dd')}.xlsx`);
+                  toast({ title: "Success", description: `Exported ${filteredOrders.length} purchase orders to Excel` });
+                }}
+                className="h-9 px-3 rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 hover:border-emerald-300 transition-all duration-200 shadow-sm"
+              >
+                <FileSpreadsheet className="h-4 w-4" />
+                Export Excel
+              </Button>
             </div>
           </div>
           

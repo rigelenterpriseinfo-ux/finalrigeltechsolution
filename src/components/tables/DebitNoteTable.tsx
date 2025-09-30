@@ -875,8 +875,6 @@ export function DebitNoteTable({ refreshTrigger, onView, onEdit, onDelete, onFil
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Debit Note Management</CardTitle>
-        
         {/* Filters */}
         <div className="flex flex-col sm:flex-row gap-4">
           <div className="flex-1">
@@ -1010,17 +1008,6 @@ export function DebitNoteTable({ refreshTrigger, onView, onEdit, onDelete, onFil
                             >
                               <Eye className="h-4 w-4" />
                             </Button>
-                            {debitNote.credit_note_numbers && (
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleViewCreditNotes(debitNote)}
-                                className="h-9 px-3 rounded-none border-r border-slate-200 hover:bg-indigo-50 hover:text-indigo-700 transition-all duration-200"
-                                title="View Credit Notes"
-                              >
-                                <FileText className="h-4 w-4" />
-                              </Button>
-                            )}
                             <Button
                               variant="ghost"
                               size="sm"

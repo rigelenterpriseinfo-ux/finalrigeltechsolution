@@ -866,30 +866,10 @@ export function SupplierCreditNoteTable({
                             size="sm"
                             onClick={() => onEdit(creditNote)}
                             disabled={!canEdit}
-                            className="h-9 px-3 rounded-none border-r border-slate-200 hover:bg-amber-50 hover:text-amber-700 transition-all duration-200"
+                            className="h-9 px-3 rounded-r-lg rounded-l-none hover:bg-amber-50 hover:text-amber-700 transition-all duration-200"
                             title={!canEdit ? "No permission to edit" : "Edit Credit Note"}
                           >
                             <Edit className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => onDelete(creditNote)}
-                            disabled={!canEdit || creditNotesWithTransactions.has(creditNote.id)}
-                            className={`h-9 px-3 rounded-r-lg rounded-l-none hover:bg-red-50 hover:text-red-700 transition-all duration-200 ${
-                              !canEdit || creditNotesWithTransactions.has(creditNote.id)
-                                ? 'opacity-50 cursor-not-allowed'
-                                : ''
-                            }`}
-                            title={
-                              creditNotesWithTransactions.has(creditNote.id)
-                                ? "Cannot delete credit note with existing transactions"
-                                : !canEdit
-                                ? "No permission to delete"
-                                : "Delete credit note"
-                            }
-                          >
-                            <Trash2 className="h-4 w-4" />
                           </Button>
                         </div>
                         

@@ -867,9 +867,6 @@ export function GRNTable({ refreshTrigger, onView, onEdit, onDelete }: GRNTableP
 
   return (
     <Card>
-      <CardHeader>
-        <CardTitle>GRN Management</CardTitle>
-      </CardHeader>
       <CardContent>
         {/* Search and Export Controls */}
         <div className="p-4 sm:p-6 border-b bg-gradient-to-r from-blue-50 to-blue-100">
@@ -1031,38 +1028,10 @@ export function GRNTable({ refreshTrigger, onView, onEdit, onDelete }: GRNTableP
                               variant="ghost"
                               size="sm"
                               onClick={() => onView(grn)}
-                              className="h-9 px-3 rounded-l-lg rounded-r-none border-r border-slate-200 hover:bg-blue-50 hover:text-blue-700 transition-all duration-200"
+                              className="h-9 px-3 rounded-lg hover:bg-blue-50 hover:text-blue-700 transition-all duration-200"
                               title="View GRN Details"
                             >
                               <Eye className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => onEdit(grn)}
-                              disabled={grnsWithTransactions.has(grn.id)}
-                              className={`h-9 px-3 rounded-none border-r border-slate-200 transition-all duration-200 ${
-                                grnsWithTransactions.has(grn.id)
-                                  ? 'text-slate-400 cursor-not-allowed hover:bg-transparent'
-                                  : 'hover:bg-emerald-50 hover:text-emerald-700'
-                              }`}
-                              title={grnsWithTransactions.has(grn.id) ? 'Cannot edit GRN with existing transactions' : 'Edit GRN'}
-                            >
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => onDelete(grn.id)}
-                              disabled={grnsWithTransactions.has(grn.id)}
-                              className={`h-9 px-3 rounded-r-lg rounded-l-none transition-all duration-200 ${
-                                grnsWithTransactions.has(grn.id)
-                                  ? 'text-slate-400 cursor-not-allowed hover:bg-transparent'
-                                  : 'hover:bg-red-50 hover:text-red-700'
-                              }`}
-                              title={grnsWithTransactions.has(grn.id) ? 'Cannot delete GRN with existing transactions' : 'Delete GRN'}
-                            >
-                              <Trash2 className="h-4 w-4" />
                             </Button>
                           </div>
 
