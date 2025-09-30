@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { SearchableCombobox } from '@/components/ui/searchable-combobox';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
@@ -180,7 +181,7 @@ export function GRNForm({ grn, onSubmit, onCancel, readOnly = false, mode }: GRN
           )
         `)
         .eq('company_id', profile?.company_id)
-        .in('status', ['approved', 'partially_received'])
+        .or('status.ilike.approved,status.ilike.partially_received')
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -751,32 +752,30 @@ export function GRNForm({ grn, onSubmit, onCancel, readOnly = false, mode }: GRN
                         render={({ field }) => (
                           <FormItem>
                             <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Purchase Order</FormLabel>
-                            <Select
+                            <SearchableCombobox
                               value={field.value}
-                              onValueChange={(value) => {
+                              onSelect={(value) => {
                                 field.onChange(value);
                                 handlePOSelection(value);
                               }}
+                              placeholder="Select purchase order"
+                              searchPlaceholder="Search by PO number, supplier, or amount..."
+                              options={purchaseOrders.filter(po => po.id && po.id.trim() !== '').map((po) => ({
+                                id: po.id,
+                                name: `${po.po_number || 'N/A'} - ${po.supplier?.name || 'Unknown Supplier'}`,
+                                subtitle: `Amount: ₹${po.total_amount?.toLocaleString() || '0'} | Date: ${new Date(po.order_date).toLocaleDateString()}`,
+                                keywords: [
+                                  po.po_number || '',
+                                  po.supplier?.name || '',
+                                  po.total_amount?.toString() || '',
+                                  new Date(po.order_date).toLocaleDateString(),
+                                ]
+                              }))}
                               disabled={readOnly || mode === 'edit'}
-                            >
-                              <FormControl>
-                                <SelectTrigger className="h-7">
-                                  <SelectValue placeholder="Select purchase order" />
-                                </SelectTrigger>
-                              </FormControl>
-                              <SelectContent>
-                                {purchaseOrders.filter(po => po.id && po.id.trim() !== '').map((po) => (
-                                  <SelectItem key={po.id} value={po.id}>
-                                    <div className="flex flex-col">
-                                      <span className="font-medium text-sm">{po.po_number || 'N/A'}</span>
-                                      <span className="text-xs text-muted-foreground">
-                                        {po.supplier?.name || 'Unknown Supplier'} | ₹{po.total_amount?.toLocaleString() || '0'}
-                                      </span>
-                                    </div>
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
+                              loading={loading}
+                              emptyMessage="No purchase orders available"
+                              className="h-7"
+                            />
                             <FormMessage />
                           </FormItem>
                         )}
