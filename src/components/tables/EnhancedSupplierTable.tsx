@@ -20,7 +20,8 @@ import {
   FileText,
   Users,
   Building2,
-  TrendingUp
+  TrendingUp,
+  PackageOpen
 } from 'lucide-react';
 import { useBusinessAuth } from '@/hooks/useBusinessAuth';
 import { useAuth } from '@/hooks/useAuth';
@@ -283,51 +284,36 @@ export const EnhancedSupplierTable: React.FC<EnhancedSupplierTableProps> = ({
   // Enhanced export to Excel
   const exportToExcel = () => {
     try {
-      const workbook = XLSX.utils.book_new();
+      const exportData = sortedSuppliers.map(supplier => ({
+        'Supplier Ref': supplier.supplier_ref || 'N/A',
+        'Name': supplier.name,
+        'Type': supplier.supplier_type || 'General',
+        'Contact Person': supplier.contact_person || 'N/A',
+        'Email': supplier.email || 'N/A',
+        'Phone': supplier.phone || 'N/A',
+        'Website': supplier.website || 'N/A',
+        'GST Number': supplier.gst_number || 'N/A',
+        'City': supplier.city || 'N/A',
+        'State': supplier.state || 'N/A',
+        'Country': supplier.country || 'N/A',
+        'Currency': supplier.preferred_currency || 'INR',
+        'Payment Terms': supplier.payment_terms || 'N/A',
+        'Status': supplier.is_active ? 'Active' : 'Inactive',
+        'Created Date': format(new Date(supplier.created_at), 'dd MMM yyyy')
+      }));
+
+      const ws = XLSX.utils.json_to_sheet(exportData);
+      const wb = XLSX.utils.book_new();
       
-      // Company Header
-      const companyInfo = [
-        [`${companyData?.name || 'Company'} - Supplier Directory`],
-        [`Generated: ${format(new Date(), 'MMM dd, yyyy HH:mm')}`],
-        [`Total Suppliers: ${sortedSuppliers.length}`],
-        [`Active Suppliers: ${supplierStats.active}`],
-        [`New This Month: ${supplierStats.newThisMonth}`],
-        ['']
-      ];
-
-      // Headers
-      const headers = [
-        ['Supplier Ref', 'Name', 'Type', 'Contact Person', 'Email', 'Phone', 'City', 'State', 'Country', 'GST Number', 'Status', 'Created Date']
-      ];
-
-      // Data rows
-      const dataRows = sortedSuppliers.map(supplier => [
-        supplier.supplier_ref || '',
-        supplier.name,
-        supplier.supplier_type || '',
-        supplier.contact_person || '',
-        supplier.email || '',
-        supplier.phone || '',
-        supplier.city || '',
-        supplier.state || '',
-        supplier.country || '',
-        supplier.gst_number || '',
-        supplier.is_active ? 'Active' : 'Inactive',
-        format(new Date(supplier.created_at), 'MMM dd, yyyy')
-      ]);
-
-      const wsData = [...companyInfo, ...headers, ...dataRows];
-      const ws = XLSX.utils.aoa_to_sheet(wsData);
-      
-      // Set column widths
       ws['!cols'] = [
-        { wch: 15 }, { wch: 25 }, { wch: 15 }, { wch: 20 }, 
-        { wch: 25 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, 
-        { wch: 15 }, { wch: 20 }, { wch: 10 }, { wch: 15 }
+        { wch: 15 }, { wch: 25 }, { wch: 15 }, { wch: 20 },
+        { wch: 25 }, { wch: 15 }, { wch: 25 }, { wch: 18 },
+        { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 12 },
+        { wch: 15 }, { wch: 10 }, { wch: 15 }
       ];
 
-      XLSX.utils.book_append_sheet(workbook, ws, 'Suppliers');
-      XLSX.writeFile(workbook, `Suppliers_${format(new Date(), 'yyyy-MM-dd')}.xlsx`);
+      XLSX.utils.book_append_sheet(wb, ws, 'Suppliers');
+      XLSX.writeFile(wb, `Suppliers_${format(new Date(), 'yyyy-MM-dd')}.xlsx`);
       
       toast({
         title: "Export Successful",
@@ -338,6 +324,256 @@ export const EnhancedSupplierTable: React.FC<EnhancedSupplierTableProps> = ({
       toast({
         title: "Export Failed",
         description: "Failed to export to Excel",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Export single supplier to PDF as Professional Certificate
+  const exportSupplierToPDF = async (supplier: Supplier) => {
+    try {
+      const doc = new jsPDF();
+      
+      // ========== DECORATIVE BORDER ==========
+      doc.setDrawColor(184, 134, 11);
+      doc.setLineWidth(1.5);
+      doc.rect(10, 10, 190, 277, 'S');
+      
+      doc.setDrawColor(218, 165, 32);
+      doc.setLineWidth(0.5);
+      doc.rect(12, 12, 186, 273, 'S');
+      
+      doc.setDrawColor(41, 128, 185);
+      doc.setLineWidth(2);
+      doc.line(15, 15, 30, 15);
+      doc.line(15, 15, 15, 30);
+      doc.line(180, 15, 195, 15);
+      doc.line(195, 15, 195, 30);
+      doc.line(15, 285, 30, 285);
+      doc.line(15, 270, 15, 285);
+      doc.line(180, 285, 195, 285);
+      doc.line(195, 270, 195, 285);
+      
+      let yPos = 25;
+      
+      doc.setFillColor(41, 128, 185);
+      doc.circle(105, yPos + 5, 8, 'F');
+      doc.setFontSize(6);
+      doc.setTextColor(255, 255, 255);
+      doc.setFont('helvetica', 'bold');
+      doc.text('CERTIFIED', 105, yPos + 7, { align: 'center' });
+      
+      yPos += 15;
+      
+      doc.setFontSize(22);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(41, 128, 185);
+      doc.text('AUTHORIZED SUPPLIER', 105, yPos, { align: 'center' });
+      
+      yPos += 8;
+      doc.setFontSize(18);
+      doc.setTextColor(184, 134, 11);
+      doc.text('REGISTRATION CERTIFICATE', 105, yPos, { align: 'center' });
+      
+      yPos += 12;
+      doc.setDrawColor(184, 134, 11);
+      doc.setLineWidth(0.5);
+      doc.line(50, yPos, 160, yPos);
+      yPos += 10;
+      
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(60, 60, 60);
+      doc.text('This is to certify that the following supplier is officially registered and authorized', 105, yPos, { align: 'center' });
+      yPos += 5;
+      doc.text('as a trusted business partner in our supplier network', 105, yPos, { align: 'center' });
+      yPos += 12;
+      
+      doc.setFillColor(240, 248, 255);
+      doc.roundedRect(20, yPos, 170, 25, 2, 2, 'F');
+      doc.setDrawColor(41, 128, 185);
+      doc.setLineWidth(0.5);
+      doc.roundedRect(20, yPos, 170, 25, 2, 2, 'S');
+      
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(41, 128, 185);
+      doc.text('REGISTERED WITH:', 25, yPos + 6);
+      
+      doc.setFontSize(12);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(0, 0, 0);
+      doc.text(companyData?.name || 'YOUR COMPANY NAME', 25, yPos + 13);
+      
+      doc.setFontSize(8);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(60, 60, 60);
+      const companyAddr = [
+        companyData?.address_line1,
+        `${companyData?.city || ''}, ${companyData?.state || ''} - ${companyData?.postal_code || ''}`
+      ].filter(Boolean).join(', ');
+      doc.text(companyAddr || 'Company Address', 25, yPos + 19);
+      
+      yPos += 32;
+      
+      doc.setFontSize(12);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(41, 128, 185);
+      doc.text('SUPPLIER DETAILS', 105, yPos, { align: 'center' });
+      yPos += 8;
+      
+      doc.setFillColor(255, 250, 205);
+      doc.roundedRect(30, yPos - 3, 150, 10, 1, 1, 'F');
+      doc.setFontSize(14);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(0, 0, 0);
+      doc.text(supplier.name, 105, yPos + 4, { align: 'center' });
+      yPos += 15;
+      
+      doc.setFontSize(9);
+      const detailsLeft = [
+        ['Certificate No.:', supplier.supplier_ref || 'AUTO-GEN'],
+        ['Supplier Type:', supplier.supplier_type || 'General Supplier'],
+        ['Contact Person:', supplier.contact_person || 'N/A'],
+        ['Email:', supplier.email || 'N/A'],
+        ['Phone:', supplier.phone || 'N/A'],
+        ['Website:', supplier.website || 'N/A']
+      ];
+      
+      const detailsRight = [
+        ['Registration Date:', format(new Date(supplier.created_at), 'dd MMM yyyy')],
+        ['GST Number:', supplier.gst_number || 'N/A'],
+        ['Location:', [supplier.city, supplier.state, supplier.country].filter(Boolean).join(', ') || 'N/A'],
+        ['Currency:', supplier.preferred_currency || 'INR'],
+        ['Payment Terms:', supplier.payment_terms || 'Net 30'],
+        ['Status:', supplier.is_active ? 'ACTIVE' : 'INACTIVE']
+      ];
+      
+      let leftY = yPos;
+      detailsLeft.forEach(([label, value]) => {
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(60, 60, 60);
+        doc.text(label, 25, leftY);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(0, 0, 0);
+        const valueText = doc.splitTextToSize(value, 55);
+        doc.text(valueText, 60, leftY);
+        leftY += 8;
+      });
+      
+      let rightY = yPos;
+      detailsRight.forEach(([label, value]) => {
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(60, 60, 60);
+        doc.text(label, 110, rightY);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(0, 0, 0);
+        if (label === 'Status:' && value === 'ACTIVE') {
+          doc.setTextColor(34, 139, 34);
+          doc.setFont('helvetica', 'bold');
+        }
+        const valueText = doc.splitTextToSize(value, 55);
+        doc.text(valueText, 155, rightY);
+        rightY += 8;
+      });
+      
+      yPos = Math.max(leftY, rightY) + 10;
+      
+      doc.setFillColor(255, 248, 220);
+      doc.roundedRect(20, yPos, 170, 18, 2, 2, 'F');
+      doc.setDrawColor(184, 134, 11);
+      doc.setLineWidth(0.3);
+      doc.roundedRect(20, yPos, 170, 18, 2, 2, 'S');
+      
+      doc.setFontSize(8);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(139, 69, 19);
+      doc.text('CERTIFICATE TERMS:', 25, yPos + 5);
+      
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(60, 60, 60);
+      doc.text('• This certificate confirms the supplier\'s registration in our authorized vendor database', 25, yPos + 10);
+      doc.text('• Valid as long as the business relationship remains active and in good standing', 25, yPos + 14);
+      
+      yPos += 25;
+      
+      doc.setFillColor(240, 248, 255);
+      doc.roundedRect(20, yPos, 82, 30, 2, 2, 'F');
+      doc.setDrawColor(41, 128, 185);
+      doc.setLineWidth(0.3);
+      doc.roundedRect(20, yPos, 82, 30, 2, 2, 'S');
+      
+      doc.setFontSize(8);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(41, 128, 185);
+      doc.text('VERIFICATION DETAILS', 25, yPos + 6);
+      
+      doc.setFontSize(7);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(60, 60, 60);
+      doc.text(`Issue Date: ${format(new Date(), 'dd MMM yyyy')}`, 25, yPos + 12);
+      doc.text(`Certificate ID: ${supplier.id.substring(0, 8).toUpperCase()}`, 25, yPos + 17);
+      doc.text(`Company ID: ${companyData?.business_ref_no || 'N/A'}`, 25, yPos + 22);
+      doc.text(`Verification: ${companyData?.email || 'contact@company.com'}`, 25, yPos + 27);
+      
+      doc.setFillColor(255, 255, 255);
+      doc.rect(110, yPos + 3, 24, 24, 'F');
+      doc.setDrawColor(41, 128, 185);
+      doc.setLineWidth(0.5);
+      doc.rect(110, yPos + 3, 24, 24, 'S');
+      doc.setFontSize(6);
+      doc.setTextColor(100, 100, 100);
+      doc.text('QR CODE', 122, yPos + 13, { align: 'center' });
+      doc.text('VERIFICATION', 122, yPos + 17, { align: 'center' });
+      
+      doc.setFillColor(255, 250, 240);
+      doc.roundedRect(140, yPos, 50, 30, 2, 2, 'F');
+      doc.setDrawColor(184, 134, 11);
+      doc.setLineWidth(0.3);
+      doc.roundedRect(140, yPos, 50, 30, 2, 2, 'S');
+      
+      doc.setFontSize(7);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(60, 60, 60);
+      doc.text('Authorized By:', 145, yPos + 8);
+      
+      doc.setDrawColor(0, 0, 0);
+      doc.setLineWidth(0.3);
+      doc.line(145, yPos + 20, 183, yPos + 20);
+      
+      doc.setFontSize(7);
+      doc.setFont('helvetica', 'bold');
+      doc.text('Authorized Signatory', 164, yPos + 25, { align: 'center' });
+      
+      yPos += 35;
+      
+      doc.setFontSize(7);
+      doc.setFont('helvetica', 'italic');
+      doc.setTextColor(100, 100, 100);
+      const footerText = 'This is a digitally generated certificate. For verification, please contact the issuing company.';
+      doc.text(footerText, 105, yPos + 5, { align: 'center' });
+      
+      doc.setFontSize(50);
+      doc.setTextColor(230, 230, 230);
+      doc.setFont('helvetica', 'bold');
+      doc.saveGraphicsState();
+      doc.text('CERTIFIED', 105, 150, { 
+        align: 'center',
+        angle: 45
+      });
+      doc.restoreGraphicsState();
+      
+      doc.save(`Supplier_Certificate_${supplier.supplier_ref || supplier.name}_${format(new Date(), 'yyyy-MM-dd')}.pdf`);
+      
+      toast({
+        title: "Certificate Generated",
+        description: `Supplier certificate for ${supplier.name} downloaded successfully`,
+      });
+    } catch (error) {
+      console.error('Export to PDF failed:', error);
+      toast({
+        title: "Export Failed",
+        description: "Failed to generate supplier certificate",
         variant: "destructive",
       });
     }
@@ -471,8 +707,8 @@ export const EnhancedSupplierTable: React.FC<EnhancedSupplierTableProps> = ({
                     className="font-bold text-slate-800 cursor-pointer hover:bg-slate-100 transition-all duration-200 py-4"
                     onClick={() => handleSort('supplier_ref')}
                   >
-                    <div className="flex items-center gap-1">
-                      Supplier Ref
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs uppercase tracking-wider">Supplier Ref</span>
                       {getSortIcon('supplier_ref')}
                     </div>
                   </TableHead>
@@ -480,8 +716,8 @@ export const EnhancedSupplierTable: React.FC<EnhancedSupplierTableProps> = ({
                     className="font-bold text-slate-800 cursor-pointer hover:bg-slate-100 transition-all duration-200 py-4"
                     onClick={() => handleSort('name')}
                   >
-                    <div className="flex items-center gap-1">
-                      Name
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs uppercase tracking-wider">Name</span>
                       {getSortIcon('name')}
                     </div>
                   </TableHead>
@@ -489,68 +725,92 @@ export const EnhancedSupplierTable: React.FC<EnhancedSupplierTableProps> = ({
                     className="font-bold text-slate-800 cursor-pointer hover:bg-slate-100 transition-all duration-200 py-4"
                     onClick={() => handleSort('supplier_type')}
                   >
-                    <div className="flex items-center gap-1">
-                      Type
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs uppercase tracking-wider">Type</span>
                       {getSortIcon('supplier_type')}
                     </div>
+                  </TableHead>
+                  <TableHead className="font-bold text-slate-800 py-4">
+                    <span className="text-xs uppercase tracking-wider">Contact Person</span>
                   </TableHead>
                   <TableHead 
                     className="font-bold text-slate-800 cursor-pointer hover:bg-slate-100 transition-all duration-200 py-4"
                     onClick={() => handleSort('email')}
                   >
-                    <div className="flex items-center gap-1">
-                      Email
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs uppercase tracking-wider">Email</span>
                       {getSortIcon('email')}
                     </div>
                   </TableHead>
-                  <TableHead>Phone</TableHead>
-                  <TableHead>Status</TableHead>
+                  <TableHead className="font-bold text-slate-800 py-4">
+                    <span className="text-xs uppercase tracking-wider">Phone</span>
+                  </TableHead>
+                  <TableHead className="font-bold text-slate-800 py-4">
+                    <span className="text-xs uppercase tracking-wider">Status</span>
+                  </TableHead>
                   <TableHead 
-                    className="cursor-pointer hover:bg-muted/80 transition-colors"
+                    className="font-bold text-slate-800 cursor-pointer hover:bg-slate-100 transition-all duration-200 py-4"
                     onClick={() => handleSort('created_at')}
                   >
-                    <div className="flex items-center gap-1">
-                      Created
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs uppercase tracking-wider">Created</span>
                       {getSortIcon('created_at')}
                     </div>
                   </TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
+                  <TableHead className="font-bold text-slate-800 text-center py-4 min-w-[200px]">
+                    <span className="text-xs uppercase tracking-wider">Actions</span>
+                  </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {paginatedSuppliers.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
-                      {searchTerm || statusFilter !== 'all' || typeFilter !== 'all'
-                        ? "No suppliers found matching your criteria"
-                        : "No suppliers available. Add your first supplier to get started."}
+                    <TableCell colSpan={9} className="text-center py-12">
+                      <div className="flex flex-col items-center justify-center gap-2 text-muted-foreground">
+                        <PackageOpen className="h-12 w-12 text-slate-300" />
+                        <p className="font-medium">
+                          {searchTerm || statusFilter !== 'all' || typeFilter !== 'all'
+                            ? "No suppliers found matching your criteria"
+                            : "No suppliers available. Add your first supplier to get started."}
+                        </p>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ) : (
                   paginatedSuppliers.map((supplier) => (
                     <TableRow 
                       key={supplier.id}
-                      className="hover:bg-muted/50 transition-colors"
+                      className="hover:bg-slate-50 transition-all"
                     >
-                      <TableCell className="font-medium">{supplier.supplier_ref}</TableCell>
-                      <TableCell className="font-medium">{supplier.name}</TableCell>
-                      <TableCell>
-                        <Badge variant="outline" className="capitalize">
-                          {supplier.supplier_type || 'Not specified'}
+                      <TableCell className="font-semibold text-blue-600 py-4">{supplier.supplier_ref}</TableCell>
+                      <TableCell className="font-medium text-slate-700 py-4">{supplier.name}</TableCell>
+                      <TableCell className="py-4">
+                        <Badge 
+                          variant="outline" 
+                          className="capitalize bg-blue-50 text-blue-700 border-blue-200 font-medium px-3 py-1 rounded-full text-xs"
+                        >
+                          {supplier.supplier_type || 'General'}
                         </Badge>
                       </TableCell>
-                      <TableCell className="text-muted-foreground">{supplier.email || '-'}</TableCell>
-                      <TableCell className="text-muted-foreground">{supplier.phone || '-'}</TableCell>
-                      <TableCell>
-                        <Badge variant={supplier.is_active ? "default" : "secondary"}>
+                      <TableCell className="text-slate-600 py-4">{supplier.contact_person || '-'}</TableCell>
+                      <TableCell className="text-slate-600 py-4">{supplier.email || '-'}</TableCell>
+                      <TableCell className="text-slate-600 py-4">{supplier.phone || '-'}</TableCell>
+                      <TableCell className="py-4">
+                        <Badge 
+                          variant={supplier.is_active ? "default" : "secondary"}
+                          className={supplier.is_active 
+                            ? "bg-emerald-100 text-emerald-700 border border-emerald-200 hover:bg-emerald-200 font-medium px-3 py-1 rounded-full text-xs"
+                            : "bg-slate-100 text-slate-700 border border-slate-200 hover:bg-slate-200 font-medium px-3 py-1 rounded-full text-xs"
+                          }
+                        >
                           {supplier.is_active ? 'Active' : 'Inactive'}
                         </Badge>
                       </TableCell>
-                      <TableCell className="text-muted-foreground">
-                        {format(new Date(supplier.created_at), 'MMM dd, yyyy')}
+                      <TableCell className="text-slate-600 py-4">
+                        {format(new Date(supplier.created_at), 'dd/MM/yyyy')}
                       </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2 justify-end">
+                      <TableCell className="py-4">
+                        <div className="flex items-center gap-2 justify-center">
                           {/* Primary Actions Group */}
                           <div className="flex items-center rounded-lg border border-slate-200 bg-white shadow-sm">
                             <Button
@@ -558,7 +818,7 @@ export const EnhancedSupplierTable: React.FC<EnhancedSupplierTableProps> = ({
                               size="sm"
                               onClick={() => onView(supplier)}
                               className="h-9 px-3 rounded-l-lg rounded-r-none border-r border-slate-200 hover:bg-blue-50 hover:text-blue-700 transition-all duration-200"
-                              title="View Supplier"
+                              title="View Supplier Details"
                             >
                               <Eye className="h-4 w-4" />
                             </Button>
@@ -593,6 +853,19 @@ export const EnhancedSupplierTable: React.FC<EnhancedSupplierTableProps> = ({
                               </Button>
                             )}
                           </div>
+
+                          {/* Export Actions Group */}
+                          <div className="flex items-center gap-2">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => exportSupplierToPDF(supplier)}
+                              className="h-9 px-3 rounded-lg border border-red-200 bg-red-50 text-red-700 hover:bg-red-100 hover:border-red-300 transition-all duration-200 shadow-sm"
+                              title="Export Certificate PDF"
+                            >
+                              <FileText className="h-4 w-4" />
+                            </Button>
+                          </div>
                         </div>
                       </TableCell>
                     </TableRow>
@@ -604,62 +877,47 @@ export const EnhancedSupplierTable: React.FC<EnhancedSupplierTableProps> = ({
 
           {/* Enhanced Pagination */}
           {totalPages > 1 && (
-            <div className="p-4 border-t bg-muted/20">
-              <div className="flex items-center justify-between">
-                <div className="text-sm text-muted-foreground">
-                  Showing {startIndex + 1} to {Math.min(startIndex + itemsPerPage, filteredSuppliers.length)} of {filteredSuppliers.length} results
+            <div className="flex items-center justify-between p-6 border-t bg-gradient-to-r from-slate-50 to-slate-100">
+              <div className="text-sm text-muted-foreground">
+                Showing {startIndex + 1} to {Math.min(startIndex + itemsPerPage, filteredSuppliers.length)} of {filteredSuppliers.length} results
+              </div>
+              
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                  disabled={currentPage === 1}
+                  className="hover:bg-white hover:shadow-md"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                  Previous
+                </Button>
+                
+                <div className="flex items-center gap-1">
+                  {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => i + 1).map((page) => (
+                    <Button
+                      key={page}
+                      variant={currentPage === page ? "default" : "ghost"}
+                      size="sm"
+                      onClick={() => setCurrentPage(page)}
+                      className={currentPage === page ? "bg-blue-600 hover:bg-blue-700" : "hover:bg-white hover:shadow-md"}
+                    >
+                      {page}
+                    </Button>
+                  ))}
                 </div>
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-                    disabled={currentPage === 1}
-                    className="flex items-center gap-1"
-                  >
-                    <ChevronLeft className="h-4 w-4" />
-                    Previous
-                  </Button>
-                  <div className="flex items-center gap-1">
-                    {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                      const pageNumber = i + 1;
-                      return (
-                        <Button
-                          key={pageNumber}
-                          variant={currentPage === pageNumber ? "default" : "outline"}
-                          size="sm"
-                          onClick={() => setCurrentPage(pageNumber)}
-                          className="w-8 h-8"
-                        >
-                          {pageNumber}
-                        </Button>
-                      );
-                    })}
-                    {totalPages > 5 && (
-                      <>
-                        <span className="px-2 text-muted-foreground">...</span>
-                        <Button
-                          variant={currentPage === totalPages ? "default" : "outline"}
-                          size="sm"
-                          onClick={() => setCurrentPage(totalPages)}
-                          className="w-8 h-8"
-                        >
-                          {totalPages}
-                        </Button>
-                      </>
-                    )}
-                  </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
-                    disabled={currentPage === totalPages}
-                    className="flex items-center gap-1"
-                  >
-                    Next
-                    <ChevronRight className="h-4 w-4" />
-                  </Button>
-                </div>
+                
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+                  disabled={currentPage === totalPages}
+                  className="hover:bg-white hover:shadow-md"
+                >
+                  Next
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
               </div>
             </div>
           )}
