@@ -13,7 +13,6 @@ interface DocumentFormatConfig {
   company_id: string;
   document_type: string;
   prefix: string;
-  suffix: string;
   current_counter: number;
   is_active: boolean;
   created_at: string;
@@ -110,8 +109,8 @@ export const DocumentFormatsTable: React.FC = () => {
   };
 
   const generatePreview = (config: DocumentFormatConfig) => {
-    const counter = config.current_counter.toString().padStart(config.suffix.length, '0');
-    return `${config.prefix}${counter}`;
+    if (!config.prefix) return 'N/A';
+    return `${config.prefix}${config.current_counter}`;
   };
 
   if (loading) {
@@ -131,20 +130,19 @@ export const DocumentFormatsTable: React.FC = () => {
       <div className="border rounded-lg">
         <Table>
           <TableHeader>
-            <TableRow>
-              <TableHead>Document Type</TableHead>
-              <TableHead>Prefix</TableHead>
-              <TableHead>Suffix</TableHead>
-              <TableHead>Current Counter</TableHead>
-              <TableHead>Preview</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
-            </TableRow>
+              <TableRow>
+                <TableHead>Document Type</TableHead>
+                <TableHead>Prefix</TableHead>
+                <TableHead>Current Counter</TableHead>
+                <TableHead>Preview</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
+              </TableRow>
           </TableHeader>
           <TableBody>
             {configs.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
                   No document format configurations found. Click "Add Format" to create your first configuration.
                 </TableCell>
               </TableRow>
@@ -157,11 +155,6 @@ export const DocumentFormatsTable: React.FC = () => {
                   <TableCell>
                     <code className="bg-muted px-2 py-1 rounded text-sm">
                       {config.prefix || '(none)'}
-                    </code>
-                  </TableCell>
-                  <TableCell>
-                    <code className="bg-muted px-2 py-1 rounded text-sm">
-                      {config.suffix}
                     </code>
                   </TableCell>
                   <TableCell>{config.current_counter}</TableCell>

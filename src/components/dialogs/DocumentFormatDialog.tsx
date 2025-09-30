@@ -14,7 +14,6 @@ interface DocumentFormatConfig {
   company_id: string;
   document_type: string;
   prefix: string;
-  suffix: string;
   current_counter: number;
   is_active: boolean;
   created_at: string;
@@ -53,7 +52,6 @@ export const DocumentFormatDialog: React.FC<DocumentFormatDialogProps> = ({
   const [formData, setFormData] = useState({
     document_type: '',
     prefix: '',
-    suffix: '001',
     current_counter: 1001,
     is_active: true,
   });
@@ -63,7 +61,6 @@ export const DocumentFormatDialog: React.FC<DocumentFormatDialogProps> = ({
       setFormData({
         document_type: config.document_type,
         prefix: config.prefix,
-        suffix: config.suffix,
         current_counter: config.current_counter,
         is_active: config.is_active,
       });
@@ -71,7 +68,6 @@ export const DocumentFormatDialog: React.FC<DocumentFormatDialogProps> = ({
       setFormData({
         document_type: '',
         prefix: '',
-        suffix: '001',
         current_counter: 1001,
         is_active: true,
       });
@@ -79,9 +75,8 @@ export const DocumentFormatDialog: React.FC<DocumentFormatDialogProps> = ({
   }, [config, open]);
 
   const generatePreview = () => {
-    if (!formData.prefix && !formData.suffix) return 'No preview available';
-    const counter = formData.current_counter.toString().padStart(formData.suffix.length, '0');
-    return `${formData.prefix}${counter}`;
+    if (!formData.prefix) return 'No preview available';
+    return `${formData.prefix}${formData.current_counter}`;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -95,7 +90,6 @@ export const DocumentFormatDialog: React.FC<DocumentFormatDialogProps> = ({
         company_id: company.id,
         document_type: formData.document_type,
         prefix: formData.prefix,
-        suffix: formData.suffix,
         current_counter: formData.current_counter,
         is_active: formData.is_active,
       };
@@ -183,17 +177,6 @@ export const DocumentFormatDialog: React.FC<DocumentFormatDialogProps> = ({
               value={formData.prefix}
               onChange={(e) => setFormData({ ...formData, prefix: e.target.value.toUpperCase() })}
               placeholder="e.g., INV, PO, DN, CN"
-              maxLength={10}
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="suffix">Suffix Format</Label>
-            <Input
-              id="suffix"
-              value={formData.suffix}
-              onChange={(e) => setFormData({ ...formData, suffix: e.target.value })}
-              placeholder="e.g., 001, 0001"
               maxLength={10}
             />
           </div>
