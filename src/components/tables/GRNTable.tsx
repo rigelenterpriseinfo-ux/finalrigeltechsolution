@@ -444,41 +444,77 @@ export function GRNTable({ refreshTrigger, onView, onEdit, onDelete }: GRNTableP
       
       // Blue header background
       pdf.setFillColor(70, 130, 180);
-      pdf.rect(0, 0, 220, 45, 'F');
+      pdf.rect(0, 0, 220, 50, 'F');
 
-      // Company logo placeholder (circle)
-      pdf.setFillColor(255, 255, 255);
-      pdf.circle(25, 22, 12, 'F');
-      pdf.setFontSize(10);
-      pdf.setTextColor(70, 130, 180);
-      pdf.text('LOGO', 18, 24);
+      // Company logo - Add actual logo if available
+      if (company?.logo_url) {
+        try {
+          // Add company logo
+          pdf.addImage(company.logo_url, 'PNG', 12, 10, 25, 25);
+        } catch (error) {
+          console.error('Error adding logo:', error);
+          // Fallback to placeholder circle
+          pdf.setFillColor(255, 255, 255);
+          pdf.circle(25, 22, 12, 'F');
+          pdf.setFontSize(8);
+          pdf.setTextColor(70, 130, 180);
+          pdf.text('LOGO', 19, 24);
+        }
+      } else {
+        // Logo placeholder circle
+        pdf.setFillColor(255, 255, 255);
+        pdf.circle(25, 22, 12, 'F');
+        pdf.setFontSize(8);
+        pdf.setTextColor(70, 130, 180);
+        pdf.text('LOGO', 19, 24);
+      }
 
-      // Company details - Left side
+      // Company details - Left side with improved text handling
       pdf.setTextColor(255, 255, 255);
-      pdf.setFontSize(16);
+      pdf.setFontSize(14);
       pdf.setFont('helvetica', 'bold');
-      pdf.text(company?.name || 'Company Name', 42, 15);
+      
+      // Truncate company name if too long
+      const companyName = company?.name || 'Company Name';
+      const maxCompanyNameWidth = 85;
+      let displayCompanyName = companyName;
+      if (pdf.getTextWidth(displayCompanyName) > maxCompanyNameWidth) {
+        while (pdf.getTextWidth(displayCompanyName + '...') > maxCompanyNameWidth && displayCompanyName.length > 0) {
+          displayCompanyName = displayCompanyName.slice(0, -1);
+        }
+        displayCompanyName += '...';
+      }
+      pdf.text(displayCompanyName, 42, 14);
+      
+      pdf.setFontSize(8);
+      pdf.setFont('helvetica', 'normal');
+      
+      // Address line 1
+      const addressLine1 = company?.address_line1 || 'Address';
+      pdf.text(addressLine1.substring(0, 50), 42, 20);
+      
+      // City, State, Pin - on one line
+      const cityStateLine = `${company?.city || 'City'}, ${company?.state || 'State'} - ${company?.postal_code || '000000'}`;
+      pdf.text(cityStateLine.substring(0, 50), 42, 25);
+      
+      // GSTIN and Phone on separate lines for better readability
+      pdf.text(`GSTIN: ${(company?.gstn || 'N/A').substring(0, 20)}`, 42, 30);
+      pdf.text(`Phone: ${(company?.phone || 'N/A').substring(0, 25)}`, 42, 35);
+      pdf.text(`Email: ${(company?.email || 'N/A').substring(0, 35)}`, 42, 40);
+
+      // Document title - Right side
+      pdf.setFontSize(18);
+      pdf.setFont('helvetica', 'bold');
+      pdf.text('GOODS RECEIPT NOTE', 210, 20, { align: 'right' });
       
       pdf.setFontSize(9);
       pdf.setFont('helvetica', 'normal');
-      pdf.text(company?.address_line1 || 'Address Line 1', 42, 21);
-      pdf.text(`${company?.city || 'City'}, ${company?.state || 'State'} - ${company?.postal_code || '000000'}`, 42, 26);
-      pdf.text(`GSTIN: ${company?.gstn || 'N/A'} | Phone: ${company?.phone || 'N/A'}`, 42, 31);
-      pdf.text(`Email: ${company?.email || 'N/A'}`, 42, 36);
-
-      // Document title - Right side
-      pdf.setFontSize(20);
-      pdf.setFont('helvetica', 'bold');
-      pdf.text('GOODS RECEIPT NOTE', 210, 18, { align: 'right' });
-      
-      pdf.setFontSize(10);
-      pdf.setFont('helvetica', 'normal');
-      pdf.text(`GRN #: ${grnDetail.grn_number}`, 210, 28, { align: 'right' });
-      pdf.text(`Date: ${format(new Date(grnDetail.grn_date), 'dd/MM/yyyy')}`, 210, 34, { align: 'right' });
+      pdf.text(`GRN #: ${grnDetail.grn_number}`, 210, 30, { align: 'right' });
+      pdf.text(`Date: ${format(new Date(grnDetail.grn_date), 'dd/MM/yyyy')}`, 210, 36, { align: 'right' });
 
       // Reset text color for body
       pdf.setTextColor(0, 0, 0);
-      let yPosition = 55;
+      let yPosition = 60;
 
       // Two-column layout for Vendor and Delivery details
       // Left column - VENDOR DETAILS
@@ -515,7 +551,7 @@ export function GRNTable({ refreshTrigger, onView, onEdit, onDelete }: GRNTableP
       pdf.text(`GSTIN: ${supplier.gst_number || 'N/A'}`, 16, yPosition);
 
       // Right column - SHIP TO / DELIVERY ADDRESS
-      yPosition = 55;
+      yPosition = 60;
       pdf.setFillColor(240, 240, 240);
       pdf.rect(110, yPosition, 90, 8, 'F');
       pdf.setFontSize(11);
@@ -543,7 +579,7 @@ export function GRNTable({ refreshTrigger, onView, onEdit, onDelete }: GRNTableP
       pdf.text(`Place of Supply: ${po.delivery_state || company?.state || 'N/A'}`, 112, yPosition);
 
       // Order details section
-      yPosition = 103;
+      yPosition = 108;
       pdf.setFontSize(9);
       
       // Left column details
