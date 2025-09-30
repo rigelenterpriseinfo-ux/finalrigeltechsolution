@@ -888,6 +888,31 @@ export function DebitNoteTable({ refreshTrigger, onView, onEdit, onDelete, onFil
               />
             </div>
           </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              // Export all filtered debit notes
+              const wsData = filteredDebitNotes.map(dn => ({
+                'Debit Note #': dn.debit_note_number,
+                'Date': format(new Date(dn.debit_note_date), 'dd/MM/yyyy'),
+                'Supplier': dn.supplier_name,
+                'Credit Note #': dn.credit_note_numbers || '-',
+                'Debit Amount': dn.total_amount,
+                'Settlement Status': dn.settlement_status.toUpperCase(),
+                'Difference Amount': dn.difference_amount
+              }));
+              const ws = XLSX.utils.json_to_sheet(wsData);
+              const wb = XLSX.utils.book_new();
+              XLSX.utils.book_append_sheet(wb, ws, 'Debit Notes');
+              XLSX.writeFile(wb, `DebitNotes_${format(new Date(), 'yyyy-MM-dd')}.xlsx`);
+              toast({ title: "Success", description: `Exported ${filteredDebitNotes.length} debit notes to Excel` });
+            }}
+            className="h-9 px-3 rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 hover:border-emerald-300 transition-all duration-200 shadow-sm"
+          >
+            <FileSpreadsheet className="h-4 w-4" />
+            Export Excel
+          </Button>
           <Select value={statusFilter} onValueChange={setStatusFilter}>
             <SelectTrigger className="w-full sm:w-48">
               <SelectValue placeholder="Filter by status" />
