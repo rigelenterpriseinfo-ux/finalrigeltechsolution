@@ -239,9 +239,9 @@ export function SupplierCreditNoteForm({ supplierCreditNote, onSubmit, onCancel,
           product_id: item.product_id,
           product_name: item.product_name,
           product_sku: item.product_sku,
-          quantity: pendingQty, // Available quantity to credit (not original debit note qty)
+          quantity: item.quantity, // Original debit note quantity for display and DB constraint
           credit_note_quantity: 0, // Start with 0, user will input
-          pending_quantity: pendingQty, // Actual pending after deducting already credited
+          pending_quantity: pendingQty, // Available to credit after deducting already credited
           unit_price: item.unit_price,
           discount_percentage: item.discount_percentage || 0,
           discount_amount: item.discount_amount || 0,
