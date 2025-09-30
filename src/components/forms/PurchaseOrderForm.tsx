@@ -48,18 +48,19 @@ const purchaseOrderSchema = z.object({
   supplier_id: z.string().min(1, 'Supplier is required'),
   order_date: z.string().min(1, 'Order date is required'),
   currency: z.string().min(1, 'Currency is required'),
-  payment_terms: z.string().optional(),
-  expected_date: z.string().optional(),
+  payment_terms: z.string().min(1, 'Payment terms are required'),
+  expected_date: z.string().min(1, 'Expected date is required'),
   place_of_supply: z.string().optional(),
-  warehouse_id: z.string().optional(),
-  bin_id: z.string().optional(),
+  warehouse_id: z.string().min(1, 'Warehouse is required'),
+  bin_id: z.string().min(1, 'Bin is required'),
   same_as_registered_address: z.boolean().default(false),
-  delivery_address_line1: z.string().optional(),
+  delivery_address_line1: z.string().min(1, 'Address line 1 is required'),
   delivery_address_line2: z.string().optional(),
-  delivery_city: z.string().optional(),
-  delivery_state: z.string().optional(),
-  delivery_country: z.string().optional(),
-  delivery_postal_code: z.string().optional(),
+  delivery_city: z.string().min(1, 'City is required'),
+  delivery_state: z.string().min(1, 'State is required'),
+  delivery_country: z.string().min(1, 'Country is required'),
+  delivery_postal_code: z.string().min(1, 'Postal code is required'),
+  delivery_place_of_supply: z.string().min(1, 'Place of supply is required'),
   status: z.string().min(1, 'Status is required'),
   notes: z.string().optional(),
   items: z.array(purchaseOrderItemSchema).min(1, 'At least one item is required'),
@@ -306,7 +307,7 @@ export function PurchaseOrderForm({
       product_name: '',
       item_code: '',
       hsn_sac_code: '',
-      quantity: 1,
+      quantity: 0,
       unit_of_measure: 'pcs',
       unit_price: 0,
       discount_percentage: 0,
@@ -503,12 +504,14 @@ export function PurchaseOrderForm({
                           )}
                         />
 
-                          <FormField
+                        <FormField
                           control={form.control}
                           name="supplier_id"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Supplier</FormLabel>
+                              <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                                Supplier <span className="text-red-500">*</span>
+                              </FormLabel>
                               <FormControl>
                                 <SearchableCombobox
                                   value={field.value}
@@ -535,7 +538,9 @@ export function PurchaseOrderForm({
                             name="order_date"
                             render={({ field }) => (
                               <FormItem>
-                                <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Order Date</FormLabel>
+                                <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                                  Order Date <span className="text-red-500">*</span>
+                                </FormLabel>
                                 <FormControl>
                                   <Input 
                                     type="date" 
@@ -554,7 +559,9 @@ export function PurchaseOrderForm({
                             name="expected_date"
                             render={({ field }) => (
                               <FormItem>
-                                <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Expected Date</FormLabel>
+                                <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                                  Expected Date <span className="text-red-500">*</span>
+                                </FormLabel>
                                 <FormControl>
                                   <Input 
                                     type="date" 
@@ -574,7 +581,9 @@ export function PurchaseOrderForm({
                             name="currency"
                             render={({ field }) => (
                               <FormItem>
-                                <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Currency</FormLabel>
+                                <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                                  Currency <span className="text-red-500">*</span>
+                                </FormLabel>
                                 <Select value={field.value} onValueChange={field.onChange} disabled={readOnly}>
                                   <FormControl>
                                     <SelectTrigger className="h-9">
@@ -597,7 +606,9 @@ export function PurchaseOrderForm({
                             name="status"
                             render={({ field }) => (
                               <FormItem>
-                                <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Status</FormLabel>
+                                <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                                  Status <span className="text-red-500">*</span>
+                                </FormLabel>
                                 <Select value={field.value} onValueChange={field.onChange} disabled={readOnly}>
                                   <FormControl>
                                     <SelectTrigger className="h-9">
@@ -622,7 +633,9 @@ export function PurchaseOrderForm({
                           name="payment_terms"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Payment Terms</FormLabel>
+                              <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                                Payment Terms <span className="text-red-500">*</span>
+                              </FormLabel>
                               <FormControl>
                                 <Input 
                                   placeholder="e.g., Net 30 days" 
@@ -641,7 +654,9 @@ export function PurchaseOrderForm({
                             name="warehouse_id"
                             render={({ field }) => (
                               <FormItem>
-                                <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Default Warehouse</FormLabel>
+                                <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                                  Default Warehouse <span className="text-red-500">*</span>
+                                </FormLabel>
                                 <FormControl>
                                   <SearchableCombobox
                                     value={field.value}
@@ -666,7 +681,9 @@ export function PurchaseOrderForm({
                             name="bin_id"
                             render={({ field }) => (
                               <FormItem>
-                                <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Default Bin</FormLabel>
+                                <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                                  Default Bin <span className="text-red-500">*</span>
+                                </FormLabel>
                                 <FormControl>
                                   <SearchableCombobox
                                     value={field.value}
@@ -739,7 +756,9 @@ export function PurchaseOrderForm({
                           name="delivery_address_line1"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Address Line 1</FormLabel>
+                              <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                                Address Line 1 <span className="text-red-500">*</span>
+                              </FormLabel>
                               <FormControl>
                                 <Input 
                                   placeholder="Street address" 
@@ -776,7 +795,9 @@ export function PurchaseOrderForm({
                             name="delivery_city"
                             render={({ field }) => (
                               <FormItem>
-                                <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">City</FormLabel>
+                                <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                                  City <span className="text-red-500">*</span>
+                                </FormLabel>
                                 <FormControl>
                                   <Input 
                                     placeholder="City" 
@@ -794,7 +815,9 @@ export function PurchaseOrderForm({
                             name="delivery_state"
                             render={({ field }) => (
                               <FormItem>
-                                <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">State</FormLabel>
+                                <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                                  State <span className="text-red-500">*</span>
+                                </FormLabel>
                                 <FormControl>
                                   <Input 
                                     placeholder="State" 
@@ -813,7 +836,9 @@ export function PurchaseOrderForm({
                           name="delivery_country"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Country</FormLabel>
+                              <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                                Country <span className="text-red-500">*</span>
+                              </FormLabel>
                               <FormControl>
                                 <Input 
                                   placeholder="Country" 
@@ -831,7 +856,9 @@ export function PurchaseOrderForm({
                           name="delivery_postal_code"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Postal Code</FormLabel>
+                              <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                                Postal Code <span className="text-red-500">*</span>
+                              </FormLabel>
                               <FormControl>
                                 <Input 
                                   placeholder="PIN Code" 
@@ -840,6 +867,28 @@ export function PurchaseOrderForm({
                                   className="h-9" 
                                 />
                               </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+
+                        <FormField
+                          control={form.control}
+                          name="delivery_place_of_supply"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                                Place of Supply <span className="text-red-500">*</span>
+                              </FormLabel>
+                              <FormControl>
+                                <Input 
+                                  placeholder="Place of Supply" 
+                                  {...field} 
+                                  disabled={readOnly || sameAsRegisteredAddress} 
+                                  className="h-9" 
+                                />
+                              </FormControl>
+                              <FormMessage />
                             </FormItem>
                           )}
                         />

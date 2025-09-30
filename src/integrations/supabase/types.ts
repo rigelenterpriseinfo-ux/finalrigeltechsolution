@@ -2112,6 +2112,7 @@ export type Database = {
           delivery_address_line2: string | null
           delivery_city: string | null
           delivery_country: string | null
+          delivery_place_of_supply: string | null
           delivery_postal_code: string | null
           delivery_state: string | null
           expected_date: string | null
@@ -2147,6 +2148,7 @@ export type Database = {
           delivery_address_line2?: string | null
           delivery_city?: string | null
           delivery_country?: string | null
+          delivery_place_of_supply?: string | null
           delivery_postal_code?: string | null
           delivery_state?: string | null
           expected_date?: string | null
@@ -2182,6 +2184,7 @@ export type Database = {
           delivery_address_line2?: string | null
           delivery_city?: string | null
           delivery_country?: string | null
+          delivery_place_of_supply?: string | null
           delivery_postal_code?: string | null
           delivery_state?: string | null
           expected_date?: string | null

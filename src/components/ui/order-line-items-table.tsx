@@ -213,7 +213,7 @@ export function OrderLineItemsTable({
                       <TableCell className="p-2">
                         <FormField
                           control={control}
-                          name={`items.${index}.ordered_quantity`}
+                          name={`items.${index}.quantity`}
                           render={({ field }) => (
                             <FormItem>
                               <FormControl>
