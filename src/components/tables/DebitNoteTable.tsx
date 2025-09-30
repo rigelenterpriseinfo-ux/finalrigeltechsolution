@@ -876,9 +876,6 @@ export function DebitNoteTable({ refreshTrigger, onView, onEdit, onDelete, onFil
     <Card>
       <CardHeader>
         <CardTitle>Debit Note Management</CardTitle>
-        <CardDescription>
-          Manage debit notes for purchase returns and adjustments
-        </CardDescription>
         
         {/* Filters */}
         <div className="flex flex-col sm:flex-row gap-4">

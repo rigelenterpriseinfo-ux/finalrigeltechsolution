@@ -869,9 +869,6 @@ export function GRNTable({ refreshTrigger, onView, onEdit, onDelete }: GRNTableP
     <Card>
       <CardHeader>
         <CardTitle>GRN Management</CardTitle>
-        <CardDescription>
-          Manage Goods Receipt Notes (GRN) for received purchase orders
-        </CardDescription>
       </CardHeader>
       <CardContent>
         {/* Search and Export Controls */}
