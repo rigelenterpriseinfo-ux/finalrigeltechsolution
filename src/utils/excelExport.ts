@@ -14,6 +14,7 @@ export interface ExportOptions {
   data: any[];
   includeMetadata?: boolean;
   companyName?: string;
+  additionalMetadata?: string[]; // Additional metadata lines to display
 }
 
 // Sanitize sheet name to remove invalid Excel characters
@@ -31,7 +32,8 @@ export const exportToExcel = ({
   columns,
   data,
   includeMetadata = true,
-  companyName
+  companyName,
+  additionalMetadata
 }: ExportOptions) => {
   try {
     // Create workbook
@@ -58,13 +60,11 @@ export const exportToExcel = ({
         `Generated: ${format(new Date(), 'MMM dd, yyyy HH:mm')}`,
         `Total Records: ${data.length}`
       ];
-      
-      // Insert metadata horizontally at the top
-      XLSX.utils.sheet_add_aoa(worksheet, [metadataRow, ['']], { origin: 'A1' });
-      
-      // Get the existing data and shift it down by 2 rows (metadata + empty row)
-      const existingData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
-      const dataStartRow = 3; // Row 3 (0-indexed as 2)
+
+      // Add additional metadata if provided
+      if (additionalMetadata && additionalMetadata.length > 0) {
+        metadataRow.push(...additionalMetadata);
+      }
       
       // Clear worksheet and rebuild with proper structure
       const newWorksheet = XLSX.utils.aoa_to_sheet([]);

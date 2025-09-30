@@ -72,6 +72,7 @@ export const OpenTransactionsTable = ({
   const [transactions, setTransactions] = useState<OpenTransaction[]>([]);
   const [summary, setSummary] = useState<OpenTransactionSummary | null>(null);
   const [dataLoading, setDataLoading] = useState(false);
+  const [productName, setProductName] = useState<string>('');
 
   // Only fetch data when all three selections are made
   const shouldFetchData = selectedProductId && selectedWarehouseId && selectedBinId;
@@ -81,6 +82,17 @@ export const OpenTransactionsTable = ({
 
     try {
       setDataLoading(true);
+      
+      // Fetch product details
+      const { data: productData, error: productError } = await supabase
+        .from('products')
+        .select('name')
+        .eq('id', selectedProductId)
+        .eq('company_id', company.id)
+        .single();
+
+      if (productError) throw productError;
+      setProductName(productData?.name || 'Unknown Product');
       
       // Fetch warehouse and bin details
       const { data: binData, error: binError } = await supabase
@@ -422,6 +434,15 @@ export const OpenTransactionsTable = ({
       return;
     }
 
+    if (!summary) {
+      toast({
+        title: "Error",
+        description: "Missing location information",
+        variant: "destructive",
+      });
+      return;
+    }
+
     const columns: ExportColumn[] = [
       { key: 'transaction_type', label: 'Transaction Type', format: (value) => getTransactionTypeLabel(value) },
       { key: 'customer_supplier_name', label: 'Customer/Supplier Name' },
@@ -435,13 +456,21 @@ export const OpenTransactionsTable = ({
       { key: 'status', label: 'Status' },
     ];
 
+    // Build additional metadata with product and location details
+    const additionalMetadata = [
+      `Item: ${productName}`,
+      `Warehouse: ${summary.warehouse_name}`,
+      `Bin: ${summary.bin_name} (${summary.bin_code})`
+    ];
+
     const success = exportToExcel({
-      filename: `Open_Transactions_${summary?.warehouse_name}_${summary?.bin_name}`,
+      filename: `Open_Transactions_${summary.warehouse_name}_${summary.bin_name}`,
       sheetName: 'Open Transactions',
       columns,
       data: transactions,
       includeMetadata: true,
       companyName: company?.name,
+      additionalMetadata,
     });
 
     if (success) {
