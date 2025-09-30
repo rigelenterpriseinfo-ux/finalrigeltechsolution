@@ -227,72 +227,282 @@ export const SupplierTable: React.FC<SupplierTableProps> = ({
     }
   };
 
-  // Export single supplier to PDF
-  const exportSupplierToPDF = (supplier: Supplier) => {
+  // Export single supplier to PDF as Professional Certificate
+  const exportSupplierToPDF = async (supplier: Supplier) => {
     try {
       const doc = new jsPDF();
       
-      // Header
+      // ========== DECORATIVE BORDER ==========
+      // Outer border - Gold/Premium color
+      doc.setDrawColor(184, 134, 11); // Dark goldenrod
+      doc.setLineWidth(1.5);
+      doc.rect(10, 10, 190, 277, 'S');
+      
+      // Inner decorative border
+      doc.setDrawColor(218, 165, 32); // Goldenrod
+      doc.setLineWidth(0.5);
+      doc.rect(12, 12, 186, 273, 'S');
+      
+      // Corner decorations
+      doc.setDrawColor(41, 128, 185);
+      doc.setLineWidth(2);
+      // Top-left corner
+      doc.line(15, 15, 30, 15);
+      doc.line(15, 15, 15, 30);
+      // Top-right corner
+      doc.line(180, 15, 195, 15);
+      doc.line(195, 15, 195, 30);
+      // Bottom-left corner
+      doc.line(15, 285, 30, 285);
+      doc.line(15, 270, 15, 285);
+      // Bottom-right corner
+      doc.line(180, 285, 195, 285);
+      doc.line(195, 270, 195, 285);
+      
+      // ========== HEADER SECTION ==========
+      let yPos = 25;
+      
+      // Company Logo/Badge placeholder
+      doc.setFillColor(41, 128, 185);
+      doc.circle(105, yPos + 5, 8, 'F');
+      doc.setFontSize(6);
+      doc.setTextColor(255, 255, 255);
+      doc.setFont('helvetica', 'bold');
+      doc.text('CERTIFIED', 105, yPos + 7, { align: 'center' });
+      
+      yPos += 15;
+      
+      // Certificate Title
+      doc.setFontSize(22);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(41, 128, 185);
+      doc.text('AUTHORIZED SUPPLIER', 105, yPos, { align: 'center' });
+      
+      yPos += 8;
       doc.setFontSize(18);
-      doc.setTextColor(44, 62, 80);
-      doc.text('SUPPLIER DETAILS', 20, 30);
+      doc.setTextColor(184, 134, 11);
+      doc.text('REGISTRATION CERTIFICATE', 105, yPos, { align: 'center' });
+      
+      yPos += 12;
+      
+      // Decorative line
+      doc.setDrawColor(184, 134, 11);
+      doc.setLineWidth(0.5);
+      doc.line(50, yPos, 160, yPos);
+      
+      yPos += 10;
+      
+      // Certificate Statement
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(60, 60, 60);
+      const certStatement = 'This is to certify that the following supplier is officially registered and authorized';
+      doc.text(certStatement, 105, yPos, { align: 'center' });
+      yPos += 5;
+      doc.text('as a trusted business partner in our supplier network', 105, yPos, { align: 'center' });
+      
+      yPos += 12;
+      
+      // ========== COMPANY INFORMATION BOX ==========
+      doc.setFillColor(240, 248, 255); // Alice blue background
+      doc.roundedRect(20, yPos, 170, 25, 2, 2, 'F');
+      doc.setDrawColor(41, 128, 185);
+      doc.setLineWidth(0.5);
+      doc.roundedRect(20, yPos, 170, 25, 2, 2, 'S');
+      
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(41, 128, 185);
+      doc.text('REGISTERED WITH:', 25, yPos + 6);
       
       doc.setFontSize(12);
-      doc.setTextColor(108, 117, 125);
-      doc.text(`Generated: ${format(new Date(), 'MMM dd, yyyy HH:mm')}`, 20, 40);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(0, 0, 0);
+      doc.text(companyData?.name || 'YOUR COMPANY NAME', 25, yPos + 13);
       
-      // Company info
-      if (companyData) {
-        doc.setFontSize(10);
-        doc.setTextColor(73, 80, 87);
-        doc.text(companyData.name, 20, 55);
-        if (companyData.address_line1) doc.text(companyData.address_line1, 20, 65);
-      }
+      doc.setFontSize(8);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(60, 60, 60);
+      const companyAddr = [
+        companyData?.address_line1,
+        `${companyData?.city || ''}, ${companyData?.state || ''} - ${companyData?.postal_code || ''}`
+      ].filter(Boolean).join(', ');
+      doc.text(companyAddr || 'Company Address', 25, yPos + 19);
       
-      // Supplier details
+      yPos += 32;
+      
+      // ========== SUPPLIER DETAILS SECTION ==========
+      doc.setFontSize(12);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(41, 128, 185);
+      doc.text('SUPPLIER DETAILS', 105, yPos, { align: 'center' });
+      
+      yPos += 8;
+      
+      // Supplier Name - Highlighted
+      doc.setFillColor(255, 250, 205); // Lemon chiffon
+      doc.roundedRect(30, yPos - 3, 150, 10, 1, 1, 'F');
       doc.setFontSize(14);
-      doc.setTextColor(44, 62, 80);
-      doc.text('Supplier Information', 20, 85);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(0, 0, 0);
+      doc.text(supplier.name, 105, yPos + 4, { align: 'center' });
       
-      doc.setFontSize(10);
-      doc.setTextColor(73, 80, 87);
-      let yPos = 100;
+      yPos += 15;
       
-      const details = [
-        ['Supplier ID:', supplier.supplier_ref || 'Auto-generated'],
-        ['Name:', supplier.name],
-        ['Type:', supplier.supplier_type || 'Not specified'],
+      // Details grid with better formatting
+      doc.setFontSize(9);
+      const detailsLeft = [
+        ['Certificate No.:', supplier.supplier_ref || 'AUTO-GEN'],
+        ['Supplier Type:', supplier.supplier_type || 'General Supplier'],
         ['Contact Person:', supplier.contact_person || 'N/A'],
         ['Email:', supplier.email || 'N/A'],
         ['Phone:', supplier.phone || 'N/A'],
-        ['Website:', supplier.website || 'N/A'],
-        ['GST Number:', supplier.gst_number || 'N/A'],
-        ['Address:', [supplier.city, supplier.state, supplier.country].filter(Boolean).join(', ') || 'N/A'],
-        ['Currency:', supplier.preferred_currency || 'INR'],
-        ['Payment Terms:', supplier.payment_terms || 'Not specified'],
-        ['Status:', supplier.is_active ? 'Active' : 'Inactive'],
-        ['Created Date:', format(new Date(supplier.created_at), 'MMM dd, yyyy')]
+        ['Website:', supplier.website || 'N/A']
       ];
       
-      details.forEach(([label, value]) => {
-        doc.setTextColor(44, 62, 80);
-        doc.text(label, 20, yPos);
-        doc.setTextColor(73, 80, 87);
-        doc.text(value, 80, yPos);
-        yPos += 12;
+      const detailsRight = [
+        ['Registration Date:', format(new Date(supplier.created_at), 'dd MMM yyyy')],
+        ['GST Number:', supplier.gst_number || 'N/A'],
+        ['Location:', [supplier.city, supplier.state, supplier.country].filter(Boolean).join(', ') || 'N/A'],
+        ['Currency:', supplier.preferred_currency || 'INR'],
+        ['Payment Terms:', supplier.payment_terms || 'Net 30'],
+        ['Status:', supplier.is_active ? 'ACTIVE' : 'INACTIVE']
+      ];
+      
+      // Left column
+      let leftY = yPos;
+      detailsLeft.forEach(([label, value]) => {
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(60, 60, 60);
+        doc.text(label, 25, leftY);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(0, 0, 0);
+        const valueText = doc.splitTextToSize(value, 55);
+        doc.text(valueText, 60, leftY);
+        leftY += 8;
       });
       
-      doc.save(`Supplier_${supplier.supplier_ref || supplier.name}_${format(new Date(), 'yyyy-MM-dd')}.pdf`);
+      // Right column
+      let rightY = yPos;
+      detailsRight.forEach(([label, value]) => {
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(60, 60, 60);
+        doc.text(label, 110, rightY);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(0, 0, 0);
+        if (label === 'Status:' && value === 'ACTIVE') {
+          doc.setTextColor(34, 139, 34); // Green for active
+          doc.setFont('helvetica', 'bold');
+        }
+        const valueText = doc.splitTextToSize(value, 55);
+        doc.text(valueText, 155, rightY);
+        rightY += 8;
+      });
+      
+      yPos = Math.max(leftY, rightY) + 10;
+      
+      // ========== VALIDITY & TERMS SECTION ==========
+      doc.setFillColor(255, 248, 220); // Cornsilk
+      doc.roundedRect(20, yPos, 170, 18, 2, 2, 'F');
+      doc.setDrawColor(184, 134, 11);
+      doc.setLineWidth(0.3);
+      doc.roundedRect(20, yPos, 170, 18, 2, 2, 'S');
+      
+      doc.setFontSize(8);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(139, 69, 19); // Saddle brown
+      doc.text('CERTIFICATE TERMS:', 25, yPos + 5);
+      
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(60, 60, 60);
+      doc.text('• This certificate confirms the supplier\'s registration in our authorized vendor database', 25, yPos + 10);
+      doc.text('• Valid as long as the business relationship remains active and in good standing', 25, yPos + 14);
+      
+      yPos += 25;
+      
+      // ========== VERIFICATION SECTION ==========
+      doc.setFillColor(240, 248, 255);
+      doc.roundedRect(20, yPos, 82, 30, 2, 2, 'F');
+      doc.setDrawColor(41, 128, 185);
+      doc.setLineWidth(0.3);
+      doc.roundedRect(20, yPos, 82, 30, 2, 2, 'S');
+      
+      doc.setFontSize(8);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(41, 128, 185);
+      doc.text('VERIFICATION DETAILS', 25, yPos + 6);
+      
+      doc.setFontSize(7);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(60, 60, 60);
+      doc.text(`Issue Date: ${format(new Date(), 'dd MMM yyyy')}`, 25, yPos + 12);
+      doc.text(`Certificate ID: ${supplier.id.substring(0, 8).toUpperCase()}`, 25, yPos + 17);
+      doc.text(`Company ID: ${companyData?.business_ref_no || 'N/A'}`, 25, yPos + 22);
+      doc.text(`Verification: ${companyData?.email || 'contact@company.com'}`, 25, yPos + 27);
+      
+      // QR Code placeholder
+      doc.setFillColor(255, 255, 255);
+      doc.rect(110, yPos + 3, 24, 24, 'F');
+      doc.setDrawColor(41, 128, 185);
+      doc.setLineWidth(0.5);
+      doc.rect(110, yPos + 3, 24, 24, 'S');
+      doc.setFontSize(6);
+      doc.setTextColor(100, 100, 100);
+      doc.text('QR CODE', 122, yPos + 13, { align: 'center' });
+      doc.text('VERIFICATION', 122, yPos + 17, { align: 'center' });
+      
+      // Authorized Signature Section
+      doc.setFillColor(255, 250, 240);
+      doc.roundedRect(140, yPos, 50, 30, 2, 2, 'F');
+      doc.setDrawColor(184, 134, 11);
+      doc.setLineWidth(0.3);
+      doc.roundedRect(140, yPos, 50, 30, 2, 2, 'S');
+      
+      doc.setFontSize(7);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(60, 60, 60);
+      doc.text('Authorized By:', 145, yPos + 8);
+      
+      // Signature line
+      doc.setDrawColor(0, 0, 0);
+      doc.setLineWidth(0.3);
+      doc.line(145, yPos + 20, 183, yPos + 20);
+      
+      doc.setFontSize(7);
+      doc.setFont('helvetica', 'bold');
+      doc.text('Authorized Signatory', 164, yPos + 25, { align: 'center' });
+      
+      yPos += 35;
+      
+      // ========== FOOTER ==========
+      doc.setFontSize(7);
+      doc.setFont('helvetica', 'italic');
+      doc.setTextColor(100, 100, 100);
+      const footerText = 'This is a digitally generated certificate. For verification, please contact the issuing company.';
+      doc.text(footerText, 105, yPos + 5, { align: 'center' });
+      
+      // Security watermark
+      doc.setFontSize(50);
+      doc.setTextColor(230, 230, 230);
+      doc.setFont('helvetica', 'bold');
+      doc.saveGraphicsState();
+      doc.text('CERTIFIED', 105, 150, { 
+        align: 'center',
+        angle: 45
+      });
+      doc.restoreGraphicsState();
+      
+      doc.save(`Supplier_Certificate_${supplier.supplier_ref || supplier.name}_${format(new Date(), 'yyyy-MM-dd')}.pdf`);
       
       toast({
-        title: "PDF Export Successful",
-        description: `Supplier ${supplier.name} exported to PDF`,
+        title: "Certificate Generated",
+        description: `Supplier certificate for ${supplier.name} downloaded successfully`,
       });
     } catch (error) {
       console.error('Export to PDF failed:', error);
       toast({
         title: "Export Failed",
-        description: "Failed to export to PDF",
+        description: "Failed to generate supplier certificate",
         variant: "destructive",
       });
     }
