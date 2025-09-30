@@ -105,6 +105,7 @@ export function GRNForm({ grn, onSubmit, onCancel, readOnly = false, mode }: GRN
   const [loading, setLoading] = useState(false);
   const [selectedPO, setSelectedPO] = useState<any>(null);
   const [activeTab, setActiveTab] = useState('grn-info');
+  const [isWarehouseBinFromPO, setIsWarehouseBinFromPO] = useState(false);
 
   const form = useForm<z.infer<typeof grnFormSchema>>({
     resolver: zodResolver(grnFormSchema),
@@ -271,6 +272,15 @@ export function GRNForm({ grn, onSubmit, onCancel, readOnly = false, mode }: GRN
     // Auto-fill supplier details
     form.setValue('supplier_id', po.supplier_id);
     form.setValue('supplier_name', po.supplier?.name || '');
+    
+    // Auto-fill warehouse and bin from PO
+    if (po.warehouse_id && po.bin_id) {
+      form.setValue('default_warehouse_id', po.warehouse_id);
+      form.setValue('default_bin_id', po.bin_id);
+      setIsWarehouseBinFromPO(true);
+    } else {
+      setIsWarehouseBinFromPO(false);
+    }
     
     // Auto-fill delivery address and place of supply from PO
     form.setValue('delivery_address_line1', po.delivery_address_line1 || '');
@@ -1009,7 +1019,7 @@ export function GRNForm({ grn, onSubmit, onCancel, readOnly = false, mode }: GRN
                                         applyDefaultWarehouseBin();
                                       }}
                                       value={field.value}
-                                      disabled={readOnly}
+                                      disabled={readOnly || isWarehouseBinFromPO}
                                     >
                                       <FormControl>
                                         <SelectTrigger className="bg-white dark:bg-gray-800 border-green-300 focus:border-green-500 z-50 h-8">
@@ -1046,7 +1056,7 @@ export function GRNForm({ grn, onSubmit, onCancel, readOnly = false, mode }: GRN
                                         applyDefaultWarehouseBin();
                                       }}
                                       value={field.value}
-                                      disabled={readOnly}
+                                      disabled={readOnly || isWarehouseBinFromPO}
                                     >
                                       <FormControl>
                                         <SelectTrigger className="bg-white dark:bg-gray-800 border-green-300 focus:border-green-500 z-50 h-8">
