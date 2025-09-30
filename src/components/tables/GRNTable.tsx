@@ -889,13 +889,23 @@ export function GRNTable({ refreshTrigger, onView, onEdit, onDelete }: GRNTableP
                 variant="outline"
                 size="sm"
                 onClick={() => {
-                  // Export functionality can be added later
-                  toast({
-                    title: "Coming Soon",
-                    description: "Bulk Excel export will be available soon",
-                  });
+                  // Export all filtered GRNs
+                  const wsData = filteredGRNs.map(grn => ({
+                    'GRN Number': grn.grn_number,
+                    'GRN Date': format(new Date(grn.grn_date), 'dd/MM/yyyy'),
+                    'PO Number': grn.purchase_orders?.po_number || 'N/A',
+                    'Supplier': grn.supplier_name,
+                    'Supplier Invoice': grn.supplier_invoice_number || '-',
+                    'Status': grn.status.toUpperCase(),
+                    'Total Amount': grn.total_amount
+                  }));
+                  const ws = XLSX.utils.json_to_sheet(wsData);
+                  const wb = XLSX.utils.book_new();
+                  XLSX.utils.book_append_sheet(wb, ws, 'GRNs');
+                  XLSX.writeFile(wb, `GRNs_${format(new Date(), 'yyyy-MM-dd')}.xlsx`);
+                  toast({ title: "Success", description: `Exported ${filteredGRNs.length} GRNs to Excel` });
                 }}
-                className="flex items-center gap-2 ml-2 bg-white hover:bg-gray-50"
+                className="h-9 px-3 rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 hover:border-emerald-300 transition-all duration-200 shadow-sm"
               >
                 <FileSpreadsheet className="h-4 w-4" />
                 Export Excel

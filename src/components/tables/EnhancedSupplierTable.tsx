@@ -445,10 +445,10 @@ export const EnhancedSupplierTable: React.FC<EnhancedSupplierTableProps> = ({
                   variant="outline"
                   size="sm"
                   onClick={exportToExcel}
-                  className="flex items-center gap-2 ml-2 bg-white hover:bg-gray-50 dark:bg-gray-800 dark:hover:bg-gray-700"
+                  className="h-9 px-3 rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 hover:border-emerald-300 transition-all duration-200 shadow-sm"
                 >
-                  <FileSpreadsheet className="h-4 w-4" />
-                  Export
+                  <FileSpreadsheet className="h-4 w-4 mr-2" />
+                  Export Excel
                 </Button>
               </div>
             </div>
@@ -466,9 +466,9 @@ export const EnhancedSupplierTable: React.FC<EnhancedSupplierTableProps> = ({
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
-                <TableRow className="bg-muted/50">
+                <TableRow className="bg-gradient-to-r from-slate-50 to-slate-100 border-b-2 border-slate-200 hover:from-slate-50 hover:to-slate-100">
                   <TableHead 
-                    className="cursor-pointer hover:bg-muted/80 transition-colors"
+                    className="font-bold text-slate-800 cursor-pointer hover:bg-slate-100 transition-all duration-200 py-4"
                     onClick={() => handleSort('supplier_ref')}
                   >
                     <div className="flex items-center gap-1">
@@ -477,7 +477,7 @@ export const EnhancedSupplierTable: React.FC<EnhancedSupplierTableProps> = ({
                     </div>
                   </TableHead>
                   <TableHead 
-                    className="cursor-pointer hover:bg-muted/80 transition-colors"
+                    className="font-bold text-slate-800 cursor-pointer hover:bg-slate-100 transition-all duration-200 py-4"
                     onClick={() => handleSort('name')}
                   >
                     <div className="flex items-center gap-1">
@@ -486,7 +486,7 @@ export const EnhancedSupplierTable: React.FC<EnhancedSupplierTableProps> = ({
                     </div>
                   </TableHead>
                   <TableHead 
-                    className="cursor-pointer hover:bg-muted/80 transition-colors"
+                    className="font-bold text-slate-800 cursor-pointer hover:bg-slate-100 transition-all duration-200 py-4"
                     onClick={() => handleSort('supplier_type')}
                   >
                     <div className="flex items-center gap-1">
@@ -495,7 +495,7 @@ export const EnhancedSupplierTable: React.FC<EnhancedSupplierTableProps> = ({
                     </div>
                   </TableHead>
                   <TableHead 
-                    className="cursor-pointer hover:bg-muted/80 transition-colors"
+                    className="font-bold text-slate-800 cursor-pointer hover:bg-slate-100 transition-all duration-200 py-4"
                     onClick={() => handleSort('email')}
                   >
                     <div className="flex items-center gap-1">
@@ -550,42 +550,49 @@ export const EnhancedSupplierTable: React.FC<EnhancedSupplierTableProps> = ({
                         {format(new Date(supplier.created_at), 'MMM dd, yyyy')}
                       </TableCell>
                       <TableCell>
-                        <div className="flex items-center gap-1 justify-end">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => onView(supplier)}
-                            className="h-8 w-8 p-0 hover:bg-green-100 hover:text-green-600 dark:hover:bg-green-900/20 dark:hover:text-green-400"
-                            title="View supplier"
-                          >
-                            <Eye className="h-4 w-4" />
-                          </Button>
-                          {canEdit && (
+                        <div className="flex items-center gap-2 justify-end">
+                          {/* Primary Actions Group */}
+                          <div className="flex items-center rounded-lg border border-slate-200 bg-white shadow-sm">
                             <Button
                               variant="ghost"
                               size="sm"
-                              onClick={() => onEdit(supplier)}
-                              className="h-8 w-8 p-0 hover:bg-blue-100 hover:text-blue-600 dark:hover:bg-blue-900/20 dark:hover:text-blue-400"
-                              title="Edit supplier"
+                              onClick={() => onView(supplier)}
+                              className="h-9 px-3 rounded-l-lg rounded-r-none border-r border-slate-200 hover:bg-blue-50 hover:text-blue-700 transition-all duration-200"
+                              title="View Supplier"
                             >
-                              <Edit className="h-4 w-4" />
+                              <Eye className="h-4 w-4" />
                             </Button>
-                          )}
-                          {canEdit && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => {
-                            console.log('SupplierTable: Delete button clicked for supplier:', supplier.id, 'Has transactions:', suppliersWithTransactions.has(supplier.id));
-                            onDelete(supplier.id);
-                          }}
-                          disabled={suppliersWithTransactions.has(supplier.id)}
-                          className="h-8 w-8 p-0 hover:bg-red-100 hover:text-red-600 dark:hover:bg-red-900/20 dark:hover:text-red-400 disabled:opacity-50 disabled:cursor-not-allowed"
-                          title={suppliersWithTransactions.has(supplier.id) ? "Cannot delete supplier with existing transactions" : "Delete supplier"}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                          )}
+                            {canEdit && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => onEdit(supplier)}
+                                className="h-9 px-3 rounded-none border-r border-slate-200 hover:bg-emerald-50 hover:text-emerald-700 transition-all duration-200"
+                                title="Edit Supplier"
+                              >
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                            )}
+                            {canEdit && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => {
+                                  console.log('SupplierTable: Delete button clicked for supplier:', supplier.id, 'Has transactions:', suppliersWithTransactions.has(supplier.id));
+                                  onDelete(supplier.id);
+                                }}
+                                disabled={suppliersWithTransactions.has(supplier.id)}
+                                className={`h-9 px-3 rounded-r-lg rounded-l-none transition-all duration-200 ${
+                                  suppliersWithTransactions.has(supplier.id)
+                                    ? 'text-slate-400 cursor-not-allowed hover:bg-transparent'
+                                    : 'hover:bg-red-50 hover:text-red-700'
+                                }`}
+                                title={suppliersWithTransactions.has(supplier.id) ? "Cannot delete supplier with existing transactions" : "Delete Supplier"}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            )}
+                          </div>
                         </div>
                       </TableCell>
                     </TableRow>

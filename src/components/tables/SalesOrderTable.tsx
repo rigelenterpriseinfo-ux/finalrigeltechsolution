@@ -283,99 +283,99 @@ export const SalesOrderTable: React.FC<SalesOrderTableProps> = ({
           <>
             <Table>
               <TableHeader>
-                <TableRow>
+                <TableRow className="bg-gradient-to-r from-slate-50 to-slate-100 border-b-2 border-slate-200 hover:from-slate-50 hover:to-slate-100">
                   <TableHead 
-                    className="cursor-pointer hover:bg-muted/50"
+                    className="font-bold text-slate-800 cursor-pointer hover:bg-slate-100 transition-all duration-200 py-4"
                     onClick={() => handleSort('order_number')}
                   >
-                    <div className="flex items-center space-x-1">
+                    <div className="flex items-center gap-1">
                       <span>Order No.</span>
                       {getSortIcon('order_number')}
                     </div>
                   </TableHead>
                   <TableHead 
-                    className="cursor-pointer hover:bg-muted/50"
+                    className="font-bold text-slate-800 cursor-pointer hover:bg-slate-100 transition-all duration-200 py-4"
                     onClick={() => handleSort('order_date')}
                   >
-                    <div className="flex items-center space-x-1">
+                    <div className="flex items-center gap-1">
                       <span>Order Date</span>
                       {getSortIcon('order_date')}
                     </div>
                   </TableHead>
                   <TableHead 
-                    className="cursor-pointer hover:bg-muted/50"
+                    className="font-bold text-slate-800 cursor-pointer hover:bg-slate-100 transition-all duration-200 py-4"
                     onClick={() => handleSort('customer_name')}
                   >
-                    <div className="flex items-center space-x-1">
+                    <div className="flex items-center gap-1">
                       <span>Customer</span>
                       {getSortIcon('customer_name')}
                     </div>
                   </TableHead>
-                  <TableHead>PO Number</TableHead>
+                  <TableHead className="font-bold text-slate-800 py-4">PO Number</TableHead>
                   <TableHead 
-                    className="cursor-pointer hover:bg-muted/50 text-center"
+                    className="font-bold text-slate-800 cursor-pointer hover:bg-slate-100 transition-all duration-200 py-4 text-center"
                     onClick={() => handleSort('total_ordered_qty')}
                   >
-                    <div className="flex items-center justify-center space-x-1">
+                    <div className="flex items-center justify-center gap-1">
                       <span>Ordered Qty</span>
                       {getSortIcon('total_ordered_qty')}
                     </div>
                   </TableHead>
                   <TableHead 
-                    className="cursor-pointer hover:bg-muted/50 text-center"
+                    className="font-bold text-slate-800 cursor-pointer hover:bg-slate-100 transition-all duration-200 py-4 text-center"
                     onClick={() => handleSort('total_invoiced_qty')}
                   >
-                    <div className="flex items-center justify-center space-x-1">
+                    <div className="flex items-center justify-center gap-1">
                       <span>Invoiced Qty</span>
                       {getSortIcon('total_invoiced_qty')}
                     </div>
                   </TableHead>
                   <TableHead 
-                    className="cursor-pointer hover:bg-muted/50 text-center"
+                    className="font-bold text-slate-800 cursor-pointer hover:bg-slate-100 transition-all duration-200 py-4 text-center"
                     onClick={() => handleSort('total_ready_to_deliver_qty')}
                   >
-                    <div className="flex items-center justify-center space-x-1">
+                    <div className="flex items-center justify-center gap-1">
                       <span>Ready to Deliver</span>
                       {getSortIcon('total_ready_to_deliver_qty')}
                     </div>
                   </TableHead>
                   <TableHead 
-                    className="cursor-pointer hover:bg-muted/50 text-center"
+                    className="font-bold text-slate-800 cursor-pointer hover:bg-slate-100 transition-all duration-200 py-4 text-center"
                     onClick={() => handleSort('total_backorder_qty')}
                   >
-                    <div className="flex items-center justify-center space-x-1">
+                    <div className="flex items-center justify-center gap-1">
                       <span>Backorder Qty</span>
                       {getSortIcon('total_backorder_qty')}
                     </div>
                   </TableHead>
                   <TableHead 
-                    className="cursor-pointer hover:bg-muted/50"
+                    className="font-bold text-slate-800 cursor-pointer hover:bg-slate-100 transition-all duration-200 py-4"
                     onClick={() => handleSort('status')}
                   >
-                    <div className="flex items-center space-x-1">
+                    <div className="flex items-center gap-1">
                       <span>Status</span>
                       {getSortIcon('status')}
                     </div>
                   </TableHead>
                   <TableHead 
-                    className="cursor-pointer hover:bg-muted/50"
+                    className="font-bold text-slate-800 cursor-pointer hover:bg-slate-100 transition-all duration-200 py-4"
                     onClick={() => handleSort('delivery_status')}
                   >
-                    <div className="flex items-center space-x-1">
+                    <div className="flex items-center gap-1">
                       <span>Delivery Status</span>
                       {getSortIcon('delivery_status')}
                     </div>
                   </TableHead>
                   <TableHead 
-                    className="cursor-pointer hover:bg-muted/50 text-right"
+                    className="font-bold text-slate-800 cursor-pointer hover:bg-slate-100 transition-all duration-200 py-4 text-right"
                     onClick={() => handleSort('total_amount')}
                   >
-                    <div className="flex items-center justify-end space-x-1">
+                    <div className="flex items-center justify-end gap-1">
                       <span>Total Amount</span>
                       {getSortIcon('total_amount')}
                     </div>
                   </TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
+                  <TableHead className="font-bold text-slate-800 text-right py-4">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -431,48 +431,59 @@ export const SalesOrderTable: React.FC<SalesOrderTableProps> = ({
                       {order.currency} {order.total_amount.toFixed(2)}
                     </TableCell>
                     <TableCell className="text-right">
-                      <div className="flex justify-end space-x-1">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => onView(order)}
-                          title="View Details"
-                        >
-                          <Eye className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => onEdit(order)}
-                          title="Edit"
-                        >
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleDownloadExcel(order)}
-                          title="Download Excel"
-                        >
-                          <FileSpreadsheet className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleDownloadPDF(order)}
-                          title="Download PDF"
-                        >
-                          <FileText className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => onDelete(order)}
-                          title="Delete"
-                          className="text-destructive hover:text-destructive"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                      <div className="flex items-center gap-2 justify-end">
+                        {/* Primary Actions Group */}
+                        <div className="flex items-center rounded-lg border border-slate-200 bg-white shadow-sm">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => onView(order)}
+                            className="h-9 px-3 rounded-l-lg rounded-r-none border-r border-slate-200 hover:bg-blue-50 hover:text-blue-700 transition-all duration-200"
+                            title="View Details"
+                          >
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => onEdit(order)}
+                            className="h-9 px-3 rounded-none border-r border-slate-200 hover:bg-emerald-50 hover:text-emerald-700 transition-all duration-200"
+                            title="Edit"
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => onDelete(order)}
+                            className="h-9 px-3 rounded-r-lg rounded-l-none hover:bg-red-50 hover:text-red-700 transition-all duration-200"
+                            title="Delete"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                        
+                        {/* Export Actions Group */}
+                        <div className="flex items-center gap-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleDownloadExcel(order)}
+                            className="h-9 px-3 rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 hover:border-emerald-300 transition-all duration-200 shadow-sm"
+                            title="Download Excel"
+                          >
+                            <FileSpreadsheet className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleDownloadPDF(order)}
+                            className="h-9 px-3 rounded-lg border border-red-200 bg-red-50 text-red-700 hover:bg-red-100 hover:border-red-300 transition-all duration-200 shadow-sm"
+                            title="Download PDF"
+                          >
+                            <FileText className="h-4 w-4" />
+                          </Button>
+                        </div>
                       </div>
                     </TableCell>
                   </TableRow>

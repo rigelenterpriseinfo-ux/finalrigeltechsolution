@@ -247,16 +247,16 @@ export const SalesInvoiceTable: React.FC<SalesInvoiceTableProps> = ({
         <div className="rounded-md border">
           <Table>
             <TableHeader>
-              <TableRow>
-                <TableHead>Invoice No.</TableHead>
-                <TableHead>Date</TableHead>
-                <TableHead>Customer</TableHead>
-                <TableHead>Sales Order</TableHead>
-                <TableHead>Subtotal</TableHead>
-                <TableHead>Tax</TableHead>
-                <TableHead>Total</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Actions</TableHead>
+              <TableRow className="bg-gradient-to-r from-slate-50 to-slate-100 border-b-2 border-slate-200 hover:from-slate-50 hover:to-slate-100">
+                <TableHead className="font-bold text-slate-800 py-4">Invoice No.</TableHead>
+                <TableHead className="font-bold text-slate-800 py-4">Date</TableHead>
+                <TableHead className="font-bold text-slate-800 py-4">Customer</TableHead>
+                <TableHead className="font-bold text-slate-800 py-4">Sales Order</TableHead>
+                <TableHead className="font-bold text-slate-800 py-4 text-right">Subtotal</TableHead>
+                <TableHead className="font-bold text-slate-800 py-4 text-right">Tax</TableHead>
+                <TableHead className="font-bold text-slate-800 py-4 text-right">Total</TableHead>
+                <TableHead className="font-bold text-slate-800 py-4">Status</TableHead>
+                <TableHead className="font-bold text-slate-800 py-4 text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -278,90 +278,85 @@ export const SalesInvoiceTable: React.FC<SalesInvoiceTableProps> = ({
                     ₹{invoice.total_amount.toFixed(2)}
                   </TableCell>
                   <TableCell>{getStatusBadge(invoice.status)}</TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => onView(invoice)}
-                      >
-                        <Eye className="h-4 w-4" />
-                      </Button>
-                      
-                      {canEdit(invoice) && (
+                  <TableCell className="text-right">
+                    <div className="flex items-center gap-2 justify-end">
+                      {/* Primary Actions Group */}
+                      <div className="flex items-center rounded-lg border border-slate-200 bg-white shadow-sm">
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => onEdit(invoice)}
+                          onClick={() => onView(invoice)}
+                          className="h-9 px-3 rounded-l-lg rounded-r-none border-r border-slate-200 hover:bg-blue-50 hover:text-blue-700 transition-all duration-200"
+                          title="View Invoice"
                         >
-                          <Edit className="h-4 w-4" />
+                          <Eye className="h-4 w-4" />
                         </Button>
-                      )}
-
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleDownloadExcel(invoice)}
-                        title="Download Excel"
-                      >
-                        <FileSpreadsheet className="h-4 w-4" />
-                      </Button>
-
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleDownloadPDF(invoice)}
-                        title="Download PDF"
-                      >
-                        <FileText className="h-4 w-4" />
-                      </Button>
-
-                      {invoice.status === 'draft' && (
-                        <Select
-                          value={invoice.status}
-                          onValueChange={(newStatus) => handleStatusUpdate(invoice.id, newStatus)}
-                        >
-                          <SelectTrigger className="w-28 h-8">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="draft">Draft</SelectItem>
-                            <SelectItem value="finalized">Finalize</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      )}
-
-                      {canDelete(invoice) && (
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="text-destructive hover:text-destructive"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>Delete Invoice</AlertDialogTitle>
-                              <AlertDialogDescription>
-                                Are you sure you want to delete this invoice? 
-                                This action cannot be undone.
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>Cancel</AlertDialogCancel>
-                              <AlertDialogAction
-                                onClick={() => handleDelete(invoice.id)}
-                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        {canEdit(invoice) && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => onEdit(invoice)}
+                            className="h-9 px-3 rounded-none border-r border-slate-200 hover:bg-emerald-50 hover:text-emerald-700 transition-all duration-200"
+                            title="Edit Invoice"
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                        )}
+                        {canDelete(invoice) && (
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-9 px-3 rounded-r-lg rounded-l-none hover:bg-red-50 hover:text-red-700 transition-all duration-200"
+                                title="Delete Invoice"
                               >
-                                Delete
-                              </AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
-                      )}
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Delete Invoice</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  Are you sure you want to delete this invoice? 
+                                  This action cannot be undone.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction
+                                  onClick={() => handleDelete(invoice.id)}
+                                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                >
+                                  Delete
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        )}
+                      </div>
+                      
+                      {/* Export Actions Group */}
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleDownloadExcel(invoice)}
+                          className="h-9 px-3 rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 hover:border-emerald-300 transition-all duration-200 shadow-sm"
+                          title="Download Excel"
+                        >
+                          <FileSpreadsheet className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleDownloadPDF(invoice)}
+                          className="h-9 px-3 rounded-lg border border-red-200 bg-red-50 text-red-700 hover:bg-red-100 hover:border-red-300 transition-all duration-200 shadow-sm"
+                          title="Download PDF"
+                        >
+                          <FileText className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </div>
                   </TableCell>
                 </TableRow>
