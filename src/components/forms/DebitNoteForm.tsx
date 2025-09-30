@@ -73,6 +73,7 @@ export function DebitNoteForm({ debitNote, onSubmit, onCancel, mode }: DebitNote
   });
 
   const [bins, setBins] = useState([]);
+  const [warehouseName, setWarehouseName] = useState("");
 
   const [items, setItems] = useState<DebitNoteItem[]>(
     debitNote?.items || [{
@@ -138,6 +139,18 @@ export function DebitNoteForm({ debitNote, onSubmit, onCancel, mode }: DebitNote
       console.error('Error fetching bins:', error);
     }
   };
+
+  useEffect(() => {
+    // Get warehouse name from bins when warehouse_id changes
+    if (formData.default_warehouse_id && bins.length > 0) {
+      const bin = bins.find((b: any) => b.warehouse_id === formData.default_warehouse_id);
+      if (bin) {
+        setWarehouseName(bin.warehouse_name || "");
+      }
+    } else {
+      setWarehouseName("");
+    }
+  }, [formData.default_warehouse_id, bins]);
 
   const fetchSupplierInvoices = async (supplierId: string) => {
     try {
@@ -328,6 +341,20 @@ export function DebitNoteForm({ debitNote, onSubmit, onCancel, mode }: DebitNote
   const handleItemChange = (index: number, field: keyof DebitNoteItem, value: any) => {
     const newItems = [...items];
     newItems[index] = { ...newItems[index], [field]: value };
+    
+    // Mutually exclusive GST handling
+    if (field === 'cgst_rate' || field === 'sgst_rate') {
+      // If entering CGST or SGST, clear IGST
+      if (parseFloat(value) > 0) {
+        newItems[index].igst_rate = 0;
+      }
+    } else if (field === 'igst_rate') {
+      // If entering IGST, clear CGST and SGST
+      if (parseFloat(value) > 0) {
+        newItems[index].cgst_rate = 0;
+        newItems[index].sgst_rate = 0;
+      }
+    }
     
     if (['quantity', 'unit_price', 'discount_percentage', 'cgst_rate', 'sgst_rate', 'igst_rate'].includes(field)) {
       calculateLineTotal(index, newItems);
@@ -551,14 +578,13 @@ export function DebitNoteForm({ debitNote, onSubmit, onCancel, mode }: DebitNote
       {/* Warehouse and Bin Fields */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
         <div className="space-y-2">
-          <Label htmlFor="warehouse" className="text-sm font-medium">Default Warehouse ID</Label>
+          <Label htmlFor="warehouse" className="text-sm font-medium">Default Warehouse</Label>
           <Input
             id="warehouse"
-            value={formData.default_warehouse_id}
-            onChange={(e) => setFormData(prev => ({ ...prev, default_warehouse_id: e.target.value }))}
-            placeholder="Warehouse ID (optional)"
-            disabled={!!selectedInvoice}
-            className="h-11 md:h-10 text-base md:text-sm"
+            value={warehouseName || formData.default_warehouse_id}
+            placeholder="Warehouse (auto-filled from invoice)"
+            disabled
+            className="h-11 md:h-10 text-base md:text-sm bg-gray-50 dark:bg-gray-900"
           />
         </div>
 
@@ -652,7 +678,7 @@ export function DebitNoteForm({ debitNote, onSubmit, onCancel, mode }: DebitNote
               <div className="bg-gray-50 dark:bg-gray-900/50 border-b grid grid-cols-12 gap-4 px-6 py-4 text-sm font-medium text-gray-700 dark:text-gray-300">
                 <div className="col-span-3">Product</div>
                 {selectedInvoice && <div className="col-span-1 text-center">Received</div>}
-                <div className={selectedInvoice ? "col-span-1 text-center" : "col-span-2 text-center"}>Quantity</div>
+                <div className={selectedInvoice ? "col-span-1 text-center" : "col-span-2 text-center"}>DN QTY</div>
                 {selectedInvoice && <div className="col-span-1 text-center">Pending</div>}
                 <div className="col-span-1 text-center">Unit Price</div>
                 {globalGstType === 'intra' ? (
@@ -674,7 +700,7 @@ export function DebitNoteForm({ debitNote, onSubmit, onCancel, mode }: DebitNote
                   <div key={index} className="grid grid-cols-12 gap-4 px-6 py-4 hover:bg-gray-50/50 dark:hover:bg-gray-900/25 transition-colors">
                     {/* Product Column */}
                     <div className="col-span-3">
-                      {!selectedInvoice ? (
+                      {!item.product_id ? (
                         <div className="space-y-1">
                            <ProductSearch
                              value={item.product_id}
@@ -773,6 +799,7 @@ export function DebitNoteForm({ debitNote, onSubmit, onCancel, mode }: DebitNote
                             value={item.cgst_rate}
                             onChange={(e) => handleItemChange(index, 'cgst_rate', parseFloat(e.target.value) || 0)}
                             className="text-center"
+                            disabled={item.igst_rate > 0}
                           />
                         </div>
 
@@ -786,6 +813,7 @@ export function DebitNoteForm({ debitNote, onSubmit, onCancel, mode }: DebitNote
                             value={item.sgst_rate}
                             onChange={(e) => handleItemChange(index, 'sgst_rate', parseFloat(e.target.value) || 0)}
                             className="text-center"
+                            disabled={item.igst_rate > 0}
                           />
                         </div>
                       </>
@@ -799,6 +827,7 @@ export function DebitNoteForm({ debitNote, onSubmit, onCancel, mode }: DebitNote
                           value={item.igst_rate}
                           onChange={(e) => handleItemChange(index, 'igst_rate', parseFloat(e.target.value) || 0)}
                           className="text-center"
+                          disabled={item.cgst_rate > 0 || item.sgst_rate > 0}
                         />
                       </div>
                     )}
@@ -827,18 +856,16 @@ export function DebitNoteForm({ debitNote, onSubmit, onCancel, mode }: DebitNote
 
                     {/* Action */}
                     <div className="col-span-1 flex justify-center">
-                      {(!selectedInvoice || item.product_id === "") && (
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => removeItem(index)}
-                          disabled={items.length === 1}
-                          className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/20 p-2"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      )}
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => removeItem(index)}
+                        disabled={items.length === 1}
+                        className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/20 p-2"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
                     </div>
                   </div>
                 ))}
