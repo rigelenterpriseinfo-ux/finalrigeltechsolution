@@ -179,6 +179,33 @@ export function SupplierCreditNoteForm({ supplierCreditNote, onSubmit, onCancel,
     // Fetch debit note line items
     const debitNoteItems = await fetchDebitNoteItems(debitNoteId);
     
+    // Fetch existing credit notes for this debit note to calculate already credited quantities
+    const { data: existingCreditNotes, error: creditNotesError } = await supabase
+      .from('supplier_credit_notes')
+      .select(`
+        id,
+        supplier_credit_note_items (
+          product_id,
+          credit_note_quantity
+        )
+      `)
+      .eq('debit_note_id', debitNoteId);
+
+    if (creditNotesError) {
+      console.error('Error fetching existing credit notes:', creditNotesError);
+    }
+
+    // Calculate already credited quantities per product
+    const alreadyCreditedMap = new Map<string, number>();
+    if (existingCreditNotes) {
+      existingCreditNotes.forEach((cn: any) => {
+        cn.supplier_credit_note_items?.forEach((item: any) => {
+          const currentCredited = alreadyCreditedMap.get(item.product_id) || 0;
+          alreadyCreditedMap.set(item.product_id, currentCredited + (item.credit_note_quantity || 0));
+        });
+      });
+    }
+    
     // Update form data
     setFormData(prev => ({
       ...prev,
@@ -189,30 +216,35 @@ export function SupplierCreditNoteForm({ supplierCreditNote, onSubmit, onCancel,
       reason: `Credit note for debit note ${debitNote.debit_note_number}`
     }));
 
-    // Auto-populate items from debit note
+    // Auto-populate items from debit note with correct pending quantities
     if (debitNoteItems.length > 0) {
-      const mappedItems = debitNoteItems.map((item: any) => ({
-        product_id: item.product_id,
-        product_name: item.product_name,
-        product_sku: item.product_sku,
-        quantity: item.quantity,
-        credit_note_quantity: 0, // Start with 0, user will input
-        pending_quantity: item.quantity, // Initially all quantity is pending
-        unit_price: item.unit_price,
-        discount_percentage: item.discount_percentage || 0,
-        discount_amount: item.discount_amount || 0,
-        cgst_rate: item.cgst_rate || 0,
-        sgst_rate: item.sgst_rate || 0,
-        igst_rate: item.igst_rate || 0,
-        cgst_amount: item.cgst_amount || 0,
-        sgst_amount: item.sgst_amount || 0,
-        igst_amount: item.igst_amount || 0,
-        tax_amount: item.tax_amount || 0,
-        line_subtotal: item.line_subtotal || 0,
-        line_total: item.line_total || 0,
-        unit_of_measure: item.unit_of_measure || 'pcs',
-        hsn_sac_code: item.hsn_sac_code || ''
-      }));
+      const mappedItems = debitNoteItems.map((item: any) => {
+        const alreadyCredited = alreadyCreditedMap.get(item.product_id) || 0;
+        const pendingQty = Math.max(0, item.quantity - alreadyCredited);
+        
+        return {
+          product_id: item.product_id,
+          product_name: item.product_name,
+          product_sku: item.product_sku,
+          quantity: item.quantity,
+          credit_note_quantity: 0, // Start with 0, user will input
+          pending_quantity: pendingQty, // Actual pending after deducting already credited
+          unit_price: item.unit_price,
+          discount_percentage: item.discount_percentage || 0,
+          discount_amount: item.discount_amount || 0,
+          cgst_rate: item.cgst_rate || 0,
+          sgst_rate: item.sgst_rate || 0,
+          igst_rate: item.igst_rate || 0,
+          cgst_amount: item.cgst_amount || 0,
+          sgst_amount: item.sgst_amount || 0,
+          igst_amount: item.igst_amount || 0,
+          tax_amount: item.tax_amount || 0,
+          line_subtotal: item.line_subtotal || 0,
+          line_total: item.line_total || 0,
+          unit_of_measure: item.unit_of_measure || 'pcs',
+          hsn_sac_code: item.hsn_sac_code || ''
+        };
+      });
       setItems(mappedItems);
     }
   };
@@ -263,13 +295,13 @@ export function SupplierCreditNoteForm({ supplierCreditNote, onSubmit, onCancel,
   const handleItemChange = (index: number, field: keyof SupplierCreditNoteItem, value: any) => {
     const newItems = [...items];
     
-    // Validate credit_note_quantity doesn't exceed original quantity
+    // Validate credit_note_quantity doesn't exceed pending quantity
     if (field === 'credit_note_quantity') {
-      const maxAllowed = newItems[index].quantity;
+      const maxAllowed = newItems[index].pending_quantity;
       if (value > maxAllowed) {
         toast({
           title: "Invalid Quantity",
-          description: `Credit note quantity cannot exceed original quantity (${maxAllowed})`,
+          description: `Credit note quantity cannot exceed pending quantity (${maxAllowed})`,
           variant: "destructive"
         });
         return; // Don't update if validation fails
@@ -322,10 +354,10 @@ export function SupplierCreditNoteForm({ supplierCreditNote, onSubmit, onCancel,
       return;
     }
 
-    if (items.some(item => !item.product_id || item.credit_note_quantity <= 0 || item.credit_note_quantity > item.quantity)) {
+    if (items.some(item => !item.product_id || item.credit_note_quantity <= 0 || item.credit_note_quantity > item.pending_quantity)) {
       toast({
         title: "Error",
-        description: "Please ensure all items have valid products and credit note quantities not exceeding original quantities",
+        description: "Please ensure all items have valid products and credit note quantities not exceeding pending quantities",
         variant: "destructive"
       });
       return;
@@ -499,7 +531,7 @@ export function SupplierCreditNoteForm({ supplierCreditNote, onSubmit, onCancel,
                 <Input
                   type="number"
                   min="0"
-                  max={item.quantity}
+                  max={item.pending_quantity}
                   value={item.credit_note_quantity}
                   onChange={(e) => {
                     const value = parseInt(e.target.value) || 0;
