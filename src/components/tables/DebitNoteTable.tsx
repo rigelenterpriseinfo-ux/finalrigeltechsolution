@@ -978,23 +978,23 @@ export function DebitNoteTable({ refreshTrigger, onView, onEdit, onDelete, onFil
                   ) : (
                     currentDebitNotes.map((debitNote) => (
                     <TableRow key={debitNote.id} className="hover:bg-slate-50 transition-all">
-                      <TableCell className="font-medium">
+                      <TableCell className="font-semibold text-blue-600 py-4">
                         {debitNote.debit_note_number}
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="text-slate-600 py-4">
                         {format(new Date(debitNote.debit_note_date), "MMM dd, yyyy")}
                       </TableCell>
-                      <TableCell>{debitNote.supplier_name}</TableCell>
-                      <TableCell className="max-w-xs truncate">
+                      <TableCell className="font-medium text-slate-700 py-4">{debitNote.supplier_name}</TableCell>
+                      <TableCell className="max-w-xs truncate text-slate-600 py-4">
                         {debitNote.credit_note_numbers || '-'}
                       </TableCell>
-                      <TableCell className="font-medium">
+                      <TableCell className="font-bold text-slate-900 py-4">
                         ₹{debitNote.total_amount.toFixed(2)}
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="py-4">
                         {getSettlementStatusBadge(debitNote.settlement_status)}
                       </TableCell>
-                      <TableCell className="font-medium">
+                      <TableCell className="font-semibold text-amber-600 py-4">
                         ₹{debitNote.difference_amount.toFixed(2)}
                       </TableCell>
                       <TableCell className="text-right">
