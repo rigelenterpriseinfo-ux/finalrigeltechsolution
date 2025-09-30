@@ -63,6 +63,7 @@ export const SupplierTable: React.FC<SupplierTableProps> = ({
   const [sortField, setSortField] = useState<SortField>('created_at');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
   const [companyData, setCompanyData] = useState<any>(null);
+  const [suppliersWithTransactions, setSuppliersWithTransactions] = useState<Set<string>>(new Set());
   const itemsPerPage = 5;
   
   const canEdit = hasEditAccess('purchase');
@@ -88,6 +89,75 @@ export const SupplierTable: React.FC<SupplierTableProps> = ({
 
     fetchCompanyData();
   }, [profile?.company_id]);
+
+  // Check for supplier transactions
+  useEffect(() => {
+    const checkSupplierTransactions = async () => {
+      if (!profile?.company_id || suppliers.length === 0) {
+        console.log('SupplierTable: Skipping transaction check - no company_id or suppliers', { 
+          company_id: profile?.company_id, 
+          suppliers_count: suppliers.length 
+        });
+        return;
+      }
+      
+      const supplierIds = suppliers.map(s => s.id);
+      const suppliersWithTxns = new Set<string>();
+      
+      console.log('SupplierTable: Checking transactions for suppliers:', supplierIds);
+      
+      try {
+        // Check for purchase orders
+        const { data: poData, error: poError } = await supabase
+          .from('purchase_orders')
+          .select('supplier_id')
+          .eq('company_id', profile.company_id)
+          .in('supplier_id', supplierIds);
+        
+        if (poError) {
+          console.error('SupplierTable: Error checking purchase orders:', poError);
+        } else {
+          console.log('SupplierTable: Found purchase orders:', poData);
+          poData?.forEach(po => suppliersWithTxns.add(po.supplier_id));
+        }
+        
+        // Check for GRNs
+        const { data: grnData, error: grnError } = await supabase
+          .from('grn_header')
+          .select('supplier_id')
+          .eq('company_id', profile.company_id)
+          .in('supplier_id', supplierIds);
+        
+        if (grnError) {
+          console.error('SupplierTable: Error checking GRNs:', grnError);
+        } else {
+          console.log('SupplierTable: Found GRNs:', grnData);
+          grnData?.forEach(grn => suppliersWithTxns.add(grn.supplier_id));
+        }
+        
+        // Check for debit notes
+        const { data: dnData, error: dnError } = await supabase
+          .from('debit_notes')
+          .select('supplier_id')
+          .eq('company_id', profile.company_id)
+          .in('supplier_id', supplierIds);
+        
+        if (dnError) {
+          console.error('SupplierTable: Error checking debit notes:', dnError);
+        } else {
+          console.log('SupplierTable: Found debit notes:', dnData);
+          dnData?.forEach(dn => suppliersWithTxns.add(dn.supplier_id));
+        }
+        
+        console.log('SupplierTable: Final suppliers with transactions:', Array.from(suppliersWithTxns));
+        setSuppliersWithTransactions(suppliersWithTxns);
+      } catch (error) {
+        console.error('SupplierTable: Error checking supplier transactions:', error);
+      }
+    };
+    
+    checkSupplierTransactions();
+  }, [suppliers, profile?.company_id]);
 
   const filteredSuppliers = suppliers.filter(supplier => {
     const matchesSearch = !searchTerm || 
@@ -720,9 +790,17 @@ export const SupplierTable: React.FC<SupplierTableProps> = ({
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => onDelete(supplier.id)}
-                          disabled={!canEdit}
-                          className="text-destructive hover:text-destructive"
+                          onClick={() => {
+                            console.log('SupplierTable: Delete button clicked for supplier:', supplier.id, 'Has transactions:', suppliersWithTransactions.has(supplier.id));
+                            onDelete(supplier.id);
+                          }}
+                          disabled={!canEdit || suppliersWithTransactions.has(supplier.id)}
+                          className={`transition-all duration-200 ${
+                            suppliersWithTransactions.has(supplier.id)
+                              ? 'text-slate-400 cursor-not-allowed hover:bg-transparent'
+                              : 'text-destructive hover:text-destructive'
+                          }`}
+                          title={suppliersWithTransactions.has(supplier.id) ? "Cannot delete supplier with existing transactions" : !canEdit ? "No permission to delete" : "Delete Supplier"}
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
