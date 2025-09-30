@@ -518,11 +518,11 @@ export function PurchaseOrderForm({
                                   onSelect={field.onChange}
                                   placeholder="Select supplier"
                                   searchPlaceholder="Search suppliers..."
-                                  options={suppliers.map(supplier => ({
-                                    id: supplier.id,
-                                    name: supplier.name,
-                                    subtitle: supplier.supplier_code ? `Code: ${supplier.supplier_code}` : undefined
-                                  }))}
+                                   options={suppliers.map(supplier => ({
+                                     id: supplier.id,
+                                     name: supplier.name,
+                                     subtitle: supplier.supplier_ref ? `Ref: ${supplier.supplier_ref}` : undefined
+                                   }))}
                                   disabled={readOnly}
                                   loading={loading}
                                 />
@@ -570,6 +570,7 @@ export function PurchaseOrderForm({
                                     className="h-9" 
                                   />
                                 </FormControl>
+                                <FormMessage />
                               </FormItem>
                             )}
                           />
@@ -644,6 +645,7 @@ export function PurchaseOrderForm({
                                   className="h-9" 
                                 />
                               </FormControl>
+                              <FormMessage />
                             </FormItem>
                           )}
                         />
@@ -672,6 +674,7 @@ export function PurchaseOrderForm({
                                     loading={loading}
                                   />
                                 </FormControl>
+                                <FormMessage />
                               </FormItem>
                             )}
                           />
@@ -699,6 +702,7 @@ export function PurchaseOrderForm({
                                     loading={loading}
                                   />
                                 </FormControl>
+                                <FormMessage />
                               </FormItem>
                             )}
                           />
@@ -767,6 +771,7 @@ export function PurchaseOrderForm({
                                   className="h-9" 
                                 />
                               </FormControl>
+                              <FormMessage />
                             </FormItem>
                           )}
                         />
@@ -806,6 +811,7 @@ export function PurchaseOrderForm({
                                     className="h-9" 
                                   />
                                 </FormControl>
+                                <FormMessage />
                               </FormItem>
                             )}
                           />
@@ -826,6 +832,7 @@ export function PurchaseOrderForm({
                                     className="h-9" 
                                   />
                                 </FormControl>
+                                <FormMessage />
                               </FormItem>
                             )}
                           />
@@ -847,6 +854,7 @@ export function PurchaseOrderForm({
                                   className="h-9" 
                                 />
                               </FormControl>
+                              <FormMessage />
                             </FormItem>
                           )}
                         />
@@ -884,7 +892,7 @@ export function PurchaseOrderForm({
                                 <Input 
                                   placeholder="Place of Supply" 
                                   {...field} 
-                                  disabled={readOnly || sameAsRegisteredAddress} 
+                                  disabled={readOnly} 
                                   className="h-9" 
                                 />
                               </FormControl>

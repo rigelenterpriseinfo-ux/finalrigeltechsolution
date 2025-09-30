@@ -221,7 +221,7 @@ export function OrderLineItemsTable({
                                   type="number" 
                                   min="0" 
                                   step="1"
-                                  className="h-9 w-full text-center text-sm" 
+                                  className="h-9 w-24 text-center text-sm" 
                                   {...field}
                                   onChange={(e) => {
                                     field.onChange(parseFloat(e.target.value) || 0);
