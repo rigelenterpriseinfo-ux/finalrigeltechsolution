@@ -467,7 +467,7 @@ export function DebitNoteForm({ debitNote, onSubmit, onCancel, mode }: DebitNote
       supplier_name: formData.supplier_name,
       grn_id: formData.grn_id,
       supplier_invoice_number: formData.supplier_invoice_number,
-      supplier_invoice_date: formData.supplier_invoice_date,
+      supplier_invoice_date: formData.supplier_invoice_date || null,
       debit_note_date: formData.debit_note_date,
       reason: formData.reason,
       notes: formData.notes || '',
