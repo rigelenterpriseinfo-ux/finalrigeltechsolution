@@ -18,9 +18,12 @@ import {
   RotateCcw, 
   AlertCircle,
   Package,
-  MapPin
+  MapPin,
+  FileSpreadsheet
 } from 'lucide-react';
 import { format } from 'date-fns';
+import { Button } from '@/components/ui/button';
+import { exportToExcel, formatDate, ExportColumn } from '@/utils/excelExport';
 
 interface OpenTransaction {
   id: string;
@@ -392,6 +395,69 @@ export const OpenTransactionsTable = ({
     }
   };
 
+  const getTransactionTypeLabel = (type: string): string => {
+    switch (type) {
+      case 'sales_order':
+        return 'Sales Order';
+      case 'return_order':
+        return 'Return Order';
+      case 'purchase_order':
+        return 'Purchase Order';
+      case 'debit_note':
+        return 'Debit Note';
+      case 'backorder':
+        return 'Backorder';
+      default:
+        return type;
+    }
+  };
+
+  const handleExportExcel = () => {
+    if (!transactions.length) {
+      toast({
+        title: "No Data",
+        description: "There are no transactions to export",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const columns: ExportColumn[] = [
+      { key: 'transaction_type', label: 'Transaction Type', format: (value) => getTransactionTypeLabel(value) },
+      { key: 'customer_supplier_name', label: 'Customer/Supplier Name' },
+      { key: 'reference_number', label: 'Reference No' },
+      { key: 'sales_qty', label: 'Sales Qty', format: (value) => value > 0 ? value : '-' },
+      { key: 'return_qty', label: 'Return Qty', format: (value) => value > 0 ? value : '-' },
+      { key: 'po_qty', label: 'PO Qty', format: (value) => value > 0 ? value : '-' },
+      { key: 'debit_note_qty', label: 'Debit Note Qty', format: (value) => value > 0 ? value : '-' },
+      { key: 'backorder_qty', label: 'Back Order Qty', format: (value) => value > 0 ? value : '-' },
+      { key: 'date', label: 'Date', format: formatDate },
+      { key: 'status', label: 'Status' },
+    ];
+
+    const success = exportToExcel({
+      filename: `Open_Transactions_${summary?.warehouse_name}_${summary?.bin_name}`,
+      sheetName: 'Open Transactions',
+      columns,
+      data: transactions,
+      includeMetadata: true,
+      companyName: company?.name,
+    });
+
+    if (success) {
+      toast({
+        title: "Export Successful",
+        description: "Open transactions exported to Excel successfully",
+      });
+    } else {
+      toast({
+        title: "Export Failed",
+        description: "Failed to export open transactions to Excel",
+        variant: "destructive",
+      });
+    }
+  };
+
   // Don't show anything if no selections are made
   if (!shouldFetchData) {
     return (
@@ -430,16 +496,31 @@ export const OpenTransactionsTable = ({
   return (
     <Card className="card-elevated">
       <CardHeader>
-        <CardTitle className="text-xl flex items-center gap-2">
-          <FileText className="h-6 w-6 text-primary" />
-          Open Transactions Details
-        </CardTitle>
-        {summary && (
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <MapPin className="h-4 w-4" />
-            {summary.warehouse_name} - {summary.bin_name} ({summary.bin_code})
+        <div className="flex items-center justify-between">
+          <div>
+            <CardTitle className="text-xl flex items-center gap-2">
+              <FileText className="h-6 w-6 text-primary" />
+              Open Transactions Details
+            </CardTitle>
+            {summary && (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground mt-2">
+                <MapPin className="h-4 w-4" />
+                {summary.warehouse_name} - {summary.bin_name} ({summary.bin_code})
+              </div>
+            )}
           </div>
-        )}
+          {transactions.length > 0 && (
+            <Button
+              onClick={handleExportExcel}
+              variant="outline"
+              size="sm"
+              className="bg-teal-50 text-teal-700 border border-teal-200 hover:bg-teal-100 rounded-md h-9 px-4 gap-2 font-medium transition-colors"
+            >
+              <FileSpreadsheet className="h-4 w-4" />
+              Export Excel
+            </Button>
+          )}
+        </div>
       </CardHeader>
       <CardContent className="space-y-6">
         {/* Summary Section */}
