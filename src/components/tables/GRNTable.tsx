@@ -443,7 +443,7 @@ export function GRNTable({ refreshTrigger, onView, onEdit, onDelete }: GRNTableP
       const pdf = new jsPDF();
       
       // Blue header background - increased height
-      pdf.setFillColor(70, 130, 180);
+      pdf.setFillColor(41, 128, 185);
       pdf.rect(0, 0, 220, 55, 'F');
 
       // Company logo - Add actual logo if available
@@ -472,7 +472,7 @@ export function GRNTable({ refreshTrigger, onView, onEdit, onDelete }: GRNTableP
           pdf.setFillColor(255, 255, 255);
           pdf.circle(23, 23, 10, 'F');
           pdf.setFontSize(7);
-          pdf.setTextColor(70, 130, 180);
+          pdf.setTextColor(41, 128, 185);
           pdf.text('LOGO', 18, 25);
         }
       } else {
@@ -480,7 +480,7 @@ export function GRNTable({ refreshTrigger, onView, onEdit, onDelete }: GRNTableP
         pdf.setFillColor(255, 255, 255);
         pdf.circle(23, 23, 10, 'F');
         pdf.setFontSize(7);
-        pdf.setTextColor(70, 130, 180);
+        pdf.setTextColor(41, 128, 185);
         pdf.text('LOGO', 18, 25);
       }
 
@@ -532,132 +532,89 @@ export function GRNTable({ refreshTrigger, onView, onEdit, onDelete }: GRNTableP
       pdf.setTextColor(0, 0, 0);
       let yPosition = 65;
 
-      // Two-column layout for Vendor and Delivery details
-      // Left column - VENDOR DETAILS
-      pdf.setFillColor(240, 240, 240);
-      pdf.rect(14, yPosition, 90, 8, 'F');
+      // ========== VENDOR & BUYER INFORMATION SECTION ==========
+      pdf.setFillColor(245, 245, 245);
+      pdf.rect(14, yPosition, 90, 48, 'F'); // Vendor box
+      pdf.rect(110, yPosition, 90, 48, 'F'); // Ship To box
+      
+      // Vendor Details
       pdf.setFontSize(11);
       pdf.setFont('helvetica', 'bold');
-      pdf.setTextColor(70, 130, 180);
-      pdf.text('VENDOR DETAILS', 16, yPosition + 5);
+      pdf.setTextColor(41, 128, 185);
+      pdf.text('VENDOR DETAILS', 16, yPosition + 7);
       
-      // Add light background for vendor details content
-      pdf.setFillColor(250, 248, 245);
-      pdf.rect(14, yPosition + 8, 90, 35, 'F');
-      
-      yPosition += 12;
       pdf.setFontSize(9);
       pdf.setFont('helvetica', 'bold');
       pdf.setTextColor(0, 0, 0);
-      pdf.text(supplier.name || grnDetail.supplier_name, 16, yPosition);
+      pdf.text(supplier.name || grnDetail.supplier_name, 16, yPosition + 14);
       
-      yPosition += 5;
       pdf.setFont('helvetica', 'normal');
-      pdf.text(supplier.address_line1 || 'N/A', 16, yPosition);
-      
-      yPosition += 5;
-      pdf.text(`${supplier.city || ''}, ${supplier.state || ''} - ${supplier.pin_code || ''}`, 16, yPosition);
-      
-      yPosition += 5;
-      pdf.text(`Contact: ${supplier.contact_person || 'N/A'}`, 16, yPosition);
-      
-      yPosition += 5;
-      pdf.text(`Phone: ${supplier.phone || 'N/A'}`, 16, yPosition);
-      
-      yPosition += 5;
-      pdf.text(`Email: ${supplier.email || 'N/A'}`, 16, yPosition);
-      
-      yPosition += 5;
-      pdf.text(`GSTIN: ${supplier.gst_number || 'N/A'}`, 16, yPosition);
+      pdf.setTextColor(60, 60, 60);
+      pdf.text(supplier.address_line1 || 'N/A', 16, yPosition + 19);
+      pdf.text(`${supplier.city || ''}, ${supplier.state || ''} - ${supplier.pin_code || ''}`, 16, yPosition + 24);
+      pdf.text(`Contact: ${supplier.contact_person || 'N/A'}`, 16, yPosition + 29);
+      pdf.text(`Phone: ${supplier.phone || 'N/A'}`, 16, yPosition + 34);
+      pdf.text(`Email: ${supplier.email || 'N/A'}`, 16, yPosition + 39);
+      pdf.text(`GSTIN: ${supplier.gst_number || 'N/A'}`, 16, yPosition + 44);
 
-      // Right column - SHIP TO / DELIVERY ADDRESS
-      yPosition = 65;
-      pdf.setFillColor(240, 240, 240);
-      pdf.rect(110, yPosition, 90, 8, 'F');
+      // Ship To / Delivery Address
       pdf.setFontSize(11);
       pdf.setFont('helvetica', 'bold');
-      pdf.setTextColor(70, 130, 180);
-      pdf.text('SHIP TO / DELIVERY ADDRESS', 112, yPosition + 5);
+      pdf.setTextColor(41, 128, 185);
+      pdf.text('SHIP TO / DELIVERY ADDRESS', 112, yPosition + 7);
       
-      // Add light background for ship to details content
-      pdf.setFillColor(250, 248, 245);
-      pdf.rect(110, yPosition + 8, 90, 27, 'F');
-      
-      yPosition += 12;
       pdf.setFontSize(9);
       pdf.setFont('helvetica', 'bold');
       pdf.setTextColor(0, 0, 0);
-      pdf.text(company?.name || 'Company Name', 112, yPosition);
+      pdf.text(company?.name || 'Company Name', 112, yPosition + 14);
       
-      yPosition += 5;
       pdf.setFont('helvetica', 'normal');
-      pdf.text(po.delivery_address_line1 || company?.address_line1 || 'Address', 112, yPosition);
-      
-      yPosition += 5;
-      pdf.text(`${po.delivery_city || company?.city || 'City'}, ${po.delivery_state || company?.state || 'State'}`, 112, yPosition);
-      
-      yPosition += 5;
-      pdf.text(`PIN: ${po.delivery_postal_code || company?.postal_code || 'N/A'}`, 112, yPosition);
-      
-      yPosition += 5;
-      pdf.text(`Place of Supply: ${po.delivery_state || company?.state || 'N/A'}`, 112, yPosition);
+      pdf.setTextColor(60, 60, 60);
+      pdf.text(po.delivery_address_line1 || company?.address_line1 || 'Address', 112, yPosition + 19);
+      pdf.text(`${po.delivery_city || company?.city || 'City'}, ${po.delivery_state || company?.state || 'State'}`, 112, yPosition + 24);
+      pdf.text(`PIN: ${po.delivery_postal_code || company?.postal_code || 'N/A'}`, 112, yPosition + 29);
+      pdf.text(`Place of Supply: ${po.delivery_state || company?.state || 'N/A'}`, 112, yPosition + 34);
 
-      // Order details section with background
-      yPosition = 113;
-      
-      // Add light background for order details section
-      pdf.setFillColor(250, 248, 245);
+      yPosition += 53;
+
+      // ========== ORDER DETAILS SECTION ==========
+      pdf.setFillColor(240, 240, 240);
       pdf.rect(14, yPosition, 186, 20, 'F');
       
       pdf.setFontSize(9);
-      
-      // Left column details
       pdf.setFont('helvetica', 'bold');
-      pdf.text('GRN Date:', 16, yPosition);
-      pdf.setFont('helvetica', 'normal');
-      pdf.text(format(new Date(grnDetail.grn_date), 'dd/MM/yyyy'), 50, yPosition);
+      pdf.setTextColor(0, 0, 0);
       
-      yPosition += 6;
-      pdf.setFont('helvetica', 'bold');
-      pdf.text('PO Number:', 16, yPosition);
-      pdf.setFont('helvetica', 'normal');
-      pdf.text(po.po_number || 'N/A', 50, yPosition);
+      // Left column
+      pdf.text('GRN Date:', 16, yPosition + 6);
+      pdf.text('PO Number:', 16, yPosition + 12);
+      pdf.text('Payment Terms:', 16, yPosition + 18);
       
-      yPosition += 6;
-      pdf.setFont('helvetica', 'bold');
-      pdf.text('Payment Terms:', 16, yPosition);
       pdf.setFont('helvetica', 'normal');
-      pdf.text(po.payment_terms || 'N/A', 50, yPosition);
+      pdf.text(format(new Date(grnDetail.grn_date), 'dd/MM/yyyy'), 48, yPosition + 6);
+      pdf.text(po.po_number || 'N/A', 48, yPosition + 12);
+      pdf.text(po.payment_terms || 'N/A', 48, yPosition + 18);
 
-      // Right column details
-      yPosition = 113;
+      // Right column
       pdf.setFont('helvetica', 'bold');
-      pdf.text('Supplier Invoice:', 112, yPosition);
-      pdf.setFont('helvetica', 'normal');
-      pdf.text(grnDetail.supplier_invoice_number || 'N/A', 155, yPosition);
+      pdf.text('Supplier Invoice:', 110, yPosition + 6);
+      pdf.text('Currency:', 110, yPosition + 12);
+      pdf.text('Status:', 110, yPosition + 18);
       
-      yPosition += 6;
-      pdf.setFont('helvetica', 'bold');
-      pdf.text('Currency:', 112, yPosition);
       pdf.setFont('helvetica', 'normal');
-      pdf.text(po.currency || 'INR', 155, yPosition);
-      
-      yPosition += 6;
-      pdf.setFont('helvetica', 'bold');
-      pdf.text('Status:', 112, yPosition);
-      pdf.setFont('helvetica', 'normal');
-      pdf.text(grnDetail.status.toUpperCase(), 155, yPosition);
+      pdf.text(grnDetail.supplier_invoice_number || 'N/A', 145, yPosition + 6);
+      pdf.text(po.currency || 'INR', 145, yPosition + 12);
+      pdf.text(grnDetail.status.toUpperCase(), 145, yPosition + 18);
 
-      // Line Items section
-      yPosition += 10;
-      pdf.setFillColor(240, 240, 240);
-      pdf.rect(14, yPosition, 182, 7, 'F');
-      pdf.setFontSize(11);
+      yPosition += 28;
+
+      // ========== LINE ITEMS TABLE ==========
+      pdf.setFontSize(10);
       pdf.setFont('helvetica', 'bold');
-      pdf.setTextColor(70, 130, 180);
-      pdf.text('LINE ITEMS', 16, yPosition + 5);
+      pdf.setTextColor(41, 128, 185);
+      pdf.text('LINE ITEMS', 14, yPosition);
       
-      yPosition += 10;
+      yPosition += 6;
 
       // Prepare table data
       const tableData = grnDetail.grn_line_items?.map((item: any, index: number) => {
@@ -691,7 +648,7 @@ export function GRNTable({ refreshTrigger, onView, onEdit, onDelete }: GRNTableP
         body: tableData,
         theme: 'grid',
         headStyles: {
-          fillColor: [70, 130, 180],
+          fillColor: [41, 128, 185],
           textColor: [255, 255, 255],
           fontSize: 9,
           fontStyle: 'bold',
