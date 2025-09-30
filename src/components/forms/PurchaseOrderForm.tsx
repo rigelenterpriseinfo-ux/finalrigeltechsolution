@@ -141,6 +141,7 @@ export function PurchaseOrderForm({
       delivery_state: purchaseOrder?.delivery_state || '',
       delivery_country: purchaseOrder?.delivery_country || '',
       delivery_postal_code: purchaseOrder?.delivery_postal_code || '',
+      delivery_place_of_supply: purchaseOrder?.delivery_place_of_supply || '',
       expected_date: purchaseOrder?.expected_date || '',
       status: purchaseOrder?.status || 'Draft',
       notes: purchaseOrder?.notes || '',
@@ -968,7 +969,7 @@ export function PurchaseOrderForm({
             </Button>
             {!readOnly && (
               <Button type="submit" disabled={loading} className="min-w-[120px]">
-                {loading ? 'Saving...' : mode === 'edit' ? 'Next' : 'Create Order'}
+                {loading ? 'Saving...' : mode === 'edit' ? 'Update Order' : 'Create Order'}
               </Button>
             )}
           </div>
