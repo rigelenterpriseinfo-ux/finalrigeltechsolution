@@ -337,17 +337,26 @@ export function SupplierCreditNoteTable({
   // Export single credit note to PDF with comprehensive formatting
   const exportCreditNoteToPDF = async (creditNote: SupplierCreditNote) => {
     try {
-      // Fetch detailed credit note data with items and supplier
+      // Fetch detailed credit note data
       const { data: creditNoteDetail, error } = await supabase
         .from('supplier_credit_notes')
-        .select(`
-          *,
-          suppliers(*)
-        `)
+        .select('*')
         .eq('id', creditNote.id)
         .maybeSingle();
 
       if (error) throw error;
+      if (!creditNoteDetail) {
+        throw new Error('Credit note not found');
+      }
+
+      // Fetch supplier data separately
+      const { data: supplier, error: supplierError } = await supabase
+        .from('suppliers')
+        .select('*')
+        .eq('id', creditNoteDetail.supplier_id)
+        .maybeSingle();
+
+      if (supplierError) throw supplierError;
 
       // Fetch credit note items
       const { data: creditNoteItems, error: itemsError } = await supabase
@@ -356,8 +365,6 @@ export function SupplierCreditNoteTable({
         .eq('supplier_credit_note_id', creditNote.id);
 
       if (itemsError) throw itemsError;
-
-      const supplier = creditNoteDetail?.suppliers as any || {};
 
       const doc = new jsPDF();
       let yPos = 15;
@@ -452,16 +459,16 @@ export function SupplierCreditNoteTable({
       doc.setFontSize(9);
       doc.setFont('helvetica', 'bold');
       doc.setTextColor(0, 0, 0);
-      doc.text(supplier.name || creditNote.supplier_name, 17, yPos + 14);
+      doc.text(supplier?.name || creditNote.supplier_name, 17, yPos + 14);
       
       doc.setFont('helvetica', 'normal');
       doc.setTextColor(60, 60, 60);
-      doc.text(supplier.address_line1 || 'Address', 17, yPos + 19);
-      doc.text(`${supplier.city || ''}, ${supplier.state || ''} - ${supplier.pin_code || ''}`, 17, yPos + 24);
-      doc.text(`Contact: ${supplier.contact_person || 'N/A'}`, 17, yPos + 29);
-      doc.text(`Phone: ${supplier.phone || 'N/A'}`, 17, yPos + 34);
-      doc.text(`Email: ${supplier.email || 'N/A'}`, 17, yPos + 39);
-      doc.text(`GSTIN: ${supplier.gst_number || 'N/A'}`, 17, yPos + 44);
+      doc.text(supplier?.address_line1 || 'Address', 17, yPos + 19);
+      doc.text(`${supplier?.city || ''}, ${supplier?.state || ''} - ${supplier?.pin_code || ''}`, 17, yPos + 24);
+      doc.text(`Contact: ${supplier?.contact_person || 'N/A'}`, 17, yPos + 29);
+      doc.text(`Phone: ${supplier?.phone || 'N/A'}`, 17, yPos + 34);
+      doc.text(`Email: ${supplier?.email || 'N/A'}`, 17, yPos + 39);
+      doc.text(`GSTIN: ${supplier?.gst_number || 'N/A'}`, 17, yPos + 44);
       
       // Company / Bill To Details
       doc.setFontSize(11);
