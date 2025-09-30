@@ -855,6 +855,8 @@ export type Database = {
           created_by: string
           debit_note_date: string
           debit_note_number: string | null
+          default_bin_id: string | null
+          default_warehouse_id: string | null
           delivery_date: string | null
           destination: string | null
           discount_amount: number
@@ -888,6 +890,8 @@ export type Database = {
           created_by: string
           debit_note_date?: string
           debit_note_number?: string | null
+          default_bin_id?: string | null
+          default_warehouse_id?: string | null
           delivery_date?: string | null
           destination?: string | null
           discount_amount?: number
@@ -921,6 +925,8 @@ export type Database = {
           created_by?: string
           debit_note_date?: string
           debit_note_number?: string | null
+          default_bin_id?: string | null
+          default_warehouse_id?: string | null
           delivery_date?: string | null
           destination?: string | null
           discount_amount?: number
@@ -947,6 +953,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "fk_debit_notes_bin"
+            columns: ["default_bin_id"]
+            isOneToOne: false
+            referencedRelation: "warehouse_bins"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "fk_debit_notes_supplier"
             columns: ["supplier_id"]

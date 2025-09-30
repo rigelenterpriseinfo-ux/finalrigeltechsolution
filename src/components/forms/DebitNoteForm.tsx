@@ -68,7 +68,11 @@ export function DebitNoteForm({ debitNote, onSubmit, onCancel, mode }: DebitNote
     reason: debitNote?.reason || "",
     notes: debitNote?.notes || "",
     debit_note_date: debitNote?.debit_note_date || new Date().toISOString().split('T')[0],
+    default_warehouse_id: debitNote?.default_warehouse_id || "",
+    default_bin_id: debitNote?.default_bin_id || "",
   });
+
+  const [bins, setBins] = useState([]);
 
   const [items, setItems] = useState<DebitNoteItem[]>(
     debitNote?.items || [{
@@ -97,6 +101,7 @@ export function DebitNoteForm({ debitNote, onSubmit, onCancel, mode }: DebitNote
 
   useEffect(() => {
     fetchSuppliers();
+    fetchBins();
   }, []);
 
   useEffect(() => {
@@ -116,6 +121,21 @@ export function DebitNoteForm({ debitNote, onSubmit, onCancel, mode }: DebitNote
       setSuppliers(data || []);
     } catch (error) {
       console.error('Error fetching suppliers:', error);
+    }
+  };
+
+  const fetchBins = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('warehouse_bins')
+        .select('*')
+        .eq('is_active', true)
+        .order('bin_name');
+      
+      if (error) throw error;
+      setBins(data || []);
+    } catch (error) {
+      console.error('Error fetching bins:', error);
     }
   };
 
@@ -201,15 +221,8 @@ export function DebitNoteForm({ debitNote, onSubmit, onCancel, mode }: DebitNote
     if (!invoice) return;
 
     setSelectedInvoice(invoice);
-    setFormData(prev => ({
-      ...prev,
-      supplier_name: invoice.supplier_name,
-      grn_id: invoice.grn_id,
-      supplier_invoice_number: invoice.supplier_invoice_number,
-      supplier_invoice_date: invoice.supplier_invoice_date
-    }));
-
-    // Fetch GRN line items and populate
+    
+    // Fetch GRN line items and populate with warehouse/bin and discount
     try {
       const { data, error } = await supabase
         .from('grn_line_items')
@@ -220,25 +233,42 @@ export function DebitNoteForm({ debitNote, onSubmit, onCancel, mode }: DebitNote
           hsn_sac_code,
           accepted_quantity,
           unit_price,
+          discount_percentage,
+          discount_amount,
           cgst_rate,
           sgst_rate,
           igst_rate,
-          unit_of_measure
+          unit_of_measure,
+          warehouse_id,
+          bin_id
         `)
         .eq('grn_header_id', invoice.grn_id);
 
       if (error) throw error;
+
+      // Set warehouse and bin from first line item
+      if (data && data.length > 0) {
+        setFormData(prev => ({
+          ...prev,
+          supplier_name: invoice.supplier_name,
+          grn_id: invoice.grn_id,
+          supplier_invoice_number: invoice.supplier_invoice_number,
+          supplier_invoice_date: invoice.supplier_invoice_date,
+          default_warehouse_id: data[0].warehouse_id || "",
+          default_bin_id: data[0].bin_id || ""
+        }));
+      }
 
       const newItems = data?.map(lineItem => ({
         product_id: lineItem.product_id,
         product_name: lineItem.product_name,
         product_sku: lineItem.product_sku,
         hsn_sac_code: lineItem.hsn_sac_code || "",
-        quantity: lineItem.accepted_quantity, // Start with received quantity
+        quantity: lineItem.accepted_quantity,
         received_quantity: lineItem.accepted_quantity,
         unit_price: lineItem.unit_price,
-        discount_percentage: 0,
-        discount_amount: 0,
+        discount_percentage: lineItem.discount_percentage || 0,
+        discount_amount: lineItem.discount_amount || 0,
         cgst_rate: lineItem.cgst_rate || 0,
         sgst_rate: lineItem.sgst_rate || 0,
         igst_rate: lineItem.igst_rate || 0,
@@ -249,7 +279,7 @@ export function DebitNoteForm({ debitNote, onSubmit, onCancel, mode }: DebitNote
         line_subtotal: 0,
         line_total: 0,
         unit_of_measure: lineItem.unit_of_measure || "pcs",
-        gst_type: 'intra' as const
+        gst_type: (lineItem.igst_rate && lineItem.igst_rate > 0 ? 'inter' : 'intra') as 'inter' | 'intra'
       })) || [];
 
       // Calculate totals for each item
@@ -441,6 +471,8 @@ export function DebitNoteForm({ debitNote, onSubmit, onCancel, mode }: DebitNote
       debit_note_date: formData.debit_note_date,
       reason: formData.reason,
       notes: formData.notes || '',
+      default_warehouse_id: formData.default_warehouse_id || null,
+      default_bin_id: formData.default_bin_id || null,
       subtotal_amount: parseFloat(totals.subtotal.toFixed(2)),
       discount_amount: parseFloat(totals.totalDiscount.toFixed(2)),
       tax_amount: parseFloat(totals.totalTax.toFixed(2)),
@@ -516,6 +548,41 @@ export function DebitNoteForm({ debitNote, onSubmit, onCancel, mode }: DebitNote
         </div>
       </div>
 
+      {/* Warehouse and Bin Fields */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
+        <div className="space-y-2">
+          <Label htmlFor="warehouse" className="text-sm font-medium">Default Warehouse ID</Label>
+          <Input
+            id="warehouse"
+            value={formData.default_warehouse_id}
+            onChange={(e) => setFormData(prev => ({ ...prev, default_warehouse_id: e.target.value }))}
+            placeholder="Warehouse ID (optional)"
+            disabled={!!selectedInvoice}
+            className="h-11 md:h-10 text-base md:text-sm"
+          />
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="bin" className="text-sm font-medium">Default Bin</Label>
+          <Select
+            value={formData.default_bin_id}
+            onValueChange={(value) => setFormData(prev => ({ ...prev, default_bin_id: value }))}
+            disabled={!!selectedInvoice}
+          >
+            <SelectTrigger className="h-11 md:h-10 text-base md:text-sm">
+              <SelectValue placeholder="Select bin (optional)" />
+            </SelectTrigger>
+            <SelectContent>
+              {bins.map((bin: any) => (
+                <SelectItem key={bin.id} value={bin.id}>
+                  {bin.bin_name} ({bin.wh_bin_code})
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
       {selectedInvoice && (
         <Card className="mb-4">
           <CardContent className="p-4">
@@ -567,16 +634,14 @@ export function DebitNoteForm({ debitNote, onSubmit, onCancel, mode }: DebitNote
                     Inter-State (IGST)
                   </Button>
                 </div>
-                {!selectedInvoice && (
-                  <Button 
-                    type="button" 
-                    onClick={addItem} 
-                    className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 shadow-sm"
-                  >
-                    <Plus className="h-4 w-4" />
-                    Add Item
-                  </Button>
-                )}
+                <Button 
+                  type="button" 
+                  onClick={addItem} 
+                  className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 shadow-sm"
+                >
+                  <Plus className="h-4 w-4" />
+                  Add Item
+                </Button>
               </div>
             </div>
           </div>
@@ -762,7 +827,7 @@ export function DebitNoteForm({ debitNote, onSubmit, onCancel, mode }: DebitNote
 
                     {/* Action */}
                     <div className="col-span-1 flex justify-center">
-                      {!selectedInvoice && (
+                      {(!selectedInvoice || item.product_id === "") && (
                         <Button
                           type="button"
                           variant="ghost"
