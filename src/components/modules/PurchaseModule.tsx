@@ -526,54 +526,77 @@ function PurchaseModuleContent() {
     if (!selectedPO) return;
 
     try {
+      console.log('Updating purchase order with data:', poData);
       const { items, ...purchaseOrderData } = poData;
+      
+      console.log('Purchase order data (without items):', purchaseOrderData);
+      console.log('Items to update:', items);
       
       const { error: poError } = await supabase
         .from('purchase_orders')
         .update(purchaseOrderData)
         .eq('id', selectedPO.id);
 
-      if (poError) throw poError;
+      if (poError) {
+        console.error('Purchase order update error:', poError);
+        throw poError;
+      }
 
       if (items && items.length > 0) {
+        console.log('Deleting old items for PO:', selectedPO.id);
         const { error: deleteError } = await supabase
           .from('purchase_order_items')
           .delete()
           .eq('purchase_order_id', selectedPO.id);
 
-        if (deleteError) throw deleteError;
+        if (deleteError) {
+          console.error('Delete items error:', deleteError);
+          throw deleteError;
+        }
 
-        const mappedItems = items.map((item: any) => ({
-          purchase_order_id: selectedPO.id,
-          product_id: item.product_id || null,
-          item_description: item.product_name || item.item_description || '',
-          item_code: item.item_code || null,
-          hsn_sac_code: item.hsn_sac_code || null,
-          quantity: item.quantity || 0,
-          unit_of_measure: item.unit_of_measure || 'PCS',
-          unit_price: item.unit_price || 0,
-          discount_percentage: item.discount_percentage || null,
-          discount_amount: item.discount_amount || null,
-          taxable_value: item.line_subtotal || 0,
-          gst_rate: item.master_gst_rate || item.gst_rate || null,
-          is_taxable: true,
-          cgst_rate: item.cgst_rate || null,
-          cgst_amount: item.cgst_amount || null,
-          sgst_rate: item.sgst_rate || null,
-          sgst_amount: item.sgst_amount || null,
-          igst_rate: item.igst_rate || null,
-          igst_amount: item.igst_amount || null,
-          total_price: item.line_total || 0,
-          pending_quantity: item.quantity || 0,
-          received_quantity: 0,
-          remarks: item.remarks || null,
-        }));
+        console.log('Mapping new items...');
+        const mappedItems = items.map((item: any, index: number) => {
+          const mapped = {
+            purchase_order_id: selectedPO.id,
+            product_id: item.product_id || null,
+            item_description: item.product_name || item.item_description || '',
+            item_code: item.item_code || item.sku || null,
+            hsn_sac_code: item.hsn_sac_code || null,
+            quantity: item.quantity || 0,
+            unit_of_measure: item.unit_of_measure || 'PCS',
+            unit_price: item.unit_price || 0,
+            discount_percentage: item.discount_percentage || null,
+            discount_amount: item.discount_amount || 0,
+            taxable_value: item.line_subtotal || 0,
+            gst_rate: item.master_gst_rate || item.gst_rate || null,
+            is_taxable: true,
+            cgst_rate: item.cgst_rate || null,
+            cgst_amount: item.cgst_amount || 0,
+            sgst_rate: item.sgst_rate || null,
+            sgst_amount: item.sgst_amount || 0,
+            igst_rate: item.igst_rate || null,
+            igst_amount: item.igst_amount || 0,
+            total_price: item.line_total || 0,
+            pending_quantity: item.quantity || 0,
+            received_quantity: 0,
+            remarks: item.remarks || null,
+          };
+          console.log(`Mapped item ${index}:`, mapped);
+          return mapped;
+        });
+        
+        console.log('All mapped items:', mappedItems);
         
         const { error: itemsError } = await supabase
           .from('purchase_order_items')
           .insert(mappedItems);
 
-        if (itemsError) throw itemsError;
+        if (itemsError) {
+          console.error('Insert items error:', itemsError);
+          throw itemsError;
+        }
+        
+        console.log('Items inserted successfully');
       }
 
       toast({
@@ -583,12 +606,12 @@ function PurchaseModuleContent() {
 
       setShowEditPODialog(false);
       setSelectedPO(null);
-      fetchPurchaseOrders();
+      await fetchPurchaseOrders();
     } catch (error) {
       console.error('Error updating purchase order:', error);
       toast({
         title: "Error",
-        description: "Failed to update purchase order",
+        description: `Failed to update purchase order. ${error instanceof Error ? error.message : ''}`,
         variant: "destructive",
       });
     }

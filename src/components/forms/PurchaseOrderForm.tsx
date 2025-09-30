@@ -349,12 +349,23 @@ export function PurchaseOrderForm({
   const handleSubmit = async (data: PurchaseOrderFormData) => {
     setLoading(true);
     try {
+      console.log('Form submission started with data:', data);
+      
       // Calculate totals from form data
       const items = data.items || [];
+      console.log('Items from form:', items);
+      
       const calculatedSubtotal = items.reduce((sum, item) => sum + (item.line_subtotal || 0), 0);
       const calculatedTotalDiscount = items.reduce((sum, item) => sum + (item.discount_amount || 0), 0);
       const calculatedTotalTax = items.reduce((sum, item) => sum + (item.cgst_amount || 0) + (item.sgst_amount || 0) + (item.igst_amount || 0), 0);
       const calculatedTotal = items.reduce((sum, item) => sum + (item.line_total || 0), 0);
+
+      console.log('Calculated totals:', {
+        subtotal: calculatedSubtotal,
+        discount: calculatedTotalDiscount,
+        tax: calculatedTotalTax,
+        total: calculatedTotal
+      });
 
       // Map place_of_supply to company_place_of_supply for database and include calculated totals
       const mappedData = {
@@ -367,7 +378,10 @@ export function PurchaseOrderForm({
       };
       delete mappedData.place_of_supply;
       
+      console.log('Mapped data before submission:', mappedData);
+      
       await onSubmit(mappedData);
+      
       toast({
         title: 'Success',
         description: `Purchase Order ${mode === 'edit' ? 'updated' : 'created'} successfully`,
@@ -378,7 +392,7 @@ export function PurchaseOrderForm({
       console.error('Error submitting form:', error);
       toast({
         title: 'Error',
-        description: `Failed to ${mode === 'edit' ? 'update' : 'create'} Purchase Order`,
+        description: `Failed to ${mode === 'edit' ? 'update' : 'create'} Purchase Order. ${error instanceof Error ? error.message : ''}`,
         variant: 'destructive',
       });
     } finally {
@@ -897,7 +911,7 @@ export function PurchaseOrderForm({
             </Button>
             {!readOnly && (
               <Button type="submit" disabled={loading} className="min-w-[120px]">
-                {loading ? 'Saving...' : mode === 'edit' ? 'Update Order' : 'Create Order'}
+                {loading ? 'Saving...' : mode === 'edit' ? 'Next' : 'Create Order'}
               </Button>
             )}
           </div>
