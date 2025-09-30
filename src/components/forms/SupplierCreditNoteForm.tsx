@@ -239,7 +239,7 @@ export function SupplierCreditNoteForm({ supplierCreditNote, onSubmit, onCancel,
           product_id: item.product_id,
           product_name: item.product_name,
           product_sku: item.product_sku,
-          quantity: item.quantity,
+          quantity: pendingQty, // Available quantity to credit (not original debit note qty)
           credit_note_quantity: 0, // Start with 0, user will input
           pending_quantity: pendingQty, // Actual pending after deducting already credited
           unit_price: item.unit_price,
@@ -294,6 +294,7 @@ export function SupplierCreditNoteForm({ supplierCreditNote, onSubmit, onCancel,
 
     itemsList[index] = {
       ...item,
+      pending_quantity: item.quantity - item.credit_note_quantity, // Recalculate to match DB constraint
       discount_amount: discountAmount,
       cgst_amount: cgstAmount,
       sgst_amount: sgstAmount,
