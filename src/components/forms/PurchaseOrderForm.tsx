@@ -349,6 +349,11 @@ export function PurchaseOrderForm({
   };
 
   const handleSubmit = async (data: PurchaseOrderFormData) => {
+    console.log('🚀 handleSubmit called - Form submission starting');
+    console.log('🚀 Mode:', mode);
+    console.log('🚀 Form data received:', data);
+    console.log('🚀 Form errors:', form.formState.errors);
+    
     setLoading(true);
     try {
       console.log('Form submission started with data:', data);
@@ -456,7 +461,12 @@ export function PurchaseOrderForm({
       </div>
 
       <Form {...form}>
-        <form onSubmit={form.handleSubmit(handleSubmit)} className="flex-1 flex flex-col">
+        <form onSubmit={(e) => {
+          console.log('🔵 Form onSubmit event triggered');
+          console.log('🔵 Form is valid:', form.formState.isValid);
+          console.log('🔵 Form errors:', form.formState.errors);
+          form.handleSubmit(handleSubmit)(e);
+        }} className="flex-1 flex flex-col">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col px-4">
             <TabsList className="grid w-full grid-cols-2 mb-4 bg-muted/30 h-12">
               <TabsTrigger value="order-info" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground flex items-center gap-2">
@@ -968,7 +978,16 @@ export function PurchaseOrderForm({
               Cancel
             </Button>
             {!readOnly && (
-              <Button type="submit" disabled={loading} className="min-w-[120px]">
+              <Button 
+                type="submit" 
+                disabled={loading} 
+                className="min-w-[120px]"
+                onClick={() => {
+                  console.log('🟢 Update Order button clicked');
+                  console.log('🟢 Loading state:', loading);
+                  console.log('🟢 Form state:', form.formState);
+                }}
+              >
                 {loading ? 'Saving...' : mode === 'edit' ? 'Update Order' : 'Create Order'}
               </Button>
             )}
