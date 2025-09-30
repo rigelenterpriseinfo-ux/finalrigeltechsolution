@@ -541,6 +541,10 @@ export function GRNTable({ refreshTrigger, onView, onEdit, onDelete }: GRNTableP
       pdf.setTextColor(70, 130, 180);
       pdf.text('VENDOR DETAILS', 16, yPosition + 5);
       
+      // Add light background for vendor details content
+      pdf.setFillColor(250, 248, 245);
+      pdf.rect(14, yPosition + 8, 90, 35, 'F');
+      
       yPosition += 12;
       pdf.setFontSize(9);
       pdf.setFont('helvetica', 'bold');
@@ -575,6 +579,10 @@ export function GRNTable({ refreshTrigger, onView, onEdit, onDelete }: GRNTableP
       pdf.setTextColor(70, 130, 180);
       pdf.text('SHIP TO / DELIVERY ADDRESS', 112, yPosition + 5);
       
+      // Add light background for ship to details content
+      pdf.setFillColor(250, 248, 245);
+      pdf.rect(110, yPosition + 8, 90, 27, 'F');
+      
       yPosition += 12;
       pdf.setFontSize(9);
       pdf.setFont('helvetica', 'bold');
@@ -594,8 +602,13 @@ export function GRNTable({ refreshTrigger, onView, onEdit, onDelete }: GRNTableP
       yPosition += 5;
       pdf.text(`Place of Supply: ${po.delivery_state || company?.state || 'N/A'}`, 112, yPosition);
 
-      // Order details section
+      // Order details section with background
       yPosition = 113;
+      
+      // Add light background for order details section
+      pdf.setFillColor(250, 248, 245);
+      pdf.rect(14, yPosition, 186, 20, 'F');
+      
       pdf.setFontSize(9);
       
       // Left column details
@@ -617,7 +630,7 @@ export function GRNTable({ refreshTrigger, onView, onEdit, onDelete }: GRNTableP
       pdf.text(po.payment_terms || 'N/A', 50, yPosition);
 
       // Right column details
-      yPosition = 103;
+      yPosition = 113;
       pdf.setFont('helvetica', 'bold');
       pdf.text('Supplier Invoice:', 112, yPosition);
       pdf.setFont('helvetica', 'normal');
