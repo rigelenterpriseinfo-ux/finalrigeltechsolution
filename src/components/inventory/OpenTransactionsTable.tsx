@@ -456,11 +456,18 @@ export const OpenTransactionsTable = ({
       { key: 'status', label: 'Status' },
     ];
 
-    // Build additional metadata with product and location details
+    // Build additional metadata with product, location, and summary details
     const additionalMetadata = [
       `Item: ${productName}`,
       `Warehouse: ${summary.warehouse_name}`,
-      `Bin: ${summary.bin_name} (${summary.bin_code})`
+      `Bin: ${summary.bin_name} (${summary.bin_code})`,
+      `Total Stock on Hand: ${summary.total_stock_on_hand}`,
+      `Available to Pick: ${summary.available_to_pick}`,
+      `Open Sales Order Qty: ${summary.open_sales_order_qty}`,
+      `In Transit Qty: ${summary.in_transit_qty}`,
+      `Return Order Qty: ${summary.return_order_qty}`,
+      `Debit Note Qty: ${summary.debit_note_qty}`,
+      `Back Order Qty: ${summary.backorder_qty}`
     ];
 
     const success = exportToExcel({
