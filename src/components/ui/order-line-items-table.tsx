@@ -448,7 +448,7 @@ export function OrderLineItemsTable({
                       <TableCell className="p-2 text-right">
                         <FormField
                           control={control}
-                          name={`items.${index}.total_price`}
+                          name={`items.${index}.line_total`}
                           render={({ field }) => (
                             <div className="text-sm font-semibold text-foreground bg-primary/5 rounded px-2 py-1.5 min-h-[36px] flex items-center justify-end border border-primary/20">
                               {currency}{(field.value || 0).toFixed(2)}
