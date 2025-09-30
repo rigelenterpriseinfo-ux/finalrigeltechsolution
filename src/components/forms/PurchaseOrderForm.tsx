@@ -100,27 +100,32 @@ export function PurchaseOrderForm({
       return [];
     }
     
-    return purchaseOrderItems.map(item => ({
-      product_id: item.product_id || '',
-      product_name: item.product_name || '',
-      item_code: item.item_code || '',
-      hsn_sac_code: item.hsn_sac_code || '',
-      quantity: item.quantity || 1,
-      unit_of_measure: item.unit_of_measure || 'pcs',
-      unit_price: item.unit_price || 0,
-      discount_percentage: item.discount_percentage || 0,
-      discount_amount: item.discount_amount || 0,
-      cgst_rate: item.cgst_rate || 0,
-      sgst_rate: item.sgst_rate || 0,
-      igst_rate: item.igst_rate || 0,
-      cgst_amount: item.cgst_amount || 0,
-      sgst_amount: item.sgst_amount || 0,
-      igst_amount: item.igst_amount || 0,
-      line_subtotal: item.line_subtotal || 0,
-      line_total: item.line_total || 0,
-      gst_type: item.gst_type || 'intra',
-      master_gst_rate: item.master_gst_rate || 0
-    }));
+    return purchaseOrderItems.map(item => {
+      // Ensure product_name is never empty - critical for validation
+      const productName = item.product_name || item.item_description || 'Unknown Product';
+      
+      return {
+        product_id: item.product_id || '',
+        product_name: productName,
+        item_code: item.item_code || '',
+        hsn_sac_code: item.hsn_sac_code || '',
+        quantity: Number(item.quantity) || 1,
+        unit_of_measure: item.unit_of_measure || 'pcs',
+        unit_price: Number(item.unit_price) || 0,
+        discount_percentage: Number(item.discount_percentage) || 0,
+        discount_amount: Number(item.discount_amount) || 0,
+        cgst_rate: Number(item.cgst_rate) || 0,
+        sgst_rate: Number(item.sgst_rate) || 0,
+        igst_rate: Number(item.igst_rate) || 0,
+        cgst_amount: Number(item.cgst_amount) || 0,
+        sgst_amount: Number(item.sgst_amount) || 0,
+        igst_amount: Number(item.igst_amount) || 0,
+        line_subtotal: Number(item.line_subtotal) || 0,
+        line_total: Number(item.line_total) || 0,
+        gst_type: (item.gst_type || 'intra') as 'intra' | 'inter',
+        master_gst_rate: Number(item.master_gst_rate) || 0
+      };
+    });
   };
 
   const form = useForm<PurchaseOrderFormData>({
@@ -349,34 +354,43 @@ export function PurchaseOrderForm({
   };
 
   const handleSubmit = async (data: PurchaseOrderFormData) => {
-    console.log('🚀 handleSubmit called - Form submission starting');
-    console.log('🚀 Mode:', mode);
-    console.log('🚀 Form data received:', data);
-    console.log('🚀 Form errors:', form.formState.errors);
-    
     setLoading(true);
     try {
-      console.log('Form submission started with data:', data);
+      console.log('✅ Form submission started');
       
-      // Calculate totals from form data
-      const items = data.items || [];
-      console.log('Items from form:', items);
+      // Sanitize items - remove any extra properties not in schema
+      const sanitizedItems = (data.items || []).map(item => ({
+        product_id: item.product_id,
+        product_name: item.product_name || 'Unknown Product',
+        item_code: item.item_code,
+        hsn_sac_code: item.hsn_sac_code,
+        quantity: Number(item.quantity) || 0,
+        unit_of_measure: item.unit_of_measure || 'pcs',
+        unit_price: Number(item.unit_price) || 0,
+        discount_percentage: Number(item.discount_percentage) || 0,
+        discount_amount: Number(item.discount_amount) || 0,
+        cgst_rate: Number(item.cgst_rate) || 0,
+        sgst_rate: Number(item.sgst_rate) || 0,
+        igst_rate: Number(item.igst_rate) || 0,
+        cgst_amount: Number(item.cgst_amount) || 0,
+        sgst_amount: Number(item.sgst_amount) || 0,
+        igst_amount: Number(item.igst_amount) || 0,
+        line_subtotal: Number(item.line_subtotal) || 0,
+        line_total: Number(item.line_total) || 0,
+        gst_type: item.gst_type || 'intra',
+        master_gst_rate: Number(item.master_gst_rate) || 0,
+      }));
       
-      const calculatedSubtotal = items.reduce((sum, item) => sum + (item.line_subtotal || 0), 0);
-      const calculatedTotalDiscount = items.reduce((sum, item) => sum + (item.discount_amount || 0), 0);
-      const calculatedTotalTax = items.reduce((sum, item) => sum + (item.cgst_amount || 0) + (item.sgst_amount || 0) + (item.igst_amount || 0), 0);
-      const calculatedTotal = items.reduce((sum, item) => sum + (item.line_total || 0), 0);
-
-      console.log('Calculated totals:', {
-        subtotal: calculatedSubtotal,
-        discount: calculatedTotalDiscount,
-        tax: calculatedTotalTax,
-        total: calculatedTotal
-      });
+      // Calculate totals from sanitized items
+      const calculatedSubtotal = sanitizedItems.reduce((sum, item) => sum + (item.line_subtotal || 0), 0);
+      const calculatedTotalDiscount = sanitizedItems.reduce((sum, item) => sum + (item.discount_amount || 0), 0);
+      const calculatedTotalTax = sanitizedItems.reduce((sum, item) => sum + (item.cgst_amount || 0) + (item.sgst_amount || 0) + (item.igst_amount || 0), 0);
+      const calculatedTotal = sanitizedItems.reduce((sum, item) => sum + (item.line_total || 0), 0);
 
       // Map place_of_supply to company_place_of_supply for database and include calculated totals
       const mappedData = {
         ...data,
+        items: sanitizedItems,
         company_place_of_supply: data.place_of_supply,
         subtotal_amount: calculatedSubtotal,
         total_discount_amount: calculatedTotalDiscount,
@@ -385,7 +399,7 @@ export function PurchaseOrderForm({
       };
       delete mappedData.place_of_supply;
       
-      console.log('Mapped data before submission:', mappedData);
+      console.log('✅ Submitting order with', sanitizedItems.length, 'items');
       
       await onSubmit(mappedData);
       
@@ -461,12 +475,7 @@ export function PurchaseOrderForm({
       </div>
 
       <Form {...form}>
-        <form onSubmit={(e) => {
-          console.log('🔵 Form onSubmit event triggered');
-          console.log('🔵 Form is valid:', form.formState.isValid);
-          console.log('🔵 Form errors:', form.formState.errors);
-          form.handleSubmit(handleSubmit)(e);
-        }} className="flex-1 flex flex-col">
+        <form onSubmit={form.handleSubmit(handleSubmit)} className="flex-1 flex flex-col">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col px-4">
             <TabsList className="grid w-full grid-cols-2 mb-4 bg-muted/30 h-12">
               <TabsTrigger value="order-info" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground flex items-center gap-2">
@@ -982,11 +991,6 @@ export function PurchaseOrderForm({
                 type="submit" 
                 disabled={loading} 
                 className="min-w-[120px]"
-                onClick={() => {
-                  console.log('🟢 Update Order button clicked');
-                  console.log('🟢 Loading state:', loading);
-                  console.log('🟢 Form state:', form.formState);
-                }}
               >
                 {loading ? 'Saving...' : mode === 'edit' ? 'Update Order' : 'Create Order'}
               </Button>
