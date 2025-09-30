@@ -281,7 +281,6 @@ export function SupplierCreditNoteForm({ supplierCreditNote, onSubmit, onCancel,
 
     itemsList[index] = {
       ...item,
-      pending_quantity: item.quantity - item.credit_note_quantity,
       discount_amount: discountAmount,
       cgst_amount: cgstAmount,
       sgst_amount: sgstAmount,
