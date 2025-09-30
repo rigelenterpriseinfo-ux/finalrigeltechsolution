@@ -616,7 +616,7 @@ export const SupplierTable: React.FC<SupplierTableProps> = ({
               variant="outline"
               size="sm"
               onClick={exportToExcel}
-              className="flex items-center gap-2"
+              className="h-9 px-4 gap-2 rounded-md bg-teal-50 text-teal-700 border border-teal-200 hover:bg-teal-100 font-medium transition-colors"
             >
               <FileSpreadsheet className="h-4 w-4" />
               Export Excel

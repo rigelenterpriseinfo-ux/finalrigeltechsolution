@@ -22,7 +22,8 @@ import {
   Phone,
   Download,
   ChevronDown,
-  ChevronRight as ChevronRightIcon
+  ChevronRight as ChevronRightIcon,
+  FileSpreadsheet
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -433,8 +434,11 @@ export const WarehouseBinTable: React.FC<WarehouseBinTableProps> = ({ refreshTri
             className="pl-10"
           />
         </div>
-        <Button onClick={exportToExcel} variant="outline" size="sm">
-          <Download className="h-4 w-4 mr-2" />
+        <Button 
+          onClick={exportToExcel} 
+          className="h-9 px-4 gap-2 rounded-md bg-teal-50 text-teal-700 border border-teal-200 hover:bg-teal-100 font-medium transition-colors"
+        >
+          <FileSpreadsheet className="h-4 w-4" />
           Export Excel
         </Button>
       </div>

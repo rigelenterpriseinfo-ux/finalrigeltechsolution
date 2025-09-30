@@ -902,7 +902,7 @@ export function GRNTable({ refreshTrigger, onView, onEdit, onDelete }: GRNTableP
                   XLSX.writeFile(wb, `GRNs_${format(new Date(), 'yyyy-MM-dd')}.xlsx`);
                   toast({ title: "Success", description: `Exported ${filteredGRNs.length} GRNs to Excel` });
                 }}
-                className="h-9 px-3 rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 hover:border-emerald-300 transition-all duration-200 shadow-sm"
+                className="h-9 px-4 gap-2 rounded-md bg-teal-50 text-teal-700 border border-teal-200 hover:bg-teal-100 font-medium transition-colors"
               >
                 <FileSpreadsheet className="h-4 w-4" />
                 Export Excel
@@ -1041,7 +1041,7 @@ export function GRNTable({ refreshTrigger, onView, onEdit, onDelete }: GRNTableP
                               variant="ghost"
                               size="sm"
                               onClick={() => exportToExcel(grn)}
-                              className="h-9 px-3 rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 hover:border-emerald-300 transition-all duration-200 shadow-sm"
+                              className="h-9 px-3 rounded-md bg-teal-50 text-teal-700 border border-teal-200 hover:bg-teal-100 transition-colors"
                               title="Export Excel"
                             >
                               <FileSpreadsheet className="h-4 w-4" />
