@@ -179,32 +179,45 @@ export function SupplierCreditNoteForm({ supplierCreditNote, onSubmit, onCancel,
     // Fetch debit note line items
     const debitNoteItems = await fetchDebitNoteItems(debitNoteId);
     
-    // Fetch existing credit notes for this debit note to calculate already credited quantities
+    // Step 1: Fetch existing credit note IDs for this debit note
     const { data: existingCreditNotes, error: creditNotesError } = await supabase
       .from('supplier_credit_notes')
-      .select(`
-        id,
-        supplier_credit_note_items (
-          product_id,
-          credit_note_quantity
-        )
-      `)
+      .select('id')
       .eq('debit_note_id', debitNoteId);
 
     if (creditNotesError) {
       console.error('Error fetching existing credit notes:', creditNotesError);
     }
 
-    // Calculate already credited quantities per product
+    console.log('Existing credit notes for debit note:', existingCreditNotes);
+
+    // Step 2: Fetch all credit note items for those credit notes
     const alreadyCreditedMap = new Map<string, number>();
-    if (existingCreditNotes) {
-      existingCreditNotes.forEach((cn: any) => {
-        cn.supplier_credit_note_items?.forEach((item: any) => {
+    
+    if (existingCreditNotes && existingCreditNotes.length > 0) {
+      const creditNoteIds = existingCreditNotes.map((cn: any) => cn.id);
+      
+      const { data: creditNoteItems, error: itemsError } = await supabase
+        .from('supplier_credit_note_items')
+        .select('product_id, credit_note_quantity')
+        .in('supplier_credit_note_id', creditNoteIds);
+
+      if (itemsError) {
+        console.error('Error fetching credit note items:', itemsError);
+      }
+
+      console.log('Existing credit note items:', creditNoteItems);
+
+      // Calculate already credited quantities per product
+      if (creditNoteItems) {
+        creditNoteItems.forEach((item: any) => {
           const currentCredited = alreadyCreditedMap.get(item.product_id) || 0;
           alreadyCreditedMap.set(item.product_id, currentCredited + (item.credit_note_quantity || 0));
         });
-      });
+      }
     }
+
+    console.log('Already credited map:', Object.fromEntries(alreadyCreditedMap));
     
     // Update form data
     setFormData(prev => ({
