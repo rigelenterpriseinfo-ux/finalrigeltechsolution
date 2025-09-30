@@ -294,7 +294,7 @@ export function SupplierCreditNoteForm({ supplierCreditNote, onSubmit, onCancel,
 
     itemsList[index] = {
       ...item,
-      pending_quantity: item.quantity - item.credit_note_quantity, // Recalculate to match DB constraint
+      // Don't recalculate pending_quantity here - keep initial value for validation
       discount_amount: discountAmount,
       cgst_amount: cgstAmount,
       sgst_amount: sgstAmount,
@@ -379,13 +379,19 @@ export function SupplierCreditNoteForm({ supplierCreditNote, onSubmit, onCancel,
     setLoading(true);
     const totals = calculateTotals();
 
+    // Map items with correct pending_quantity for database (quantity - credit_note_quantity)
+    const itemsForSubmission = items.map(item => ({
+      ...item,
+      pending_quantity: item.quantity - item.credit_note_quantity
+    }));
+
     const creditNoteData = {
       ...formData,
       subtotal_amount: totals.subtotal,
       discount_amount: totals.totalDiscount,
       tax_amount: totals.totalTax,
       total_amount: totals.total,
-      items: items
+      items: itemsForSubmission
     };
 
     await onSubmit(creditNoteData);
