@@ -1086,7 +1086,7 @@ export function GRNForm({ grn, onSubmit, onCancel, readOnly = false, mode }: GRN
                             <TableHeader>
                               <TableRow className="bg-muted/50 border-b">
                                 <TableHead className="text-left font-semibold text-foreground border-r min-w-[180px] text-xs">Product</TableHead>
-                                <TableHead className="text-center font-semibold text-foreground border-r w-[70px] text-xs">Ord Qty</TableHead>
+                                <TableHead className="text-center font-semibold text-foreground border-r w-[100px] text-xs">Ord Qty</TableHead>
                                 <TableHead className="text-center font-semibold text-foreground border-r w-[70px] text-xs">Total Rec</TableHead>
                                 <TableHead className="text-center font-semibold text-foreground border-r w-[70px] text-xs">Pending</TableHead>
                                 <TableHead className="text-center font-semibold text-foreground border-r w-[80px] text-xs">Rec Qty</TableHead>
@@ -1094,7 +1094,6 @@ export function GRNForm({ grn, onSubmit, onCancel, readOnly = false, mode }: GRN
                                 <TableHead className="text-center font-semibold text-foreground border-r w-[80px] text-xs">Rej Qty</TableHead>
                                 <TableHead className="text-center font-semibold text-foreground border-r w-[100px] text-xs">Unit Price</TableHead>
                                 <TableHead className="text-center font-semibold text-foreground border-r w-[65px] text-xs">Disc%</TableHead>
-                                <TableHead className="text-center font-semibold text-foreground border-r w-[80px] text-xs">Disc Value</TableHead>
                                 {shouldShowCGSTSGST && (
                                   <>
                                     <TableHead className="text-center font-semibold text-foreground border-r w-[65px] text-xs">CGST%</TableHead>
@@ -1104,7 +1103,6 @@ export function GRNForm({ grn, onSubmit, onCancel, readOnly = false, mode }: GRN
                                 {shouldShowIGST && (
                                   <TableHead className="text-center font-semibold text-foreground border-r w-[65px] text-xs">IGST%</TableHead>
                                 )}
-                                <TableHead className="text-center font-semibold text-foreground border-r w-[80px] text-xs">GST Value</TableHead>
                                 <TableHead className="text-right font-semibold text-foreground w-[100px] text-xs">Line Total</TableHead>
                               </TableRow>
                             </TableHeader>
@@ -1122,7 +1120,7 @@ export function GRNForm({ grn, onSubmit, onCancel, readOnly = false, mode }: GRN
                                   </TableCell>
                                   
                                   {/* Ordered Qty */}
-                                  <TableCell className="border-r p-1 text-center w-[70px]">
+                                  <TableCell className="border-r p-1 text-center w-[100px]">
                                     <Input
                                       type="number"
                                       value={item.ordered_quantity || 0}
@@ -1267,25 +1265,6 @@ export function GRNForm({ grn, onSubmit, onCancel, readOnly = false, mode }: GRN
                                     />
                                   </TableCell>
 
-                                  {/* Disc Value */}
-                                  <TableCell className="border-r p-1 text-center w-[80px]">
-                                    <Input
-                                      type="number"
-                                      step="0.01"
-                                      min="0"
-                                      value={item.discount_amount || 0}
-                                      onChange={(e) => {
-                                        const amount = parseFloat(e.target.value) || 0;
-                                        form.setValue(`items.${index}.discount_amount`, amount);
-                                        // Clear discount_percentage when amount is set
-                                        form.setValue(`items.${index}.discount_percentage`, 0);
-                                        calculateItemTotals(index);
-                                      }}
-                                      disabled={readOnly}
-                                      className="text-xs text-center h-7 w-full"
-                                    />
-                                  </TableCell>
-
                                   {/* Conditional GST Fields */}
                                   {shouldShowCGSTSGST && (
                                     <>
@@ -1349,13 +1328,6 @@ export function GRNForm({ grn, onSubmit, onCancel, readOnly = false, mode }: GRN
                                     </>
                                   )}
 
-                                  {/* GST Value */}
-                                  <TableCell className="border-r p-1 text-center w-[80px]">
-                                    <div className="text-xs font-medium text-primary">
-                                      ₹{((item.cgst_amount || 0) + (item.sgst_amount || 0) + (item.igst_amount || 0)).toFixed(2)}
-                                    </div>
-                                  </TableCell>
-                                  
                                   {/* Line Total */}
                                   <TableCell className="p-1 text-right w-[100px]">
                                     <div className="text-xs font-bold text-primary">
@@ -1428,6 +1400,18 @@ export function GRNForm({ grn, onSubmit, onCancel, readOnly = false, mode }: GRN
                                 <div className="flex justify-between text-xs">
                                   <span>GRN Date:</span>
                                   <span className="font-medium">{form.watch('grn_date') || 'Not set'}</span>
+                                </div>
+                                <div className="flex justify-between text-xs border-t pt-1 mt-1">
+                                  <span>Total Discount:</span>
+                                  <span className="font-medium text-orange-600">
+                                    ₹{items.reduce((sum, item) => sum + (item.discount_amount || 0), 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                                  </span>
+                                </div>
+                                <div className="flex justify-between text-xs">
+                                  <span>Total GST:</span>
+                                  <span className="font-medium text-blue-600">
+                                    ₹{items.reduce((sum, item) => sum + (item.cgst_amount || 0) + (item.sgst_amount || 0) + (item.igst_amount || 0), 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                                  </span>
                                 </div>
                                 <div className="flex justify-between text-xs border-t pt-2">
                                   <span className="font-semibold">Total Amount:</span>
