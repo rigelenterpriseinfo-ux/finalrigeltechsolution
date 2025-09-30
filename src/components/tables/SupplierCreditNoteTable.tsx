@@ -366,6 +366,20 @@ export function SupplierCreditNoteTable({
 
       if (itemsError) throw itemsError;
 
+      // Fetch debit note details if linked
+      let debitNoteNumber = 'N/A';
+      if (creditNoteDetail.debit_note_id) {
+        const { data: debitNoteData, error: debitNoteError } = await supabase
+          .from('debit_notes')
+          .select('debit_note_number')
+          .eq('id', creditNoteDetail.debit_note_id)
+          .maybeSingle();
+        
+        if (!debitNoteError && debitNoteData) {
+          debitNoteNumber = debitNoteData.debit_note_number;
+        }
+      }
+
       const doc = new jsPDF();
       let yPos = 15;
       
@@ -504,7 +518,7 @@ export function SupplierCreditNoteTable({
       doc.setFont('helvetica', 'normal');
       const reasonText = doc.splitTextToSize(creditNote.reason || 'N/A', 70);
       doc.text(reasonText[0], 45, yPos + 6);
-      doc.text(creditNoteDetail?.debit_note_id || 'N/A', 52, yPos + 12);
+      doc.text(debitNoteNumber, 52, yPos + 12);
       doc.text(creditNote.status.toUpperCase(), 35, yPos + 18);
       
       doc.setFont('helvetica', 'bold');

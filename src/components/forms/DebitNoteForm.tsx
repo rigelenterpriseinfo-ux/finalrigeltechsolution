@@ -203,6 +203,7 @@ export function DebitNoteForm({ debitNote, onSubmit, onCancel, mode }: DebitNote
     setSelectedInvoice(invoice);
     setFormData(prev => ({
       ...prev,
+      supplier_name: invoice.supplier_name,
       grn_id: invoice.grn_id,
       supplier_invoice_number: invoice.supplier_invoice_number,
       supplier_invoice_date: invoice.supplier_invoice_date
