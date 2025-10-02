@@ -224,8 +224,9 @@ export function OrderLineItemsTable({
                                 <Input 
                                   type="text" 
                                   placeholder="HSN/SAC"
+                                  readOnly={true}
                                   className={cn(
-                                    "h-9 w-full text-center text-sm",
+                                    "h-9 w-full text-center text-sm bg-muted/50 cursor-not-allowed",
                                     fieldState.error && "border-destructive focus-visible:ring-destructive"
                                   )}
                                   {...field}
@@ -287,7 +288,7 @@ export function OrderLineItemsTable({
                                   step="0.01" 
                                   min="0" 
                                   className={cn(
-                                    "h-9 w-full text-right text-sm",
+                                    "h-9 w-full text-right text-sm bg-accent/10 border-accent/20",
                                     fieldState.error && "border-destructive focus-visible:ring-destructive"
                                   )}
                                   {...field}
@@ -433,7 +434,7 @@ export function OrderLineItemsTable({
                                   step="0.01" 
                                   min="0" 
                                   max="100"
-                                  className="h-9 w-full text-center text-sm" 
+                                  className="h-9 w-full text-center text-sm bg-accent/10 border-accent/20" 
                                   {...field}
                                   onChange={(e) => {
                                     field.onChange(parseFloat(e.target.value) || 0);
@@ -455,7 +456,7 @@ export function OrderLineItemsTable({
                           name={`items.${index}.discount_amount`}
                           render={({ field }) => (
                             <div className="text-sm font-medium text-muted-foreground bg-muted/20 rounded px-2 py-1.5 min-h-[36px] flex items-center justify-end">
-                              {currency}{(field.value || 0).toFixed(2)}
+                              {currency}{Math.round(field.value || 0)}
                             </div>
                           )}
                         />
@@ -474,7 +475,7 @@ export function OrderLineItemsTable({
                             
                             return (
                               <div className="text-sm font-medium text-muted-foreground bg-muted/20 rounded px-2 py-1.5 min-h-[36px] flex items-center justify-end">
-                                {currency}{totalGstAmount.toFixed(2)}
+                                {currency}{Math.round(totalGstAmount)}
                               </div>
                             );
                           }}
@@ -488,7 +489,7 @@ export function OrderLineItemsTable({
                           name={`items.${index}.total_price`}
                           render={({ field }) => (
                             <div className="text-sm font-semibold text-foreground bg-primary/5 rounded px-2 py-1.5 min-h-[36px] flex items-center justify-end border border-primary/20">
-                              {currency}{(field.value || 0).toFixed(2)}
+                              {currency}{Math.round(field.value || 0)}
                             </div>
                           )}
                         />
