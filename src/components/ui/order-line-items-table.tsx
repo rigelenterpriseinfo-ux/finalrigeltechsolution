@@ -222,14 +222,13 @@ export function OrderLineItemsTable({
                                   min="0" 
                                   step="1"
                                   className="h-9 w-24 text-center text-sm" 
-                                  name={field.name}
-                                  ref={field.ref}
-                                  value={field.value || ''}
+                                  value={field.value ?? ''}
                                   onChange={(e) => {
-                                    const value = parseFloat(e.target.value) || 0;
-                                    field.onChange(value);
+                                    const value = e.target.valueAsNumber;
+                                    field.onChange(isNaN(value) ? 0 : value);
                                     onCalculateLineAmounts(index);
                                   }}
+                                  onBlur={field.onBlur}
                                   disabled={readOnly}
                                 />
                               </FormControl>
