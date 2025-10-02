@@ -398,8 +398,8 @@ export function SalesOrderForm({
     if (product) {
       form.setValue(`items.${index}.product_id`, productId);
       form.setValue(`items.${index}.item_description`, product.name);
-      // Ensure HSN/SAC code is populated from product master
-      const hsnCode = product.hsn_sac_code || '';
+      // Map hsn_code from products table to hsn_sac_code in form
+      const hsnCode = (product as any).hsn_code || '';
       form.setValue(`items.${index}.hsn_sac_code`, hsnCode);
       form.setValue(`items.${index}.unit_price`, product.unit_price || 0);
       form.setValue(`items.${index}.unit_of_measure`, product.unit_of_measure || 'pcs');
