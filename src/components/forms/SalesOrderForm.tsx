@@ -398,9 +398,14 @@ export function SalesOrderForm({
     if (product) {
       form.setValue(`items.${index}.product_id`, productId);
       form.setValue(`items.${index}.item_description`, product.name);
-      form.setValue(`items.${index}.hsn_sac_code`, product.hsn_sac_code || '');
+      // Ensure HSN/SAC code is populated from product master
+      const hsnCode = product.hsn_sac_code || '';
+      form.setValue(`items.${index}.hsn_sac_code`, hsnCode);
       form.setValue(`items.${index}.unit_price`, product.unit_price || 0);
       form.setValue(`items.${index}.unit_of_measure`, product.unit_of_measure || 'pcs');
+
+      // Trigger validation to clear any HSN/SAC errors
+      form.trigger(`items.${index}.hsn_sac_code`);
 
       // Set GST rates based on global GST type
       const masterGST = product.gst_percentage || 0;
@@ -1157,101 +1162,102 @@ export function SalesOrderForm({
                     </CardContent>
                   </Card>
 
-                  {/* Warehouse & Bin Configuration */}
-                  <Card className="shadow-sm border-border/50">
-                    <CardHeader className="pb-3">
-                      <CardTitle className="text-base font-semibold flex items-center gap-2">
-                        <Building className="h-4 w-4 text-primary" />
-                        Warehouse & Bin Configuration
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      <div className="grid grid-cols-1 gap-4">
-                        <FormField
-                          control={form.control}
-                          name="default_warehouse_id"
-                          render={({ field, fieldState }) => (
-                            <FormItem>
-                              <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Default Warehouse *</FormLabel>
-                              <FormControl>
-                                <div className={cn(fieldState.error && "ring-2 ring-destructive rounded-md")}>
-                                  <SearchableCombobox
-                                    value={field.value}
-                                    onSelect={(value) => {
-                                      field.onChange(value);
-                                      // Reset bin selection when warehouse changes
-                                      form.setValue('default_bin_id', '');
-                                      setBins([]);
-                                      // Fetch bins for the new warehouse
-                                      if (value) {
-                                        fetchBins(value);
-                                        // Also fetch updated stock levels
-                                        const binId = form.getValues('default_bin_id');
-                                        fetchStockLevels(value, binId);
-                                      }
-                                    }}
-                                    placeholder="Select warehouse"
-                                    searchPlaceholder="Search warehouses..."
-                                    options={warehouses.map(warehouse => ({
-                                      id: warehouse.id,
-                                      name: warehouse.name,
-                                      subtitle: warehouse.warehouse_code ? `Code: ${warehouse.warehouse_code}` : undefined
-                                    }))}
-                                    disabled={readOnly}
-                                    loading={loading}
-                                    className={cn(fieldState.error && "border-destructive")}
-                                  />
-                                </div>
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-
-                        <FormField
-                          control={form.control}
-                          name="default_bin_id"
-                          render={({ field, fieldState }) => (
-                            <FormItem>
-                              <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Default Bin *</FormLabel>
-                              <FormControl>
-                                <div className={cn(fieldState.error && "ring-2 ring-destructive rounded-md")}>
-                                  <SearchableCombobox
-                                    value={field.value}
-                                    onSelect={(value) => {
-                                      field.onChange(value);
-                                      // Fetch updated stock levels when bin changes
-                                      const warehouseId = form.getValues('default_warehouse_id');
-                                      if (warehouseId && value) {
-                                        fetchStockLevels(warehouseId, value);
-                                      }
-                                    }}
-                                    placeholder="Select bin"
-                                    searchPlaceholder="Search bins..."
-                                    options={bins.map(bin => ({
-                                      id: bin.id,
-                                      name: bin.bin_name,
-                                      subtitle: bin.wh_bin_code ? `Code: ${bin.wh_bin_code}` : undefined
-                                    }))}
-                                    disabled={readOnly || !form.watch('default_warehouse_id')}
-                                    loading={loading}
-                                    className={cn(fieldState.error && "border-destructive")}
-                                  />
-                                </div>
-                              </FormControl>
-                              <FormMessage />
-                              {!form.watch('default_warehouse_id') && (
-                                <p className="text-xs text-muted-foreground">
-                                  Please select a warehouse first
-                                </p>
-                              )}
-                            </FormItem>
-                          )}
-                        />
-                      </div>
-                    </CardContent>
-                  </Card>
                 </div>
+
+                {/* Warehouse & Bin Configuration - Full Width Below */}
+                <Card className="shadow-sm border-border/50">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-base font-semibold flex items-center gap-2">
+                      <Building className="h-4 w-4 text-primary" />
+                      Warehouse & Bin Configuration
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <FormField
+                        control={form.control}
+                        name="default_warehouse_id"
+                        render={({ field, fieldState }) => (
+                          <FormItem>
+                            <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Default Warehouse *</FormLabel>
+                            <FormControl>
+                              <div className={cn(fieldState.error && "ring-2 ring-destructive rounded-md")}>
+                                <SearchableCombobox
+                                  value={field.value}
+                                  onSelect={(value) => {
+                                    field.onChange(value);
+                                    // Reset bin selection when warehouse changes
+                                    form.setValue('default_bin_id', '');
+                                    setBins([]);
+                                    // Fetch bins for the new warehouse
+                                    if (value) {
+                                      fetchBins(value);
+                                      // Also fetch updated stock levels
+                                      const binId = form.getValues('default_bin_id');
+                                      fetchStockLevels(value, binId);
+                                    }
+                                  }}
+                                  placeholder="Select warehouse"
+                                  searchPlaceholder="Search warehouses..."
+                                  options={warehouses.map(warehouse => ({
+                                    id: warehouse.id,
+                                    name: warehouse.name,
+                                    subtitle: warehouse.warehouse_code ? `Code: ${warehouse.warehouse_code}` : undefined
+                                  }))}
+                                  disabled={readOnly}
+                                  loading={loading}
+                                  className={cn(fieldState.error && "border-destructive")}
+                                />
+                              </div>
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name="default_bin_id"
+                        render={({ field, fieldState }) => (
+                          <FormItem>
+                            <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Default Bin *</FormLabel>
+                            <FormControl>
+                              <div className={cn(fieldState.error && "ring-2 ring-destructive rounded-md")}>
+                                <SearchableCombobox
+                                  value={field.value}
+                                  onSelect={(value) => {
+                                    field.onChange(value);
+                                    // Fetch updated stock levels when bin changes
+                                    const warehouseId = form.getValues('default_warehouse_id');
+                                    if (warehouseId && value) {
+                                      fetchStockLevels(warehouseId, value);
+                                    }
+                                  }}
+                                  placeholder="Select bin"
+                                  searchPlaceholder="Search bins..."
+                                  options={bins.map(bin => ({
+                                    id: bin.id,
+                                    name: bin.bin_name,
+                                    subtitle: bin.wh_bin_code ? `Code: ${bin.wh_bin_code}` : undefined
+                                  }))}
+                                  disabled={readOnly || !form.watch('default_warehouse_id')}
+                                  loading={loading}
+                                  className={cn(fieldState.error && "border-destructive")}
+                                />
+                              </div>
+                            </FormControl>
+                            <FormMessage />
+                            {!form.watch('default_warehouse_id') && (
+                              <p className="text-xs text-muted-foreground">
+                                Please select a warehouse first
+                              </p>
+                            )}
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                  </CardContent>
+                </Card>
               </TabsContent>
 
               {/* Items & Summary Tab */}
