@@ -368,6 +368,16 @@ export function SalesOrderForm({
     if (type === 'sgst') newSGST = rate;
     if (type === 'igst') newIGST = rate;
 
+    // Check mutual exclusivity: Cannot have both Intra-State and Inter-State taxes
+    if ((newCGST > 0 || newSGST > 0) && newIGST > 0) {
+      toast({
+        title: 'Invalid GST Configuration',
+        description: 'Cannot have both Intra-State (CGST/SGST) and Inter-State (IGST) taxes',
+        variant: 'destructive',
+      });
+      return false;
+    }
+
     const totalAppliedGST = globalGstType === 'intra' ? newCGST + newSGST : newIGST;
 
     if (masterGST > 0 && totalAppliedGST !== masterGST) {
@@ -600,6 +610,11 @@ export function SalesOrderForm({
     const totalTax = items.reduce((sum, item) => sum + (item.tax_amount || 0), 0);
     const total = items.reduce((sum, item) => sum + (item.total_price || 0), 0);
 
+    // Calculate GST breakdown totals
+    const totalCGST = items.reduce((sum, item) => sum + (item.cgst_amount || 0), 0);
+    const totalSGST = items.reduce((sum, item) => sum + (item.sgst_amount || 0), 0);
+    const totalIGST = items.reduce((sum, item) => sum + (item.igst_amount || 0), 0);
+
     // Calculate enhanced totals
     const totalOrderQty = items.reduce((sum, item) => sum + (item.ordered_quantity || 0), 0);
     const totalOrderValue = total;
@@ -629,6 +644,7 @@ export function SalesOrderForm({
     
     return { 
       subtotal, totalDiscount, totalTax, total,
+      totalCGST, totalSGST, totalIGST,
       totalOrderQty, totalOrderValue,
       readyToDeliverQty, readyToDeliverValue,
       backOrderQty, backOrderValue: Math.max(0, backOrderValue)
@@ -1164,6 +1180,27 @@ export function SalesOrderForm({
                         <p className="text-lg font-bold text-primary">₹{total.toFixed(2)}</p>
                       </div>
                     </div>
+
+                    {/* GST Breakdown */}
+                    {globalGstType === 'intra' && (calculateTotals().totalCGST > 0 || calculateTotals().totalSGST > 0) && (
+                      <div className="grid grid-cols-2 gap-3 mb-4">
+                        <div className="text-center p-2 bg-blue-50 dark:bg-blue-950/20 rounded border border-blue-200 dark:border-blue-800">
+                          <Label className="text-xs text-muted-foreground">CGST Total</Label>
+                          <p className="text-sm font-semibold text-blue-700 dark:text-blue-300">₹{calculateTotals().totalCGST.toFixed(2)}</p>
+                        </div>
+                        <div className="text-center p-2 bg-blue-50 dark:bg-blue-950/20 rounded border border-blue-200 dark:border-blue-800">
+                          <Label className="text-xs text-muted-foreground">SGST Total</Label>
+                          <p className="text-sm font-semibold text-blue-700 dark:text-blue-300">₹{calculateTotals().totalSGST.toFixed(2)}</p>
+                        </div>
+                      </div>
+                    )}
+
+                    {globalGstType === 'inter' && calculateTotals().totalIGST > 0 && (
+                      <div className="text-center p-2 bg-blue-50 dark:bg-blue-950/20 rounded border border-blue-200 dark:border-blue-800 mb-4">
+                        <Label className="text-xs text-muted-foreground">IGST Total</Label>
+                        <p className="text-sm font-semibold text-blue-700 dark:text-blue-300">₹{calculateTotals().totalIGST.toFixed(2)}</p>
+                      </div>
+                    )}
 
                     <Separator className="my-3" />
 
