@@ -222,9 +222,12 @@ export function OrderLineItemsTable({
                                   min="0" 
                                   step="1"
                                   className="h-9 w-24 text-center text-sm" 
-                                  {...field}
+                                  name={field.name}
+                                  ref={field.ref}
+                                  value={field.value || ''}
                                   onChange={(e) => {
-                                    field.onChange(parseFloat(e.target.value) || 0);
+                                    const value = parseFloat(e.target.value) || 0;
+                                    field.onChange(value);
                                     onCalculateLineAmounts(index);
                                   }}
                                   disabled={readOnly}
