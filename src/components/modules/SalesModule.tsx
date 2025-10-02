@@ -235,6 +235,11 @@ export default function SalesModule() {
     setShowCustomerDialog(true);
   };
 
+  const handleViewCustomer = (customer: any) => {
+    setEditingCustomer(customer);
+    setShowCustomerDialog(true);
+  };
+
   const handleDeleteCustomer = async (customer: any) => {
     if (!company?.id) return;
     if (!canEdit) {
@@ -884,8 +889,7 @@ export default function SalesModule() {
 
         {/* Customers Tab */}
         <TabsContent value="customers" className="space-y-4">
-          <div className="flex justify-between items-center">
-            <h3 className="text-lg font-medium">Customer Management</h3>
+          <div className="flex justify-end items-center">
             <Button onClick={handleOpenCustomerDialog} disabled={!canEdit}>
               <Plus className="h-4 w-4 mr-2" />
               Add Customer
@@ -893,20 +897,9 @@ export default function SalesModule() {
           </div>
           <CustomerTable
             customers={customers}
-            onEdit={(customer) => { 
-              if (!canEdit) { 
-                toast({ title: 'Permission denied', description: "You don't have edit access to Sales.", variant: 'destructive' }); 
-                return; 
-              } 
-              handleEditCustomer(customer);
-            }}
-            onDelete={(customer) => { 
-              if (!canEdit) { 
-                toast({ title: 'Permission denied', description: "You don't have edit access to Sales.", variant: 'destructive' }); 
-                return; 
-              } 
-              handleDeleteCustomer(customer);
-            }}
+            onEdit={handleEditCustomer}
+            onView={handleViewCustomer}
+            onDelete={handleDeleteCustomer}
             loading={loading}
           />
         </TabsContent>
