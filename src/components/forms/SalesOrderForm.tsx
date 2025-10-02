@@ -756,7 +756,7 @@ export function SalesOrderForm({
                           name="customer_id"
                           render={({ field, fieldState }) => (
                             <FormItem>
-                              <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Customer</FormLabel>
+                              <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Customer *</FormLabel>
                               <FormControl>
                                 <div className={cn(fieldState.error && "ring-2 ring-destructive rounded-md")}>
                                   <SearchableCombobox
@@ -786,7 +786,7 @@ export function SalesOrderForm({
                             name="order_date"
                             render={({ field, fieldState }) => (
                               <FormItem>
-                                <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Order Date</FormLabel>
+                                <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Order Date *</FormLabel>
                                 <FormControl>
                                   <Input 
                                     type="date" 
@@ -808,7 +808,7 @@ export function SalesOrderForm({
                             name="expected_delivery_date"
                             render={({ field, fieldState }) => (
                               <FormItem>
-                                <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Expected Delivery</FormLabel>
+                                <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Expected Delivery *</FormLabel>
                                 <FormControl>
                                   <Input 
                                     type="date" 
@@ -830,12 +830,15 @@ export function SalesOrderForm({
                           <FormField
                             control={form.control}
                             name="currency"
-                            render={({ field }) => (
+                            render={({ field, fieldState }) => (
                               <FormItem>
-                                <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Currency</FormLabel>
+                                <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Currency *</FormLabel>
                                 <Select value={field.value} onValueChange={field.onChange} disabled={readOnly}>
                                   <FormControl>
-                                    <SelectTrigger className="h-9">
+                                    <SelectTrigger className={cn(
+                                      "h-9",
+                                      fieldState.error && "border-destructive focus-visible:ring-destructive"
+                                    )}>
                                       <SelectValue placeholder="Select currency" />
                                     </SelectTrigger>
                                   </FormControl>
@@ -853,12 +856,15 @@ export function SalesOrderForm({
                           <FormField
                             control={form.control}
                             name="status"
-                            render={({ field }) => (
+                            render={({ field, fieldState }) => (
                               <FormItem>
-                                <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Status</FormLabel>
+                                <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Status *</FormLabel>
                                 <Select value={field.value} onValueChange={field.onChange} disabled={readOnly}>
                                   <FormControl>
-                                    <SelectTrigger className="h-9">
+                                    <SelectTrigger className={cn(
+                                      "h-9",
+                                      fieldState.error && "border-destructive focus-visible:ring-destructive"
+                                    )}>
                                       <SelectValue placeholder="Select status" />
                                     </SelectTrigger>
                                   </FormControl>
@@ -882,7 +888,7 @@ export function SalesOrderForm({
                           name="customer_po_number"
                           render={({ field, fieldState }) => (
                             <FormItem>
-                              <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Customer PO Number</FormLabel>
+                              <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Customer PO Number *</FormLabel>
                               <FormControl>
                                 <Input 
                                   placeholder="Customer purchase order number" 
@@ -901,10 +907,61 @@ export function SalesOrderForm({
 
                         <FormField
                           control={form.control}
+                          name="payment_terms"
+                          render={({ field, fieldState }) => (
+                            <FormItem>
+                              <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Payment Terms *</FormLabel>
+                              <FormControl>
+                                <Input 
+                                  placeholder="e.g., Net 30, Net 60, Due on Receipt" 
+                                  {...field} 
+                                  disabled={readOnly} 
+                                  className={cn(
+                                    "h-9",
+                                    fieldState.error && "border-destructive focus-visible:ring-destructive"
+                                  )}
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+
+                        <FormField
+                          control={form.control}
+                          name="mode_of_transport"
+                          render={({ field, fieldState }) => (
+                            <FormItem>
+                              <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Mode of Transport *</FormLabel>
+                              <Select value={field.value} onValueChange={field.onChange} disabled={readOnly}>
+                                <FormControl>
+                                  <SelectTrigger className={cn(
+                                    "h-9",
+                                    fieldState.error && "border-destructive focus-visible:ring-destructive"
+                                  )}>
+                                    <SelectValue placeholder="Select mode of transport" />
+                                  </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                  <SelectItem value="courier">Courier</SelectItem>
+                                  <SelectItem value="air">Air</SelectItem>
+                                  <SelectItem value="sea">Sea</SelectItem>
+                                  <SelectItem value="road">Road</SelectItem>
+                                  <SelectItem value="rail">Rail</SelectItem>
+                                  <SelectItem value="hand_delivery">Hand Delivery</SelectItem>
+                                </SelectContent>
+                              </Select>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+
+                        <FormField
+                          control={form.control}
                           name="place_of_supply"
                           render={({ field, fieldState }) => (
                             <FormItem>
-                              <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Place of Supply</FormLabel>
+                              <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Place of Supply *</FormLabel>
                               <FormControl>
                                 <Input 
                                   placeholder="Place of supply" 
@@ -970,17 +1027,21 @@ export function SalesOrderForm({
                         <FormField
                           control={form.control}
                           name="delivery_address_line1"
-                          render={({ field }) => (
+                          render={({ field, fieldState }) => (
                             <FormItem>
-                              <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Address Line 1</FormLabel>
+                              <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Address Line 1 *</FormLabel>
                               <FormControl>
                                 <Input 
                                   placeholder="Street address" 
                                   {...field} 
                                   disabled={readOnly || form.watch('same_as_registered_address')} 
-                                  className="h-9" 
+                                  className={cn(
+                                    "h-9",
+                                    fieldState.error && "border-destructive focus-visible:ring-destructive"
+                                  )}
                                 />
                               </FormControl>
+                              <FormMessage />
                             </FormItem>
                           )}
                         />
@@ -1007,17 +1068,21 @@ export function SalesOrderForm({
                           <FormField
                             control={form.control}
                             name="delivery_city"
-                            render={({ field }) => (
+                            render={({ field, fieldState }) => (
                               <FormItem>
-                                <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">City</FormLabel>
+                                <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">City *</FormLabel>
                                 <FormControl>
                                   <Input 
                                     placeholder="City" 
                                     {...field} 
                                     disabled={readOnly || form.watch('same_as_registered_address')} 
-                                    className="h-9" 
+                                    className={cn(
+                                      "h-9",
+                                      fieldState.error && "border-destructive focus-visible:ring-destructive"
+                                    )}
                                   />
                                 </FormControl>
+                                <FormMessage />
                               </FormItem>
                             )}
                           />
@@ -1025,17 +1090,21 @@ export function SalesOrderForm({
                           <FormField
                             control={form.control}
                             name="delivery_state"
-                            render={({ field }) => (
+                            render={({ field, fieldState }) => (
                               <FormItem>
-                                <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">State</FormLabel>
+                                <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">State *</FormLabel>
                                 <FormControl>
                                   <Input 
                                     placeholder="State" 
                                     {...field} 
                                     disabled={readOnly || form.watch('same_as_registered_address')} 
-                                    className="h-9" 
+                                    className={cn(
+                                      "h-9",
+                                      fieldState.error && "border-destructive focus-visible:ring-destructive"
+                                    )}
                                   />
                                 </FormControl>
+                                <FormMessage />
                               </FormItem>
                             )}
                           />
@@ -1044,17 +1113,21 @@ export function SalesOrderForm({
                         <FormField
                           control={form.control}
                           name="delivery_country"
-                          render={({ field }) => (
+                          render={({ field, fieldState }) => (
                             <FormItem>
-                              <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Country</FormLabel>
+                              <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Country *</FormLabel>
                               <FormControl>
                                 <Input 
                                   placeholder="Country" 
                                   {...field} 
                                   disabled={readOnly || form.watch('same_as_registered_address')} 
-                                  className="h-9" 
+                                  className={cn(
+                                    "h-9",
+                                    fieldState.error && "border-destructive focus-visible:ring-destructive"
+                                  )}
                                 />
                               </FormControl>
+                              <FormMessage />
                             </FormItem>
                           )}
                         />
@@ -1062,17 +1135,21 @@ export function SalesOrderForm({
                         <FormField
                           control={form.control}
                           name="delivery_postal_code"
-                          render={({ field }) => (
+                          render={({ field, fieldState }) => (
                             <FormItem>
-                              <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Postal Code</FormLabel>
+                              <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Postal Code *</FormLabel>
                               <FormControl>
                                 <Input 
                                   placeholder="PIN Code" 
                                   {...field} 
                                   disabled={readOnly || form.watch('same_as_registered_address')} 
-                                  className="h-9" 
+                                  className={cn(
+                                    "h-9",
+                                    fieldState.error && "border-destructive focus-visible:ring-destructive"
+                                  )}
                                 />
                               </FormControl>
+                              <FormMessage />
                             </FormItem>
                           )}
                         />
@@ -1095,7 +1172,7 @@ export function SalesOrderForm({
                           name="default_warehouse_id"
                           render={({ field, fieldState }) => (
                             <FormItem>
-                              <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Default Warehouse</FormLabel>
+                              <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Default Warehouse *</FormLabel>
                               <FormControl>
                                 <div className={cn(fieldState.error && "ring-2 ring-destructive rounded-md")}>
                                   <SearchableCombobox
@@ -1136,7 +1213,7 @@ export function SalesOrderForm({
                           name="default_bin_id"
                           render={({ field, fieldState }) => (
                             <FormItem>
-                              <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Default Bin</FormLabel>
+                              <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Default Bin *</FormLabel>
                               <FormControl>
                                 <div className={cn(fieldState.error && "ring-2 ring-destructive rounded-md")}>
                                   <SearchableCombobox

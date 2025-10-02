@@ -144,9 +144,10 @@ export function OrderLineItemsTable({
           <Table>
             <TableHeader className="bg-muted/30">
               <TableRow className="hover:bg-muted/30">
-                <TableHead className="w-[250px] font-semibold text-sm">Product</TableHead>
-                <TableHead className="w-[80px] text-center font-semibold text-sm">Qty</TableHead>
-                <TableHead className="w-[100px] text-center font-semibold text-sm">Unit Price</TableHead>
+                <TableHead className="w-[250px] font-semibold text-sm">Product *</TableHead>
+                <TableHead className="w-[100px] text-center font-semibold text-sm">HSN/SAC *</TableHead>
+                <TableHead className="w-[80px] text-center font-semibold text-sm">Qty *</TableHead>
+                <TableHead className="w-[100px] text-center font-semibold text-sm">Unit Price *</TableHead>
                 
                 {globalGstType === 'intra' ? (
                   <>
@@ -170,7 +171,7 @@ export function OrderLineItemsTable({
               {fields.length === 0 ? (
                 <TableRow>
                   <TableCell 
-                    colSpan={globalGstType === 'intra' ? (readOnly ? 9 : 10) : (readOnly ? 8 : 9)} 
+                    colSpan={globalGstType === 'intra' ? (readOnly ? 10 : 11) : (readOnly ? 9 : 10)} 
                     className="text-center py-8 text-muted-foreground"
                   >
                     No items added yet. Click "Add Item" to get started.
@@ -205,6 +206,31 @@ export function OrderLineItemsTable({
                                     )}
                                   />
                                 </div>
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </TableCell>
+
+                      {/* HSN/SAC Code */}
+                      <TableCell className="p-2">
+                        <FormField
+                          control={control}
+                          name={`items.${index}.hsn_sac_code`}
+                          render={({ field, fieldState }) => (
+                            <FormItem>
+                              <FormControl>
+                                <Input 
+                                  type="text" 
+                                  placeholder="HSN/SAC"
+                                  className={cn(
+                                    "h-9 w-full text-center text-sm",
+                                    fieldState.error && "border-destructive focus-visible:ring-destructive"
+                                  )}
+                                  {...field}
+                                  disabled={readOnly}
+                                />
                               </FormControl>
                               <FormMessage />
                             </FormItem>
