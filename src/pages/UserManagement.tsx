@@ -638,7 +638,7 @@ const UserManagement = () => {
       }
       >
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-2 bg-background border rounded-lg p-1">
+          <TabsList className="grid w-full grid-cols-2 bg-background border rounded-lg p-1 border-b border-border">
             <TabsTrigger 
               value="users" 
               className="flex items-center gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground transition-all duration-200"

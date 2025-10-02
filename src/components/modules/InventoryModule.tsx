@@ -1104,7 +1104,7 @@ export function InventoryModule() {
       </div>
 
       <Tabs defaultValue="products" className="w-full">
-         <TabsList className="grid w-full grid-cols-6">
+         <TabsList className="grid w-full grid-cols-6 border-b border-border">
           <TabsTrigger 
             value="products" 
             className="data-[state=active]:bg-green-500 data-[state=active]:text-white"

@@ -872,7 +872,7 @@ export default function SalesModule() {
       </div>
 
       <Tabs defaultValue="customers" className="w-full">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-4 border-b border-border">
           <TabsTrigger value="customers">Customers</TabsTrigger>
           <TabsTrigger value="sales-orders">Sales Orders</TabsTrigger>
           <TabsTrigger value="invoices">Sales Invoices</TabsTrigger>

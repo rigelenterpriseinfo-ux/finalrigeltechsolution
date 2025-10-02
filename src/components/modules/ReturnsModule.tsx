@@ -919,7 +919,7 @@ function ReturnsModuleContent() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid w-full grid-cols-2">
+        <TabsList className="grid w-full grid-cols-2 border-b border-border">
           <TabsTrigger value="returns">Return Sales Orders</TabsTrigger>
           <TabsTrigger value="credit-notes">Credit Notes</TabsTrigger>
         </TabsList>
