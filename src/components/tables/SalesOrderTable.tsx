@@ -249,26 +249,26 @@ export const SalesOrderTable: React.FC<SalesOrderTableProps> = ({
 
   return (
     <Card>
-      <CardHeader>
+      <CardHeader className="border-b border-border">
         <div className="flex justify-between items-center">
           <CardTitle>Sales Orders</CardTitle>
-          <div className="flex items-center space-x-2">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-              <Input
-                placeholder="Search by order no, customer, PO number, status..."
-                value={searchTerm}
-                onChange={(e) => {
-                  setSearchTerm(e.target.value);
-                  setCurrentPage(1); // Reset to first page when searching
-                }}
-                className="pl-10 w-80"
-              />
-            </div>
-          </div>
         </div>
       </CardHeader>
       <CardContent>
+        <div className="mb-4">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+            <Input
+              placeholder="Search by order no, customer, PO number, status..."
+              value={searchTerm}
+              onChange={(e) => {
+                setSearchTerm(e.target.value);
+                setCurrentPage(1); // Reset to first page when searching
+              }}
+              className="pl-10 w-80"
+            />
+          </div>
+        </div>
         {loading ? (
           <div className="flex items-center justify-center p-8">
             <div className="text-muted-foreground">Loading sales orders...</div>

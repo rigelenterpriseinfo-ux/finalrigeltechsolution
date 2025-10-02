@@ -9,6 +9,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -304,9 +305,13 @@ export const InventoryAdjustmentTable: React.FC<InventoryAdjustmentTableProps> =
   }
 
   return (
-    <div className="w-full space-y-4">
-      {/* Enhanced Filters and Actions */}
-      <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+    <Card>
+      <CardHeader className="border-b border-border">
+        <CardTitle>Inventory Adjustments</CardTitle>
+      </CardHeader>
+      <CardContent className="w-full space-y-4">
+        {/* Enhanced Filters and Actions */}
+        <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
           <Input
@@ -510,6 +515,7 @@ export const InventoryAdjustmentTable: React.FC<InventoryAdjustmentTableProps> =
         onOpenChange={setShowViewDialog}
         adjustment={viewingAdjustment}
       />
-    </div>
+    </CardContent>
+    </Card>
   );
 };

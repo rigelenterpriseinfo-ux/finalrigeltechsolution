@@ -124,26 +124,26 @@ export const CustomerTable: React.FC<CustomerTableProps> = ({
 
   return (
     <Card>
-      <CardHeader>
+      <CardHeader className="border-b border-border">
         <div className="flex justify-between items-center">
-          <CardTitle>Customers</CardTitle>
-          <div className="flex items-center space-x-2">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-              <Input
-                placeholder="Search customers..."
-                value={searchTerm}
-                onChange={(e) => {
-                  setSearchTerm(e.target.value);
-                  setCurrentPage(1); // Reset to first page when searching
-                }}
-                className="pl-10 w-80"
-              />
-            </div>
-          </div>
+          <CardTitle>Customer Management</CardTitle>
         </div>
       </CardHeader>
       <CardContent>
+        <div className="mb-4">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+            <Input
+              placeholder="Search customers..."
+              value={searchTerm}
+              onChange={(e) => {
+                setSearchTerm(e.target.value);
+                setCurrentPage(1); // Reset to first page when searching
+              }}
+              className="pl-10 w-80"
+            />
+          </div>
+        </div>
         {loading ? (
           <div className="flex items-center justify-center p-8">
             <div className="text-muted-foreground">Loading customers...</div>

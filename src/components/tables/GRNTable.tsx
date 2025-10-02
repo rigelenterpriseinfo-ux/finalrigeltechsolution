@@ -867,6 +867,9 @@ export function GRNTable({ refreshTrigger, onView, onEdit, onDelete }: GRNTableP
 
   return (
     <Card>
+      <CardHeader className="border-b border-border">
+        <CardTitle>Goods Receipt Notes (GRN)</CardTitle>
+      </CardHeader>
       <CardContent>
         {/* Search and Export Controls */}
         <div className="p-4 sm:p-6 border-b bg-gradient-to-r from-blue-50 to-blue-100">

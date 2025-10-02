@@ -422,9 +422,13 @@ export const WarehouseBinTable: React.FC<WarehouseBinTableProps> = ({ refreshTri
   }
 
   return (
-    <div className="space-y-6">
-      {/* Search and Export Controls */}
-      <div className="flex items-center justify-between gap-4">
+    <Card>
+      <CardHeader className="border-b border-border">
+        <CardTitle>Warehouse & BIN Locations</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-6">
+        {/* Search and Export Controls */}
+        <div className="flex items-center justify-between gap-4">
         <div className="relative flex-1 max-w-sm">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
@@ -738,6 +742,7 @@ export const WarehouseBinTable: React.FC<WarehouseBinTableProps> = ({ refreshTri
         onOpenChange={setShowViewDialog}
         bin={viewingBin}
       />
-    </div>
+    </CardContent>
+    </Card>
   );
 }

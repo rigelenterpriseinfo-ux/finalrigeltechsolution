@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Edit, Trash2, Eye, Search, Filter, FileSpreadsheet, FileText } from 'lucide-react';
 import { format } from 'date-fns';
@@ -208,9 +209,13 @@ export const SalesInvoiceTable: React.FC<SalesInvoiceTableProps> = ({
   }
 
   return (
-    <div className="space-y-4">
-      {/* Filters */}
-      <div className="flex flex-col sm:flex-row gap-4">
+    <Card>
+      <CardHeader className="border-b border-border">
+        <CardTitle>Sales Invoices</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {/* Filters */}
+        <div className="flex flex-col sm:flex-row gap-4">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
           <Input
@@ -236,15 +241,15 @@ export const SalesInvoiceTable: React.FC<SalesInvoiceTableProps> = ({
         </div>
       </div>
 
-      {/* Table */}
-      {filteredInvoices.length === 0 ? (
-        <div className="text-center py-8 text-gray-500">
-          {searchTerm || statusFilter !== 'all' 
-            ? 'No invoices found matching your filters.' 
-            : 'No sales invoices found. Create your first invoice!'}
-        </div>
-      ) : (
-        <div className="rounded-md border">
+        {/* Table */}
+        {filteredInvoices.length === 0 ? (
+          <div className="text-center py-8 text-gray-500">
+            {searchTerm || statusFilter !== 'all' 
+              ? 'No invoices found matching your filters.' 
+              : 'No sales invoices found. Create your first invoice!'}
+          </div>
+        ) : (
+          <div className="rounded-md border">
           <Table>
             <TableHeader>
               <TableRow className="bg-gradient-to-r from-slate-50 to-slate-100 border-b-2 border-slate-200 hover:from-slate-50 hover:to-slate-100">
@@ -363,8 +368,9 @@ export const SalesInvoiceTable: React.FC<SalesInvoiceTableProps> = ({
               ))}
             </TableBody>
           </Table>
-        </div>
-      )}
-    </div>
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 };
