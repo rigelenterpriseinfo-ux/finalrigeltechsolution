@@ -426,7 +426,7 @@ export const CustomerTable: React.FC<CustomerTableProps> = ({
   return (
     <TooltipProvider>
       <Card>
-        <CardHeader className="border-b border-border">
+        <CardHeader className="border-b border-border animate-in fade-in-0 slide-in-from-top-2 duration-300 bg-primary/5">
           <div className="flex justify-between items-center">
             <CardTitle>Customers</CardTitle>
           </div>

@@ -210,7 +210,7 @@ export const SalesInvoiceTable: React.FC<SalesInvoiceTableProps> = ({
 
   return (
     <Card>
-      <CardHeader className="border-b border-border">
+      <CardHeader className="border-b border-border animate-in fade-in-0 slide-in-from-top-2 duration-300 bg-primary/5">
         <CardTitle>Sales Invoices</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
