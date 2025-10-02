@@ -215,7 +215,7 @@ export function PurchaseInvoiceTable({
 
       {/* Filters and Controls */}
       <Card>
-        <CardHeader>
+        <CardHeader className="border-b border-border">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <CardTitle className="flex items-center gap-2">
               <FileText className="h-5 w-5" />

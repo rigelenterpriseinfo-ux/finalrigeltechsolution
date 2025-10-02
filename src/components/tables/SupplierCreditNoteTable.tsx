@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Edit, Eye, Trash2, Search, FileSpreadsheet, FileText, ArrowUpDown, ArrowUp, ArrowDown, ChevronLeft, ChevronRight, PackageOpen } from "lucide-react";
@@ -712,6 +712,9 @@ export function SupplierCreditNoteTable({
 
   return (
     <Card>
+      <CardHeader className="border-b border-border px-6 py-4">
+        <CardTitle>Supplier Credit Notes</CardTitle>
+      </CardHeader>
       <CardContent className="p-0">
         {/* Search and Export Controls */}
         <div className="p-4 sm:p-6 border-b bg-gradient-to-r from-blue-50 to-blue-100">

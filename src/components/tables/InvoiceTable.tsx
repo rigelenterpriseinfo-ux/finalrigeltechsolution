@@ -4,6 +4,7 @@ import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, Tabl
 import { Button } from '@/components/ui/button';
 import { Search, Edit, Trash2, ChevronUp, ChevronDown } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 interface Invoice {
   id: string;
@@ -78,92 +79,99 @@ export default function InvoiceTable({ invoices, onEdit, onDelete }: InvoiceTabl
   );
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center space-x-2">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-          <Input
-            placeholder="Search sales invoices..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10"
-          />
-        </div>
-      </div>
+    <Card>
+      <CardHeader className="border-b border-border px-6 py-4">
+        <CardTitle>Sales Invoices</CardTitle>
+      </CardHeader>
+      <CardContent className="pt-6">
+        <div className="space-y-4">
+          <div className="flex items-center space-x-2">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+              <Input
+                placeholder="Search sales invoices..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+          </div>
 
-      {filteredAndSortedInvoices.length === 0 ? (
-        <div className="text-center py-8 text-gray-500">
-          {searchTerm ? 'No sales invoices found matching your search.' : 'No sales invoices found. Create your first sales invoice to get started.'}
+          {filteredAndSortedInvoices.length === 0 ? (
+            <div className="text-center py-8 text-gray-500">
+              {searchTerm ? 'No sales invoices found matching your search.' : 'No sales invoices found. Create your first sales invoice to get started.'}
+            </div>
+          ) : (
+            <div className="rounded-md border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <SortableHeader column="performa_invoice_number">Invoice #</SortableHeader>
+                    <SortableHeader column="customer_name">Customer</SortableHeader>
+                    <SortableHeader column="performa_invoice_date">Date</SortableHeader>
+                    <SortableHeader column="total_amount">Amount</SortableHeader>
+                    <SortableHeader column="status">Status</SortableHeader>
+                    <SortableHeader column="place_of_supply">Place of Supply</SortableHeader>
+                    <TableHead>Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredAndSortedInvoices.map((invoice) => (
+                    <TableRow key={invoice.id}>
+                      <TableCell className="font-medium">
+                        {invoice.performa_invoice_number || (
+                          <span className="text-gray-400 italic">Draft</span>
+                        )}
+                      </TableCell>
+                      <TableCell>{invoice.customer_name}</TableCell>
+                      <TableCell>
+                        {invoice.performa_invoice_date 
+                          ? new Date(invoice.performa_invoice_date).toLocaleDateString()
+                          : '-'
+                        }
+                      </TableCell>
+                      <TableCell>₹{invoice.total_amount?.toFixed(2) || '0.00'}</TableCell>
+                      <TableCell>
+                        <Badge
+                          variant={
+                            invoice.status === 'invoiced' ? 'default' :
+                            invoice.status === 'draft' ? 'secondary' :
+                            'outline'
+                          }
+                        >
+                          {invoice.status === 'invoiced' ? 'Invoiced' : 
+                           invoice.status === 'draft' ? 'Draft' : 
+                           invoice.status}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>{invoice.place_of_supply || '-'}</TableCell>
+                      <TableCell>
+                        <div className="flex items-center space-x-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => onEdit(invoice)}
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => onDelete(invoice.id)}
+                            className="text-red-600 hover:text-red-700"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
         </div>
-      ) : (
-        <div className="rounded-md border">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <SortableHeader column="performa_invoice_number">Invoice #</SortableHeader>
-                <SortableHeader column="customer_name">Customer</SortableHeader>
-                <SortableHeader column="performa_invoice_date">Date</SortableHeader>
-                <SortableHeader column="total_amount">Amount</SortableHeader>
-                <SortableHeader column="status">Status</SortableHeader>
-                <SortableHeader column="place_of_supply">Place of Supply</SortableHeader>
-                <TableHead>Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredAndSortedInvoices.map((invoice) => (
-                <TableRow key={invoice.id}>
-                  <TableCell className="font-medium">
-                    {invoice.performa_invoice_number || (
-                      <span className="text-gray-400 italic">Draft</span>
-                    )}
-                  </TableCell>
-                  <TableCell>{invoice.customer_name}</TableCell>
-                  <TableCell>
-                    {invoice.performa_invoice_date 
-                      ? new Date(invoice.performa_invoice_date).toLocaleDateString()
-                      : '-'
-                    }
-                  </TableCell>
-                  <TableCell>₹{invoice.total_amount?.toFixed(2) || '0.00'}</TableCell>
-                  <TableCell>
-                    <Badge
-                      variant={
-                        invoice.status === 'invoiced' ? 'default' :
-                        invoice.status === 'draft' ? 'secondary' :
-                        'outline'
-                      }
-                    >
-                      {invoice.status === 'invoiced' ? 'Invoiced' : 
-                       invoice.status === 'draft' ? 'Draft' : 
-                       invoice.status}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>{invoice.place_of_supply || '-'}</TableCell>
-                  <TableCell>
-                    <div className="flex items-center space-x-2">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => onEdit(invoice)}
-                      >
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => onDelete(invoice.id)}
-                        className="text-red-600 hover:text-red-700"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
-      )}
-    </div>
+      </CardContent>
+    </Card>
   );
 }

@@ -165,7 +165,7 @@ export default function BackorderTable({
         </Card>
       ) : (
         <Card>
-          <CardHeader>
+          <CardHeader className="border-b border-border">
             <div className="flex items-center justify-between">
               <CardTitle className="text-lg">Backorder Items</CardTitle>
               {processableCount > 0 && (

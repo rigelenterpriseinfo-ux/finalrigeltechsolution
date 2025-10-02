@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -973,6 +973,9 @@ export function PurchaseOrderTable({
 
   return (
     <Card>
+      <CardHeader className="border-b border-border px-6 py-4">
+        <CardTitle>Purchase Orders</CardTitle>
+      </CardHeader>
       <CardContent className="p-0">
         {/* Search and Controls - Mobile Optimized */}
         <div className="p-4 sm:p-6 border-b bg-gradient-to-r from-blue-50 to-blue-100">
