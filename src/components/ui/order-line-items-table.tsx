@@ -1,8 +1,9 @@
 import React from 'react';
-import { Control, UseFieldArrayReturn } from 'react-hook-form';
+import { Control, UseFieldArrayReturn, FieldErrors } from 'react-hook-form';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { SearchableCombobox } from '@/components/ui/searchable-combobox';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { FormControl, FormField, FormItem, FormMessage } from '@/components/ui/form';
 import { Badge } from '@/components/ui/badge';
@@ -51,6 +52,7 @@ interface OrderLineItemsTableProps {
   onValidateGSTRate?: (index: number, type: string, rate: number) => boolean;
   readOnly?: boolean;
   currency?: string;
+  errors?: FieldErrors<any>;
 }
 
 export function OrderLineItemsTable({
@@ -64,9 +66,18 @@ export function OrderLineItemsTable({
   onCalculateLineAmounts,
   onValidateGSTRate,
   readOnly = false,
-  currency = '₹'
+  currency = '₹',
+  errors
 }: OrderLineItemsTableProps) {
   const { fields, remove } = fieldsArray;
+
+  // Transform products for SearchableCombobox
+  const productOptions = products.map(product => ({
+    id: product.id,
+    name: product.name,
+    subtitle: `${product.sku ? product.sku + ' | ' : ''}${currency}${product.unit_price || 0} | GST: ${product.gst_percentage || 0}%`,
+    keywords: [product.sku, product.name].filter(Boolean) as string[]
+  }));
 
   const gstRateOptions = [
     { value: "0", label: "0%" },
@@ -177,31 +188,23 @@ export function OrderLineItemsTable({
                         <FormField
                           control={control}
                           name={`items.${index}.product_id`}
-                          render={({ field }) => (
+                          render={({ field, fieldState }) => (
                             <FormItem>
                               <FormControl>
-                                <Select 
-                                  value={field.value} 
-                                  onValueChange={(value) => onProductSelect(index, value)}
-                                  disabled={readOnly}
-                                >
-                                  <SelectTrigger className="h-9 text-sm">
-                                    <SelectValue placeholder="Select product" />
-                                  </SelectTrigger>
-                                  <SelectContent className="bg-background border shadow-md">
-                                    {products.map((product) => (
-                                      <SelectItem key={product.id} value={product.id}>
-                                        <div className="flex flex-col py-1">
-                                          <span className="font-medium text-sm">{product.name}</span>
-                                          <span className="text-xs text-muted-foreground">
-                                            {product.sku && `${product.sku} | `}
-                                            {currency}{product.unit_price || 0} | GST: {product.gst_percentage || 0}%
-                                          </span>
-                                        </div>
-                                      </SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
+                                <div className={cn(fieldState.error && "ring-2 ring-destructive rounded-md")}>
+                                  <SearchableCombobox
+                                    value={field.value}
+                                    onSelect={(value) => onProductSelect(index, value)}
+                                    placeholder="Select product"
+                                    searchPlaceholder="Search products..."
+                                    options={productOptions}
+                                    disabled={readOnly}
+                                    className={cn(
+                                      "h-9 text-sm",
+                                      fieldState.error && "border-destructive"
+                                    )}
+                                  />
+                                </div>
                               </FormControl>
                               <FormMessage />
                             </FormItem>
@@ -214,14 +217,17 @@ export function OrderLineItemsTable({
                         <FormField
                           control={control}
                           name={`items.${index}.quantity`}
-                          render={({ field }) => (
+                          render={({ field, fieldState }) => (
                             <FormItem>
                               <FormControl>
                                 <Input 
                                   type="number" 
                                   min="0" 
                                   step="1"
-                                  className="h-9 w-24 text-center text-sm" 
+                                  className={cn(
+                                    "h-9 w-24 text-center text-sm",
+                                    fieldState.error && "border-destructive focus-visible:ring-destructive"
+                                  )}
                                   value={field.value ?? ''}
                                   onChange={(e) => {
                                     const value = e.target.valueAsNumber;
@@ -247,14 +253,17 @@ export function OrderLineItemsTable({
                         <FormField
                           control={control}
                           name={`items.${index}.unit_price`}
-                          render={({ field }) => (
+                          render={({ field, fieldState }) => (
                             <FormItem>
                               <FormControl>
                                 <Input 
                                   type="number" 
                                   step="0.01" 
                                   min="0" 
-                                  className="h-9 w-full text-right text-sm" 
+                                  className={cn(
+                                    "h-9 w-full text-right text-sm",
+                                    fieldState.error && "border-destructive focus-visible:ring-destructive"
+                                  )}
                                   {...field}
                                   onChange={(e) => {
                                     field.onChange(parseFloat(e.target.value) || 0);
@@ -450,7 +459,7 @@ export function OrderLineItemsTable({
                       <TableCell className="p-2 text-right">
                         <FormField
                           control={control}
-                          name={`items.${index}.line_total`}
+                          name={`items.${index}.total_price`}
                           render={({ field }) => (
                             <div className="text-sm font-semibold text-foreground bg-primary/5 rounded px-2 py-1.5 min-h-[36px] flex items-center justify-end border border-primary/20">
                               {currency}{(field.value || 0).toFixed(2)}

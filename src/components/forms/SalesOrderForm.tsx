@@ -21,6 +21,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Plus, Trash2, Building, MapPin, Package, Calculator, Users, CreditCard, Truck, Calendar, AlertCircle } from 'lucide-react';
 import { OrderLineItemsTable } from '@/components/ui/order-line-items-table';
 import { useAuth } from '@/hooks/useAuth';
+import { cn } from '@/lib/utils';
 
 const salesOrderItemSchema = z.object({
   line_no: z.number().min(1).optional(),
@@ -753,23 +754,26 @@ export function SalesOrderForm({
                         <FormField
                           control={form.control}
                           name="customer_id"
-                          render={({ field }) => (
+                          render={({ field, fieldState }) => (
                             <FormItem>
                               <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Customer</FormLabel>
                               <FormControl>
-                                <SearchableCombobox
-                                  value={field.value}
-                                  onSelect={field.onChange}
-                                  placeholder="Select customer"
-                                  searchPlaceholder="Search customers..."
-                                  options={customers.map(customer => ({
-                                    id: customer.id,
-                                    name: customer.name,
-                                    subtitle: customer.customer_code ? `Code: ${customer.customer_code}` : undefined
-                                  }))}
-                                  disabled={readOnly}
-                                  loading={loading}
-                                />
+                                <div className={cn(fieldState.error && "ring-2 ring-destructive rounded-md")}>
+                                  <SearchableCombobox
+                                    value={field.value}
+                                    onSelect={field.onChange}
+                                    placeholder="Select customer"
+                                    searchPlaceholder="Search customers..."
+                                    options={customers.map(customer => ({
+                                      id: customer.id,
+                                      name: customer.name,
+                                      subtitle: customer.customer_code ? `Code: ${customer.customer_code}` : undefined
+                                    }))}
+                                    disabled={readOnly}
+                                    loading={loading}
+                                    className={cn(fieldState.error && "border-destructive")}
+                                  />
+                                </div>
                               </FormControl>
                               <FormMessage />
                             </FormItem>
@@ -780,7 +784,7 @@ export function SalesOrderForm({
                           <FormField
                             control={form.control}
                             name="order_date"
-                            render={({ field }) => (
+                            render={({ field, fieldState }) => (
                               <FormItem>
                                 <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Order Date</FormLabel>
                                 <FormControl>
@@ -788,7 +792,10 @@ export function SalesOrderForm({
                                     type="date" 
                                     {...field} 
                                     disabled={readOnly} 
-                                    className="h-9" 
+                                    className={cn(
+                                      "h-9",
+                                      fieldState.error && "border-destructive focus-visible:ring-destructive"
+                                    )}
                                   />
                                 </FormControl>
                                 <FormMessage />
@@ -799,7 +806,7 @@ export function SalesOrderForm({
                           <FormField
                             control={form.control}
                             name="expected_delivery_date"
-                            render={({ field }) => (
+                            render={({ field, fieldState }) => (
                               <FormItem>
                                 <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Expected Delivery</FormLabel>
                                 <FormControl>
@@ -807,9 +814,13 @@ export function SalesOrderForm({
                                     type="date" 
                                     {...field} 
                                     disabled={readOnly} 
-                                    className="h-9" 
+                                    className={cn(
+                                      "h-9",
+                                      fieldState.error && "border-destructive focus-visible:ring-destructive"
+                                    )}
                                   />
                                 </FormControl>
+                                <FormMessage />
                               </FormItem>
                             )}
                           />
@@ -869,7 +880,7 @@ export function SalesOrderForm({
                         <FormField
                           control={form.control}
                           name="customer_po_number"
-                          render={({ field }) => (
+                          render={({ field, fieldState }) => (
                             <FormItem>
                               <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Customer PO Number</FormLabel>
                               <FormControl>
@@ -877,9 +888,13 @@ export function SalesOrderForm({
                                   placeholder="Customer purchase order number" 
                                   {...field} 
                                   disabled={readOnly} 
-                                  className="h-9" 
+                                  className={cn(
+                                    "h-9",
+                                    fieldState.error && "border-destructive focus-visible:ring-destructive"
+                                  )}
                                 />
                               </FormControl>
+                              <FormMessage />
                             </FormItem>
                           )}
                         />
@@ -887,7 +902,7 @@ export function SalesOrderForm({
                         <FormField
                           control={form.control}
                           name="place_of_supply"
-                          render={({ field }) => (
+                          render={({ field, fieldState }) => (
                             <FormItem>
                               <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Place of Supply</FormLabel>
                               <FormControl>
@@ -895,9 +910,13 @@ export function SalesOrderForm({
                                   placeholder="Place of supply" 
                                   {...field} 
                                   disabled={readOnly} 
-                                  className="h-9" 
+                                  className={cn(
+                                    "h-9",
+                                    fieldState.error && "border-destructive focus-visible:ring-destructive"
+                                  )}
                                 />
                               </FormControl>
+                              <FormMessage />
                             </FormItem>
                           )}
                         />
@@ -1074,35 +1093,38 @@ export function SalesOrderForm({
                         <FormField
                           control={form.control}
                           name="default_warehouse_id"
-                          render={({ field }) => (
+                          render={({ field, fieldState }) => (
                             <FormItem>
                               <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Default Warehouse</FormLabel>
                               <FormControl>
-                                <SearchableCombobox
-                                  value={field.value}
-                                  onSelect={(value) => {
-                                    field.onChange(value);
-                                    // Reset bin selection when warehouse changes
-                                    form.setValue('default_bin_id', '');
-                                    setBins([]);
-                                    // Fetch bins for the new warehouse
-                                    if (value) {
-                                      fetchBins(value);
-                                      // Also fetch updated stock levels
-                                      const binId = form.getValues('default_bin_id');
-                                      fetchStockLevels(value, binId);
-                                    }
-                                  }}
-                                  placeholder="Select warehouse"
-                                  searchPlaceholder="Search warehouses..."
-                                  options={warehouses.map(warehouse => ({
-                                    id: warehouse.id,
-                                    name: warehouse.name,
-                                    subtitle: warehouse.warehouse_code ? `Code: ${warehouse.warehouse_code}` : undefined
-                                  }))}
-                                  disabled={readOnly}
-                                  loading={loading}
-                                />
+                                <div className={cn(fieldState.error && "ring-2 ring-destructive rounded-md")}>
+                                  <SearchableCombobox
+                                    value={field.value}
+                                    onSelect={(value) => {
+                                      field.onChange(value);
+                                      // Reset bin selection when warehouse changes
+                                      form.setValue('default_bin_id', '');
+                                      setBins([]);
+                                      // Fetch bins for the new warehouse
+                                      if (value) {
+                                        fetchBins(value);
+                                        // Also fetch updated stock levels
+                                        const binId = form.getValues('default_bin_id');
+                                        fetchStockLevels(value, binId);
+                                      }
+                                    }}
+                                    placeholder="Select warehouse"
+                                    searchPlaceholder="Search warehouses..."
+                                    options={warehouses.map(warehouse => ({
+                                      id: warehouse.id,
+                                      name: warehouse.name,
+                                      subtitle: warehouse.warehouse_code ? `Code: ${warehouse.warehouse_code}` : undefined
+                                    }))}
+                                    disabled={readOnly}
+                                    loading={loading}
+                                    className={cn(fieldState.error && "border-destructive")}
+                                  />
+                                </div>
                               </FormControl>
                               <FormMessage />
                             </FormItem>
@@ -1112,30 +1134,33 @@ export function SalesOrderForm({
                         <FormField
                           control={form.control}
                           name="default_bin_id"
-                          render={({ field }) => (
+                          render={({ field, fieldState }) => (
                             <FormItem>
                               <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Default Bin</FormLabel>
                               <FormControl>
-                                <SearchableCombobox
-                                  value={field.value}
-                                  onSelect={(value) => {
-                                    field.onChange(value);
-                                    // Fetch updated stock levels when bin changes
-                                    const warehouseId = form.getValues('default_warehouse_id');
-                                    if (warehouseId && value) {
-                                      fetchStockLevels(warehouseId, value);
-                                    }
-                                  }}
-                                  placeholder="Select bin"
-                                  searchPlaceholder="Search bins..."
-                                  options={bins.map(bin => ({
-                                    id: bin.id,
-                                    name: bin.bin_name,
-                                    subtitle: bin.wh_bin_code ? `Code: ${bin.wh_bin_code}` : undefined
-                                  }))}
-                                  disabled={readOnly || !form.watch('default_warehouse_id')}
-                                  loading={loading}
-                                />
+                                <div className={cn(fieldState.error && "ring-2 ring-destructive rounded-md")}>
+                                  <SearchableCombobox
+                                    value={field.value}
+                                    onSelect={(value) => {
+                                      field.onChange(value);
+                                      // Fetch updated stock levels when bin changes
+                                      const warehouseId = form.getValues('default_warehouse_id');
+                                      if (warehouseId && value) {
+                                        fetchStockLevels(warehouseId, value);
+                                      }
+                                    }}
+                                    placeholder="Select bin"
+                                    searchPlaceholder="Search bins..."
+                                    options={bins.map(bin => ({
+                                      id: bin.id,
+                                      name: bin.bin_name,
+                                      subtitle: bin.wh_bin_code ? `Code: ${bin.wh_bin_code}` : undefined
+                                    }))}
+                                    disabled={readOnly || !form.watch('default_warehouse_id')}
+                                    loading={loading}
+                                    className={cn(fieldState.error && "border-destructive")}
+                                  />
+                                </div>
                               </FormControl>
                               <FormMessage />
                               {!form.watch('default_warehouse_id') && (
@@ -1168,6 +1193,7 @@ export function SalesOrderForm({
                   onValidateGSTRate={validateGSTRate}
                   readOnly={readOnly}
                   currency="₹"
+                  errors={form.formState.errors}
                 />
 
                 {/* Order Summary */}
