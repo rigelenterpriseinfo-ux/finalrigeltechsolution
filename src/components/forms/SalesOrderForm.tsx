@@ -29,9 +29,9 @@ const salesOrderItemSchema = z.object({
   stock_on_hand: z.number().min(0).optional(),
   ordered_quantity: z.number().min(1, 'Ordered quantity must be at least 1'),
   back_order_quantity: z.number().min(0).optional(),
-  quantity: z.number().min(1, 'Quantity must be at least 1'), // Keep for backward compatibility
+  quantity: z.number().min(1, 'Quantity must be at least 1'),
   unit_of_measure: z.string().min(1, 'Unit of measure is required'),
-  unit_price: z.number().min(0, 'Unit price must be non-negative'),
+  unit_price: z.number().min(0.01, 'Unit price must be greater than 0'),
   discount_percentage: z.number().min(0).max(100).optional(),
   discount_amount: z.number().min(0).optional(),
   cgst_rate: z.number().min(0).max(100).optional(),
@@ -43,32 +43,32 @@ const salesOrderItemSchema = z.object({
   net_amount: z.number().min(0).optional(),
   tax_amount: z.number().min(0).optional(),
   total_price: z.number().min(0).optional(),
-  hsn_sac_code: z.string().optional(),
+  hsn_sac_code: z.string().min(1, 'HSN/SAC code is required'),
 });
 
 const salesOrderSchema = z.object({
   order_number: z.string().optional(),
   order_date: z.string().min(1, 'Order date is required'),
   customer_id: z.string().min(1, 'Customer is required'),
-  customer_po_number: z.string().optional(),
+  customer_po_number: z.string().min(1, 'Customer PO number is required'),
   status: z.string().min(1, 'Status is required'),
   account_manager: z.string().optional(),
   order_type: z.string().min(1, 'Order type is required'),
   currency: z.string().min(1, 'Currency is required'),
-  payment_terms: z.string().optional(),
-  expected_delivery_date: z.string().optional(),
-  mode_of_transport: z.string().optional(),
-  place_of_supply: z.string().optional(),
+  payment_terms: z.string().min(1, 'Payment terms are required'),
+  expected_delivery_date: z.string().min(1, 'Expected delivery date is required'),
+  mode_of_transport: z.string().min(1, 'Mode of transport is required'),
+  place_of_supply: z.string().min(1, 'Place of supply is required'),
   notes: z.string().optional(),
   same_as_registered_address: z.boolean().default(false),
-  delivery_address_line1: z.string().optional(),
+  delivery_address_line1: z.string().min(1, 'Delivery address is required'),
   delivery_address_line2: z.string().optional(),
-  delivery_city: z.string().optional(),
-  delivery_state: z.string().optional(),
-  delivery_country: z.string().optional(),
-  delivery_postal_code: z.string().optional(),
-  default_warehouse_id: z.string().optional(),
-  default_bin_id: z.string().optional(),
+  delivery_city: z.string().min(1, 'Delivery city is required'),
+  delivery_state: z.string().min(1, 'Delivery state is required'),
+  delivery_country: z.string().min(1, 'Delivery country is required'),
+  delivery_postal_code: z.string().min(1, 'Delivery postal code is required'),
+  default_warehouse_id: z.string().min(1, 'Default warehouse is required'),
+  default_bin_id: z.string().min(1, 'Default bin is required'),
   items: z.array(salesOrderItemSchema).min(1, 'At least one item is required'),
 });
 
@@ -131,9 +131,9 @@ export function SalesOrderForm({
         product_id: '',
         item_description: '',
         stock_on_hand: 0,
-        ordered_quantity: 1,
+        ordered_quantity: 0,
         back_order_quantity: 0,
-        quantity: 1,
+        quantity: 0,
         unit_of_measure: 'pcs',
         unit_price: 0,
         discount_percentage: 0,
@@ -425,9 +425,9 @@ export function SalesOrderForm({
   };
 
   const calculateLineAmounts = (index: number) => {
+    const quantity = form.getValues(`items.${index}.quantity`) || 0;
     const orderedQuantity = form.getValues(`items.${index}.ordered_quantity`) || 0;
-    const quantity = form.getValues(`items.${index}.quantity`) || 0; // Fallback for compatibility
-    const finalQuantity = orderedQuantity || quantity; // Use ordered_quantity first, then quantity
+    const finalQuantity = quantity || orderedQuantity;
     const unitPrice = form.getValues(`items.${index}.unit_price`) || 0;
     const discountPercentage = form.getValues(`items.${index}.discount_percentage`) || 0;
 
@@ -462,10 +462,8 @@ export function SalesOrderForm({
     const totalPrice = netAmount + totalTaxAmount;
     form.setValue(`items.${index}.total_price`, totalPrice);
 
-    // Sync quantity fields for compatibility
-    if (orderedQuantity > 0) {
-      form.setValue(`items.${index}.quantity`, orderedQuantity);
-    }
+    // Sync ordered_quantity with quantity
+    form.setValue(`items.${index}.ordered_quantity`, finalQuantity);
 
     // Calculate back order quantity (Ordered Qty - Ready to Deliver Qty)
     const stockOnHand = form.getValues(`items.${index}.stock_on_hand`) || 0;
@@ -480,9 +478,9 @@ export function SalesOrderForm({
       product_id: '',
       item_description: '',
       stock_on_hand: 0,
-      ordered_quantity: 1,
+      ordered_quantity: 0,
       back_order_quantity: 0,
-      quantity: 1,
+      quantity: 0,
       unit_of_measure: 'pcs',
       unit_price: 0,
       discount_percentage: 0,
@@ -683,7 +681,27 @@ export function SalesOrderForm({
       </div>
 
       <Form {...form}>
-        <form onSubmit={form.handleSubmit(handleSubmit)} className="flex-1 flex flex-col">
+        <form onSubmit={form.handleSubmit(
+          handleSubmit,
+          (errors) => {
+            console.error('Form validation errors:', errors);
+            
+            toast({
+              title: "Validation Error",
+              description: "Please fill in all required fields correctly. Check the form for error messages.",
+              variant: "destructive",
+            });
+            
+            // Scroll to first error field
+            const firstErrorKey = Object.keys(errors)[0];
+            if (firstErrorKey) {
+              const element = document.querySelector(`[name="${firstErrorKey}"]`);
+              if (element) {
+                element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+              }
+            }
+          }
+        )} className="flex-1 flex flex-col">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col px-4">
             <TabsList className="grid w-full grid-cols-2 mb-4 bg-muted/30 h-12">
               <TabsTrigger value="order-info" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground flex items-center gap-2">
