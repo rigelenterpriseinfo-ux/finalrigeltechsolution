@@ -878,10 +878,10 @@ export default function SalesModule() {
 
       <Tabs defaultValue="customers" className="w-full">
         <TabsList className="grid w-full grid-cols-4 border-b border-border">
-          <TabsTrigger value="customers">Customers</TabsTrigger>
-          <TabsTrigger value="sales-orders">Sales Orders</TabsTrigger>
-          <TabsTrigger value="invoices">Sales Invoices</TabsTrigger>
-          <TabsTrigger value="backorders">
+          <TabsTrigger value="customers" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">Customers</TabsTrigger>
+          <TabsTrigger value="sales-orders" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">Sales Orders</TabsTrigger>
+          <TabsTrigger value="invoices" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">Sales Invoices</TabsTrigger>
+          <TabsTrigger value="backorders" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
             <AlertTriangle className="h-4 w-4 mr-2" />
             Backorders
           </TabsTrigger>
