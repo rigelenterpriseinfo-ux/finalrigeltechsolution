@@ -1,6 +1,5 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
-import { Resend } from "https://esm.sh/resend@2.0.0";
 
 const allowedOrigins = [
   'https://63be031f-eceb-4ef8-a148-241fcdfde80c.lovableproject.com',
@@ -26,8 +25,6 @@ function getCorsHeaders(req: Request) {
     ...securityHeaders,
   };
 }
-
-const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
 
 interface SendOtpRequest {
   email: string;
@@ -123,30 +120,32 @@ serve(async (req) => {
       );
     }
 
-    // Send OTP via email
+    // Send OTP via Supabase Auth email
     try {
-      const emailResult = await resend.emails.send({
-        from: "Verification <onboarding@resend.dev>",
-        to: [email],
-        subject: "Your verification code (expires in 3 minutes)",
-        html: `
-          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-            <h2 style="color: #333;">Business Registration OTP</h2>
-            <p>Your One-Time Password (OTP) for business registration is:</p>
-            <div style="background: #f5f5f5; padding: 20px; text-align: center; font-size: 24px; font-weight: bold; letter-spacing: 3px; margin: 20px 0;">
-              ${otp}
-            </div>
-            <p><strong>This OTP will expire in 3 minutes.</strong></p>
-            <p>If you didn't request this OTP, please ignore this email.</p>
-            <p>For security reasons, do not share this OTP with anyone.</p>
-          </div>
-        `,
+      const { data: emailData, error: emailError } = await supabase.auth.admin.generateLink({
+        type: 'magiclink',
+        email: email,
+        options: {
+          data: {
+            otp_code: otp,
+            purpose: purpose,
+            expires_in: '3 minutes'
+          }
+        }
       });
 
-      console.log("Email sent successfully:", emailResult);
+      if (emailError) {
+        console.error("Supabase email error:", emailError);
+        throw emailError;
+      }
+
+      console.log("Email sent successfully via Supabase");
     } catch (emailError) {
       console.error("Email sending error:", emailError);
-      // Still return success as OTP is stored, user can try again
+      return new Response(
+        JSON.stringify({ error: "Failed to send email" }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
     return new Response(

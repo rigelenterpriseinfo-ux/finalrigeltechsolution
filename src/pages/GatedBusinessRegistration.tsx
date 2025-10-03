@@ -159,11 +159,10 @@ const GatedBusinessRegistration = () => {
     
     setIsLoading(true);
     try {
-      // Use Supabase Auth to send OTP
-      const { data, error } = await supabase.auth.signInWithOtp({
-        email: formData.email,
-        options: {
-          shouldCreateUser: false, // Don't create user yet
+      const { data, error } = await supabase.functions.invoke('send-otp', {
+        body: { 
+          email: formData.email,
+          purpose: 'business_registration'
         }
       });
 
@@ -198,13 +197,15 @@ const GatedBusinessRegistration = () => {
 
     setIsVerifyingOtp(true);
     try {
-      const { data, error } = await supabase.auth.verifyOtp({
-        email: formData.email,
-        token: otpCode,
-        type: 'email'
+      const { data, error } = await supabase.functions.invoke('verify-otp', {
+        body: {
+          email: formData.email,
+          otp: otpCode
+        }
       });
 
       if (error) throw error;
+      if (data?.error) throw new Error(data.error);
 
       setEmailVerified(true);
       toast({
