@@ -41,7 +41,7 @@ const App = () => (
                 <Route path="/dashboard" element={<Dashboard />} />
                 <Route path="/auth" element={<EnhancedAuth />} />
                 <Route path="/subscribe/:planType" element={<Subscribe />} />
-                <Route path="/business-registration" element={<BusinessRegistration />} />
+                <Route path="/business-registration" element={<GatedBusinessRegistration />} />
                 <Route path="/user-management" element={<UserManagement />} />
                 <Route path="/email-verification" element={<EmailVerification />} />
                 <Route path="/password-reset" element={<PasswordReset />} />
