@@ -271,12 +271,19 @@ export type Database = {
           email: string | null
           gstn: string | null
           id: string
+          last_payment_date: string | null
           logo_url: string | null
           name: string
+          next_payment_due: string | null
+          payment_reminder_sent: boolean | null
           phone: string | null
           postal_code: string | null
           state: string | null
           status: Database["public"]["Enums"]["company_status"]
+          subscription_end_date: string | null
+          subscription_plan: string | null
+          subscription_start_date: string | null
+          subscription_status: string | null
           tagline: string | null
           updated_at: string
           website: string | null
@@ -292,12 +299,19 @@ export type Database = {
           email?: string | null
           gstn?: string | null
           id?: string
+          last_payment_date?: string | null
           logo_url?: string | null
           name: string
+          next_payment_due?: string | null
+          payment_reminder_sent?: boolean | null
           phone?: string | null
           postal_code?: string | null
           state?: string | null
           status?: Database["public"]["Enums"]["company_status"]
+          subscription_end_date?: string | null
+          subscription_plan?: string | null
+          subscription_start_date?: string | null
+          subscription_status?: string | null
           tagline?: string | null
           updated_at?: string
           website?: string | null
@@ -313,12 +327,19 @@ export type Database = {
           email?: string | null
           gstn?: string | null
           id?: string
+          last_payment_date?: string | null
           logo_url?: string | null
           name?: string
+          next_payment_due?: string | null
+          payment_reminder_sent?: boolean | null
           phone?: string | null
           postal_code?: string | null
           state?: string | null
           status?: Database["public"]["Enums"]["company_status"]
+          subscription_end_date?: string | null
+          subscription_plan?: string | null
+          subscription_start_date?: string | null
+          subscription_status?: string | null
           tagline?: string | null
           updated_at?: string
           website?: string | null
