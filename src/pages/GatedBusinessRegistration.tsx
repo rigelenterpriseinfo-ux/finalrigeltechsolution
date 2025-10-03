@@ -37,10 +37,12 @@ const GatedBusinessRegistration = () => {
 
   const paymentData = location.state as any;
   const searchParams = new URLSearchParams(location.search);
-  const isPaymentVerified = searchParams.get('txn') === 'DEV-SUCCESS' || paymentData?.paymentVerified;
+  const planType = searchParams.get('plan');
+  const isTrialPlan = planType === 'trial';
+  const isPaymentVerified = searchParams.get('txn') === 'DEV-SUCCESS' || paymentData?.paymentVerified || isTrialPlan;
   const isEmailPreVerified = searchParams.get('email_verified') === 'true';
 
-  // Redirect if no payment verification
+  // Redirect if no payment verification (unless it's a trial plan)
   useEffect(() => {
     if (!isPaymentVerified) {
       navigate('/checkout');
