@@ -34,6 +34,8 @@ const GatedBusinessRegistration = () => {
   const [emailSent, setEmailSent] = useState(false);
   const [emailVerified, setEmailVerified] = useState(false);
   const [resendCount, setResendCount] = useState(0);
+  const [otpCode, setOtpCode] = useState('');
+  const [isVerifyingOtp, setIsVerifyingOtp] = useState(false);
 
   const paymentData = location.state as any;
   const searchParams = new URLSearchParams(location.search);
@@ -157,33 +159,66 @@ const GatedBusinessRegistration = () => {
     
     setIsLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke('send-email-confirmation', {
-        body: {
-          email: formData.email,
-          purpose: 'register'
+      // Use Supabase Auth to send OTP
+      const { data, error } = await supabase.auth.signInWithOtp({
+        email: formData.email,
+        options: {
+          shouldCreateUser: false, // Don't create user yet
         }
       });
 
       if (error) throw error;
 
-      if (data?.success) {
-        setEmailSent(true);
-        setResendCount(prev => prev + 1);
-        toast({
-          title: "Confirmation Email Sent!",
-          description: "Please check your email and click the confirmation link."
-        });
-      } else {
-        throw new Error(data?.error || 'Failed to send confirmation email');
-      }
+      setEmailSent(true);
+      setResendCount(prev => prev + 1);
+      toast({
+        title: "Verification Code Sent!",
+        description: "Please check your email for a 6-digit verification code."
+      });
     } catch (error: any) {
       toast({
-        title: "Failed to send confirmation email",
+        title: "Failed to send verification code",
         description: error.message,
         variant: "destructive"
       });
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const verifyOTP = async () => {
+    if (!otpCode || otpCode.length !== 6) {
+      toast({
+        title: "Invalid Code",
+        description: "Please enter a 6-digit verification code",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setIsVerifyingOtp(true);
+    try {
+      const { data, error } = await supabase.auth.verifyOtp({
+        email: formData.email,
+        token: otpCode,
+        type: 'email'
+      });
+
+      if (error) throw error;
+
+      setEmailVerified(true);
+      toast({
+        title: "Email Verified!",
+        description: "You can now proceed to set up admin credentials."
+      });
+    } catch (error: any) {
+      toast({
+        title: "Verification Failed",
+        description: error.message || "Invalid or expired code",
+        variant: "destructive"
+      });
+    } finally {
+      setIsVerifyingOtp(false);
     }
   };
 
@@ -459,7 +494,7 @@ const GatedBusinessRegistration = () => {
                     </div>
                   </div>
 
-                  {/* Email Confirmation Section */}
+                  {/* Email Verification Section */}
                   {!emailVerified && (
                     <div className="border-t pt-6">
                       <h3 className="font-semibold mb-4 flex items-center">
@@ -477,12 +512,12 @@ const GatedBusinessRegistration = () => {
                           {isLoading ? (
                             <>
                               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                              Sending confirmation email...
+                              Sending verification code...
                             </>
                           ) : (
                             <>
                               <Send className="mr-2 h-4 w-4" />
-                              Send Confirmation Email
+                              Send Verification Code
                             </>
                           )}
                         </Button>
@@ -490,10 +525,40 @@ const GatedBusinessRegistration = () => {
                         <div className="space-y-4">
                           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                             <p className="text-sm text-blue-800">
-                              <strong>Confirmation email sent!</strong><br />
-                              Please check your inbox and click the confirmation link to verify your email address.
+                              <strong>Verification code sent!</strong><br />
+                              Please check your email for a 6-digit code and enter it below.
                             </p>
                           </div>
+                          
+                          <div>
+                            <Label htmlFor="otpCode">Enter 6-Digit Code</Label>
+                            <Input
+                              id="otpCode"
+                              value={otpCode}
+                              onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                              placeholder="000000"
+                              maxLength={6}
+                              className="text-center text-2xl tracking-widest font-mono"
+                            />
+                          </div>
+
+                          <Button
+                            onClick={verifyOTP}
+                            disabled={isVerifyingOtp || otpCode.length !== 6}
+                            className="w-full"
+                          >
+                            {isVerifyingOtp ? (
+                              <>
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                Verifying...
+                              </>
+                            ) : (
+                              <>
+                                <CheckCircle className="mr-2 h-4 w-4" />
+                                Verify Code
+                              </>
+                            )}
+                          </Button>
                           
                           <Button
                             onClick={sendEmailConfirmation}
@@ -509,7 +574,7 @@ const GatedBusinessRegistration = () => {
                             ) : (
                               <>
                                 <Mail className="mr-2 h-4 w-4" />
-                                Resend Confirmation Email
+                                Resend Code
                               </>
                             )}
                           </Button>

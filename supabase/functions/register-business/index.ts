@@ -140,24 +140,6 @@ serve(async (req) => {
       { auth: { persistSession: false } }
     );
 
-    // Verify OTP was validated for this email (check for consumed OTP within last 10 minutes)
-    const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000).toISOString();
-    const { data: otpRecord, error: otpError } = await supabase
-      .from("email_otps")
-      .select("id")
-      .eq("email", email)
-      .not("consumed_at", "is", null)
-      .gte("consumed_at", tenMinutesAgo)
-      .order("consumed_at", { ascending: false })
-      .limit(1);
-
-    if (otpError || !otpRecord || otpRecord.length === 0) {
-      return new Response(
-        JSON.stringify({ error: "Email verification required. Please verify your email with OTP first." }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
     // Check if registration request already exists for this email
     const { data: existingRequest, error: checkError } = await supabase
       .from("business_registration_requests")
