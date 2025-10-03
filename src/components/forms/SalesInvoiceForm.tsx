@@ -357,20 +357,30 @@ export const SalesInvoiceForm: React.FC<SalesInvoiceFormProps> = ({
         }
       }
       
-      const items = remainingData?.map((item: any) => ({
-        product_id: item.product_id,
-        item_code: item.product_sku,
-        item_description: item.product_name,
-        hsn_sac_code: item.hsn_sac_code || '',
-        quantity_ordered: item.quantity_ordered,
-        quantity_invoiced: 0,
-        unit_of_measure: item.unit_of_measure,
-        unit_price: parseFloat(item.unit_price.toString()),
-        discount_percentage: 0,
-        cgst_rate: 0,
-        sgst_rate: 0,
-        igst_rate: 0,
-      })) || [];
+      // Create lookup map for sales order items with discount and GST details
+      const salesOrderItemsMap: Record<string, any> = {};
+      data.sales_order_items?.forEach((item: any) => {
+        salesOrderItemsMap[item.product_id] = item;
+      });
+      
+      const items = remainingData?.map((item: any) => {
+        const originalItem = salesOrderItemsMap[item.product_id];
+        
+        return {
+          product_id: item.product_id,
+          item_code: item.product_sku,
+          item_description: item.product_name,
+          hsn_sac_code: item.hsn_sac_code || '',
+          quantity_ordered: item.quantity_ordered,
+          quantity_invoiced: 0,
+          unit_of_measure: item.unit_of_measure,
+          unit_price: parseFloat(item.unit_price.toString()),
+          discount_percentage: originalItem?.discount_percentage || 0,
+          cgst_rate: originalItem?.cgst_rate || 0,
+          sgst_rate: originalItem?.sgst_rate || 0,
+          igst_rate: originalItem?.igst_rate || 0,
+        };
+      }) || [];
       
       const productIds = items.map((item: any) => item.product_id);
       const defaultWarehouseId = data.default_warehouse_id;
