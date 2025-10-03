@@ -343,10 +343,26 @@ serve(async (req) => {
 
     // Check if company status is valid
     const company = userData.companies;
-    if (company.status !== 'active') {
-      console.log(`Company inactive for user: ${userData.email}, status: ${company.status}`);
+    if (company.status === 'suspended') {
+      console.log(`Company suspended for user: ${userData.email}`);
       return new Response(
         JSON.stringify({ success: false, blocked: true, error: "Company account suspended. Please contact support." }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+    
+    if (company.status === 'inactive') {
+      console.log(`Company inactive for user: ${userData.email}`);
+      return new Response(
+        JSON.stringify({ success: false, blocked: true, error: "Company account is inactive. Please contact support." }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+    
+    if (company.status !== 'active') {
+      console.log(`Company not active for user: ${userData.email}, status: ${company.status}`);
+      return new Response(
+        JSON.stringify({ success: false, blocked: true, error: "Company account not yet approved. Please wait for admin approval." }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }

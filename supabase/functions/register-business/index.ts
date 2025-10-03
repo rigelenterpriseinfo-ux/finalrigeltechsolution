@@ -158,76 +158,65 @@ serve(async (req) => {
       );
     }
 
-    // Check if company email already exists
-    const { data: existingCompany, error: checkError } = await supabase
-      .from("companies")
-      .select("id")
-      .eq("email", email)
+    // Check if registration request already exists for this email
+    const { data: existingRequest, error: checkError } = await supabase
+      .from("business_registration_requests")
+      .select("id, status")
+      .eq("business_email", email)
       .limit(1);
 
     if (checkError) {
-      console.error("Company check error:", checkError);
+      console.error("Registration check error:", checkError);
       return new Response(
         JSON.stringify({ error: "Registration validation failed" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    if (existingCompany && existingCompany.length > 0) {
-      return new Response(
-        JSON.stringify({ error: "A company with this email is already registered" }),
-        { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+    if (existingRequest && existingRequest.length > 0) {
+      const status = existingRequest[0].status;
+      if (status === 'pending') {
+        return new Response(
+          JSON.stringify({ error: "A registration request with this email is already pending approval" }),
+          { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      } else if (status === 'approved') {
+        return new Response(
+          JSON.stringify({ error: "This business is already registered. Please use the sign-in page." }),
+          { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
     }
 
     // Hash password
     const passwordHash = await hashPassword(password);
 
-    // Create company record (business_ref_no will be auto-generated)
-    const { data: companyData, error: companyError } = await supabase
-      .from("companies")
+    // Create registration request (pending super admin approval)
+    const { data: requestData, error: requestError } = await supabase
+      .from("business_registration_requests")
       .insert({
-        name,
-        email,
-        phone,
+        business_name: name,
+        business_email: email,
+        business_phone: phone,
         address_line1: addrLine1,
         address_line2: addrLine2 || null,
         state,
         postal_code: pinCode,
         country,
-        gstn: gstin || null,
-        status: 'active'
+        gstin: gstin || null,
+        business_type: businessType,
+        industry_type: industryType,
+        admin_username: username,
+        admin_password_hash: passwordHash,
+        status: 'pending'
       })
       .select()
       .single();
 
-    if (companyError) {
-      console.error("Company creation error:", companyError);
+    if (requestError) {
+      console.error("Registration request creation error:", requestError);
       return new Response(
-        JSON.stringify({ error: "Failed to register company" }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    // Create primary admin user
-    const { error: userError } = await supabase
-      .from("company_users")
-      .insert({
-        company_id: companyData.id,
-        username,
-        email,
-        password_hash: passwordHash,
-        access_type: 'OWNER',
-        status: 'ACTIVE'
-      });
-
-    if (userError) {
-      console.error("User creation error:", userError);
-      // Rollback company creation
-      await supabase.from("companies").delete().eq("id", companyData.id);
-      
-      return new Response(
-        JSON.stringify({ error: "Failed to create admin user" }),
+        JSON.stringify({ error: "Failed to submit registration request" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -235,8 +224,8 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({ 
         success: true,
-        businessRefNo: companyData.business_ref_no,
-        message: "Company registered successfully"
+        requestId: requestData.id,
+        message: "Registration request submitted successfully. Your request is pending approval."
       }),
       { status: 201, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );

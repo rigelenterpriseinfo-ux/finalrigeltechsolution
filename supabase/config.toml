@@ -14,3 +14,12 @@ verify_jwt = true
 
 [functions.signin]
 verify_jwt = false
+
+[functions.register-business]
+verify_jwt = false
+
+[functions.approve-registration]
+verify_jwt = true
+
+[functions.reject-registration]
+verify_jwt = true
