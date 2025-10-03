@@ -90,6 +90,15 @@ export const sanitizeCss = (css: string): string => {
   return sanitized;
 };
 
+// Helper function to hash email for privacy
+async function hashEmail(email: string): Promise<string> {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(email.toLowerCase().trim());
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
 // Enhanced rate limiting helper with better security
 export const checkRateLimit = async (
   supabase: any,
@@ -105,12 +114,15 @@ export const checkRateLimit = async (
       return { allowed: false }; // Fail closed for invalid input
     }
 
+    // Hash the identifier for privacy
+    const hashedIdentifier = await hashEmail(normalizedIdentifier);
+
     const windowStart = new Date(Date.now() - windowMinutes * 60 * 1000);
     
     const { data, error } = await supabase
       .from('auth_rate_limits')
       .select('*')
-      .eq('email', normalizedIdentifier)
+      .eq('hashed_email', hashedIdentifier)
       .gte('last_attempt', windowStart.toISOString())
       .single();
 
@@ -125,7 +137,7 @@ export const checkRateLimit = async (
         await supabase
           .from('auth_rate_limits')
           .insert({
-            email: normalizedIdentifier,
+            hashed_email: hashedIdentifier,
             attempt_count: 1,
             last_attempt: new Date().toISOString(),
             ip_address: '127.0.0.1' // In production, get real IP
