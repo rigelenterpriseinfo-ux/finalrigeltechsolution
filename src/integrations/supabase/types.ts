@@ -4354,6 +4354,10 @@ export type Database = {
         Args: { p_new_password_hash: string; p_user_id: string }
         Returns: boolean
       }
+      is_super_admin: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
       is_user_admin: {
         Args: Record<PropertyKey, never>
         Returns: boolean
