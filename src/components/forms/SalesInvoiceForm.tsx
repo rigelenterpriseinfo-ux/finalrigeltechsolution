@@ -1300,8 +1300,8 @@ export const SalesInvoiceForm: React.FC<SalesInvoiceFormProps> = ({
                                             max="100"
                                             step="0.01"
                                             {...field}
-                                            onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
-                                            className="w-16"
+                                            disabled
+                                            className="w-16 bg-muted/30"
                                           />
                                         </FormControl>
                                       )}
@@ -1319,8 +1319,8 @@ export const SalesInvoiceForm: React.FC<SalesInvoiceFormProps> = ({
                                             max="100"
                                             step="0.01"
                                             {...field}
-                                            onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
-                                            className="w-16"
+                                            disabled
+                                            className="w-16 bg-muted/30"
                                           />
                                         </FormControl>
                                       )}
@@ -1338,8 +1338,8 @@ export const SalesInvoiceForm: React.FC<SalesInvoiceFormProps> = ({
                                             max="100"
                                             step="0.01"
                                             {...field}
-                                            onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
-                                            className="w-16"
+                                            disabled
+                                            className="w-16 bg-muted/30"
                                           />
                                         </FormControl>
                                       )}
@@ -1357,8 +1357,8 @@ export const SalesInvoiceForm: React.FC<SalesInvoiceFormProps> = ({
                                             max="100"
                                             step="0.01"
                                             {...field}
-                                            onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
-                                            className="w-16"
+                                            disabled
+                                            className="w-16 bg-muted/30"
                                           />
                                         </FormControl>
                                       )}
