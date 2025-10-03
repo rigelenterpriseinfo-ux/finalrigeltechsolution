@@ -3967,7 +3967,6 @@ export type Database = {
           aging_365_plus_value: number | null
           aging_91_180_qty: number | null
           aging_91_180_value: number | null
-          aging_status: string | null
           bin_id: string | null
           company_id: string | null
           current_stock: number | null
