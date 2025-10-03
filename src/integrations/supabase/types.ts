@@ -1676,6 +1676,13 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "fk_payment_transaction_registration"
+            columns: ["business_registration_request_id"]
+            isOneToOne: false
+            referencedRelation: "business_registration_requests"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "fk_payment_transaction_registration_request"
             columns: ["business_registration_request_id"]
             isOneToOne: false
