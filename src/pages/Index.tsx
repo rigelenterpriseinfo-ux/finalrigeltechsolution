@@ -198,7 +198,7 @@ const Index = () => {
   ];
 
   const handleSubscribe = (planType: string) => {
-    navigate(`/subscribe/${planType}`);
+    navigate(`/business-registration?plan=${planType}`);
   };
 
   return (
@@ -283,7 +283,7 @@ const Index = () => {
                 <Button 
                   size="lg" 
                   className="btn-gradient text-lg px-8 h-14 hover-scale"
-                  onClick={() => document.getElementById('pricing')?.scrollIntoView({ behavior: 'smooth' })}
+                  onClick={() => navigate('/business-registration?plan=trial')}
                 >
                   Start Free 30-Day Trial <ArrowRight className="ml-2 h-5 w-5" />
                 </Button>
