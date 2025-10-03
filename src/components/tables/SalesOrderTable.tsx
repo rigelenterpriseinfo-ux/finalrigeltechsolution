@@ -417,10 +417,13 @@ export const SalesOrderTable: React.FC<SalesOrderTableProps> = ({
         return;
       }
 
-      // Fetch sales order items
+      // Fetch sales order items with product details
       const { data: soItems, error: itemsError } = await supabase
         .from('sales_order_items')
-        .select('*')
+        .select(`
+          *,
+          products!inner(sku, name)
+        `)
         .eq('sales_order_id', order.id)
         .order('created_at', { ascending: true });
 
@@ -485,8 +488,8 @@ export const SalesOrderTable: React.FC<SalesOrderTableProps> = ({
         
         return [
           index + 1,
-          item.item_code || item.product_sku || 'N/A',
-          item.item_description || item.product_name || 'Item',
+          item.products?.sku || item.item_code || 'N/A',
+          item.item_description || item.products?.name || 'Item',
           item.hsn_sac_code || '-',
           qty,
           Math.round(item.unit_price || 0),
@@ -653,10 +656,13 @@ export const SalesOrderTable: React.FC<SalesOrderTableProps> = ({
         return;
       }
 
-      // Fetch sales order items
+      // Fetch sales order items with product details
       const { data: soItems, error: itemsError } = await supabase
         .from('sales_order_items')
-        .select('*')
+        .select(`
+          *,
+          products!inner(sku, name)
+        `)
         .eq('sales_order_id', order.id)
         .order('created_at', { ascending: true });
 
@@ -671,6 +677,26 @@ export const SalesOrderTable: React.FC<SalesOrderTableProps> = ({
       // ========== MODERN HEADER SECTION ==========
       doc.setFillColor(41, 128, 185);
       doc.rect(0, 0, 210, 50, 'F');
+      
+      // Add company logo if available
+      if (companyData?.logo_url) {
+        try {
+          const logoResponse = await fetch(companyData.logo_url);
+          const logoBlob = await logoResponse.blob();
+          const reader = new FileReader();
+          
+          await new Promise((resolve) => {
+            reader.onloadend = () => {
+              const base64data = reader.result as string;
+              doc.addImage(base64data, 'PNG', 15, 10, 25, 25);
+              resolve(null);
+            };
+            reader.readAsDataURL(logoBlob);
+          });
+        } catch (error) {
+          console.error('Error loading company logo:', error);
+        }
+      }
       
       // Company name and details
       doc.setFontSize(16);
@@ -796,22 +822,22 @@ export const SalesOrderTable: React.FC<SalesOrderTableProps> = ({
       doc.setFillColor(41, 128, 185);
       doc.rect(15, yPos, 180, 10, 'F');
       
-      doc.setFontSize(7.5);
+      doc.setFontSize(7);
       doc.setFont('helvetica', 'bold');
       doc.setTextColor(255, 255, 255);
       
       const colPositions = {
         sno: 17,
         itemCode: 25,
-        description: 45,
-        hsn: 75,
-        qty: 88,
-        rate: 104,
-        discPct: 115,
-        discAmt: 136,
-        taxPct: 155,
-        taxAmt: 174,
-        amount: 193
+        description: 43,
+        hsn: 72,
+        qty: 86,
+        rate: 100,
+        discPct: 110,
+        discAmt: 125,
+        taxPct: 143,
+        taxAmt: 163,
+        amount: 186
       };
       
       doc.text('S.No', colPositions.sno, yPos + 6.5);
@@ -838,8 +864,8 @@ export const SalesOrderTable: React.FC<SalesOrderTableProps> = ({
         
         return {
           sno: index + 1,
-          code: item.item_code || item.product_sku || 'N/A',
-          desc: item.item_description || item.product_name || 'Item',
+          code: item.products?.sku || item.item_code || 'N/A',
+          desc: item.item_description || item.products?.name || 'Item',
           hsn: item.hsn_sac_code || '-',
           qty: qty,
           rate: item.unit_price || 0,
@@ -853,7 +879,7 @@ export const SalesOrderTable: React.FC<SalesOrderTableProps> = ({
       
       doc.setFont('helvetica', 'normal');
       doc.setTextColor(0, 0, 0);
-      doc.setFontSize(7.5);
+      doc.setFontSize(7);
       
       lineItems.forEach((item, index) => {
         if (index % 2 === 0) {
