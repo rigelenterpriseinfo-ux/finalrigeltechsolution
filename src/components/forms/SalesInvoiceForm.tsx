@@ -44,11 +44,11 @@ const salesInvoiceSchema = z.object({
   customer_po_reference: z.string().min(1, 'Customer PO reference is required'),
   currency: z.string().min(1, 'Currency is required').default('INR'),
   payment_terms: z.string().min(1, 'Payment terms is required'),
-  due_date: z.date({ required_error: 'Due date is required' }),
+  due_date: z.date().optional(),
   salesperson_id: z.string().optional(),
-  account_manager: z.string().min(1, 'Account manager is required'),
+  account_manager: z.string().optional(),
   mode_of_delivery: z.string().min(1, 'Mode of delivery is required'),
-  transporter: z.string().min(1, 'Transporter is required'),
+  transporter: z.string().optional(),
   freight_charges: z.number().default(0),
   packing_charges: z.number().default(0),
   round_off: z.number().default(0),
@@ -1054,7 +1054,7 @@ export const SalesInvoiceForm: React.FC<SalesInvoiceFormProps> = ({
                         render={({ field }) => (
                           <FormItem>
                             <FormLabel className="text-sm font-medium">
-                              Due Date <span className="text-red-500">*</span>
+                              Due Date
                             </FormLabel>
                             <Popover>
                               <PopoverTrigger asChild>
@@ -1141,7 +1141,7 @@ export const SalesInvoiceForm: React.FC<SalesInvoiceFormProps> = ({
                         render={({ field }) => (
                           <FormItem>
                             <FormLabel className="text-sm font-medium">
-                              Account Manager <span className="text-red-500">*</span>
+                              Account Manager
                             </FormLabel>
                             <FormControl>
                               <Input placeholder="Enter account manager" {...field} className="h-9" />
@@ -1173,7 +1173,7 @@ export const SalesInvoiceForm: React.FC<SalesInvoiceFormProps> = ({
                         render={({ field }) => (
                           <FormItem>
                             <FormLabel className="text-sm font-medium">
-                              Transporter <span className="text-red-500">*</span>
+                              Transporter
                             </FormLabel>
                             <FormControl>
                               <Input placeholder="Enter transporter name" {...field} className="h-9" />
