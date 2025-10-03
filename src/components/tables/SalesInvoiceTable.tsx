@@ -197,7 +197,7 @@ export const SalesInvoiceTable: React.FC<SalesInvoiceTableProps> = ({
         .from('sales_invoice_items')
         .select(`
           *,
-          products!inner(sku, name)
+          products(sku, name)
         `)
         .eq('sales_invoice_id', invoice.id)
         .order('created_at', { ascending: true });
@@ -414,7 +414,7 @@ export const SalesInvoiceTable: React.FC<SalesInvoiceTableProps> = ({
         .from('sales_invoice_items')
         .select(`
           *,
-          products!inner(sku, name)
+          products(sku, name)
         `)
         .eq('sales_invoice_id', invoice.id)
         .order('created_at', { ascending: true });
@@ -919,26 +919,11 @@ export const SalesInvoiceTable: React.FC<SalesInvoiceTableProps> = ({
 
   return (
     <Card>
-      <CardHeader className="border-b border-border animate-in fade-in-0 slide-in-from-top-2 duration-300 bg-primary/5">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <div className="flex items-center gap-4">
-            <Button
-              onClick={exportAllToExcel}
-              variant="outline"
-              size="sm"
-              className="gap-2"
-            >
-              <Download className="h-4 w-4" />
-              Export All to Excel
-            </Button>
-          </div>
-        </div>
-      </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="pt-6">
         {/* Filters */}
-        <div className="flex flex-col sm:flex-row gap-4">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+        <div className="flex flex-col sm:flex-row gap-3 items-end mb-6">
+          <div className="relative w-full sm:max-w-md">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
             <Input
               placeholder="Search by invoice number, sales order, or customer..."
               value={searchTerm}
@@ -947,10 +932,20 @@ export const SalesInvoiceTable: React.FC<SalesInvoiceTableProps> = ({
             />
           </div>
           
-          <div className="flex items-center gap-2">
-            <Filter className="h-4 w-4 text-gray-400" />
+          <Button
+            onClick={exportAllToExcel}
+            variant="outline"
+            size="sm"
+            className="gap-2 whitespace-nowrap"
+          >
+            <Download className="h-4 w-4" />
+            Export All to Excel
+          </Button>
+          
+          <div className="flex items-center gap-2 sm:ml-auto">
+            <Filter className="h-4 w-4 text-muted-foreground" />
             <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-[180px]">
+              <SelectTrigger className="w-[140px]">
                 <SelectValue placeholder="Filter by status" />
               </SelectTrigger>
               <SelectContent>
