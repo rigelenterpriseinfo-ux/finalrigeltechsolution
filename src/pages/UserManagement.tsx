@@ -126,7 +126,7 @@ const UserManagement = () => {
   const fetchUsers = async () => {
     try {
       const { data, error } = await supabase
-        .from('company_users')
+        .from('company_users_safe')
         .select('*')
         .eq('company_id', company?.id)
         .order('created_at', { ascending: false });

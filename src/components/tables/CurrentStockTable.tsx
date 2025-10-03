@@ -39,7 +39,6 @@ interface CurrentStock {
   total_value: number;
   // Aging fields
   weighted_avg_age_days?: number;
-  aging_status?: string;
   aging_0_30_qty?: number;
   aging_0_30_value?: number;
   aging_31_90_qty?: number;
@@ -91,6 +90,19 @@ export const CurrentStockTable = ({ refreshTrigger }: CurrentStockTableProps) =>
   const isMobile = useIsMobile();
   const { company } = useAuth();
   const { toast } = useToast();
+
+  // Helper function to calculate aging status from aging buckets
+  const calculateAgingStatus = (stock: CurrentStock): string => {
+    if (!stock.current_stock || stock.current_stock === 0) return 'N/A';
+    
+    if ((stock.aging_365_plus_qty || 0) > 0) return 'Dead';
+    if ((stock.aging_181_365_qty || 0) > 0) return 'Slow';
+    if ((stock.aging_91_180_qty || 0) > 0) return 'Aging';
+    if ((stock.aging_31_90_qty || 0) > 0) return 'Good';
+    if ((stock.aging_0_30_qty || 0) > 0) return 'Fresh';
+    
+    return 'N/A';
+  };
 
   // Use mobile version if on mobile device
   if (isMobile) {
@@ -178,7 +190,6 @@ export const CurrentStockTable = ({ refreshTrigger }: CurrentStockTableProps) =>
           total_value: totalValue,
           // Aging fields
           weighted_avg_age_days: stock.weighted_avg_age_days,
-          aging_status: stock.aging_status,
           aging_0_30_qty: stock.aging_0_30_qty,
           aging_0_30_value: stock.aging_0_30_value,
           aging_31_90_qty: stock.aging_31_90_qty,
@@ -253,16 +264,26 @@ export const CurrentStockTable = ({ refreshTrigger }: CurrentStockTableProps) =>
           aging_91_180_qty, aging_91_180_value,
           aging_181_365_qty, aging_181_365_value,
           aging_365_plus_qty, aging_365_plus_value,
-          aging_status,
-          products!inner(unit_price)
+          product_id
         `)
         .eq('company_id', company?.id);
 
       if (error) throw error;
 
       if (data && data.length > 0) {
+        // Get products data separately
+        const productIds = [...new Set(data.map(item => item.product_id))];
+        const { data: productsData } = await supabase
+          .from('products')
+          .select('id, unit_price')
+          .in('id', productIds);
+        
+        const productsMap = new Map(productsData?.map(p => [p.id, p]) || []);
+
         const summary = data.reduce((acc, item) => {
-          const totalValue = item.current_stock * (item.products?.unit_price || 0);
+          const product = productsMap.get(item.product_id);
+          const totalValue = item.current_stock * (product?.unit_price || 0);
+          const isDeadStock = (item.aging_365_plus_qty || 0) > 0;
           
           return {
             total_skus: acc.total_skus + 1,
@@ -278,8 +299,8 @@ export const CurrentStockTable = ({ refreshTrigger }: CurrentStockTableProps) =>
             aging_181_365_value: acc.aging_181_365_value + (item.aging_181_365_value || 0),
             aging_365_plus_qty: acc.aging_365_plus_qty + (item.aging_365_plus_qty || 0),
             aging_365_plus_value: acc.aging_365_plus_value + (item.aging_365_plus_value || 0),
-            dead_stock_skus: item.aging_status === 'Dead' ? acc.dead_stock_skus + 1 : acc.dead_stock_skus,
-            dead_stock_value: item.aging_status === 'Dead' ? acc.dead_stock_value + totalValue : acc.dead_stock_value,
+            dead_stock_skus: isDeadStock ? acc.dead_stock_skus + 1 : acc.dead_stock_skus,
+            dead_stock_value: isDeadStock ? acc.dead_stock_value + totalValue : acc.dead_stock_value,
           };
         }, {
           total_skus: 0,
@@ -438,7 +459,8 @@ export const CurrentStockTable = ({ refreshTrigger }: CurrentStockTableProps) =>
 
   // Render aging breakdown row
   const renderAgingBreakdown = (stock: CurrentStock) => {
-    if (!stock.aging_status) return null;
+    const agingStatus = calculateAgingStatus(stock);
+    if (!agingStatus || agingStatus === 'N/A') return null;
     
     return (
       <div className="p-4 bg-muted/20 border-t">
@@ -485,12 +507,13 @@ export const CurrentStockTable = ({ refreshTrigger }: CurrentStockTableProps) =>
       const matchesLowStock = !showLowStockOnly || stock.current_stock <= stock.min_stock_level;
       
       // Aging filtering
+      const agingStatus = calculateAgingStatus(stock);
       const matchesAging = agingFilter === 'all' || 
-        (agingFilter === 'fresh' && stock.aging_status === 'Fresh') ||
-        (agingFilter === 'good' && stock.aging_status === 'Good') ||
-        (agingFilter === 'aging' && stock.aging_status === 'Aging') ||
-        (agingFilter === 'slow' && stock.aging_status === 'Slow') ||
-        (agingFilter === 'dead' && stock.aging_status === 'Dead');
+        (agingFilter === 'fresh' && agingStatus === 'Fresh') ||
+        (agingFilter === 'good' && agingStatus === 'Good') ||
+        (agingFilter === 'aging' && agingStatus === 'Aging') ||
+        (agingFilter === 'slow' && agingStatus === 'Slow') ||
+        (agingFilter === 'dead' && agingStatus === 'Dead');
       
       return matchesSearch && matchesLowStock && matchesAging;
     });
@@ -560,7 +583,6 @@ export const CurrentStockTable = ({ refreshTrigger }: CurrentStockTableProps) =>
       { key: 'unit_price', label: 'Unit Price', format: formatCurrency },
       { key: 'total_value', label: 'Total Value', format: formatCurrency },
       { key: 'min_stock_level', label: 'Min Stock Level' },
-      { key: 'aging_status', label: 'Aging Status' },
       { key: 'weighted_avg_age_days', label: 'Avg Age (Days)' },
       { key: 'last_transaction_date', label: 'Last Transaction', format: formatDate },
       { key: 'transaction_count', label: 'Total Transactions' },
@@ -708,7 +730,7 @@ export const CurrentStockTable = ({ refreshTrigger }: CurrentStockTableProps) =>
               <p className="text-sm text-muted-foreground">Stock Analysis - {searchTerm ? 'Filtered Results' : 'All Items'}</p>
               <p className="text-lg font-bold text-amber-700">
                 {filteredAndSortedStock.filter(s => s.current_stock > 0 && s.current_stock <= s.min_stock_level).length} Low Stock • 
-                {filteredAndSortedStock.filter(s => s.aging_status === 'Dead').length} Dead Stock
+                {filteredAndSortedStock.filter(s => calculateAgingStatus(s) === 'Dead').length} Dead Stock
               </p>
             </div>
           </div>
@@ -1002,8 +1024,8 @@ export const CurrentStockTable = ({ refreshTrigger }: CurrentStockTableProps) =>
                         {getStockLevelBadge(stock.current_stock, stock.min_stock_level)}
                       </TableCell>
                       <TableCell>
-                        {stock.aging_status && stock.weighted_avg_age_days !== undefined
-                          ? getAgingBadge(stock.aging_status, stock.weighted_avg_age_days)
+                        {stock.weighted_avg_age_days !== undefined
+                          ? getAgingBadge(calculateAgingStatus(stock), stock.weighted_avg_age_days)
                           : <Badge variant="secondary">N/A</Badge>
                         }
                       </TableCell>
@@ -1026,7 +1048,7 @@ export const CurrentStockTable = ({ refreshTrigger }: CurrentStockTableProps) =>
                             onClick={() => toggleRowExpansion(stockKey)}
                             title={isExpanded ? "Collapse aging details" : "Expand aging details"}
                             className="hover:bg-blue-50 hover:text-blue-600"
-                            disabled={!stock.aging_status}
+                            disabled={calculateAgingStatus(stock) === 'N/A'}
                           >
                             {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
                           </Button>

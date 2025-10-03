@@ -36,7 +36,7 @@ export const useBusinessAuth = () => {
     try {
       console.log('BusinessAuth: About to fetch business user');
       const { data, error } = await supabase
-        .from('company_users')
+        .from('company_users_safe')
         .select('*')
         .eq('email', user?.email)
         .eq('company_id', company?.id)
