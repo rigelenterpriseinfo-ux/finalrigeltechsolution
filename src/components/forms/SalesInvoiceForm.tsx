@@ -137,6 +137,11 @@ export const SalesInvoiceForm: React.FC<SalesInvoiceFormProps> = ({
         due_date: editingInvoice.due_date ? new Date(editingInvoice.due_date) : undefined,
         items: editingInvoice.sales_invoice_items || [],
       });
+      
+      // Auto-populate sales order details when editing
+      if (editingInvoice.sales_order_id) {
+        fetchSalesOrderDetails(editingInvoice.sales_order_id);
+      }
     }
   }, [editingInvoice]);
 
@@ -655,6 +660,23 @@ export const SalesInvoiceForm: React.FC<SalesInvoiceFormProps> = ({
                         )}
                       />
                     </div>
+                    
+                    {/* Selected Order Details Display */}
+                    {selectedSalesOrder && (
+                      <div className="mt-4 p-3 bg-muted/30 rounded-md border border-border/50">
+                        <p className="text-xs font-medium text-muted-foreground mb-2">Selected Order Details</p>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
+                          <div>
+                            <span className="text-muted-foreground">Sales Order:</span>
+                            <span className="ml-2 font-medium">{selectedSalesOrder.order_number}</span>
+                          </div>
+                          <div>
+                            <span className="text-muted-foreground">Customer:</span>
+                            <span className="ml-2 font-medium">{form.watch('customer_name') || selectedSalesOrder.customers?.name}</span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
 
