@@ -16,11 +16,18 @@ All colors MUST be HSL.
     --popover: 0 0% 100%;
     --popover-foreground: 220 13% 18%;
     
-    /* Primary - Refined Professional Blue */
-    --primary: 217 70% 51%;
+    /* Primary - Rigel Navy Blue */
+    --primary: 217 91% 60%;
     --primary-foreground: 0 0% 100%;
-    --primary-hover: 217 75% 45%;
-    --primary-light: 217 70% 96%;
+    --primary-hover: 217 91% 54%;
+    --primary-light: 217 91% 96%;
+    
+    /* Chart Colors for Rigel Teal Gradient */
+    --chart-1: 217 91% 60%;
+    --chart-2: 174 62% 47%;
+    --chart-3: 142 60% 50%;
+    --chart-4: 38 75% 55%;
+    --chart-5: 248 65% 55%;
     
     /* Secondary - Sophisticated Purple */
     --secondary: 248 65% 55%;
@@ -49,8 +56,8 @@ All colors MUST be HSL.
     --input: 220 13% 91%;
     --ring: 217 70% 51%;
     
-    /* Professional Gradients */
-    --gradient-primary: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--secondary)));
+    /* Professional Gradients - Rigel Theme */
+    --gradient-primary: linear-gradient(135deg, hsl(217 91% 60%), hsl(174 62% 47%));
     --gradient-subtle: linear-gradient(180deg, hsl(var(--background)), hsl(var(--muted)));
     --gradient-card: linear-gradient(145deg, hsl(0 0% 100%), hsl(220 13% 98%));
     
@@ -150,6 +157,19 @@ All colors MUST be HSL.
 }
 
 @layer components {
+  /* Background Pattern */
+  .bg-grid-pattern {
+    background-image: 
+      linear-gradient(to right, hsl(var(--border)) 1px, transparent 1px),
+      linear-gradient(to bottom, hsl(var(--border)) 1px, transparent 1px);
+    background-size: 40px 40px;
+  }
+  
+  /* Hover Scale Animation */
+  .hover-scale {
+    @apply transition-transform duration-200 hover:scale-105;
+  }
+  
   /* Professional Card Variants */
   .card-elevated {
     @apply bg-gradient-to-br from-card to-muted/30 shadow-lg border-0;
