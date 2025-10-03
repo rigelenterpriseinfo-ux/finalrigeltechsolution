@@ -1514,6 +1514,77 @@ export type Database = {
         }
         Relationships: []
       }
+      payment_transactions: {
+        Row: {
+          admin_notes: string | null
+          amount: number
+          business_registration_request_id: string | null
+          company_id: string | null
+          created_at: string | null
+          currency: string | null
+          id: string
+          payment_date: string | null
+          payment_gateway: string | null
+          payment_gateway_response: Json | null
+          payment_method: string | null
+          payment_status: string
+          plan_type: string
+          transaction_id: string | null
+          updated_at: string | null
+          verified_at: string | null
+          verified_by: string | null
+          verified_by_admin: boolean | null
+        }
+        Insert: {
+          admin_notes?: string | null
+          amount?: number
+          business_registration_request_id?: string | null
+          company_id?: string | null
+          created_at?: string | null
+          currency?: string | null
+          id?: string
+          payment_date?: string | null
+          payment_gateway?: string | null
+          payment_gateway_response?: Json | null
+          payment_method?: string | null
+          payment_status: string
+          plan_type: string
+          transaction_id?: string | null
+          updated_at?: string | null
+          verified_at?: string | null
+          verified_by?: string | null
+          verified_by_admin?: boolean | null
+        }
+        Update: {
+          admin_notes?: string | null
+          amount?: number
+          business_registration_request_id?: string | null
+          company_id?: string | null
+          created_at?: string | null
+          currency?: string | null
+          id?: string
+          payment_date?: string | null
+          payment_gateway?: string | null
+          payment_gateway_response?: Json | null
+          payment_method?: string | null
+          payment_status?: string
+          plan_type?: string
+          transaction_id?: string | null
+          updated_at?: string | null
+          verified_at?: string | null
+          verified_by?: string | null
+          verified_by_admin?: boolean | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_transactions_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       payments: {
         Row: {
           amount: number
