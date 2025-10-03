@@ -192,17 +192,14 @@ export const SalesInvoiceTable: React.FC<SalesInvoiceTableProps> = ({
         return;
       }
 
-      // Fetch invoice items with product details
-      const { data: invoiceItems, error: itemsError } = await supabase
+      // Fetch invoice items first
+      const { data: rawInvoiceItems, error: itemsError } = await supabase
         .from('sales_invoice_items')
-        .select(`
-          *,
-          products(sku, name)
-        `)
+        .select('*')
         .eq('sales_invoice_id', invoice.id)
         .order('created_at', { ascending: true });
 
-      if (itemsError) {
+      if (itemsError || !rawInvoiceItems) {
         console.error('Error fetching invoice items:', itemsError);
         toast({
           title: "Error",
@@ -211,6 +208,20 @@ export const SalesInvoiceTable: React.FC<SalesInvoiceTableProps> = ({
         });
         return;
       }
+
+      // Fetch products separately
+      const productIds = [...new Set(rawInvoiceItems.map(item => item.product_id).filter(Boolean))];
+      const { data: products } = await supabase
+        .from('products')
+        .select('id, sku, name')
+        .in('id', productIds);
+
+      // Create product lookup map and enrich items
+      const productMap = new Map(products?.map(p => [p.id, p]) || []);
+      const invoiceItems = rawInvoiceItems.map(item => ({
+        ...item,
+        products: productMap.get(item.product_id) || null
+      }));
 
       // Company Header
       const companyInfo = [
@@ -409,17 +420,14 @@ export const SalesInvoiceTable: React.FC<SalesInvoiceTableProps> = ({
         return;
       }
 
-      // Fetch invoice items with product details
-      const { data: invoiceItems, error: itemsError } = await supabase
+      // Fetch invoice items first
+      const { data: rawInvoiceItems, error: itemsError } = await supabase
         .from('sales_invoice_items')
-        .select(`
-          *,
-          products(sku, name)
-        `)
+        .select('*')
         .eq('sales_invoice_id', invoice.id)
         .order('created_at', { ascending: true });
 
-      if (itemsError) {
+      if (itemsError || !rawInvoiceItems) {
         console.error('Error fetching invoice items:', itemsError);
         toast({
           title: "Error",
@@ -428,6 +436,20 @@ export const SalesInvoiceTable: React.FC<SalesInvoiceTableProps> = ({
         });
         return;
       }
+
+      // Fetch products separately
+      const productIds = [...new Set(rawInvoiceItems.map(item => item.product_id).filter(Boolean))];
+      const { data: products } = await supabase
+        .from('products')
+        .select('id, sku, name')
+        .in('id', productIds);
+
+      // Create product lookup map and enrich items
+      const productMap = new Map(products?.map(p => [p.id, p]) || []);
+      const invoiceItems = rawInvoiceItems.map(item => ({
+        ...item,
+        products: productMap.get(item.product_id) || null
+      }));
 
       const doc = new jsPDF();
       let yPos = 15;
