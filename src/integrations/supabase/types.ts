@@ -259,6 +259,105 @@ export type Database = {
           },
         ]
       }
+      business_registration_requests: {
+        Row: {
+          address_line1: string | null
+          address_line2: string | null
+          admin_details: Json
+          admin_notes: string | null
+          business_name: string
+          business_ref_no: string | null
+          business_type: string | null
+          city: string | null
+          country: string | null
+          created_at: string | null
+          created_company_id: string | null
+          email: string
+          gstin: string | null
+          id: string
+          industry: string | null
+          payment_transaction_id: string | null
+          phone: string
+          postal_code: string | null
+          rejection_reason: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          selected_plan: string | null
+          state: string | null
+          status: string
+          updated_at: string | null
+        }
+        Insert: {
+          address_line1?: string | null
+          address_line2?: string | null
+          admin_details: Json
+          admin_notes?: string | null
+          business_name: string
+          business_ref_no?: string | null
+          business_type?: string | null
+          city?: string | null
+          country?: string | null
+          created_at?: string | null
+          created_company_id?: string | null
+          email: string
+          gstin?: string | null
+          id?: string
+          industry?: string | null
+          payment_transaction_id?: string | null
+          phone: string
+          postal_code?: string | null
+          rejection_reason?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          selected_plan?: string | null
+          state?: string | null
+          status?: string
+          updated_at?: string | null
+        }
+        Update: {
+          address_line1?: string | null
+          address_line2?: string | null
+          admin_details?: Json
+          admin_notes?: string | null
+          business_name?: string
+          business_ref_no?: string | null
+          business_type?: string | null
+          city?: string | null
+          country?: string | null
+          created_at?: string | null
+          created_company_id?: string | null
+          email?: string
+          gstin?: string | null
+          id?: string
+          industry?: string | null
+          payment_transaction_id?: string | null
+          phone?: string
+          postal_code?: string | null
+          rejection_reason?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          selected_plan?: string | null
+          state?: string | null
+          status?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "business_registration_requests_created_company_id_fkey"
+            columns: ["created_company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "business_registration_requests_payment_transaction_id_fkey"
+            columns: ["payment_transaction_id"]
+            isOneToOne: false
+            referencedRelation: "payment_transactions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       companies: {
         Row: {
           address: string | null
@@ -1576,6 +1675,13 @@ export type Database = {
           verified_by_admin?: boolean | null
         }
         Relationships: [
+          {
+            foreignKeyName: "fk_payment_transaction_registration_request"
+            columns: ["business_registration_request_id"]
+            isOneToOne: false
+            referencedRelation: "business_registration_requests"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "payment_transactions_company_id_fkey"
             columns: ["company_id"]
