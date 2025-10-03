@@ -14,6 +14,13 @@ const Subscribe = () => {
   const [isLoading, setIsLoading] = useState(false);
 
   const planDetails = {
+    trial: {
+      name: "Free Trial",
+      price: "₹0",
+      period: "/month",
+      amount: 0,
+      description: "Try all features risk-free for 30 days"
+    },
     monthly: {
       name: "Monthly Plan",
       price: "₹2,500",
@@ -40,7 +47,22 @@ const Subscribe = () => {
   const handlePayment = async () => {
     setIsLoading(true);
 
-    // Simulate payment processing (2 seconds)
+    // For trial plan, skip payment and go directly to registration
+    if (planType === 'trial') {
+      toast({
+        title: "🎉 Free trial activated!",
+        description: "Please complete your Business Registration.",
+      });
+
+      setTimeout(() => {
+        navigate('/register/business?plan=trial');
+      }, 500);
+      
+      setIsLoading(false);
+      return;
+    }
+
+    // Simulate payment processing (2 seconds) for paid plans
     await new Promise((resolve) => setTimeout(resolve, 2000));
 
     // Always simulate success
@@ -53,7 +75,7 @@ const Subscribe = () => {
 
     // Redirect to business registration
     setTimeout(() => {
-      navigate('/register/business?txn=DEV-SUCCESS');
+      navigate(`/register/business?txn=DEV-SUCCESS&plan=${planType}`);
     }, 1000);
 
     setIsLoading(false);
@@ -91,14 +113,18 @@ const Subscribe = () => {
               <div className="bg-muted/50 p-6 rounded-lg">
                 <h3 className="font-semibold mb-4">What's Included:</h3>
                 <div className="space-y-3">
-                  {[
+                   {[
                     "Unlimited products & inventory tracking",
                     "Multi-business support",
                     "Role-based access control", 
                     "Advanced reporting & analytics",
                     "Email support",
                     "Cloud backup & security",
-                    ...(planType === 'yearly' ? [
+                    ...(planType === 'trial' ? [
+                      "Full access to all features",
+                      "No credit card required",
+                      "Cancel anytime"
+                    ] : planType === 'yearly' ? [
                       "Priority support",
                       "Custom integrations",
                       "Dedicated account manager"
@@ -113,10 +139,12 @@ const Subscribe = () => {
               </div>
 
               <div className="border-t pt-6">
-                <div className="flex justify-between items-center text-lg font-semibold mb-6">
-                  <span>Total Amount:</span>
-                  <span className="text-primary">{currentPlan.price}</span>
-                </div>
+                {planType !== 'trial' && (
+                  <div className="flex justify-between items-center text-lg font-semibold mb-6">
+                    <span>Total Amount:</span>
+                    <span className="text-primary">{currentPlan.price}</span>
+                  </div>
+                )}
 
                 <Button 
                   className="w-full btn-gradient text-lg py-6"
@@ -127,18 +155,30 @@ const Subscribe = () => {
                   {isLoading ? (
                     <>
                       <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                      Processing Payment...
+                      {planType === 'trial' ? 'Activating Trial...' : 'Processing Payment...'}
                     </>
                   ) : (
                     <>
-                      <CreditCard className="mr-2 h-5 w-5" />
-                      Pay Securely
+                      {planType === 'trial' ? (
+                        <>
+                          <Check className="mr-2 h-5 w-5" />
+                          Start Free Trial
+                        </>
+                      ) : (
+                        <>
+                          <CreditCard className="mr-2 h-5 w-5" />
+                          Pay Securely
+                        </>
+                      )}
                     </>
                   )}
                 </Button>
 
                 <p className="text-xs text-muted-foreground text-center mt-4">
-                  Secure payment processing. Your card information is encrypted and protected.
+                  {planType === 'trial' 
+                    ? 'No credit card required. Start your free 30-day trial now.' 
+                    : 'Secure payment processing. Your card information is encrypted and protected.'
+                  }
                 </p>
               </div>
             </CardContent>

@@ -43,6 +43,23 @@ const Index = () => {
 
   const pricingPlans = [
     {
+      name: "Free Trial",
+      price: "₹0",
+      period: "/month",
+      description: "Try all features risk-free for 30 days",
+      features: [
+        "All Premium features included",
+        "Unlimited products & inventory",
+        "Multi-business support",
+        "Role-based access control",
+        "Email support",
+        "No credit card required"
+      ],
+      popular: false,
+      planType: "trial",
+      isTrial: true
+    },
+    {
       name: "Monthly",
       price: "₹2,500",
       period: "/month",
@@ -171,7 +188,7 @@ const Index = () => {
             </p>
           </div>
           
-          <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+          <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">
             {pricingPlans.map((plan, index) => (
               <Card 
                 key={index} 
@@ -216,7 +233,7 @@ const Index = () => {
                     size="lg"
                     onClick={() => handleSubscribe(plan.planType)}
                   >
-                    Subscribe Now
+                    {plan.isTrial ? 'Start Free Trial' : 'Subscribe Now'}
                   </Button>
                 </CardFooter>
               </Card>
