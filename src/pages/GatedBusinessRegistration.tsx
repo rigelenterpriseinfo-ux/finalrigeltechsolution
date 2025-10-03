@@ -215,21 +215,33 @@ const GatedBusinessRegistration = () => {
       if (error) throw error;
 
       if (data?.success) {
-        setBusinessRefNo(data.businessRefNo);
+        setBusinessRefNo(data.businessRefNo || data.requestId);
         setIsSuccess(true);
         toast({
           title: "Registration Complete!",
-          description: `Your Business ID is ${data.businessRefNo}`
+          description: data.message || `Your Business ID is ${data.businessRefNo}`
         });
       } else {
         throw new Error(data?.error || 'Registration failed');
       }
     } catch (error: any) {
-      toast({
-        title: "Registration Failed",
-        description: error.message,
-        variant: "destructive"
-      });
+      const errorMessage = error.message || 'Registration failed';
+      
+      // Check if it's a duplicate email error
+      if (errorMessage.includes('already registered') || errorMessage.includes('already pending')) {
+        toast({
+          title: "Email Already Registered",
+          description: "This email is already registered or has a pending registration. Please use a different email or sign in if you already have an account.",
+          variant: "destructive",
+          duration: 6000
+        });
+      } else {
+        toast({
+          title: "Registration Failed",
+          description: errorMessage,
+          variant: "destructive"
+        });
+      }
     } finally {
       setIsLoading(false);
     }

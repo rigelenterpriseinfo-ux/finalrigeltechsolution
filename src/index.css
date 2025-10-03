@@ -8,128 +8,147 @@ All colors MUST be HSL.
 
 @layer base {
   :root {
-    /* Professional ERP Color Palette */
-    --background: 240 10% 98%;
-    --foreground: 220 13% 18%;
+    /* Professional ERP Color Palette - Enhanced */
+    --background: 220 17% 97%;
+    --foreground: 222 47% 11%;
     --card: 0 0% 100%;
-    --card-foreground: 220 13% 18%;
+    --card-foreground: 222 47% 11%;
     --popover: 0 0% 100%;
-    --popover-foreground: 220 13% 18%;
+    --popover-foreground: 222 47% 11%;
     
-    /* Primary - Rigel Navy Blue */
-    --primary: 217 91% 60%;
+    /* Primary - Rigel Navy Blue (Professional) */
+    --primary: 217 91% 35%;
     --primary-foreground: 0 0% 100%;
-    --primary-hover: 217 91% 54%;
+    --primary-hover: 217 91% 45%;
     --primary-light: 217 91% 96%;
     
     /* Chart Colors for Rigel Teal Gradient */
-    --chart-1: 217 91% 60%;
-    --chart-2: 174 62% 47%;
-    --chart-3: 142 60% 50%;
-    --chart-4: 38 75% 55%;
-    --chart-5: 248 65% 55%;
+    --chart-1: 217 91% 45%;
+    --chart-2: 188 94% 40%;
+    --chart-3: 210 100% 60%;
+    --chart-4: 195 100% 50%;
+    --chart-5: 175 85% 45%;
     
-    /* Secondary - Sophisticated Purple */
-    --secondary: 248 65% 55%;
-    --secondary-foreground: 0 0% 100%;
-    --secondary-hover: 248 70% 49%;
-    --secondary-light: 248 65% 96%;
+    /* Secondary - Sophisticated Blue-Gray */
+    --secondary: 210 40% 96%;
+    --secondary-foreground: 222 47% 11%;
+    --secondary-hover: 210 40% 92%;
+    --secondary-light: 210 40% 98%;
     
-    /* Accent - Balanced Green */
-    --accent: 142 60% 50%;
+    /* Accent - Professional Teal */
+    --accent: 188 94% 35%;
     --accent-foreground: 0 0% 100%;
-    --accent-hover: 142 65% 44%;
-    --accent-light: 142 60% 96%;
+    --accent-hover: 188 94% 45%;
+    --accent-light: 188 94% 96%;
     
     /* Status Colors */
-    --success: 142 60% 50%;
+    --success: 142 76% 36%;
     --success-foreground: 0 0% 100%;
-    --warning: 38 75% 55%;
+    --warning: 38 92% 50%;
     --warning-foreground: 0 0% 100%;
-    --destructive: 0 65% 55%;
+    --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
     
     /* Neutral Colors */
-    --muted: 220 13% 96%;
-    --muted-foreground: 220 9% 46%;
-    --border: 220 13% 91%;
-    --input: 220 13% 91%;
-    --ring: 217 70% 51%;
+    --muted: 210 40% 96%;
+    --muted-foreground: 215 16% 47%;
+    --border: 214 32% 91%;
+    --input: 214 32% 91%;
+    --ring: 217 91% 35%;
     
     /* Professional Gradients - Rigel Theme */
-    --gradient-primary: linear-gradient(135deg, hsl(217 91% 60%), hsl(174 62% 47%));
+    --gradient-primary: linear-gradient(135deg, hsl(217 91% 40%), hsl(188 94% 35%));
     --gradient-subtle: linear-gradient(180deg, hsl(var(--background)), hsl(var(--muted)));
-    --gradient-card: linear-gradient(145deg, hsl(0 0% 100%), hsl(220 13% 98%));
+    --gradient-card: linear-gradient(145deg, hsl(0 0% 100%), hsl(220 17% 98%));
+    --gradient-hero: linear-gradient(135deg, hsl(217 91% 35%) 0%, hsl(188 94% 35%) 50%, hsl(210 100% 60%) 100%);
+    
+    /* Professional Shadows with Primary Color */
+    --shadow-card: 0 1px 3px 0 hsl(217 91% 35% / 0.1), 0 1px 2px -1px hsl(217 91% 35% / 0.1);
+    --shadow-elevated: 0 10px 15px -3px hsl(217 91% 35% / 0.15), 0 4px 6px -4px hsl(217 91% 35% / 0.1);
+    --shadow-glow: 0 0 40px -10px hsl(217 91% 45% / 0.4);
     
     --radius: 0.75rem;
     
     /* Sidebar Colors */
     --sidebar-background: 0 0% 100%;
-    --sidebar-foreground: 220 13% 18%;
-    --sidebar-primary: 217 70% 51%;
+    --sidebar-foreground: 222 47% 11%;
+    --sidebar-primary: 217 91% 35%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 220 13% 96%;
-    --sidebar-accent-foreground: 220 13% 18%;
-    --sidebar-border: 220 13% 91%;
-    --sidebar-ring: 217 70% 51%;
+    --sidebar-accent: 210 40% 96%;
+    --sidebar-accent-foreground: 222 47% 11%;
+    --sidebar-border: 214 32% 91%;
+    --sidebar-ring: 217 91% 35%;
   }
 
   .dark {
-    /* Dark Mode Professional Colors */
-    --background: 224 71% 4%;
-    --foreground: 213 31% 91%;
-    --card: 224 71% 6%;
-    --card-foreground: 213 31% 91%;
-    --popover: 224 71% 6%;
-    --popover-foreground: 213 31% 91%;
+    /* Dark Mode Professional Colors - Enhanced */
+    --background: 222 47% 11%;
+    --foreground: 210 40% 98%;
+    --card: 222 47% 14%;
+    --card-foreground: 210 40% 98%;
+    --popover: 222 47% 14%;
+    --popover-foreground: 210 40% 98%;
     
     /* Primary - Refined Blue for Dark */
-    --primary: 217 75% 62%;
-    --primary-foreground: 224 71% 4%;
-    --primary-hover: 217 80% 55%;
-    --primary-light: 217 75% 12%;
+    --primary: 217 91% 55%;
+    --primary-foreground: 222 47% 11%;
+    --primary-hover: 217 91% 65%;
+    --primary-light: 217 91% 20%;
     
-    /* Secondary - Balanced Purple */
-    --secondary: 248 70% 65%;
-    --secondary-foreground: 224 71% 4%;
-    --secondary-hover: 248 75% 58%;
-    --secondary-light: 248 70% 12%;
+    /* Chart Colors for Dark Mode */
+    --chart-1: 217 91% 55%;
+    --chart-2: 188 94% 50%;
+    --chart-3: 210 100% 65%;
+    --chart-4: 195 100% 55%;
+    --chart-5: 175 85% 50%;
     
-    /* Accent - Refined Green */
-    --accent: 142 65% 58%;
-    --accent-foreground: 224 71% 4%;
-    --accent-hover: 142 70% 50%;
-    --accent-light: 142 65% 12%;
+    /* Secondary - Balanced Gray */
+    --secondary: 217 33% 17%;
+    --secondary-foreground: 210 40% 98%;
+    --secondary-hover: 217 33% 22%;
+    --secondary-light: 217 33% 12%;
+    
+    /* Accent - Professional Teal */
+    --accent: 188 94% 45%;
+    --accent-foreground: 222 47% 11%;
+    --accent-hover: 188 94% 55%;
+    --accent-light: 188 94% 20%;
     
     /* Status Colors */
-    --success: 142 65% 58%;
-    --success-foreground: 224 71% 4%;
-    --warning: 38 80% 62%;
-    --warning-foreground: 224 71% 4%;
-    --destructive: 0 70% 62%;
-    --destructive-foreground: 224 71% 4%;
+    --success: 142 76% 36%;
+    --success-foreground: 210 40% 98%;
+    --warning: 38 92% 50%;
+    --warning-foreground: 222 47% 11%;
+    --destructive: 0 62% 30%;
+    --destructive-foreground: 210 40% 98%;
     
     /* Neutral Colors */
     --muted: 215 28% 17%;
     --muted-foreground: 217 11% 65%;
-    --border: 215 28% 17%;
-    --input: 215 28% 17%;
-    --ring: 217 75% 62%;
+    --border: 217 33% 22%;
+    --input: 217 33% 22%;
+    --ring: 217 91% 55%;
     
     /* Dark Gradients */
-    --gradient-primary: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--secondary)));
+    --gradient-primary: linear-gradient(135deg, hsl(217 91% 55%), hsl(188 94% 45%));
     --gradient-subtle: linear-gradient(180deg, hsl(var(--background)), hsl(var(--muted)));
-    --gradient-card: linear-gradient(145deg, hsl(224 71% 6%), hsl(215 28% 8%));
+    --gradient-card: linear-gradient(145deg, hsl(222 47% 14%), hsl(215 28% 17%));
+    --gradient-hero: linear-gradient(135deg, hsl(217 91% 35%) 0%, hsl(188 94% 35%) 50%, hsl(210 100% 60%) 100%);
+    
+    /* Dark Shadows */
+    --shadow-card: 0 1px 3px 0 rgba(0, 0, 0, 0.3), 0 1px 2px -1px rgba(0, 0, 0, 0.2);
+    --shadow-elevated: 0 10px 15px -3px rgba(0, 0, 0, 0.4), 0 4px 6px -4px rgba(0, 0, 0, 0.3);
+    --shadow-glow: 0 0 40px -10px hsl(217 91% 55% / 0.5);
     
     /* Sidebar Colors */
-    --sidebar-background: 224 71% 4%;
-    --sidebar-foreground: 213 31% 91%;
-    --sidebar-primary: 217 75% 62%;
-    --sidebar-primary-foreground: 224 71% 4%;
+    --sidebar-background: 222 47% 11%;
+    --sidebar-foreground: 210 40% 98%;
+    --sidebar-primary: 217 91% 55%;
+    --sidebar-primary-foreground: 222 47% 11%;
     --sidebar-accent: 215 28% 17%;
-    --sidebar-accent-foreground: 213 31% 91%;
-    --sidebar-border: 215 28% 17%;
-    --sidebar-ring: 217 75% 62%;
+    --sidebar-accent-foreground: 210 40% 98%;
+    --sidebar-border: 217 33% 22%;
+    --sidebar-ring: 217 91% 55%;
   }
 }
 
@@ -167,16 +186,26 @@ All colors MUST be HSL.
   
   /* Hover Scale Animation */
   .hover-scale {
-    @apply transition-transform duration-200 hover:scale-105;
+    @apply transition-all duration-300 ease-in-out;
+  }
+  
+  .hover-scale:hover {
+    @apply scale-[1.02];
   }
   
   /* Professional Card Variants */
   .card-elevated {
-    @apply bg-gradient-to-br from-card to-muted/30 shadow-lg border-0;
+    @apply bg-gradient-to-br from-card to-muted/30 border-0;
+    box-shadow: var(--shadow-elevated);
   }
   
   .card-interactive {
-    @apply transition-all duration-300 hover:shadow-lg hover:-translate-y-1;
+    @apply transition-all duration-300 hover:-translate-y-1 cursor-pointer;
+    box-shadow: var(--shadow-card);
+  }
+  
+  .card-interactive:hover {
+    box-shadow: var(--shadow-elevated);
   }
   
   /* Status Indicators */
@@ -195,11 +224,22 @@ All colors MUST be HSL.
   /* Professional Buttons */
   .btn-gradient {
     background: var(--gradient-primary);
-    @apply text-white border-0 shadow-md transition-all duration-300 hover:shadow-lg hover:-translate-y-0.5;
+    @apply text-white border-0 transition-all duration-300;
+    box-shadow: var(--shadow-card);
+  }
+  
+  .btn-gradient:hover {
+    @apply -translate-y-0.5;
+    box-shadow: var(--shadow-elevated), var(--shadow-glow);
   }
   
   .btn-refined {
-    @apply bg-primary/90 hover:bg-primary-hover text-primary-foreground shadow-sm transition-all duration-200 hover:shadow-md border-0;
+    @apply bg-primary/90 hover:bg-primary text-primary-foreground transition-all duration-200 border-0;
+    box-shadow: var(--shadow-card);
+  }
+  
+  .btn-refined:hover {
+    box-shadow: var(--shadow-elevated);
   }
   
   .btn-subtle {
@@ -207,11 +247,21 @@ All colors MUST be HSL.
   }
   
   .btn-success {
-    @apply bg-success/90 hover:bg-success text-success-foreground shadow-sm transition-all duration-200 hover:shadow-md;
+    @apply bg-success/90 hover:bg-success text-success-foreground transition-all duration-200;
+    box-shadow: var(--shadow-card);
+  }
+  
+  .btn-success:hover {
+    box-shadow: var(--shadow-elevated);
   }
   
   .btn-warning {
-    @apply bg-warning/90 hover:bg-warning text-warning-foreground shadow-sm transition-all duration-200 hover:shadow-md;
+    @apply bg-warning/90 hover:bg-warning text-warning-foreground transition-all duration-200;
+    box-shadow: var(--shadow-card);
+  }
+  
+  .btn-warning:hover {
+    box-shadow: var(--shadow-elevated);
   }
   
   /* Layout Utilities */
@@ -242,6 +292,24 @@ All colors MUST be HSL.
   .stagger-animation > *:nth-child(3) { animation-delay: 200ms; }
   .stagger-animation > *:nth-child(4) { animation-delay: 300ms; }
   .stagger-animation > *:nth-child(5) { animation-delay: 400ms; }
+  
+  /* Professional Text Gradient */
+  .gradient-text {
+    background: var(--gradient-primary);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  
+  /* Hover Lift Effect */
+  .hover-lift {
+    @apply transition-all duration-300;
+  }
+  
+  .hover-lift:hover {
+    @apply -translate-y-1;
+    box-shadow: var(--shadow-elevated);
+  }
 }
 
 @keyframes fadeUp {
