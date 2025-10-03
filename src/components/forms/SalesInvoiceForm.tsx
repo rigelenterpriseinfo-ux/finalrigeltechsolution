@@ -28,27 +28,27 @@ const salesInvoiceSchema = z.object({
   delivery_note_number: z.string().optional(),
   customer_id: z.string().min(1, 'Customer is required'),
   customer_name: z.string().min(1, 'Customer name is required'),
-  billing_address_line1: z.string().optional(),
+  billing_address_line1: z.string().min(1, 'Billing address line 1 is required'),
   billing_address_line2: z.string().optional(),
-  billing_city: z.string().optional(),
-  billing_state: z.string().optional(),
-  billing_pin_code: z.string().optional(),
-  billing_country: z.string().optional(),
-  shipping_address_line1: z.string().optional(),
+  billing_city: z.string().min(1, 'Billing city is required'),
+  billing_state: z.string().min(1, 'Billing state is required'),
+  billing_pin_code: z.string().min(1, 'Billing pin code is required'),
+  billing_country: z.string().min(1, 'Billing country is required'),
+  shipping_address_line1: z.string().min(1, 'Shipping address line 1 is required'),
   shipping_address_line2: z.string().optional(),
-  shipping_city: z.string().optional(),
-  shipping_state: z.string().optional(),
-  shipping_pin_code: z.string().optional(),
-  shipping_country: z.string().optional(),
+  shipping_city: z.string().min(1, 'Shipping city is required'),
+  shipping_state: z.string().min(1, 'Shipping state is required'),
+  shipping_pin_code: z.string().min(1, 'Shipping pin code is required'),
+  shipping_country: z.string().min(1, 'Shipping country is required'),
   same_as_billing_address: z.boolean().default(false),
-  customer_po_reference: z.string().optional(),
-  currency: z.string().default('INR'),
-  payment_terms: z.string().optional(),
-  due_date: z.date().optional(),
+  customer_po_reference: z.string().min(1, 'Customer PO reference is required'),
+  currency: z.string().min(1, 'Currency is required').default('INR'),
+  payment_terms: z.string().min(1, 'Payment terms is required'),
+  due_date: z.date({ required_error: 'Due date is required' }),
   salesperson_id: z.string().optional(),
-  account_manager: z.string().optional(),
-  mode_of_delivery: z.string().optional(),
-  transporter: z.string().optional(),
+  account_manager: z.string().min(1, 'Account manager is required'),
+  mode_of_delivery: z.string().min(1, 'Mode of delivery is required'),
+  transporter: z.string().min(1, 'Transporter is required'),
   freight_charges: z.number().default(0),
   packing_charges: z.number().default(0),
   round_off: z.number().default(0),
@@ -92,7 +92,6 @@ export const SalesInvoiceForm: React.FC<SalesInvoiceFormProps> = ({
   const [salesOrders, setSalesOrders] = useState<any[]>([]);
   const [warehouses, setWarehouses] = useState<any[]>([]);
   const [bins, setBins] = useState<any[]>([]);
-  const [recentInvoices, setRecentInvoices] = useState<any[]>([]);
   const [selectedSalesOrder, setSelectedSalesOrder] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [warehouseName, setWarehouseName] = useState('');
@@ -126,7 +125,6 @@ export const SalesInvoiceForm: React.FC<SalesInvoiceFormProps> = ({
     if (company?.id) {
       fetchCustomers();
       fetchSalesOrders();
-      fetchRecentInvoices();
       fetchWarehouses();
     }
   }, [company?.id]);
@@ -186,21 +184,6 @@ export const SalesInvoiceForm: React.FC<SalesInvoiceFormProps> = ({
     }
   };
 
-  const fetchRecentInvoices = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('sales_invoices')
-        .select('invoice_number, invoice_date, customer_name, total_amount')
-        .eq('company_id', company.id)
-        .order('created_at', { ascending: false })
-        .limit(5);
-
-      if (error) throw error;
-      setRecentInvoices(data || []);
-    } catch (error) {
-      console.error('Error fetching recent invoices:', error);
-    }
-  };
 
   const fetchWarehouses = async () => {
     try {
@@ -339,6 +322,22 @@ export const SalesInvoiceForm: React.FC<SalesInvoiceFormProps> = ({
       form.setValue('billing_state', customer.state || '');
       form.setValue('billing_pin_code', customer.pin_code || '');
       form.setValue('billing_country', customer.country || '');
+      
+      // Auto-populate additional fields from Sales Order
+      form.setValue('customer_po_reference', data.customer_po_number || '');
+      form.setValue('payment_terms', data.payment_terms || '');
+      form.setValue('currency', data.currency || 'INR');
+      form.setValue('account_manager', data.account_manager || '');
+      form.setValue('mode_of_delivery', data.mode_of_transport || '');
+      form.setValue('transporter', data.carrier_transporter || '');
+      
+      // Auto-populate shipping addresses from delivery addresses
+      form.setValue('shipping_address_line1', data.delivery_address_line1 || customer.address_line1 || '');
+      form.setValue('shipping_address_line2', data.delivery_address_line2 || customer.address_line2 || '');
+      form.setValue('shipping_city', data.delivery_city || customer.city || '');
+      form.setValue('shipping_state', data.delivery_state || customer.state || '');
+      form.setValue('shipping_pin_code', data.delivery_pin_code || customer.pin_code || '');
+      form.setValue('shipping_country', data.delivery_country || customer.country || '');
       
       if (data.sales_order_items && data.sales_order_items.length > 0) {
         const firstItem = data.sales_order_items[0];
@@ -624,7 +623,9 @@ export const SalesInvoiceForm: React.FC<SalesInvoiceFormProps> = ({
                         name="sales_order_id"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel className="text-sm font-medium">Sales Order Number</FormLabel>
+                            <FormLabel className="text-sm font-medium">
+                              Sales Order Number <span className="text-red-500">*</span>
+                            </FormLabel>
                             <Select onValueChange={onSalesOrderChange} value={field.value}>
                               <FormControl>
                                 <SelectTrigger className="h-9">
@@ -647,26 +648,6 @@ export const SalesInvoiceForm: React.FC<SalesInvoiceFormProps> = ({
                   </CardContent>
                 </Card>
 
-                {/* Recent Invoices Reference */}
-                {recentInvoices.length > 0 && (
-                  <Card className="shadow-sm border-border/50">
-                    <CardHeader className="pb-2 pt-3">
-                      <CardTitle className="text-sm font-semibold flex items-center gap-2">
-                        <Info className="h-4 w-4 text-primary" />
-                        Recent Invoices (Reference)
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="flex flex-wrap gap-2">
-                        {recentInvoices.map((invoice) => (
-                          <Badge key={invoice.invoice_number} variant="secondary" className="text-xs">
-                            {invoice.invoice_number} - ₹{invoice.total_amount}
-                          </Badge>
-                        ))}
-                      </div>
-                    </CardContent>
-                  </Card>
-                )}
 
                 {/* Additional References */}
                 <Card className="shadow-sm border-border/50">
@@ -697,7 +678,9 @@ export const SalesInvoiceForm: React.FC<SalesInvoiceFormProps> = ({
                         name="customer_po_reference"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel className="text-sm font-medium">Customer PO Reference</FormLabel>
+                            <FormLabel className="text-sm font-medium">
+                              Customer PO Reference <span className="text-red-500">*</span>
+                            </FormLabel>
                             <FormControl>
                               <Input placeholder="Customer PO reference" {...field} className="h-9" />
                             </FormControl>
@@ -724,7 +707,9 @@ export const SalesInvoiceForm: React.FC<SalesInvoiceFormProps> = ({
                         name="default_warehouse_id"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel className="text-sm font-medium">Default Warehouse</FormLabel>
+                            <FormLabel className="text-sm font-medium">
+                              Default Warehouse <span className="text-red-500">*</span>
+                            </FormLabel>
                             <FormControl>
                               <Input 
                                 value={warehouseName || 'Not selected'}
@@ -747,7 +732,9 @@ export const SalesInvoiceForm: React.FC<SalesInvoiceFormProps> = ({
                         name="default_bin_id"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel className="text-sm font-medium">Default Bin</FormLabel>
+                            <FormLabel className="text-sm font-medium">
+                              Default Bin <span className="text-red-500">*</span>
+                            </FormLabel>
                             <FormControl>
                               <Input 
                                 value={binName || 'Not selected'}
@@ -779,19 +766,21 @@ export const SalesInvoiceForm: React.FC<SalesInvoiceFormProps> = ({
                   <CardContent>
                     {/* Customer Name */}
                     <div className="mb-4">
-                      <FormField
-                        control={form.control}
-                        name="customer_name"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel className="text-sm font-medium">Customer Name</FormLabel>
-                            <FormControl>
-                              <Input {...field} disabled className="h-9 bg-muted/30" />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
+                        <FormField
+                          control={form.control}
+                          name="customer_name"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel className="text-sm font-medium">
+                                Customer Name <span className="text-red-500">*</span>
+                              </FormLabel>
+                              <FormControl>
+                                <Input {...field} disabled className="h-9 bg-muted/30" />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
                     </div>
 
                     {/* Address Section */}
@@ -808,7 +797,9 @@ export const SalesInvoiceForm: React.FC<SalesInvoiceFormProps> = ({
                           name="billing_address_line1"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel className="text-xs font-medium">Address Line 1</FormLabel>
+                              <FormLabel className="text-xs font-medium">
+                                Address Line 1 <span className="text-red-500">*</span>
+                              </FormLabel>
                               <FormControl>
                                 <Input {...field} className="h-8 text-sm" />
                               </FormControl>
@@ -837,7 +828,9 @@ export const SalesInvoiceForm: React.FC<SalesInvoiceFormProps> = ({
                             name="billing_city"
                             render={({ field }) => (
                               <FormItem>
-                                <FormLabel className="text-xs font-medium">City</FormLabel>
+                                <FormLabel className="text-xs font-medium">
+                                  City <span className="text-red-500">*</span>
+                                </FormLabel>
                                 <FormControl>
                                   <Input {...field} className="h-8 text-sm" />
                                 </FormControl>
@@ -847,10 +840,12 @@ export const SalesInvoiceForm: React.FC<SalesInvoiceFormProps> = ({
                           />
                           <FormField
                             control={form.control}
-                            name="billing_pin_code"
+                            name="billing_state"
                             render={({ field }) => (
                               <FormItem>
-                                <FormLabel className="text-xs font-medium">Pin Code</FormLabel>
+                                <FormLabel className="text-xs font-medium">
+                                  State <span className="text-red-500">*</span>
+                                </FormLabel>
                                 <FormControl>
                                   <Input {...field} className="h-8 text-sm" />
                                 </FormControl>
@@ -860,19 +855,38 @@ export const SalesInvoiceForm: React.FC<SalesInvoiceFormProps> = ({
                           />
                         </div>
                         
-                        <FormField
-                          control={form.control}
-                          name="billing_country"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel className="text-xs font-medium">Country</FormLabel>
-                              <FormControl>
-                                <Input {...field} className="h-8 text-sm" />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
+                        <div className="grid grid-cols-2 gap-2">
+                          <FormField
+                            control={form.control}
+                            name="billing_pin_code"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel className="text-xs font-medium">
+                                  Pin Code <span className="text-red-500">*</span>
+                                </FormLabel>
+                                <FormControl>
+                                  <Input {...field} className="h-8 text-sm" />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                          <FormField
+                            control={form.control}
+                            name="billing_country"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel className="text-xs font-medium">
+                                  Country <span className="text-red-500">*</span>
+                                </FormLabel>
+                                <FormControl>
+                                  <Input {...field} className="h-8 text-sm" />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        </div>
                       </div>
 
                       {/* Shipping Address */}
@@ -905,7 +919,9 @@ export const SalesInvoiceForm: React.FC<SalesInvoiceFormProps> = ({
                           name="shipping_address_line1"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel className="text-xs font-medium">Address Line 1</FormLabel>
+                              <FormLabel className="text-xs font-medium">
+                                Address Line 1 <span className="text-red-500">*</span>
+                              </FormLabel>
                               <FormControl>
                                 <Input 
                                   {...field} 
@@ -942,7 +958,9 @@ export const SalesInvoiceForm: React.FC<SalesInvoiceFormProps> = ({
                             name="shipping_city"
                             render={({ field }) => (
                               <FormItem>
-                                <FormLabel className="text-xs font-medium">City</FormLabel>
+                                <FormLabel className="text-xs font-medium">
+                                  City <span className="text-red-500">*</span>
+                                </FormLabel>
                                 <FormControl>
                                   <Input 
                                     {...field} 
@@ -956,10 +974,12 @@ export const SalesInvoiceForm: React.FC<SalesInvoiceFormProps> = ({
                           />
                           <FormField
                             control={form.control}
-                            name="shipping_pin_code"
+                            name="shipping_state"
                             render={({ field }) => (
                               <FormItem>
-                                <FormLabel className="text-xs font-medium">Pin Code</FormLabel>
+                                <FormLabel className="text-xs font-medium">
+                                  State <span className="text-red-500">*</span>
+                                </FormLabel>
                                 <FormControl>
                                   <Input 
                                     {...field} 
@@ -973,24 +993,195 @@ export const SalesInvoiceForm: React.FC<SalesInvoiceFormProps> = ({
                           />
                         </div>
                         
-                        <FormField
-                          control={form.control}
-                          name="shipping_country"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel className="text-xs font-medium">Country</FormLabel>
-                              <FormControl>
-                                <Input 
-                                  {...field} 
-                                  disabled={watchedSameAsBilling} 
-                                  className={cn("h-8 text-sm", watchedSameAsBilling && "bg-purple-100 text-purple-600")}
-                                />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
+                        <div className="grid grid-cols-2 gap-2">
+                          <FormField
+                            control={form.control}
+                            name="shipping_pin_code"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel className="text-xs font-medium">
+                                  Pin Code <span className="text-red-500">*</span>
+                                </FormLabel>
+                                <FormControl>
+                                  <Input 
+                                    {...field} 
+                                    disabled={watchedSameAsBilling} 
+                                    className={cn("h-8 text-sm", watchedSameAsBilling && "bg-purple-100 text-purple-600")}
+                                  />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                          <FormField
+                            control={form.control}
+                            name="shipping_country"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel className="text-xs font-medium">
+                                  Country <span className="text-red-500">*</span>
+                                </FormLabel>
+                                <FormControl>
+                                  <Input 
+                                    {...field} 
+                                    disabled={watchedSameAsBilling} 
+                                    className={cn("h-8 text-sm", watchedSameAsBilling && "bg-purple-100 text-purple-600")}
+                                  />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        </div>
                       </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Payment & Terms */}
+                <Card className="shadow-sm border-border/50">
+                  <CardHeader className="pb-2 pt-3">
+                    <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                      <Settings className="h-4 w-4 text-primary" />
+                      Payment & Terms
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                      <FormField
+                        control={form.control}
+                        name="due_date"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-sm font-medium">
+                              Due Date <span className="text-red-500">*</span>
+                            </FormLabel>
+                            <Popover>
+                              <PopoverTrigger asChild>
+                                <FormControl>
+                                  <Button
+                                    variant="outline"
+                                    className={cn(
+                                      "h-9 pl-3 text-left font-normal",
+                                      !field.value && "text-muted-foreground"
+                                    )}
+                                  >
+                                    {field.value ? (
+                                      format(field.value, "PPP")
+                                    ) : (
+                                      <span>Pick a date</span>
+                                    )}
+                                    <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                  </Button>
+                                </FormControl>
+                              </PopoverTrigger>
+                              <PopoverContent className="w-auto p-0" align="start">
+                                <Calendar
+                                  mode="single"
+                                  selected={field.value}
+                                  onSelect={field.onChange}
+                                  initialFocus
+                                  className="p-3 pointer-events-auto"
+                                />
+                              </PopoverContent>
+                            </Popover>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      
+                      <FormField
+                        control={form.control}
+                        name="payment_terms"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-sm font-medium">
+                              Payment Terms <span className="text-red-500">*</span>
+                            </FormLabel>
+                            <FormControl>
+                              <Input placeholder="e.g., Net 30" {...field} className="h-9" />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      
+                      <FormField
+                        control={form.control}
+                        name="currency"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-sm font-medium">
+                              Currency <span className="text-red-500">*</span>
+                            </FormLabel>
+                            <FormControl>
+                              <Input {...field} disabled className="h-9 bg-muted/30" />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Logistics & Delivery */}
+                <Card className="shadow-sm border-border/50">
+                  <CardHeader className="pb-2 pt-3">
+                    <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                      <Package className="h-4 w-4 text-primary" />
+                      Logistics & Delivery
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                      <FormField
+                        control={form.control}
+                        name="account_manager"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-sm font-medium">
+                              Account Manager <span className="text-red-500">*</span>
+                            </FormLabel>
+                            <FormControl>
+                              <Input placeholder="Enter account manager" {...field} className="h-9" />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      
+                      <FormField
+                        control={form.control}
+                        name="mode_of_delivery"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-sm font-medium">
+                              Mode of Delivery <span className="text-red-500">*</span>
+                            </FormLabel>
+                            <FormControl>
+                              <Input placeholder="e.g., Courier, Road" {...field} className="h-9" />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      
+                      <FormField
+                        control={form.control}
+                        name="transporter"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-sm font-medium">
+                              Transporter <span className="text-red-500">*</span>
+                            </FormLabel>
+                            <FormControl>
+                              <Input placeholder="Enter transporter name" {...field} className="h-9" />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
                     </div>
                   </CardContent>
                 </Card>
