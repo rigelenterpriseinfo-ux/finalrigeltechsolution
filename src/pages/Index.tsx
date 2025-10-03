@@ -478,7 +478,7 @@ const Index = () => {
                 </div>
               </div>
               <CardFooter className="justify-center gap-4 py-6 bg-card">
-                <Button size="lg" className="btn-gradient" onClick={() => navigate('/auth')}>
+                <Button size="lg" className="btn-gradient" onClick={() => navigate('/business-registration?plan=trial')}>
                   <Sparkles className="mr-2 h-5 w-5" />
                   Try Free for 30 Days
                 </Button>
