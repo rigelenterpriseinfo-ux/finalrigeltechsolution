@@ -74,7 +74,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
         <NavigationSidebar 
           activeView={activeView} 
           onNavigate={onNavigate}
-          className="hidden md:flex flex-shrink-0"
+          className="hidden md:flex flex-shrink-0 sticky top-0 h-screen z-40"
         />
         <main className={cn('flex-1 bg-gradient-subtle', className)}>
           <div className="section-padding content-container">

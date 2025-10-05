@@ -49,7 +49,7 @@ export const NavigationSidebar: React.FC<NavigationSidebarProps> = ({
 }) => {
   return (
     <div className={cn(
-      "w-64 bg-background border-r border-border flex flex-col h-full",
+      "w-64 bg-background border-r border-border flex flex-col h-screen overflow-y-auto",
       className
     )}>
       <div className="p-3 sm:p-4 border-b border-border">
