@@ -1,4 +1,7 @@
 import React from 'react';
+import { AnimatedSection } from './AnimatedSection';
+import { AnimatedList } from './AnimatedList';
+import { AnimatedKPICard } from './AnimatedKPICard';
 import { KPICard } from '@/components/ui/kpi-card';
 import { DollarSign, Package, AlertTriangle, TrendingUp } from 'lucide-react';
 import { DashboardKPIs } from '@/hooks/useDashboardData';
