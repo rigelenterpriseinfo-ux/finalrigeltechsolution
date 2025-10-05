@@ -132,6 +132,15 @@ export const SalesInvoiceForm: React.FC<SalesInvoiceFormProps> = ({
 
   useEffect(() => {
     if (editingInvoice) {
+      const hasPrefilledItems = editingInvoice.items && editingInvoice.items.length > 0;
+      
+      console.log('📝 Form reset with editingInvoice:', {
+        hasPrefilledItems,
+        items: editingInvoice.items,
+        warehouseId: editingInvoice.default_warehouse_id,
+        binId: editingInvoice.default_bin_id
+      });
+      
       form.reset({
         ...editingInvoice,
         invoice_date: new Date(editingInvoice.invoice_date),
@@ -139,22 +148,60 @@ export const SalesInvoiceForm: React.FC<SalesInvoiceFormProps> = ({
         items: editingInvoice.items || editingInvoice.sales_invoice_items || [],
       });
       
-      // Auto-populate sales order details when editing
-      if (editingInvoice.sales_order_id) {
+      // Only fetch sales order details if items are NOT pre-filled (i.e., not from backorder release)
+      if (editingInvoice.sales_order_id && !hasPrefilledItems) {
+        console.log('🔄 Fetching sales order details...');
         fetchSalesOrderDetails(editingInvoice.sales_order_id);
+      } else if (hasPrefilledItems) {
+        console.log('✅ Using pre-filled items, skipping sales order fetch');
+        
+        // Set up remaining quantities map for pre-filled items
+        const remainingMap: Record<string, any> = {};
+        editingInvoice.items.forEach((item: any) => {
+          remainingMap[item.product_id] = {
+            product_id: item.product_id,
+            quantity_ordered: item.quantity_ordered,
+            quantity_remaining: item.quantity_ordered,
+            current_backorder_qty: item.backorder_quantity !== undefined ? item.backorder_quantity : item.quantity_ordered - item.quantity_invoiced,
+          };
+        });
+        setRemainingQuantities(remainingMap);
+        console.log('📊 Set remaining quantities:', remainingMap);
       }
       
-      // Fetch stock levels for pre-filled invoice data
-      if (editingInvoice.items && editingInvoice.items.length > 0) {
+      // Fetch warehouse/bin-specific stock levels for pre-filled invoice data
+      if (hasPrefilledItems) {
         const productIds = editingInvoice.items.map((item: any) => item.product_id);
         const warehouseId = editingInvoice.default_warehouse_id;
         const binId = editingInvoice.default_bin_id;
         
-        console.log('🔄 Loading stock for pre-filled invoice data:', { productIds, warehouseId, binId });
+        console.log('🔄 Loading warehouse/bin-specific stock:', { 
+          productIds, 
+          warehouseId, 
+          binId,
+          items: editingInvoice.items 
+        });
         
+        // Fetch warehouse and bin names
+        if (warehouseId) {
+          supabase
+            .from('warehouse_bins')
+            .select('warehouse_name, bin_name')
+            .eq('id', warehouseId)
+            .single()
+            .then(({ data }) => {
+              if (data) {
+                setWarehouseName(data.warehouse_name);
+                setBinName(data.bin_name);
+                console.log('🏢 Warehouse/bin names loaded:', data);
+              }
+            });
+        }
+        
+        // Fetch stock levels with warehouse/bin filter
         fetchStockLevels(productIds, warehouseId, binId).then(levels => {
           setStockLevels(levels);
-          console.log('✅ Stock levels loaded for pre-filled data:', levels);
+          console.log('✅ Warehouse/bin stock levels loaded:', levels);
         });
       }
     }
