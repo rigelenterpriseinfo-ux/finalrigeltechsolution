@@ -273,6 +273,7 @@ export default function BackorderModule() {
       const invoiceData = {
         invoice_date: new Date(),
         sales_order_id: soData.id,
+        sales_order_number: soData.order_number, // Add this for display
         customer_id: customerData.id,
         customer_name: customerData.name,
         billing_address_line1: customerData.address_line1 || '',
@@ -320,6 +321,8 @@ export default function BackorderModule() {
         }]
       };
 
+      console.log('📦 Prepared invoice data:', invoiceData);
+
       setPrefilledInvoiceData(invoiceData);
       setShowInvoiceDialog(true);
 
@@ -335,6 +338,58 @@ export default function BackorderModule() {
 
   const handleInvoiceSubmit = async (data: any) => {
     try {
+      console.log('📝 Submitting invoice with data:', data);
+      
+      // Calculate totals from items
+      let subtotalAmount = 0;
+      let discountAmount = 0;
+      let taxAmount = 0;
+      
+      const invoiceItems = data.items.map((item: any) => {
+        const unitPrice = item.unit_price;
+        const quantity = item.quantity_invoiced;
+        const discountPercentage = item.discount_percentage || 0;
+        const itemDiscountAmount = (unitPrice * quantity * discountPercentage) / 100;
+        const itemSubtotal = (unitPrice * quantity) - itemDiscountAmount;
+        
+        const cgstAmount = (itemSubtotal * (item.cgst_rate || 0)) / 100;
+        const sgstAmount = (itemSubtotal * (item.sgst_rate || 0)) / 100;
+        const igstAmount = (itemSubtotal * (item.igst_rate || 0)) / 100;
+        const itemTaxAmount = cgstAmount + sgstAmount + igstAmount;
+        const lineTotal = itemSubtotal + itemTaxAmount;
+        
+        subtotalAmount += itemSubtotal;
+        discountAmount += itemDiscountAmount;
+        taxAmount += itemTaxAmount;
+
+        return {
+          product_id: item.product_id,
+          item_code: item.item_code,
+          item_description: item.item_description,
+          hsn_sac_code: item.hsn_sac_code,
+          quantity_ordered: item.quantity_ordered,
+          quantity_invoiced: item.quantity_invoiced,
+          backorder_quantity: item.quantity_ordered - item.quantity_invoiced,
+          unit_of_measure: item.unit_of_measure,
+          unit_price: unitPrice,
+          discount_percentage: discountPercentage,
+          discount_amount: itemDiscountAmount,
+          cgst_rate: item.cgst_rate || 0,
+          cgst_amount: cgstAmount,
+          sgst_rate: item.sgst_rate || 0,
+          sgst_amount: sgstAmount,
+          igst_rate: item.igst_rate || 0,
+          igst_amount: igstAmount,
+          line_subtotal: itemSubtotal,
+          tax_amount: itemTaxAmount,
+          line_total: lineTotal,
+          warehouse_id: item.warehouse_id || data.default_warehouse_id,
+          bin_id: item.bin_id || data.default_bin_id
+        };
+      });
+      
+      const grandTotal = subtotalAmount - discountAmount + taxAmount + (data.freight_charges || 0) + (data.packing_charges || 0) + (data.round_off || 0);
+      
       // Create invoice in database
       const { data: invoiceData, error: invoiceError } = await supabase
         .from('sales_invoices')
@@ -363,70 +418,43 @@ export default function BackorderModule() {
           account_manager: data.account_manager,
           mode_of_delivery: data.mode_of_delivery,
           transporter: data.transporter,
-          freight_charges: data.freight_charges,
-          packing_charges: data.packing_charges,
-          round_off: data.round_off,
+          freight_charges: data.freight_charges || 0,
+          packing_charges: data.packing_charges || 0,
+          round_off: data.round_off || 0,
           notes: data.notes,
           status: 'finalized',
           default_warehouse_id: data.default_warehouse_id,
           default_bin_id: data.default_bin_id,
-          subtotal_amount: 0,
-          discount_amount: 0,
-          tax_amount: 0,
-          total_amount: 0,
+          subtotal_amount: subtotalAmount,
+          discount_amount: discountAmount,
+          tax_amount: taxAmount,
+          total_amount: grandTotal,
           created_by: businessUser?.id
         })
         .select()
         .single();
 
-      if (invoiceError) throw invoiceError;
+      if (invoiceError) {
+        console.error('Invoice creation error:', invoiceError);
+        throw invoiceError;
+      }
+
+      console.log('✅ Invoice created:', invoiceData);
 
       // Insert invoice items
-      const invoiceItems = data.items.map((item: any) => {
-        const unitPrice = item.unit_price;
-        const quantity = item.quantity_invoiced;
-        const discountPercentage = item.discount_percentage || 0;
-        const discountAmount = (unitPrice * quantity * discountPercentage) / 100;
-        const subtotal = (unitPrice * quantity) - discountAmount;
-        
-        const cgstAmount = (subtotal * (item.cgst_rate || 0)) / 100;
-        const sgstAmount = (subtotal * (item.sgst_rate || 0)) / 100;
-        const igstAmount = (subtotal * (item.igst_rate || 0)) / 100;
-        const taxAmount = cgstAmount + sgstAmount + igstAmount;
-        const lineTotal = subtotal + taxAmount;
-
-        return {
-          sales_invoice_id: invoiceData.id,
-          product_id: item.product_id,
-          item_code: item.item_code,
-          item_description: item.item_description,
-          hsn_sac_code: item.hsn_sac_code,
-          quantity_ordered: item.quantity_ordered,
-          quantity_invoiced: item.quantity_invoiced,
-          backorder_quantity: item.quantity_ordered - item.quantity_invoiced,
-          unit_of_measure: item.unit_of_measure,
-          unit_price: unitPrice,
-          discount_percentage: discountPercentage,
-          discount_amount: discountAmount,
-          cgst_rate: item.cgst_rate || 0,
-          cgst_amount: cgstAmount,
-          sgst_rate: item.sgst_rate || 0,
-          sgst_amount: sgstAmount,
-          igst_rate: item.igst_rate || 0,
-          igst_amount: igstAmount,
-          line_subtotal: subtotal,
-          tax_amount: taxAmount,
-          line_total: lineTotal,
-          warehouse_id: item.warehouse_id,
-          bin_id: item.bin_id
-        };
-      });
-
       const { error: itemsError } = await supabase
         .from('sales_invoice_items')
-        .insert(invoiceItems);
+        .insert(invoiceItems.map(item => ({
+          ...item,
+          sales_invoice_id: invoiceData.id
+        })));
 
-      if (itemsError) throw itemsError;
+      if (itemsError) {
+        console.error('Invoice items error:', itemsError);
+        throw itemsError;
+      }
+
+      console.log('✅ Invoice items created');
 
       // Update backorder quantity in sales_order_items
       const backorderItem = backorders.find(b => b.product_id === data.items[0].product_id);
@@ -441,12 +469,17 @@ export default function BackorderModule() {
           })
           .eq('id', backorderItem.id);
 
-        if (updateError) throw updateError;
+        if (updateError) {
+          console.error('Backorder update error:', updateError);
+          throw updateError;
+        }
+        
+        console.log('✅ Backorder quantity updated');
       }
 
-      // Create inventory transactions and update stock
+      // Create inventory transactions
       for (const item of invoiceItems) {
-        await supabase.from('inventory_transactions').insert({
+        const { error: transError } = await supabase.from('inventory_transactions').insert({
           company_id: company?.id,
           product_id: item.product_id,
           transaction_type: 'sales_invoice',
@@ -458,6 +491,11 @@ export default function BackorderModule() {
           bin_id: item.bin_id,
           created_by: businessUser?.id
         });
+
+        if (transError) {
+          console.error('Transaction error:', transError);
+          throw transError;
+        }
 
         // Update product stock quantity
         const { data: currentProduct } = await supabase
@@ -476,6 +514,8 @@ export default function BackorderModule() {
             .eq('id', item.product_id);
         }
       }
+      
+      console.log('✅ All transactions completed');
 
       toast({
         title: 'Success',
@@ -487,10 +527,10 @@ export default function BackorderModule() {
       fetchBackorders();
 
     } catch (error) {
-      console.error('Error creating invoice:', error);
+      console.error('❌ Error creating invoice:', error);
       toast({
         title: 'Error',
-        description: 'Failed to create invoice. Please try again.',
+        description: error instanceof Error ? error.message : 'Failed to create invoice. Please try again.',
         variant: 'destructive',
       });
     }

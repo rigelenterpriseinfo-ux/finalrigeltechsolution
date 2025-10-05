@@ -753,20 +753,30 @@ export const SalesInvoiceForm: React.FC<SalesInvoiceFormProps> = ({
                             <FormLabel className="text-sm font-medium">
                               Sales Order Number <span className="text-red-500">*</span>
                             </FormLabel>
-                            <Select onValueChange={onSalesOrderChange} value={field.value}>
-                              <FormControl>
-                                <SelectTrigger className="h-9">
-                                  <SelectValue placeholder="Select sales order" />
-                                </SelectTrigger>
-                              </FormControl>
-                              <SelectContent>
-                                {salesOrders.map((order) => (
-                                  <SelectItem key={order.id} value={order.id}>
-                                    {order.order_number} - {order.customers.name}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
+                            {editingInvoice?.sales_order_number ? (
+                              // Show as read-only when pre-filled from backorder
+                              <div className="h-9 px-3 py-2 bg-muted/50 border border-input rounded-md flex items-center justify-between">
+                                <span className="text-sm">
+                                  {editingInvoice.sales_order_number} - {editingInvoice.customer_name}
+                                </span>
+                                <Badge variant="secondary" className="text-xs">Pre-filled</Badge>
+                              </div>
+                            ) : (
+                              <Select onValueChange={onSalesOrderChange} value={field.value || ''}>
+                                <FormControl>
+                                  <SelectTrigger className="h-9">
+                                    <SelectValue placeholder="Select sales order" />
+                                  </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                  {salesOrders.map((order) => (
+                                    <SelectItem key={order.id} value={order.id}>
+                                      {order.order_number} - {order.customers.name}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            )}
                             <FormMessage />
                           </FormItem>
                         )}
