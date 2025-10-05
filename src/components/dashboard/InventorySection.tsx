@@ -90,20 +90,45 @@ const InventorySectionComponent: React.FC<InventorySectionProps> = ({ companyId 
                       <p className="text-xs text-muted-foreground">
                         {item.quantity} units • {item.sku}
                       </p>
-                      {/* Mini sparkline */}
-                      <div className="h-6 flex items-end gap-0.5 mt-1">
-                        {item.movement.map((val, idx) => {
-                          const maxVal = Math.max(...item.movement);
-                          const height = maxVal > 0 ? (Math.abs(val) / maxVal) * 100 : 0;
-                          return (
-                            <div
-                              key={idx}
-                              className="flex-1 bg-primary/30 rounded-sm"
-                              style={{ height: `${Math.max(height, 5)}%` }}
-                            />
-                          );
-                        })}
-                      </div>
+                      {/* Sparkline chart showing stock movement trend */}
+                      {item.movement && item.movement.length > 0 && (
+                        <svg className="w-full h-8 mt-1" viewBox="0 0 100 20" preserveAspectRatio="none">
+                          <defs>
+                            <linearGradient id={`gradient-${item.productId}`} x1="0" x2="0" y1="0" y2="1">
+                              <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity="0.3" />
+                              <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity="0.05" />
+                            </linearGradient>
+                          </defs>
+                          {(() => {
+                            const maxVal = Math.max(...item.movement, 1);
+                            const minVal = Math.min(...item.movement, 0);
+                            const range = maxVal - minVal || 1;
+                            const points = item.movement.map((val, idx) => {
+                              const x = (idx / (item.movement.length - 1)) * 100;
+                              const y = 20 - ((val - minVal) / range) * 18;
+                              return `${x},${y}`;
+                            }).join(' ');
+                            const areaPoints = `0,20 ${points} 100,20`;
+                            return (
+                              <>
+                                <polyline
+                                  points={areaPoints}
+                                  fill={`url(#gradient-${item.productId})`}
+                                  stroke="none"
+                                />
+                                <polyline
+                                  points={points}
+                                  fill="none"
+                                  stroke="hsl(var(--primary))"
+                                  strokeWidth="1"
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                />
+                              </>
+                            );
+                          })()}
+                        </svg>
+                      )}
                     </div>
                     <span className="text-sm font-semibold ml-2">
                       ₹{item.totalValue.toLocaleString('en-IN', { maximumFractionDigits: 0 })}

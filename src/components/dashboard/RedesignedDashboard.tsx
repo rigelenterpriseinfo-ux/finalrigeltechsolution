@@ -6,12 +6,9 @@ import { InventorySection } from './InventorySection';
 import { SalesSection } from './SalesSection';
 import { FinanceSection } from './FinanceSection';
 import { ShipmentStatusBoard } from './ShipmentStatusBoard';
-import { RecentActivitiesTimeline } from './RecentActivitiesTimeline';
-import { QuickActionsSidebar } from './QuickActionsSidebar';
 import { DashboardSectionWrapper } from './DashboardSectionWrapper';
 import { DashboardLoadingState } from './DashboardLoadingState';
 import { DashboardRefreshButton } from './DashboardRefreshButton';
-import { DashboardExportMenu } from './DashboardExportMenu';
 import { KeyboardShortcutsDialog } from './KeyboardShortcutsDialog';
 import { DashboardCustomizationDialog } from './DashboardCustomizationDialog';
 import { DateRangeFilter } from './DateRangeFilter';
@@ -33,10 +30,9 @@ import { PullToRefreshContainer } from '@/components/mobile/PullToRefreshContain
 import { NotificationCenter } from '@/components/notifications/NotificationCenter';
 import { SmartNotificationManager } from '@/components/notifications/SmartNotificationManager';
 import { CommandPalette } from '@/components/command/CommandPalette';
-import { CommandPaletteTrigger } from '@/components/command/CommandPaletteTrigger';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Keyboard, Settings2, Maximize2, Minimize2 } from 'lucide-react';
+import { Keyboard, Settings2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 /**
@@ -77,7 +73,6 @@ const RedesignedDashboardComponent: React.FC<RedesignedDashboardProps> = ({ comp
   const { trackWidgetInteraction, trackEvent } = useDashboardAnalytics();
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [showCustomization, setShowCustomization] = useState(false);
-  const [dragEnabled, setDragEnabled] = useState(false);
   
   // Enable real-time updates
   useRealtimeDashboard(companyId);
@@ -96,16 +91,6 @@ const RedesignedDashboardComponent: React.FC<RedesignedDashboardProps> = ({ comp
     trackEvent('dashboard_refresh');
     await refetchOperations();
     // Other queries will be refetched via real-time subscriptions
-  };
-
-  // Prepare export data
-  const exportData = {
-    kpiData,
-    purchaseData,
-    inventoryData,
-    salesData,
-    financeData,
-    operationsData,
   };
 
   // Show loading state on initial load
@@ -127,71 +112,17 @@ const RedesignedDashboardComponent: React.FC<RedesignedDashboardProps> = ({ comp
           {/* Page Header with Action Buttons */}
           <header 
             className={cn(
-              'flex items-start justify-between',
-              isMobile && 'flex-col gap-3'
+              'flex items-center justify-between mb-6',
+              isMobile && 'flex-wrap gap-3'
             )}
             role="banner"
           >
-            <div className="flex-1">
-              <div className="flex items-center gap-2 mb-1 flex-wrap">
-                <h1 
-                  className={cn(
-                    'font-bold tracking-tight',
-                    isMobile ? 'text-2xl' : 'text-3xl'
-                  )}
-                  id="dashboard-title"
-                >
-                  Dashboard
-                </h1>
-                <Badge variant="outline" className="text-xs" aria-label="Real-time updates enabled">
-                  Live Updates
-                </Badge>
-              </div>
-              <p 
-                className={cn(
-                  'text-muted-foreground',
-                  isMobile ? 'text-sm' : 'text-base'
-                )}
-                id="dashboard-description"
-              >
-                Monitor your business performance
-              </p>
-            </div>
+            <Badge variant="outline" className="text-xs" aria-label="Real-time updates enabled">
+              Live Updates
+            </Badge>
             <div className="flex items-center gap-2" role="toolbar" aria-label="Dashboard actions">
-              <CommandPaletteTrigger variant="button" />
               <NotificationCenter />
               <DateRangeFilter />
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  setDragEnabled(!dragEnabled);
-                  trackEvent('toggle_drag_mode', { enabled: !dragEnabled });
-                }}
-                className="gap-2"
-                aria-label="Toggle widget reordering"
-                title="Toggle widget reordering"
-              >
-                <Settings2 className="h-4 w-4" />
-                {dragEnabled ? 'Done' : 'Reorder'}
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  toggleCompactView();
-                  trackEvent('toggle_compact_view', { compact: !customization.compactView });
-                }}
-                className="gap-2"
-                aria-label="Toggle compact view"
-                title="Toggle compact view"
-              >
-                {customization.compactView ? (
-                  <Maximize2 className="h-4 w-4" />
-                ) : (
-                  <Minimize2 className="h-4 w-4" />
-                )}
-              </Button>
               <Button
                 variant="outline"
                 size="sm"
@@ -215,20 +146,12 @@ const RedesignedDashboardComponent: React.FC<RedesignedDashboardProps> = ({ comp
                 <Keyboard className="h-4 w-4" aria-hidden="true" />
                 <span className="hidden sm:inline">Shortcuts</span>
               </Button>
-              <DashboardExportMenu data={exportData} companyId={companyId} />
               <DashboardRefreshButton onRefresh={handleRefreshAll} />
             </div>
           </header>
 
-          {/* Dashboard Widgets with Drag & Drop */}
-          <DraggableWidgets
-            widgets={customization.widgets}
-            onReorder={(widgets) => {
-              reorderWidgets(widgets);
-              trackEvent('widgets_reordered');
-            }}
-            enabled={dragEnabled}
-          >
+          {/* Dashboard Widgets */}
+          <div className={spacing}>
             {/* Hero KPI Section */}
             {customization.widgets.kpi?.visible && (
               <section aria-labelledby="kpi-section-title">
@@ -316,39 +239,9 @@ const RedesignedDashboardComponent: React.FC<RedesignedDashboardProps> = ({ comp
               </section>
             )}
             
-            {/* Recent Activities Timeline */}
-            {customization.widgets.activities?.visible && (
-              <section aria-labelledby="activities-section-title">
-                <h2 id="activities-section-title" className="sr-only">Recent Activities</h2>
-                <DashboardSectionWrapper>
-                  <RecentActivitiesTimeline 
-                    activities={operationsData?.recentActivities || []}
-                    loading={operationsLoading}
-                  />
-                </DashboardSectionWrapper>
-              </section>
-            )}
-          </DraggableWidgets>
+          </div>
         </div>
-
-        {/* Quick Actions Sidebar - Sticky on desktop, FAB on mobile */}
-        {!isMobile && (
-          <aside 
-            className="hidden md:block sticky top-6 h-fit" 
-            aria-label="Quick actions"
-            role="complementary"
-          >
-            <QuickActionsSidebar />
-          </aside>
-        )}
       </div>
-
-      {/* Mobile FAB */}
-      {isMobile && (
-        <div role="complementary" aria-label="Quick actions">
-          <QuickActionsSidebar />
-        </div>
-      )}
 
       {/* Keyboard Shortcuts Dialog */}
       <KeyboardShortcutsDialog 

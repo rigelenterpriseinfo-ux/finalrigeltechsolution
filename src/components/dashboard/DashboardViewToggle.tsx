@@ -25,7 +25,7 @@ export const DashboardViewToggle: React.FC<DashboardViewToggleProps> = ({
             {isNewDashboard ? (
               <>
                 <LayoutDashboard className="h-4 w-4" />
-                <span className="hidden sm:inline">New Dashboard</span>
+                <span className="hidden sm:inline">Analytics View</span>
               </>
             ) : (
               <>
