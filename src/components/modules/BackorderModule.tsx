@@ -80,58 +80,68 @@ export default function BackorderModule() {
             customer_id,
             customer_po_number,
             status,
-            customers!inner (
-              id,
-              name
-            )
-          ),
-          products!inner (
-            id,
-            name,
-            sku
+            company_id
           )
         `)
         .eq('sales_orders.company_id', businessUser?.company_id)
-        .gt('back_order_quantity', 0)
-        .order('sales_orders.order_date', { ascending: true });
+        .gt('back_order_quantity', 0);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Supabase error:', error);
+        throw error;
+      }
 
-      // Transform and enrich data with available stock
-      const enrichedData: BackorderLineItem[] = await Promise.all(
-        (data || []).map(async (item: any) => {
-          // Calculate available stock for this product
-          const { data: stockData } = await supabase
-            .from('inventory_transactions')
-            .select('quantity_change')
-            .eq('product_id', item.product_id)
-            .eq('warehouse_id', item.warehouse_id || '');
+      console.log('Raw backorder data:', data);
 
-          const availableStock = (stockData || []).reduce((sum, t) => sum + (t.quantity_change || 0), 0);
+      // Get unique customer IDs and product IDs
+      const customerIds = [...new Set((data || []).map((item: any) => item.sales_orders.customer_id))];
+      const productIds = [...new Set((data || []).map((item: any) => item.product_id))];
 
-          return {
-            id: item.id,
-            so_number: item.sales_orders.order_number,
-            order_date: item.sales_orders.order_date,
-            customer_id: item.sales_orders.customer_id,
-            customer_name: item.sales_orders.customers.name,
-            po_number: item.sales_orders.customer_po_number,
-            product_id: item.product_id,
-            product_name: item.products.name,
-            product_sku: item.products.sku,
-            ordered_qty: item.ordered_quantity,
-            invoiced_qty: item.quantity,
-            ready_to_deliver_qty: item.ordered_quantity - item.quantity - item.back_order_quantity,
-            backorder_qty: item.back_order_quantity,
-            available_stock: availableStock,
-            unit_price: item.unit_price,
-            line_total: item.back_order_quantity * item.unit_price,
-            so_status: item.sales_orders.status,
-            warehouse_id: item.warehouse_id,
-            bin_id: item.bin_id
-          };
-        })
-      );
+      // Fetch customers
+      const { data: customersData } = await supabase
+        .from('customers')
+        .select('id, name')
+        .in('id', customerIds);
+
+      // Fetch products
+      const { data: productsData } = await supabase
+        .from('products')
+        .select('id, name, sku, stock_quantity')
+        .in('id', productIds);
+
+      // Create lookup maps
+      const customersMap = new Map((customersData || []).map(c => [c.id, c]));
+      const productsMap = new Map((productsData || []).map(p => [p.id, p]));
+
+      // Transform data
+      const enrichedData: BackorderLineItem[] = (data || []).map((item: any) => {
+        const customer = customersMap.get(item.sales_orders.customer_id);
+        const product = productsMap.get(item.product_id);
+
+        return {
+          id: item.id,
+          so_number: item.sales_orders.order_number,
+          order_date: item.sales_orders.order_date,
+          customer_id: item.sales_orders.customer_id,
+          customer_name: customer?.name || 'Unknown',
+          po_number: item.sales_orders.customer_po_number,
+          product_id: item.product_id,
+          product_name: product?.name || 'Unknown',
+          product_sku: product?.sku || 'N/A',
+          ordered_qty: item.ordered_quantity,
+          invoiced_qty: item.quantity,
+          ready_to_deliver_qty: item.ordered_quantity - item.quantity - item.back_order_quantity,
+          backorder_qty: item.back_order_quantity,
+          available_stock: product?.stock_quantity || 0,
+          unit_price: item.unit_price,
+          line_total: item.back_order_quantity * item.unit_price,
+          so_status: item.sales_orders.status,
+          warehouse_id: item.warehouse_id,
+          bin_id: item.bin_id
+        };
+      });
+
+      console.log('Enriched backorder data:', enrichedData);
 
       setBackorders(enrichedData);
 
