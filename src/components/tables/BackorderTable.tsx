@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { ChevronDown, ChevronUp, Package, Download } from 'lucide-react';
 import {
   Table,
@@ -13,6 +13,22 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+  PaginationEllipsis,
+} from '@/components/ui/pagination';
 import { useToast } from '@/hooks/use-toast';
 import { exportToExcel, formatCurrency, formatDate } from '@/utils/excelExport';
 import type { BackorderLineItem } from '@/components/modules/BackorderModule';
@@ -36,21 +52,49 @@ export default function BackorderTable({
   const [sortField, setSortField] = useState<keyof BackorderLineItem>('order_date');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   const [releaseQuantities, setReleaseQuantities] = useState<Record<string, number>>({});
+  
+  // Filter states
+  const [customerFilter, setCustomerFilter] = useState<string>('all');
+  const [poNumberFilter, setPoNumberFilter] = useState<string>('all');
+  const [orderNoFilter, setOrderNoFilter] = useState<string>('all');
+  const [productFilter, setProductFilter] = useState<string>('all');
+  
+  // Pagination
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
+  
   const { toast } = useToast();
 
-  // Multi-field search: Product Name/SKU, Customer Name, SO Number, PO Number
+  // Get unique filter options
+  const filterOptions = useMemo(() => {
+    const customers = [...new Set(backorders.map(b => b.customer_name))].sort();
+    const poNumbers = [...new Set(backorders.map(b => b.po_number).filter(Boolean))].sort();
+    const orderNos = [...new Set(backorders.map(b => b.so_number))].sort();
+    const products = [...new Set(backorders.map(b => b.product_name))].sort();
+    
+    return { customers, poNumbers, orderNos, products };
+  }, [backorders]);
+
+  // Apply filters
   const filteredBackorders = backorders.filter((backorder) => {
     const search = searchTerm.toLowerCase();
-    return (
+    const matchesSearch = !searchTerm || (
       backorder.product_name.toLowerCase().includes(search) ||
       backorder.product_sku.toLowerCase().includes(search) ||
       backorder.customer_name.toLowerCase().includes(search) ||
       backorder.so_number.toLowerCase().includes(search) ||
       (backorder.po_number && backorder.po_number.toLowerCase().includes(search))
     );
+    
+    const matchesCustomer = customerFilter === 'all' || backorder.customer_name === customerFilter;
+    const matchesPO = poNumberFilter === 'all' || backorder.po_number === poNumberFilter;
+    const matchesOrderNo = orderNoFilter === 'all' || backorder.so_number === orderNoFilter;
+    const matchesProduct = productFilter === 'all' || backorder.product_name === productFilter;
+    
+    return matchesSearch && matchesCustomer && matchesPO && matchesOrderNo && matchesProduct;
   });
 
-  const sortedBackorders = filteredBackorders.sort((a, b) => {
+  const sortedBackorders = [...filteredBackorders].sort((a, b) => {
     const aVal = a[sortField];
     const bVal = b[sortField];
     
@@ -64,6 +108,17 @@ export default function BackorderTable({
     
     return 0;
   });
+
+  // Pagination calculations
+  const totalPages = Math.ceil(sortedBackorders.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedBackorders = sortedBackorders.slice(startIndex, endIndex);
+
+  // Reset to page 1 when filters change
+  React.useEffect(() => {
+    setCurrentPage(1);
+  }, [customerFilter, poNumberFilter, orderNoFilter, productFilter, searchTerm]);
 
   const handleSort = (field: keyof BackorderLineItem) => {
     if (sortField === field) {
@@ -158,27 +213,80 @@ export default function BackorderTable({
 
   return (
     <div className="space-y-4">
-      {/* Search and Export */}
-      <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
-        <Input
-          placeholder="Search by Product, Customer, SO#, or PO#..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="max-w-md"
-        />
-        <div className="flex items-center gap-2">
-          <span className="text-sm text-muted-foreground">
-            {sortedBackorders.length} line{sortedBackorders.length !== 1 ? 's' : ''}
-          </span>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleExportToExcel}
-            className="flex items-center gap-2"
-          >
-            <Download className="h-4 w-4" />
-            Export Excel
-          </Button>
+      {/* Search and Filters */}
+      <div className="flex flex-col gap-4">
+        <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center justify-between">
+          <div className="flex flex-col sm:flex-row gap-2 w-full lg:w-auto flex-1">
+            <Input
+              placeholder="Search by Product, Customer, SO#, or PO#..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="sm:max-w-xs"
+            />
+            
+            <Select value={customerFilter} onValueChange={setCustomerFilter}>
+              <SelectTrigger className="w-full sm:w-[180px]">
+                <SelectValue placeholder="Customer" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Customers</SelectItem>
+                {filterOptions.customers.map(customer => (
+                  <SelectItem key={customer} value={customer}>{customer}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <Select value={poNumberFilter} onValueChange={setPoNumberFilter}>
+              <SelectTrigger className="w-full sm:w-[180px]">
+                <SelectValue placeholder="PO Number" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All PO Numbers</SelectItem>
+                {filterOptions.poNumbers.map(po => (
+                  <SelectItem key={po} value={po}>{po}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <Select value={orderNoFilter} onValueChange={setOrderNoFilter}>
+              <SelectTrigger className="w-full sm:w-[180px]">
+                <SelectValue placeholder="Order No" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Orders</SelectItem>
+                {filterOptions.orderNos.map(order => (
+                  <SelectItem key={order} value={order}>{order}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <Select value={productFilter} onValueChange={setProductFilter}>
+              <SelectTrigger className="w-full sm:w-[180px]">
+                <SelectValue placeholder="Product" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Products</SelectItem>
+                {filterOptions.products.map(product => (
+                  <SelectItem key={product} value={product}>{product}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-muted-foreground">
+              {sortedBackorders.length} line{sortedBackorders.length !== 1 ? 's' : ''}
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleExportToExcel}
+              className="flex items-center gap-2"
+            >
+              <Download className="h-4 w-4" />
+              Export Excel
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -224,7 +332,7 @@ export default function BackorderTable({
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {sortedBackorders.map((item) => {
+                  {paginatedBackorders.map((item) => {
                     const canRelease = item.available_stock > 0;
                     const releaseQty = releaseQuantities[item.id] || 0;
 
@@ -293,6 +401,57 @@ export default function BackorderTable({
             </div>
           </CardContent>
         </Card>
+      )}
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex justify-center">
+          <Pagination>
+            <PaginationContent>
+              <PaginationItem>
+                <PaginationPrevious 
+                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                  className={currentPage === 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                />
+              </PaginationItem>
+              
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => {
+                // Show first page, last page, current page, and pages around current
+                if (
+                  page === 1 ||
+                  page === totalPages ||
+                  (page >= currentPage - 1 && page <= currentPage + 1)
+                ) {
+                  return (
+                    <PaginationItem key={page}>
+                      <PaginationLink
+                        onClick={() => setCurrentPage(page)}
+                        isActive={currentPage === page}
+                        className="cursor-pointer"
+                      >
+                        {page}
+                      </PaginationLink>
+                    </PaginationItem>
+                  );
+                } else if (page === currentPage - 2 || page === currentPage + 2) {
+                  return (
+                    <PaginationItem key={page}>
+                      <PaginationEllipsis />
+                    </PaginationItem>
+                  );
+                }
+                return null;
+              })}
+              
+              <PaginationItem>
+                <PaginationNext 
+                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                  className={currentPage === totalPages ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                />
+              </PaginationItem>
+            </PaginationContent>
+          </Pagination>
+        </div>
       )}
     </div>
   );
