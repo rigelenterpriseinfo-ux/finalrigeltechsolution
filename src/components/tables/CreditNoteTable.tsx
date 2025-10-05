@@ -10,6 +10,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { supabase } from '@/integrations/supabase/client';
+import { cn } from '@/lib/utils';
 import { 
   Eye, 
   Edit, 
@@ -42,6 +43,7 @@ interface CreditNoteTableProps {
   onEdit: (cnId: string) => void;
   onExport: (cn: CreditNote) => void;
   loading?: boolean;
+  isActive?: boolean;
 }
 
 type SortField = 'cn_number' | 'cn_date' | 'customer_name' | 'rso_number' | 'status' | 'total_amount';
@@ -52,7 +54,8 @@ export function CreditNoteTable({
   onView,
   onEdit,
   onExport,
-  loading = false
+  loading = false,
+  isActive = false
 }: CreditNoteTableProps) {
   const { toast } = useToast();
   const { profile } = useAuth();
@@ -402,7 +405,7 @@ export function CreditNoteTable({
   }
 
   return (
-    <Card>
+    <Card className={cn("transition-all duration-200", isActive && "ring-2 ring-primary shadow-lg")}>
       <CardHeader>
         <CardTitle className="flex items-center justify-between flex-wrap gap-4">
           <span>Credit Notes</span>

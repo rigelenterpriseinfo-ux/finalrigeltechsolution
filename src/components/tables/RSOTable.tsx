@@ -11,6 +11,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { supabase } from '@/integrations/supabase/client';
+import { cn } from '@/lib/utils';
 import { 
   Eye, 
   Edit, 
@@ -59,6 +60,7 @@ interface RSOTableProps {
   onViewCreditNotes: (rso: ReturnOrder) => void;
   onExport?: (rso: ReturnOrder) => void;
   loading?: boolean;
+  isActive?: boolean;
 }
 
 type SortField = 'rso_number' | 'rso_date' | 'customer_name' | 'invoice_number' | 'status' | 'total_amount';
@@ -72,7 +74,8 @@ export function RSOTable({
   onDelete,
   onViewCreditNotes,
   onExport,
-  loading = false
+  loading = false,
+  isActive = false
 }: RSOTableProps) {
   const { toast } = useToast();
   const { profile } = useAuth();
@@ -80,6 +83,7 @@ export function RSOTable({
   const [currentPage, setCurrentPage] = useState(1);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [cnStatusFilter, setCnStatusFilter] = useState<string>('all');
   const [sortField, setSortField] = useState<SortField>('rso_date');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
   const [companyData, setCompanyData] = useState<any>(null);
@@ -363,7 +367,23 @@ export function RSOTable({
     
     const matchesStatus = statusFilter === 'all' || order.status === statusFilter;
     
-    return matchesSearch && matchesStatus;
+    // CN Status Filter
+    let matchesCNStatus = true;
+    if (cnStatusFilter !== 'all') {
+      const linkedCNs = rsoLinkedCNs.get(order.id) || [];
+      
+      if (cnStatusFilter === 'no-cn') {
+        matchesCNStatus = linkedCNs.length === 0;
+      } else if (cnStatusFilter === 'cn-draft') {
+        matchesCNStatus = linkedCNs.some(cn => cn.status === 'Draft');
+      } else if (cnStatusFilter === 'cn-confirmed') {
+        matchesCNStatus = linkedCNs.some(cn => cn.status === 'Confirmed');
+      } else if (cnStatusFilter === 'cn-pending') {
+        matchesCNStatus = order.status === 'Confirmed' && linkedCNs.length === 0;
+      }
+    }
+    
+    return matchesSearch && matchesStatus && matchesCNStatus;
   });
 
   const sortedOrders = [...filteredOrders].sort((a, b) => {
@@ -522,7 +542,7 @@ export function RSOTable({
 
   return (
     <>
-      <Card>
+      <Card className={cn("transition-all duration-200", isActive && "ring-2 ring-primary shadow-lg")}>
         <CardHeader>
           <CardTitle className="flex items-center justify-between flex-wrap gap-4">
             <span>Return Sales Orders</span>
@@ -550,6 +570,21 @@ export function RSOTable({
                   <SelectItem value="all">All Status</SelectItem>
                   <SelectItem value="Draft">Draft</SelectItem>
                   <SelectItem value="Confirmed">Confirmed</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={cnStatusFilter} onValueChange={(value) => {
+                setCnStatusFilter(value);
+                setCurrentPage(1);
+              }}>
+                <SelectTrigger className="w-44">
+                  <SelectValue placeholder="CN Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All CN Status</SelectItem>
+                  <SelectItem value="no-cn">No CN</SelectItem>
+                  <SelectItem value="cn-draft">CN Draft</SelectItem>
+                  <SelectItem value="cn-confirmed">CN Confirmed</SelectItem>
+                  <SelectItem value="cn-pending">CN Pending</SelectItem>
                 </SelectContent>
               </Select>
             </div>

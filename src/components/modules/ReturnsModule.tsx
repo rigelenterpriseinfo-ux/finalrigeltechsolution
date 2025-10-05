@@ -24,6 +24,7 @@ import { ARDashboardWidget } from '@/components/dashboard/ARDashboardWidget';
 import { APARFilterProvider, useAPARFilters } from '@/contexts/APARFilterContext';
 import { RSOTable } from '@/components/tables/RSOTable';
 import { CreditNoteTable } from '@/components/tables/CreditNoteTable';
+import { ReturnsDashboardStats } from '@/components/dashboard/ReturnsDashboardStats';
 import { 
   RotateCcw, 
   FileText, 
@@ -934,29 +935,19 @@ function ReturnsModuleContent() {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-end">
-        <Button
-          onClick={reconcileAllProductStock}
-          disabled={loading}
-          variant="outline"
-          className="flex items-center gap-2"
-        >
-          <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-          {loading ? 'Reconciling...' : 'Reconcile Stock'}
-        </Button>
-      </div>
-
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
         <TabsList className="grid w-full grid-cols-2 border-b border-border">
           <TabsTrigger value="returns">Return Sales Orders</TabsTrigger>
           <TabsTrigger value="credit-notes">Credit Notes</TabsTrigger>
         </TabsList>
 
+        {/* Dashboard Stats */}
+        <ReturnsDashboardStats companyId={company?.id} />
+
         <TabsContent value="returns" className="space-y-6">
 
           {/* Create RSO Button */}
           <div className="flex justify-between items-center">
-            <h3 className="text-lg font-semibold">Return Sales Orders</h3>
             <div className="flex space-x-2">
               <Button 
                 variant="outline"
@@ -1005,6 +996,7 @@ function ReturnsModuleContent() {
               onViewCreditNotes={handleViewCreditNotes}
               onExport={handleExportRSO}
               loading={loading}
+              isActive={activeTab === 'returns'}
             />
           )}
          </TabsContent>
@@ -1013,7 +1005,6 @@ function ReturnsModuleContent() {
 
           {/* Create Credit Note Button */}
           <div className="flex justify-between items-center">
-            <h3 className="text-lg font-semibold">Credit Notes</h3>
             <div className="flex space-x-2">
               <Button 
                 variant="outline"
@@ -1247,6 +1238,7 @@ function ReturnsModuleContent() {
               onEdit={handleEditCreditNote}
               onExport={handleExportCreditNote}
               loading={loading}
+              isActive={activeTab === 'credit-notes'}
             />
           )}
         </TabsContent>
