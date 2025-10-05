@@ -940,15 +940,25 @@ function ReturnsModuleContent() {
       <ReturnsDashboardStats companyId={company?.id} />
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid w-full grid-cols-2 border-b border-border">
-          <TabsTrigger value="returns">Return Sales Orders</TabsTrigger>
-          <TabsTrigger value="credit-notes">Credit Notes</TabsTrigger>
+        <TabsList className="grid w-full grid-cols-2 bg-transparent border-b border-border p-0 h-auto rounded-none">
+          <TabsTrigger 
+            value="returns"
+            className="rounded-none border-b-2 border-transparent data-[state=active]:border-blue-500 data-[state=active]:text-blue-600 data-[state=active]:shadow-none pb-3 font-medium"
+          >
+            Return Sales Orders
+          </TabsTrigger>
+          <TabsTrigger 
+            value="credit-notes"
+            className="rounded-none border-b-2 border-transparent data-[state=active]:border-blue-500 data-[state=active]:text-blue-600 data-[state=active]:shadow-none pb-3 font-medium"
+          >
+            Credit Notes
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="returns" className="space-y-6">
 
           {/* Create RSO Button */}
-          <div className="flex justify-between items-center">
+          <div className="flex justify-end items-center">
             <div className="flex space-x-2">
               <Button 
                 variant="outline"
@@ -1012,7 +1022,7 @@ function ReturnsModuleContent() {
         <TabsContent value="credit-notes" className="space-y-6">
 
           {/* Create Credit Note Button */}
-          <div className="flex justify-between items-center">
+          <div className="flex justify-end items-center">
             <div className="flex space-x-2">
               <Button 
                 variant="outline"
