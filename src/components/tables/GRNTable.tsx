@@ -867,53 +867,24 @@ export function GRNTable({ refreshTrigger, onView, onEdit, onDelete }: GRNTableP
 
   return (
     <Card>
-      <CardHeader className="border-b border-border">
-        <CardTitle>Goods Receipt Notes (GRN)</CardTitle>
-      </CardHeader>
       <CardContent>
-        {/* Search and Export Controls */}
+        {/* Search, Filter and Export Controls */}
         <div className="p-4 sm:p-6 border-b bg-gradient-to-r from-blue-50 to-blue-100">
-          <div className="flex flex-col gap-4 items-start justify-between">
-            <div className="flex items-center gap-2 w-full">
-              <Search className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-              <Input
-                placeholder="Search by GRN Number or Supplier..."
-                value={searchTerm}
-                onChange={(e) => {
-                  setSearchTerm(e.target.value);
-                  setCurrentPage(1);
-                }}
-                className="bg-white"
-              />
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  // Export all filtered GRNs
-                  const wsData = filteredGRNs.map(grn => ({
-                    'GRN Number': grn.grn_number,
-                    'GRN Date': format(new Date(grn.grn_date), 'dd/MM/yyyy'),
-                    'PO Number': grn.purchase_orders?.po_number || 'N/A',
-                    'Supplier': grn.supplier_name,
-                    'Supplier Invoice': grn.supplier_invoice_number || '-',
-                    'Status': grn.status.toUpperCase(),
-                    'Total Amount': grn.total_amount
-                  }));
-                  const ws = XLSX.utils.json_to_sheet(wsData);
-                  const wb = XLSX.utils.book_new();
-                  XLSX.utils.book_append_sheet(wb, ws, 'GRNs');
-                  XLSX.writeFile(wb, `GRNs_${format(new Date(), 'yyyy-MM-dd')}.xlsx`);
-                  toast({ title: "Success", description: `Exported ${filteredGRNs.length} GRNs to Excel` });
-                }}
-                className="h-9 px-4 gap-2 rounded-md bg-teal-50 text-teal-700 border border-teal-200 hover:bg-teal-100 font-medium transition-colors"
-              >
-                <FileSpreadsheet className="h-4 w-4" />
-                Export Excel
-              </Button>
+          <div className="flex gap-4 items-center">
+            <div className="w-96">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+                <Input
+                  placeholder="Search by GRN Number or Supplier..."
+                  value={searchTerm}
+                  onChange={(e) => {
+                    setSearchTerm(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                  className="bg-white pl-10"
+                />
+              </div>
             </div>
-          </div>
-          
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mt-4 gap-2 text-sm text-muted-foreground">
             <Select value={statusFilter} onValueChange={(value: any) => setStatusFilter(value)}>
               <SelectTrigger className="w-[180px] bg-white">
                 <SelectValue placeholder="Status" />
@@ -926,7 +897,34 @@ export function GRNTable({ refreshTrigger, onView, onEdit, onDelete }: GRNTableP
                 <SelectItem value="partially_received">Partially Received</SelectItem>
               </SelectContent>
             </Select>
-            
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                // Export all filtered GRNs
+                const wsData = filteredGRNs.map(grn => ({
+                  'GRN Number': grn.grn_number,
+                  'GRN Date': format(new Date(grn.grn_date), 'dd/MM/yyyy'),
+                  'PO Number': grn.purchase_orders?.po_number || 'N/A',
+                  'Supplier': grn.supplier_name,
+                  'Supplier Invoice': grn.supplier_invoice_number || '-',
+                  'Status': grn.status.toUpperCase(),
+                  'Total Amount': grn.total_amount
+                }));
+                const ws = XLSX.utils.json_to_sheet(wsData);
+                const wb = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(wb, ws, 'GRNs');
+                XLSX.writeFile(wb, `GRNs_${format(new Date(), 'yyyy-MM-dd')}.xlsx`);
+                toast({ title: "Success", description: `Exported ${filteredGRNs.length} GRNs to Excel` });
+              }}
+              className="h-9 px-4 gap-2 rounded-md bg-teal-50 text-teal-700 border border-teal-200 hover:bg-teal-100 font-medium transition-colors"
+            >
+              <FileSpreadsheet className="h-4 w-4" />
+              Export Excel
+            </Button>
+          </div>
+          
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mt-4 gap-2 text-sm text-muted-foreground">
             <span>
               Showing {currentGRNs.length} of {filteredGRNs.length} GRNs
             </span>
