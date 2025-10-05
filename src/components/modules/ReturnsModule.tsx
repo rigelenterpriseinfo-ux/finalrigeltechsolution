@@ -13,6 +13,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { SearchableCombobox } from '@/components/ui/searchable-combobox';
 import { useToast } from '@/hooks/use-toast';
@@ -967,39 +968,46 @@ function ReturnsModuleContent() {
             </div>
           </div>
 
-          {/* RSO Form */}
-          {isCreateRSOFormOpen && (
-            <EnhancedCreateRSOForm
-              rsoId={editingRsoId}
-              onClose={() => {
-                setIsCreateRSOFormOpen(false);
-                setEditingRsoId(null);
-              }}
-              onSave={() => {
-                loadReturnOrders();
-                loadReturnStats();
-                setIsCreateRSOFormOpen(false);
-                setEditingRsoId(null);
-              }}
-            />
-          )}
-
+          {/* RSO Form Dialog */}
+          <Dialog open={isCreateRSOFormOpen} onOpenChange={(open) => {
+            if (!open) {
+              setIsCreateRSOFormOpen(false);
+              setEditingRsoId(null);
+            }
+          }}>
+            <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>{editingRsoId ? 'Edit RSO' : 'Create RSO'}</DialogTitle>
+              </DialogHeader>
+              <EnhancedCreateRSOForm
+                rsoId={editingRsoId}
+                onClose={() => {
+                  setIsCreateRSOFormOpen(false);
+                  setEditingRsoId(null);
+                }}
+                onSave={() => {
+                  loadReturnOrders();
+                  loadReturnStats();
+                  setIsCreateRSOFormOpen(false);
+                  setEditingRsoId(null);
+                }}
+              />
+            </DialogContent>
+          </Dialog>
 
           {/* RSO Table */}
-          {!isCreateRSOFormOpen && (
-            <RSOTable
-              returnOrders={returnOrders}
-              creditNotes={creditNotes}
-              onView={handleViewRso}
-              onEdit={handleEditRso}
-              onDelete={handleDeleteRso}
-              onViewCreditNotes={handleViewCreditNotes}
-              onExport={handleExportRSO}
-              loading={loading}
-              isActive={activeTab === 'returns'}
-            />
-          )}
-         </TabsContent>
+          <RSOTable
+            returnOrders={returnOrders}
+            creditNotes={creditNotes}
+            onView={handleViewRso}
+            onEdit={handleEditRso}
+            onDelete={handleDeleteRso}
+            onViewCreditNotes={handleViewCreditNotes}
+            onExport={handleExportRSO}
+            loading={loading}
+            isActive={activeTab === 'returns'}
+          />
+        </TabsContent>
 
         <TabsContent value="credit-notes" className="space-y-6">
 
@@ -1028,13 +1036,17 @@ function ReturnsModuleContent() {
             </div>
           </div>
 
-          {/* Credit Note Form */}
-          {isCreateCreditNoteFormOpen && (
-            <Card>
-              <CardHeader>
-                <CardTitle>Create Credit Note</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-6">
+          {/* Credit Note Form Dialog */}
+          <Dialog open={isCreateCreditNoteFormOpen} onOpenChange={(open) => {
+            if (!open) {
+              resetCreditNoteForm();
+            }
+          }}>
+            <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>Create Credit Note</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-6">
                 {/* Header Fields */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="space-y-2">
@@ -1046,7 +1058,7 @@ function ReturnsModuleContent() {
                       searchPlaceholder="Search warehouses..."
                       options={warehouses.map(w => ({
                         id: w.id,
-                        name: w.name, // Shows "Warehouse name - Warehouse code"
+                        name: w.name,
                         subtitle: undefined
                       }))}
                       loading={loading}
@@ -1097,89 +1109,85 @@ function ReturnsModuleContent() {
                     loading={loading}
                     emptyMessage="No confirmed RSOs found"
                   />
-                  {/* Debug info */}
-                  {process.env.NODE_ENV === 'development' && (
-                    <div className="text-xs text-gray-500 mt-1">
-                      Debug: {returnOrders.length} RSOs loaded, Loading: {loading ? 'Yes' : 'No'}
-                    </div>
-                  )}
                 </div>
 
                 {/* Line Items Table */}
                 {creditNoteItems.length > 0 && (
                   <div className="space-y-4">
-                    <h4 className="text-md font-semibold">Line Items</h4>
-                    <div className="border rounded-lg overflow-hidden">
+                    <h3 className="font-semibold">Credit Note Items</h3>
+                    <div className="border rounded-lg overflow-auto max-h-96">
                       <Table>
-                         <TableHeader>
-                           <TableRow>
-                             <TableHead>Item Code</TableHead>
-                             <TableHead>Description</TableHead>
-                             <TableHead>RSO Qty</TableHead>
-                             <TableHead>Return Qty</TableHead>
-                             <TableHead>Pending</TableHead>
-                             <TableHead>Unit Price</TableHead>
-                             <TableHead>Discount %</TableHead>
-                             <TableHead>CGST %</TableHead>
-                             <TableHead>SGST %</TableHead>
-                             <TableHead>IGST %</TableHead>
-                             <TableHead>Warehouse/Bin</TableHead>
-                             <TableHead>Line Total</TableHead>
-                           </TableRow>
-                         </TableHeader>
-                         <TableBody>
-                           {creditNoteItems.map((item) => {
-                             const hasReturnQty = item.return_qty > 0;
-                             const missingWarehouse = hasReturnQty && !item.warehouse_id;
-                             
-                             return (
-                               <TableRow key={item.id} className={missingWarehouse ? "bg-red-50 border-red-200" : ""}>
-                                 <TableCell>{item.product_sku}</TableCell>
-                                 <TableCell>{item.product_name}</TableCell>
-                                 <TableCell>{item.rso_qty}</TableCell>
-                                 <TableCell>
-                                   <Input
-                                     type="number"
-                                     min="0"
-                                     max={item.rso_qty}
-                                     value={item.return_qty}
-                                     onChange={(e) => handleReturnQtyChange(item.id, parseInt(e.target.value) || 0)}
-                                     className="w-20"
-                                   />
-                                 </TableCell>
-                                 <TableCell>{item.pending_return_qty}</TableCell>
-                                 <TableCell>₹{item.unit_price.toFixed(2)}</TableCell>
-                                 <TableCell>{item.discount_percentage}%</TableCell>
-                                 <TableCell>{item.cgst_rate}%</TableCell>
-                                 <TableCell>{item.sgst_rate}%</TableCell>
-                                 <TableCell>{item.igst_rate}%</TableCell>
-                                 <TableCell className="min-w-[200px]">
-                                    <SearchableCombobox
-                                      value={item.warehouse_id}
-                                      onSelect={(warehouseId) => handleItemWarehouseChange(item.id, warehouseId)}
-                                      placeholder="Select warehouse/bin"
-                                      searchPlaceholder="Search warehouses..."
-                                      options={warehouses.map(w => ({
-                                        id: w.id,
-                                        name: w.location, // Shows "Bin code - Bin name"
-                                        subtitle: w.name // Shows "Warehouse name - Warehouse code" as subtitle
-                                      }))}
-                                      className={`${missingWarehouse ? 'border-red-500' : ''} text-xs`}
-                                      disabled={item.return_qty === 0}
-                                      emptyMessage="No warehouses found"
-                                    />
-                                   {missingWarehouse && (
-                                     <div className="text-xs text-red-600 mt-1">
-                                       <AlertCircle className="h-3 w-3 inline mr-1" />
-                                       Required for return items
-                                     </div>
-                                   )}
-                                 </TableCell>
-                                 <TableCell>₹{item.line_total.toFixed(2)}</TableCell>
-                               </TableRow>
-                             );
-                           })}
-                         </TableBody>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>SKU</TableHead>
+                            <TableHead>Product</TableHead>
+                            <TableHead>HSN</TableHead>
+                            <TableHead>UOM</TableHead>
+                            <TableHead>RSO Qty</TableHead>
+                            <TableHead>Return Qty</TableHead>
+                            <TableHead>Pending</TableHead>
+                            <TableHead>Rate</TableHead>
+                            <TableHead>Disc%</TableHead>
+                            <TableHead>CGST%</TableHead>
+                            <TableHead>SGST%</TableHead>
+                            <TableHead>IGST%</TableHead>
+                            <TableHead>Warehouse/Bin</TableHead>
+                            <TableHead>Total</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {creditNoteItems.map((item) => {
+                            const missingWarehouse = item.return_qty > 0 && !item.warehouse_id;
+                            return (
+                              <TableRow key={item.id}>
+                                <TableCell>{item.product_sku}</TableCell>
+                                <TableCell>{item.product_name}</TableCell>
+                                <TableCell>{item.hsn_sac_code || '-'}</TableCell>
+                                <TableCell>{item.unit_of_measure}</TableCell>
+                                <TableCell>{item.rso_qty}</TableCell>
+                                <TableCell>
+                                  <Input
+                                    type="number"
+                                    min="0"
+                                    max={item.rso_qty}
+                                    value={item.return_qty}
+                                    onChange={(e) => handleReturnQtyChange(item.id, parseInt(e.target.value) || 0)}
+                                    className="w-20"
+                                  />
+                                </TableCell>
+                                <TableCell>{item.pending_return_qty}</TableCell>
+                                <TableCell>₹{item.unit_price.toFixed(2)}</TableCell>
+                                <TableCell>{item.discount_percentage}%</TableCell>
+                                <TableCell>{item.cgst_rate}%</TableCell>
+                                <TableCell>{item.sgst_rate}%</TableCell>
+                                <TableCell>{item.igst_rate}%</TableCell>
+                                <TableCell className="min-w-[200px]">
+                                  <SearchableCombobox
+                                    value={item.warehouse_id}
+                                    onSelect={(warehouseId) => handleItemWarehouseChange(item.id, warehouseId)}
+                                    placeholder="Select warehouse/bin"
+                                    searchPlaceholder="Search warehouses..."
+                                    options={warehouses.map(w => ({
+                                      id: w.id,
+                                      name: w.location,
+                                      subtitle: w.name
+                                    }))}
+                                    className={`${missingWarehouse ? 'border-red-500' : ''} text-xs`}
+                                    disabled={item.return_qty === 0}
+                                    emptyMessage="No warehouses found"
+                                  />
+                                  {missingWarehouse && (
+                                    <div className="text-xs text-red-600 mt-1">
+                                      <AlertCircle className="h-3 w-3 inline mr-1" />
+                                      Required for return items
+                                    </div>
+                                  )}
+                                </TableCell>
+                                <TableCell>₹{item.line_total.toFixed(2)}</TableCell>
+                              </TableRow>
+                            );
+                          })}
+                        </TableBody>
                       </Table>
                     </div>
 
@@ -1226,21 +1234,19 @@ function ReturnsModuleContent() {
                     {loading ? 'Saving...' : `Save ${creditNoteStatus}`}
                   </Button>
                 </div>
-              </CardContent>
-            </Card>
-          )}
+              </div>
+            </DialogContent>
+          </Dialog>
 
           {/* Credit Notes Table */}
-          {!isCreateCreditNoteFormOpen && (
-            <CreditNoteTable
-              creditNotes={creditNotes}
-              onView={handleViewCreditNote}
-              onEdit={handleEditCreditNote}
-              onExport={handleExportCreditNote}
-              loading={loading}
-              isActive={activeTab === 'credit-notes'}
-            />
-          )}
+          <CreditNoteTable
+            creditNotes={creditNotes}
+            onView={handleViewCreditNote}
+            onEdit={handleEditCreditNote}
+            onExport={handleExportCreditNote}
+            loading={loading}
+            isActive={activeTab === 'credit-notes'}
+          />
         </TabsContent>
       </Tabs>
 

@@ -1,0 +1,282 @@
+Line 970-1230 section to replace:
+
+          {/* RSO Form Dialog */}
+          <Dialog open={isCreateRSOFormOpen} onOpenChange={(open) => {
+            if (!open) {
+              setIsCreateRSOFormOpen(false);
+              setEditingRsoId(null);
+            }
+          }}>
+            <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>{editingRsoId ? 'Edit RSO' : 'Create RSO'}</DialogTitle>
+              </DialogHeader>
+              <EnhancedCreateRSOForm
+                rsoId={editingRsoId}
+                onClose={() => {
+                  setIsCreateRSOFormOpen(false);
+                  setEditingRsoId(null);
+                }}
+                onSave={() => {
+                  loadReturnOrders();
+                  loadReturnStats();
+                  setIsCreateRSOFormOpen(false);
+                  setEditingRsoId(null);
+                }}
+              />
+            </DialogContent>
+          </Dialog>
+
+          {/* RSO Table */}
+          <RSOTable
+            returnOrders={returnOrders}
+            creditNotes={creditNotes}
+            onView={handleViewRso}
+            onEdit={handleEditRso}
+            onDelete={handleDeleteRso}
+            onViewCreditNotes={handleViewCreditNotes}
+            onExport={handleExportRSO}
+            loading={loading}
+            isActive={activeTab === 'returns'}
+          />
+        </TabsContent>
+
+        <TabsContent value="credit-notes" className="space-y-6">
+
+          {/* Create Credit Note Button */}
+          <div className="flex justify-between items-center">
+            <div className="flex space-x-2">
+              <Button 
+                variant="outline"
+                onClick={() => {
+                  console.log('Refresh button clicked - reloading RSO data');
+                  loadReturnOrders();
+                  loadCreditNotes();
+                }}
+                disabled={loading}
+              >
+                <RotateCcw className="mr-2 h-4 w-4" />
+                Refresh
+              </Button>
+              <Button 
+                onClick={() => setIsCreateCreditNoteFormOpen(true)}
+                disabled={loading}
+              >
+                <Plus className="mr-2 h-4 w-4" />
+                Add Credit Note
+              </Button>
+            </div>
+          </div>
+
+          {/* Credit Note Form Dialog */}
+          <Dialog open={isCreateCreditNoteFormOpen} onOpenChange={(open) => {
+            if (!open) {
+              resetCreditNoteForm();
+            }
+          }}>
+            <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>Create Credit Note</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-6">
+                {/* Header Fields */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="warehouse">Default Location (Warehouse/Bin)</Label>
+                    <SearchableCombobox
+                      value={selectedWarehouse?.id}
+                      onSelect={handleWarehouseSelect}
+                      placeholder="Select warehouse"
+                      searchPlaceholder="Search warehouses..."
+                      options={warehouses.map(w => ({
+                        id: w.id,
+                        name: w.name,
+                        subtitle: undefined
+                      }))}
+                      loading={loading}
+                      emptyMessage="No warehouses found"
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="cn-date">CN Date</Label>
+                    <Input
+                      id="cn-date"
+                      type="date"
+                      value={creditNoteDate}
+                      onChange={(e) => setCreditNoteDate(e.target.value)}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Status</Label>
+                    <RadioGroup value={creditNoteStatus} onValueChange={(value) => setCreditNoteStatus(value as 'Draft' | 'Confirmed')}>
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="Draft" id="draft" />
+                        <Label htmlFor="draft">Draft</Label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="Confirmed" id="confirmed" />
+                        <Label htmlFor="confirmed">Confirmed</Label>
+                      </div>
+                    </RadioGroup>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="rso">Return Sales Order (RSO) *</Label>
+                  <SearchableCombobox
+                    value={selectedRso?.id}
+                    onSelect={handleRsoSelect}
+                    placeholder="Select RSO"
+                    searchPlaceholder="Search RSO..."
+                    options={returnOrders.map(rso => {
+                      console.log('Mapping RSO for combobox:', rso);
+                      return {
+                        id: rso.id,
+                        name: rso.rso_number,
+                        subtitle: `${rso.customer_name} - ${rso.invoice_number}`
+                      };
+                    })}
+                    loading={loading}
+                    emptyMessage="No confirmed RSOs found"
+                  />
+                </div>
+
+                {/* Line Items Table */}
+                {creditNoteItems.length > 0 && (
+                  <div className="space-y-4">
+                    <h3 className="font-semibold">Credit Note Items</h3>
+                    <div className="border rounded-lg overflow-auto max-h-96">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>SKU</TableHead>
+                            <TableHead>Product</TableHead>
+                            <TableHead>HSN</TableHead>
+                            <TableHead>UOM</TableHead>
+                            <TableHead>RSO Qty</TableHead>
+                            <TableHead>Return Qty</TableHead>
+                            <TableHead>Pending</TableHead>
+                            <TableHead>Rate</TableHead>
+                            <TableHead>Disc%</TableHead>
+                            <TableHead>CGST%</TableHead>
+                            <TableHead>SGST%</TableHead>
+                            <TableHead>IGST%</TableHead>
+                            <TableHead>Warehouse/Bin</TableHead>
+                            <TableHead>Total</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {creditNoteItems.map((item) => {
+                            const missingWarehouse = item.return_qty > 0 && !item.warehouse_id;
+                            return (
+                              <TableRow key={item.id}>
+                                <TableCell>{item.product_sku}</TableCell>
+                                <TableCell>{item.product_name}</TableCell>
+                                <TableCell>{item.hsn_sac_code || '-'}</TableCell>
+                                <TableCell>{item.unit_of_measure}</TableCell>
+                                <TableCell>{item.rso_qty}</TableCell>
+                                <TableCell>
+                                  <Input
+                                    type="number"
+                                    min="0"
+                                    max={item.rso_qty}
+                                    value={item.return_qty}
+                                    onChange={(e) => handleReturnQtyChange(item.id, parseInt(e.target.value) || 0)}
+                                    className="w-20"
+                                  />
+                                </TableCell>
+                                <TableCell>{item.pending_return_qty}</TableCell>
+                                <TableCell>₹{item.unit_price.toFixed(2)}</TableCell>
+                                <TableCell>{item.discount_percentage}%</TableCell>
+                                <TableCell>{item.cgst_rate}%</TableCell>
+                                <TableCell>{item.sgst_rate}%</TableCell>
+                                <TableCell>{item.igst_rate}%</TableCell>
+                                <TableCell className="min-w-[200px]">
+                                  <SearchableCombobox
+                                    value={item.warehouse_id}
+                                    onSelect={(warehouseId) => handleItemWarehouseChange(item.id, warehouseId)}
+                                    placeholder="Select warehouse/bin"
+                                    searchPlaceholder="Search warehouses..."
+                                    options={warehouses.map(w => ({
+                                      id: w.id,
+                                      name: w.location,
+                                      subtitle: w.name
+                                    }))}
+                                    className={`${missingWarehouse ? 'border-red-500' : ''} text-xs`}
+                                    disabled={item.return_qty === 0}
+                                    emptyMessage="No warehouses found"
+                                  />
+                                  {missingWarehouse && (
+                                    <div className="text-xs text-red-600 mt-1">
+                                      <AlertCircle className="h-3 w-3 inline mr-1" />
+                                      Required for return items
+                                    </div>
+                                  )}
+                                </TableCell>
+                                <TableCell>₹{item.line_total.toFixed(2)}</TableCell>
+                              </TableRow>
+                            );
+                          })}
+                        </TableBody>
+                      </Table>
+                    </div>
+
+                    {/* Totals */}
+                    <div className="bg-gray-50 p-4 rounded-lg">
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                        <div>
+                          <span className="font-medium">Subtotal:</span>
+                          <div>₹{totals.subtotal.toFixed(2)}</div>
+                        </div>
+                        <div>
+                          <span className="font-medium">Discount:</span>
+                          <div>₹{totals.discount.toFixed(2)}</div>
+                        </div>
+                        <div>
+                          <span className="font-medium">Tax:</span>
+                          <div>₹{totals.tax.toFixed(2)}</div>
+                        </div>
+                        <div>
+                          <span className="font-medium text-lg">Total:</span>
+                          <div className="text-lg font-bold">₹{totals.total.toFixed(2)}</div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                <div className="space-y-2">
+                  <Label htmlFor="notes">Notes</Label>
+                  <Textarea
+                    id="notes"
+                    value={creditNoteNotes}
+                    onChange={(e) => setCreditNoteNotes(e.target.value)}
+                    placeholder="Enter any additional notes..."
+                  />
+                </div>
+
+                {/* Action Buttons */}
+                <div className="flex justify-end space-x-2">
+                  <Button variant="outline" onClick={resetCreditNoteForm}>
+                    Cancel
+                  </Button>
+                  <Button onClick={handleSaveCreditNote} disabled={loading}>
+                    {loading ? 'Saving...' : `Save ${creditNoteStatus}`}
+                  </Button>
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
+
+          {/* Credit Notes Table */}
+          <CreditNoteTable
+            creditNotes={creditNotes}
+            onView={handleViewCreditNote}
+            onEdit={handleEditCreditNote}
+            onExport={handleExportCreditNote}
+            loading={loading}
+            isActive={activeTab === 'credit-notes'}
+          />
+        </TabsContent>
