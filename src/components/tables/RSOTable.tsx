@@ -30,6 +30,9 @@ import {
   Lock
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
+import { format as formatDate } from 'date-fns';
 import { RSOTableMobile } from './RSOTableMobile';
 
 interface ReturnOrder {
@@ -117,22 +120,6 @@ export function RSOTable({
 
     fetchCompanyData();
   }, [profile?.company_id]);
-
-  // Mobile view
-  if (isMobile) {
-    return (
-      <RSOTableMobile
-        returnOrders={returnOrders}
-        creditNotes={creditNotes}
-        onView={onView}
-        onEdit={onEdit}
-        onDelete={onDelete}
-        onViewCreditNotes={onViewCreditNotes}
-        onExport={onExport}
-        loading={loading}
-      />
-    );
-  }
 
   // Helper function to convert number to words (Indian format)
   const convertNumberToWords = (num: number): string => {
@@ -524,6 +511,306 @@ export function RSOTable({
     }
   };
 
+  // Export all RSOs to Excel
+  const exportAllToExcel = () => {
+    try {
+      const dataToExport = filteredOrders.map((order, index) => {
+        const cnStatus = getCNStatusColor(order.id);
+        return {
+          'S.No': index + 1,
+          'RSO Number': order.rso_number,
+          'RSO Date': formatDate(new Date(order.rso_date), 'dd/MM/yyyy'),
+          'Customer Name': order.customer_name,
+          'Invoice Number': order.invoice_number,
+          'RSO Status': order.status,
+          'CN Status': cnStatus.text,
+          'Amount': order.total_amount.toFixed(2),
+          'Reason': order.reason_for_credit
+        };
+      });
+
+      const ws = XLSX.utils.json_to_sheet(dataToExport);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'RSO List');
+      XLSX.writeFile(wb, `RSO-List-${formatDate(new Date(), 'dd-MMM-yyyy')}.xlsx`);
+
+      toast({
+        title: "Success",
+        description: `Exported ${filteredOrders.length} RSOs to Excel`,
+      });
+    } catch (error) {
+      console.error('Export failed:', error);
+      toast({
+        title: "Error",
+        description: "Failed to export RSOs",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Export RSO to PDF
+  const exportToPDF = async (order: ReturnOrder) => {
+    try {
+      // Fetch detailed RSO data with line items
+      const { data: rsoDetail, error } = await supabase
+        .from('return_order_header')
+        .select('*')
+        .eq('id', order.id)
+        .single();
+
+      if (error) throw error;
+
+      // Fetch RSO line items
+      const { data: rsoItems, error: itemsError } = await supabase
+        .from('return_order_lines')
+        .select('*')
+        .eq('return_order_id', order.id);
+
+      if (itemsError) throw itemsError;
+
+      const doc = new jsPDF();
+      let yPos = 15;
+
+      // ========== HEADER SECTION ==========
+      doc.setFillColor(41, 128, 185);
+      doc.rect(0, 0, 210, 55, 'F');
+
+      // Add company logo if available
+      if (companyData?.logo_url) {
+        try {
+          const response = await fetch(companyData.logo_url);
+          const blob = await response.blob();
+          const reader = new FileReader();
+
+          await new Promise((resolve, reject) => {
+            reader.onload = () => {
+              try {
+                doc.setFillColor(255, 255, 255);
+                doc.circle(25, 25, 10, 'F');
+                doc.addImage(reader.result as string, 'PNG', 18, 18, 14, 14);
+                resolve(true);
+              } catch (err) {
+                reject(err);
+              }
+            };
+            reader.onerror = reject;
+            reader.readAsDataURL(blob);
+          });
+        } catch (error) {
+          console.error('Error loading logo:', error);
+          doc.setFillColor(255, 255, 255);
+          doc.circle(25, 25, 10, 'F');
+          doc.setFontSize(7);
+          doc.setTextColor(41, 128, 185);
+          doc.text('LOGO', 21, 27);
+        }
+      } else {
+        doc.setFillColor(255, 255, 255);
+        doc.circle(25, 25, 10, 'F');
+        doc.setFontSize(7);
+        doc.setTextColor(41, 128, 185);
+        doc.text('LOGO', 21, 27);
+      }
+
+      // Company details
+      doc.setFontSize(14);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(255, 255, 255);
+      doc.text(companyData?.name || 'YOUR COMPANY NAME', 42, 16);
+
+      doc.setFontSize(7.5);
+      doc.setFont('helvetica', 'normal');
+      const companyDetails = [
+        companyData?.address_line1 || 'Address Line 1',
+        `${companyData?.city || 'City'}, ${companyData?.state || 'State'} - ${companyData?.postal_code || 'PIN'}`,
+        `GSTIN: ${companyData?.gstn || 'N/A'}`,
+        `Phone: ${companyData?.phone || 'N/A'}`,
+        `Email: ${companyData?.email || 'company@example.com'}`
+      ];
+
+      let detailY = 22;
+      companyDetails.forEach(detail => {
+        doc.text(detail, 42, detailY);
+        detailY += 4;
+      });
+
+      // Document title
+      doc.setFontSize(16);
+      doc.setFont('helvetica', 'bold');
+      doc.text('RETURN SALES', 195, 20, { align: 'right' });
+      doc.text('ORDER', 195, 27, { align: 'right' });
+
+      doc.setFontSize(8);
+      doc.setFont('helvetica', 'normal');
+      doc.text(`RSO #: ${rsoDetail.rso_number}`, 195, 37, { align: 'right' });
+      doc.text(`Date: ${formatDate(new Date(rsoDetail.rso_date), 'dd/MM/yyyy')}`, 195, 43, { align: 'right' });
+
+      yPos = 63;
+
+      // ========== CUSTOMER DETAILS ==========
+      doc.setFillColor(245, 245, 245);
+      doc.rect(10, yPos, 190, 30, 'F');
+
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(0, 0, 0);
+      doc.text('Customer Details', 15, yPos + 6);
+
+      doc.setFontSize(8);
+      doc.setFont('helvetica', 'normal');
+      doc.text(`Customer Name: ${rsoDetail.customer_name}`, 15, yPos + 12);
+      doc.text(`Invoice Number: ${rsoDetail.invoice_number}`, 15, yPos + 18);
+      doc.text(`Invoice Date: ${formatDate(new Date(rsoDetail.invoice_date), 'dd/MM/yyyy')}`, 15, yPos + 24);
+
+      doc.text(`Reason for Credit: ${rsoDetail.reason_for_credit}`, 110, yPos + 12);
+      doc.text(`Status: ${rsoDetail.status}`, 110, yPos + 18);
+
+      yPos += 38;
+
+      // ========== LINE ITEMS TABLE ==========
+      const tableData = rsoItems?.map((item: any, index: number) => [
+        index + 1,
+        item.product_sku,
+        item.product_name,
+        item.hsn_sac_code || '-',
+        item.invoice_qty,
+        item.return_qty,
+        `₹${item.unit_price.toFixed(2)}`,
+        `${item.discount_percentage || 0}%`,
+        `₹${item.discount_amount.toFixed(2)}`,
+        `${item.cgst_rate || 0}%`,
+        `${item.sgst_rate || 0}%`,
+        `${item.igst_rate || 0}%`,
+        `₹${item.tax_amount.toFixed(2)}`,
+        `₹${item.line_total.toFixed(2)}`
+      ]) || [];
+
+      (doc as any).autoTable({
+        startY: yPos,
+        head: [[
+          'S.No', 'SKU', 'Product', 'HSN', 'Inv Qty', 'Ret Qty', 
+          'Rate', 'Disc%', 'Disc Amt', 'CGST%', 'SGST%', 'IGST%', 'Tax', 'Amount'
+        ]],
+        body: tableData,
+        theme: 'grid',
+        headStyles: {
+          fillColor: [41, 128, 185],
+          textColor: 255,
+          fontSize: 7,
+          fontStyle: 'bold',
+          halign: 'center'
+        },
+        bodyStyles: {
+          fontSize: 7,
+          textColor: [0, 0, 0]
+        },
+        columnStyles: {
+          0: { halign: 'center', cellWidth: 10 },
+          1: { halign: 'left', cellWidth: 18 },
+          2: { halign: 'left', cellWidth: 35 },
+          3: { halign: 'center', cellWidth: 15 },
+          4: { halign: 'right', cellWidth: 12 },
+          5: { halign: 'right', cellWidth: 12 },
+          6: { halign: 'right', cellWidth: 15 },
+          7: { halign: 'right', cellWidth: 12 },
+          8: { halign: 'right', cellWidth: 15 },
+          9: { halign: 'right', cellWidth: 12 },
+          10: { halign: 'right', cellWidth: 12 },
+          11: { halign: 'right', cellWidth: 12 },
+          12: { halign: 'right', cellWidth: 15 },
+          13: { halign: 'right', cellWidth: 18 }
+        },
+        margin: { left: 10, right: 10 }
+      });
+
+      yPos = (doc as any).lastAutoTable.finalY + 10;
+
+      // ========== TOTALS SECTION ==========
+      doc.setFillColor(245, 245, 245);
+      doc.rect(130, yPos, 70, 25, 'F');
+
+      doc.setFontSize(8);
+      doc.setFont('helvetica', 'normal');
+      doc.text('Subtotal:', 135, yPos + 6);
+      doc.text(`₹${rsoDetail.subtotal_amount?.toFixed(2) || '0.00'}`, 195, yPos + 6, { align: 'right' });
+
+      doc.text('Total Tax:', 135, yPos + 12);
+      doc.text(`₹${rsoDetail.tax_amount?.toFixed(2) || '0.00'}`, 195, yPos + 12, { align: 'right' });
+
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(9);
+      doc.text('Grand Total:', 135, yPos + 20);
+      doc.text(`₹${rsoDetail.total_amount.toFixed(2)}`, 195, yPos + 20, { align: 'right' });
+
+      yPos += 30;
+
+      // ========== AMOUNT IN WORDS ==========
+      doc.setFontSize(8);
+      doc.setFont('helvetica', 'bold');
+      doc.text('Amount in Words:', 10, yPos);
+      doc.setFont('helvetica', 'normal');
+      doc.text(convertNumberToWords(rsoDetail.total_amount), 10, yPos + 5, { maxWidth: 190 });
+
+      yPos += 15;
+
+      // ========== NOTES ==========
+      if (rsoDetail.notes) {
+        doc.setFont('helvetica', 'bold');
+        doc.text('Notes:', 10, yPos);
+        doc.setFont('helvetica', 'normal');
+        doc.text(rsoDetail.notes, 10, yPos + 5, { maxWidth: 190 });
+        yPos += 15;
+      }
+
+      // ========== TERMS & CONDITIONS ==========
+      doc.setFontSize(7);
+      doc.setFont('helvetica', 'italic');
+      doc.text('Terms & Conditions:', 10, yPos);
+      doc.text('1. This is a computer-generated return sales order.', 10, yPos + 5);
+      doc.text('2. All goods must be in original condition for return acceptance.', 10, yPos + 9);
+      doc.text('3. Credit will be processed after quality inspection.', 10, yPos + 13);
+
+      // ========== AUTHORIZATION ==========
+      yPos = 270;
+      doc.setFontSize(8);
+      doc.setFont('helvetica', 'normal');
+      doc.text('Authorized Signatory', 150, yPos);
+      doc.line(145, yPos - 10, 195, yPos - 10);
+
+      // Save PDF
+      doc.save(`RSO-${rsoDetail.rso_number}.pdf`);
+
+      toast({
+        title: "Success",
+        description: "RSO exported to PDF successfully",
+      });
+    } catch (error) {
+      console.error('PDF export failed:', error);
+      toast({
+        title: "Error",
+        description: "Failed to export RSO to PDF",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Mobile view
+  if (isMobile) {
+    return (
+      <RSOTableMobile
+        returnOrders={returnOrders}
+        creditNotes={creditNotes}
+        onView={onView}
+        onEdit={onEdit}
+        onDelete={onDelete}
+        onViewCreditNotes={onViewCreditNotes}
+        onExport={onExport}
+        onExportPDF={exportToPDF}
+        loading={loading}
+      />
+    );
+  }
+
   if (loading) {
     return (
       <Card>
@@ -545,12 +832,11 @@ export function RSOTable({
       <Card className={cn("transition-all duration-200", isActive && "ring-2 ring-primary shadow-lg")}>
         <CardHeader>
           <CardTitle className="flex items-center justify-between flex-wrap gap-4">
-            <span>Return Sales Orders</span>
             <div className="flex items-center gap-2 flex-wrap">
               <div className="relative">
                 <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
                 <Input
-                  placeholder="Search RSOs..."
+                  placeholder="Search by RSO, Customer, or Invoice..."
                   className="pl-8 w-64"
                   value={searchTerm}
                   onChange={(e) => {
@@ -564,10 +850,10 @@ export function RSOTable({
                 setCurrentPage(1);
               }}>
                 <SelectTrigger className="w-40">
-                  <SelectValue />
+                  <SelectValue placeholder="RSO Status" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Status</SelectItem>
+                  <SelectItem value="all">All RSO Status</SelectItem>
                   <SelectItem value="Draft">Draft</SelectItem>
                   <SelectItem value="Confirmed">Confirmed</SelectItem>
                 </SelectContent>
@@ -587,6 +873,13 @@ export function RSOTable({
                   <SelectItem value="cn-pending">CN Pending</SelectItem>
                 </SelectContent>
               </Select>
+              <Button
+                onClick={exportAllToExcel}
+                className="gap-2 bg-green-600 hover:bg-green-700 text-white"
+              >
+                <FileSpreadsheet className="h-4 w-4" />
+                Export to Excel
+              </Button>
             </div>
           </CardTitle>
         </CardHeader>
@@ -778,6 +1071,20 @@ export function RSOTable({
                                   </Button>
                                 </TooltipTrigger>
                                 <TooltipContent>Export to Excel</TooltipContent>
+                              </Tooltip>
+
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => exportToPDF(order)}
+                                    className="hover:bg-red-50 hover:text-red-700 border border-transparent hover:border-red-200 transition-colors"
+                                  >
+                                    <FileText className="h-4 w-4" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>Export to PDF</TooltipContent>
                               </Tooltip>
 
                               {order.status === 'Draft' && (

@@ -47,6 +47,7 @@ interface RSOTableMobileProps {
   onDelete: (rsoId: string) => void;
   onViewCreditNotes: (rso: ReturnOrder) => void;
   onExport?: (rso: ReturnOrder) => void;
+  onExportPDF?: (rso: ReturnOrder) => void;
   loading?: boolean;
 }
 
@@ -58,6 +59,7 @@ export function RSOTableMobile({
   onDelete,
   onViewCreditNotes,
   onExport,
+  onExportPDF,
   loading = false
 }: RSOTableMobileProps) {
   const [searchTerm, setSearchTerm] = useState('');
@@ -168,7 +170,7 @@ export function RSOTableMobile({
       <div className="relative">
         <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
         <Input
-          placeholder="Search return orders..."
+          placeholder="Search by RSO, Customer, or Invoice..."
           value={searchTerm}
           onChange={(e) => {
             setSearchTerm(e.target.value);
@@ -231,6 +233,16 @@ export function RSOTableMobile({
                   onExport(order);
                 },
                 icon: Download,
+                variant: 'secondary' as const
+              }] : []),
+              ...(onExportPDF ? [{
+                id: 'exportPDF',
+                label: 'PDF',
+                onClick: () => {
+                  triggerHaptic('light');
+                  onExportPDF(order);
+                },
+                icon: FileText,
                 variant: 'secondary' as const
               }] : []),
               ...(order.status === 'Draft' && canDeleteOrder ? [{
@@ -367,9 +379,24 @@ export function RSOTableMobile({
                               onExport(order);
                             }}
                             className="min-h-[44px]"
-                            title="Export RSO"
+                            title="Export to Excel"
                           >
                             <Download className="h-4 w-4" />
+                          </Button>
+                        )}
+                        {onExportPDF && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              triggerHaptic('light');
+                              onExportPDF(order);
+                            }}
+                            className="min-h-[44px] border-red-200 bg-red-50 text-red-700 hover:bg-red-100"
+                            title="Export to PDF"
+                          >
+                            <FileText className="h-4 w-4" />
                           </Button>
                         )}
                         {order.status === 'Draft' && (
