@@ -656,23 +656,26 @@ export function EnhancedCreateRSOForm({ rsoId, onClose, onSave }: EnhancedCreate
                           {invoices.map((invoice) => (
                             <div 
                               key={invoice.id} 
-                              className={`flex items-center space-x-3 p-3 rounded-md cursor-pointer transition-all hover:bg-background ${
+                              className={`flex items-center space-x-3 p-3 rounded-md transition-all ${
                                 selectedInvoices.some(inv => inv.id === invoice.id) 
                                   ? 'bg-primary/10 border-2 border-primary' 
                                   : 'bg-background border-2 border-transparent'
                               }`}
-                              onClick={() => handleInvoiceToggle(invoice.id)}
                             >
                               <Checkbox
                                 checked={selectedInvoices.some(inv => inv.id === invoice.id)}
                                 onCheckedChange={() => handleInvoiceToggle(invoice.id)}
                               />
-                              <div className="flex-1">
+                              <label 
+                                htmlFor={`invoice-${invoice.id}`}
+                                className="flex-1 cursor-pointer"
+                                onClick={() => handleInvoiceToggle(invoice.id)}
+                              >
                                 <div className="font-medium">{invoice.invoice_number}</div>
                                 <div className="text-sm text-muted-foreground">
                                   {new Date(invoice.invoice_date).toLocaleDateString()} - ₹{invoice.total_amount.toLocaleString()}
                                 </div>
-                              </div>
+                              </label>
                             </div>
                           ))}
                         </div>
