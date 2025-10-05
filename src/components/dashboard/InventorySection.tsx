@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { memo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Warehouse, TrendingUp, AlertTriangle } from 'lucide-react';
@@ -9,7 +9,7 @@ interface InventorySectionProps {
   companyId?: string;
 }
 
-export const InventorySection: React.FC<InventorySectionProps> = ({ companyId }) => {
+const InventorySectionComponent: React.FC<InventorySectionProps> = ({ companyId }) => {
   const { data, isLoading } = useInventoryData(companyId);
   const navigate = useNavigate();
 
@@ -162,3 +162,6 @@ export const InventorySection: React.FC<InventorySectionProps> = ({ companyId })
     </div>
   );
 };
+
+// Memoize to prevent unnecessary re-renders
+export const InventorySection = memo(InventorySectionComponent);

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { memo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
@@ -11,7 +11,7 @@ interface SalesSectionProps {
   companyId?: string;
 }
 
-export const SalesSection: React.FC<SalesSectionProps> = ({ companyId }) => {
+const SalesSectionComponent: React.FC<SalesSectionProps> = ({ companyId }) => {
   const { data, isLoading } = useSalesData(companyId);
   const navigate = useNavigate();
 
@@ -172,3 +172,6 @@ export const SalesSection: React.FC<SalesSectionProps> = ({ companyId }) => {
     </div>
   );
 };
+
+// Memoize to prevent unnecessary re-renders
+export const SalesSection = memo(SalesSectionComponent);

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { memo, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
@@ -10,7 +10,7 @@ interface PurchaseSectionProps {
   companyId?: string;
 }
 
-export const PurchaseSection: React.FC<PurchaseSectionProps> = ({ companyId }) => {
+const PurchaseSectionComponent: React.FC<PurchaseSectionProps> = ({ companyId }) => {
   const { data, isLoading } = usePurchaseData(companyId);
   const navigate = useNavigate();
 
@@ -149,3 +149,6 @@ export const PurchaseSection: React.FC<PurchaseSectionProps> = ({ companyId }) =
     </div>
   );
 };
+
+// Memoize to prevent unnecessary re-renders
+export const PurchaseSection = memo(PurchaseSectionComponent);

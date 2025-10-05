@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { memo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
@@ -12,7 +12,7 @@ interface FinanceSectionProps {
   companyId?: string;
 }
 
-export const FinanceSection: React.FC<FinanceSectionProps> = ({ companyId }) => {
+const FinanceSectionComponent: React.FC<FinanceSectionProps> = ({ companyId }) => {
   const { data, isLoading } = useFinanceData(companyId);
   const navigate = useNavigate();
 
@@ -198,3 +198,6 @@ export const FinanceSection: React.FC<FinanceSectionProps> = ({ companyId }) => 
     </div>
   );
 };
+
+// Memoize to prevent unnecessary re-renders
+export const FinanceSection = memo(FinanceSectionComponent);
