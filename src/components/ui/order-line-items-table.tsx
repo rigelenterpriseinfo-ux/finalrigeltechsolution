@@ -266,8 +266,20 @@ export function OrderLineItemsTable({
                                 />
                               </FormControl>
                               {/* Stock Level Display */}
-                              <div className="text-xs text-muted-foreground text-center mt-1">
-                                Stock: {control._formValues?.items?.[index]?.stock_on_hand || 0} units
+                              <div className="text-xs text-center mt-1 flex items-center justify-center gap-1">
+                                <span className={cn(
+                                  "font-medium",
+                                  (control._formValues?.items?.[index]?.stock_on_hand || 0) === 0 
+                                    ? "text-red-600" 
+                                    : "text-muted-foreground"
+                                )}>
+                                  Stock: {control._formValues?.items?.[index]?.stock_on_hand || 0} units
+                                </span>
+                                {(control._formValues?.items?.[index]?.stock_on_hand || 0) === 0 && (
+                                  <Badge variant="destructive" className="text-xs py-0 px-1 h-4">
+                                    Out of Stock
+                                  </Badge>
+                                )}
                               </div>
                               <FormMessage />
                             </FormItem>

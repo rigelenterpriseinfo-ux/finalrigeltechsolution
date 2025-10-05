@@ -182,19 +182,37 @@ export function SalesOrderForm({
       return;
     }
 
+    console.log('📦 Fetching stock levels for Sales Order:', { 
+      warehouseId, 
+      binId
+    });
+
     try {
-      // Simplified stock fetching - use products table directly
+      // Query inventory_transactions directly to calculate stock levels
       const { data, error } = await supabase
-        .from('products')
-        .select('id, stock_quantity')
-        .eq('company_id', profile.company_id);
+        .from('inventory_transactions')
+        .select('product_id, quantity_change')
+        .eq('company_id', profile.company_id)
+        .eq('warehouse_id', warehouseId)
+        .eq('bin_id', binId);
 
       if (error) throw error;
 
-      const stockMap = data.reduce((acc, item) => {
-        acc[item.id] = item.stock_quantity || 0;
-        return acc;
-      }, {} as Record<string, number>);
+      console.log('📊 Inventory transactions fetched:', data?.length || 0, 'records');
+
+      // Aggregate stock by product
+      const stockMap: Record<string, number> = {};
+      data?.forEach(item => {
+        const currentStock = stockMap[item.product_id] || 0;
+        stockMap[item.product_id] = currentStock + (item.quantity_change || 0);
+      });
+
+      // Ensure non-negative values
+      Object.keys(stockMap).forEach(key => {
+        stockMap[key] = Math.max(0, stockMap[key]);
+      });
+
+      console.log('✅ Stock levels calculated:', stockMap);
 
       setStockLevels(stockMap);
 
@@ -206,7 +224,12 @@ export function SalesOrderForm({
         }
       });
     } catch (error) {
-      console.error('Error fetching stock levels:', error);
+      console.error('❌ Error fetching stock levels:', error);
+      toast({
+        title: "Warning",
+        description: "Could not fetch current stock levels. Please verify stock availability manually.",
+        variant: "destructive",
+      });
     }
   };
 
