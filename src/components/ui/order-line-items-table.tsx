@@ -147,7 +147,7 @@ export function OrderLineItemsTable({
                 <TableHead className="w-[250px] font-semibold text-sm">Product *</TableHead>
                 <TableHead className="w-[100px] text-center font-semibold text-sm">HSN/SAC *</TableHead>
                 <TableHead className="w-[80px] text-center font-semibold text-sm">Qty *</TableHead>
-                <TableHead className="w-[100px] text-center font-semibold text-sm">Unit Price *</TableHead>
+                <TableHead className="w-[150px] text-center font-semibold text-sm">Unit Price *</TableHead>
                 
                 {globalGstType === 'intra' ? (
                   <>
@@ -266,20 +266,10 @@ export function OrderLineItemsTable({
                                 />
                               </FormControl>
                               {/* Stock Level Display */}
-                              <div className="text-xs text-center mt-1 flex items-center justify-center gap-1">
-                                <span className={cn(
-                                  "font-medium",
-                                  (control._formValues?.items?.[index]?.stock_on_hand || 0) === 0 
-                                    ? "text-red-600" 
-                                    : "text-muted-foreground"
-                                )}>
-                                  Stock: {control._formValues?.items?.[index]?.stock_on_hand || 0} units
+                              <div className="text-xs text-center mt-1">
+                                <span className="font-medium text-muted-foreground">
+                                  Available: {control._formValues?.items?.[index]?.stock_on_hand || 0} units
                                 </span>
-                                {(control._formValues?.items?.[index]?.stock_on_hand || 0) === 0 && (
-                                  <Badge variant="destructive" className="text-xs py-0 px-1 h-4">
-                                    Out of Stock
-                                  </Badge>
-                                )}
                               </div>
                               <FormMessage />
                             </FormItem>
