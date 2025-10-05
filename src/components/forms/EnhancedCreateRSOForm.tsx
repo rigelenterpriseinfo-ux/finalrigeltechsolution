@@ -36,7 +36,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Save, X, Search } from 'lucide-react';
+import { Loader2, Save, X } from 'lucide-react';
 import { Label } from '@/components/ui/label';
 
 // Form validation schema
@@ -48,6 +48,7 @@ const rsoHeaderSchema = z.object({
     required_error: 'Reason for credit is required',
   }),
   status: z.enum(['Draft', 'Confirmed']),
+  place_of_supply: z.string().optional(),
   delivery_same_as_company: z.boolean(),
   delivery_address_line1: z.string().optional(),
   delivery_address_line2: z.string().optional(),
@@ -148,7 +149,6 @@ export function EnhancedCreateRSOForm({ rsoId, onClose, onSave }: EnhancedCreate
   const [selectedInvoice, setSelectedInvoice] = useState<SalesInvoice | null>(null);
   const [returnLineItems, setReturnLineItems] = useState<ReturnLineItem[]>([]);
   const [isLoadingExisting, setIsLoadingExisting] = useState(false);
-  const [customerSearchTerm, setCustomerSearchTerm] = useState('');
   const [invoiceSearchTerm, setInvoiceSearchTerm] = useState('');
   const [generatedRSONumber, setGeneratedRSONumber] = useState<string>('');
 
@@ -160,6 +160,7 @@ export function EnhancedCreateRSOForm({ rsoId, onClose, onSave }: EnhancedCreate
       rso_date: new Date().toISOString().split('T')[0],
       reason_for_credit: 'Return',
       status: 'Draft',
+      place_of_supply: '',
       delivery_same_as_company: true,
       delivery_address_line1: '',
       delivery_address_line2: '',
@@ -171,12 +172,6 @@ export function EnhancedCreateRSOForm({ rsoId, onClose, onSave }: EnhancedCreate
   });
 
   const watchDeliverySameAsCompany = form.watch('delivery_same_as_company');
-
-  // Filter customers based on search term
-  const filteredCustomers = customers.filter(customer =>
-    customer.name.toLowerCase().includes(customerSearchTerm.toLowerCase()) ||
-    customer.customer_ref.toLowerCase().includes(customerSearchTerm.toLowerCase())
-  );
 
   // Filter invoices based on search term
   const filteredInvoices = invoices.filter(invoice =>
@@ -399,6 +394,7 @@ export function EnhancedCreateRSOForm({ rsoId, onClose, onSave }: EnhancedCreate
         rso_date: rsoData.rso_date,
         reason_for_credit: rsoData.reason_for_credit as 'Return' | 'Price Correction' | 'Discount' | 'Others',
         status: rsoData.status as 'Draft' | 'Confirmed',
+        place_of_supply: rsoData.place_of_supply || '',
         delivery_same_as_company: rsoData.delivery_same_as_company,
         delivery_address_line1: rsoData.delivery_address_line1 || '',
         delivery_address_line2: rsoData.delivery_address_line2 || '',
@@ -529,7 +525,6 @@ export function EnhancedCreateRSOForm({ rsoId, onClose, onSave }: EnhancedCreate
     form.setValue('invoice_id', '');
     setSelectedInvoice(null);
     setReturnLineItems([]);
-    setInvoiceSearchTerm('');
   };
 
   const handleInvoiceChange = (invoiceId: string) => {
@@ -638,6 +633,7 @@ export function EnhancedCreateRSOForm({ rsoId, onClose, onSave }: EnhancedCreate
         invoice_number: selectedInvoice?.invoice_number || '',
         invoice_date: selectedInvoice?.invoice_date || '',
         reason_for_credit: data.reason_for_credit,
+        place_of_supply: data.place_of_supply || null,
         delivery_same_as_company: data.delivery_same_as_company,
         delivery_address_line1: data.delivery_same_as_company ? null : data.delivery_address_line1,
         delivery_address_line2: data.delivery_same_as_company ? null : data.delivery_address_line2,
@@ -765,10 +761,10 @@ export function EnhancedCreateRSOForm({ rsoId, onClose, onSave }: EnhancedCreate
     <Card className="w-full max-w-6xl mx-auto">
       <CardHeader>
         <CardTitle className="flex items-center justify-between">
-          <span>{rsoId ? 'Edit' : 'Create'} Return Sales Order</span>
+          <span>{rsoId ? 'Edit' : ''} RSO Form</span>
           {generatedRSONumber && (
             <Badge variant="outline" className="text-lg px-3 py-1">
-              RSO: {generatedRSONumber}
+              {generatedRSONumber}
             </Badge>
           )}
         </CardTitle>
@@ -784,46 +780,35 @@ export function EnhancedCreateRSOForm({ rsoId, onClose, onSave }: EnhancedCreate
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Customer *</FormLabel>
-                    <div className="space-y-2">
-                      <div className="relative">
-                        <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                        <Input
-                          placeholder="Search customers..."
-                          value={customerSearchTerm}
-                          onChange={(e) => setCustomerSearchTerm(e.target.value)}
-                          className="pl-8"
-                        />
-                      </div>
+                    <FormControl>
                       <Select onValueChange={handleCustomerChange} value={field.value}>
-                        <FormControl>
-                          <SelectTrigger className="bg-background">
-                            <SelectValue placeholder="Select a customer" />
-                          </SelectTrigger>
-                        </FormControl>
-                         <SelectContent className="bg-background border z-50 max-h-64">
-                            {!companyId ? (
-                              <SelectItem value="loading" disabled>
-                                <span className="text-muted-foreground">Company context loading...</span>
+                        <SelectTrigger className="bg-background">
+                          <SelectValue placeholder="Select a customer" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-background border z-50 max-h-64">
+                          {!companyId ? (
+                            <SelectItem value="loading" disabled>
+                              <span className="text-muted-foreground">Company context loading...</span>
+                            </SelectItem>
+                          ) : customers.length === 0 ? (
+                            <SelectItem value="no-customers" disabled>
+                              <span className="text-muted-foreground">No customers found</span>
+                            </SelectItem>
+                          ) : (
+                            customers.map((customer) => (
+                              <SelectItem key={customer.id} value={customer.id}>
+                                <div className="flex flex-col">
+                                  <span className="font-medium">{customer.name}</span>
+                                  <span className="text-sm text-muted-foreground">
+                                    {customer.customer_ref}
+                                  </span>
+                                </div>
                               </SelectItem>
-                            ) : filteredCustomers.length === 0 ? (
-                              <SelectItem value="no-customers" disabled>
-                                <span className="text-muted-foreground">No customers found</span>
-                              </SelectItem>
-                           ) : (
-                             filteredCustomers.map((customer) => (
-                               <SelectItem key={customer.id} value={customer.id}>
-                                 <div className="flex flex-col">
-                                   <span className="font-medium">{customer.name}</span>
-                                   <span className="text-sm text-muted-foreground">
-                                     {customer.customer_ref}
-                                   </span>
-                                 </div>
-                               </SelectItem>
-                             ))
-                           )}
-                         </SelectContent>
+                            ))
+                          )}
+                        </SelectContent>
                       </Select>
-                    </div>
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -858,39 +843,141 @@ export function EnhancedCreateRSOForm({ rsoId, onClose, onSave }: EnhancedCreate
 
             {/* Customer Address Display */}
             {selectedCustomer && (
-              <Card className="bg-muted/50">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-sm">Customer Registered Address</CardTitle>
-                </CardHeader>
-                <CardContent className="pt-0">
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
-                    <div>
-                      <Label className="text-xs text-muted-foreground">Address Line 1</Label>
-                      <p>{selectedCustomer.address_line1 || 'N/A'}</p>
+              <div className="space-y-4">
+                <Card className="bg-muted/50">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-sm">Customer Registered Address</CardTitle>
+                  </CardHeader>
+                  <CardContent className="pt-0">
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
+                      <div>
+                        <Label className="text-xs text-muted-foreground">Address Line 1</Label>
+                        <p>{selectedCustomer.address_line1 || 'N/A'}</p>
+                      </div>
+                      <div>
+                        <Label className="text-xs text-muted-foreground">Address Line 2</Label>
+                        <p>{selectedCustomer.address_line2 || 'N/A'}</p>
+                      </div>
+                      <div>
+                        <Label className="text-xs text-muted-foreground">City</Label>
+                        <p>{selectedCustomer.city || 'N/A'}</p>
+                      </div>
+                      <div>
+                        <Label className="text-xs text-muted-foreground">State</Label>
+                        <p>{selectedCustomer.state || 'N/A'}</p>
+                      </div>
+                      <div>
+                        <Label className="text-xs text-muted-foreground">Country</Label>
+                        <p>{selectedCustomer.country || 'N/A'}</p>
+                      </div>
+                      <div>
+                        <Label className="text-xs text-muted-foreground">Pin Code</Label>
+                        <p>{selectedCustomer.pin_code || 'N/A'}</p>
+                      </div>
                     </div>
-                    <div>
-                      <Label className="text-xs text-muted-foreground">Address Line 2</Label>
-                      <p>{selectedCustomer.address_line2 || 'N/A'}</p>
-                    </div>
-                    <div>
-                      <Label className="text-xs text-muted-foreground">City</Label>
-                      <p>{selectedCustomer.city || 'N/A'}</p>
-                    </div>
-                    <div>
-                      <Label className="text-xs text-muted-foreground">State</Label>
-                      <p>{selectedCustomer.state || 'N/A'}</p>
-                    </div>
-                    <div>
-                      <Label className="text-xs text-muted-foreground">Country</Label>
-                      <p>{selectedCustomer.country || 'N/A'}</p>
-                    </div>
-                    <div>
-                      <Label className="text-xs text-muted-foreground">Pin Code</Label>
-                      <p>{selectedCustomer.pin_code || 'N/A'}</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+                  </CardContent>
+                </Card>
+
+                {/* Delivery Address Option */}
+                <FormField
+                  control={form.control}
+                  name="delivery_same_as_company"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+                      <FormControl>
+                        <Checkbox
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                        />
+                      </FormControl>
+                      <div className="space-y-1 leading-none">
+                        <FormLabel>Delivery same as company address</FormLabel>
+                      </div>
+                    </FormItem>
+                  )}
+                />
+
+                {!watchDeliverySameAsCompany && (
+                  <Card className="bg-muted/50">
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-sm">Delivery Address</CardTitle>
+                    </CardHeader>
+                    <CardContent className="pt-0">
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        <FormField
+                          control={form.control}
+                          name="delivery_address_line1"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Address Line 1</FormLabel>
+                              <FormControl>
+                                <Input {...field} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+
+                        <FormField
+                          control={form.control}
+                          name="delivery_address_line2"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Address Line 2</FormLabel>
+                              <FormControl>
+                                <Input {...field} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+
+                        <FormField
+                          control={form.control}
+                          name="delivery_city"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>City</FormLabel>
+                              <FormControl>
+                                <Input {...field} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+
+                        <FormField
+                          control={form.control}
+                          name="delivery_country"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Country</FormLabel>
+                              <FormControl>
+                                <Input {...field} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+
+                        <FormField
+                          control={form.control}
+                          name="delivery_pin_code"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Pin Code</FormLabel>
+                              <FormControl>
+                                <Input {...field} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+              </div>
             )}
 
             {/* Invoice Details */}
@@ -919,7 +1006,7 @@ export function EnhancedCreateRSOForm({ rsoId, onClose, onSave }: EnhancedCreate
             )}
 
             {/* RSO Details */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               <FormField
                 control={form.control}
                 name="rso_date"
@@ -971,6 +1058,23 @@ export function EnhancedCreateRSOForm({ rsoId, onClose, onSave }: EnhancedCreate
 
               <FormField
                 control={form.control}
+                name="place_of_supply"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Place of Supply</FormLabel>
+                    <FormControl>
+                      <Input 
+                        placeholder="e.g., Delhi, Mumbai" 
+                        {...field} 
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
                 name="status"
                 render={({ field }) => (
                   <FormItem>
@@ -992,100 +1096,6 @@ export function EnhancedCreateRSOForm({ rsoId, onClose, onSave }: EnhancedCreate
               />
             </div>
 
-            {/* Delivery Address */}
-            <div className="space-y-4">
-              <FormField
-                control={form.control}
-                name="delivery_same_as_company"
-                render={({ field }) => (
-                  <FormItem className="flex flex-row items-start space-x-3 space-y-0">
-                    <FormControl>
-                      <Checkbox
-                        checked={field.value}
-                        onCheckedChange={field.onChange}
-                      />
-                    </FormControl>
-                    <div className="space-y-1 leading-none">
-                      <FormLabel>Delivery same as company address</FormLabel>
-                    </div>
-                  </FormItem>
-                )}
-              />
-
-              {!watchDeliverySameAsCompany && (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="delivery_address_line1"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Delivery Address Line 1</FormLabel>
-                        <FormControl>
-                          <Input {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="delivery_address_line2"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Delivery Address Line 2</FormLabel>
-                        <FormControl>
-                          <Input {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="delivery_city"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>City</FormLabel>
-                        <FormControl>
-                          <Input {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="delivery_country"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Country</FormLabel>
-                        <FormControl>
-                          <Input {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="delivery_pin_code"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Pin Code</FormLabel>
-                        <FormControl>
-                          <Input {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-              )}
-            </div>
 
             {/* Return Line Items */}
             {returnLineItems.length > 0 ? (

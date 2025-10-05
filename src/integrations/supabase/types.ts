@@ -2480,6 +2480,7 @@ export type Database = {
           invoice_id: string
           invoice_number: string
           notes: string | null
+          place_of_supply: string | null
           reason_for_credit: string
           rso_date: string
           rso_number: string | null
@@ -2506,6 +2507,7 @@ export type Database = {
           invoice_id: string
           invoice_number: string
           notes?: string | null
+          place_of_supply?: string | null
           reason_for_credit: string
           rso_date?: string
           rso_number?: string | null
@@ -2532,6 +2534,7 @@ export type Database = {
           invoice_id?: string
           invoice_number?: string
           notes?: string | null
+          place_of_supply?: string | null
           reason_for_credit?: string
           rso_date?: string
           rso_number?: string | null
