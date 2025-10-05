@@ -95,42 +95,43 @@ export const KPICard: React.FC<KPICardProps> = ({
       'border transition-all duration-300 hover:shadow-lg hover:scale-[1.02]',
       variantStyles[variant]
     )}>
-      <CardContent className="p-6">
-        <div className="flex items-start justify-between mb-4">
-          <div className="flex-1">
-            <p className="text-sm font-medium text-muted-foreground mb-1">{title}</p>
-            <div className="flex items-baseline gap-1">
-              <span className="text-4xl font-bold tracking-tight">
-                {prefix}{typeof value === 'number' ? displayValue.toLocaleString('en-IN') : value}{suffix}
-              </span>
-            </div>
+      <CardContent className="p-5 space-y-3">
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex-1 min-w-0">
+            <p className="text-xs font-medium text-muted-foreground mb-2 line-clamp-1">{title}</p>
           </div>
           <div className={cn(
-            'p-3 rounded-xl',
+            'p-2.5 rounded-xl flex-shrink-0',
             iconStyles[variant]
           )}>
-            <Icon className="h-6 w-6" />
+            <Icon className="h-5 w-5" />
           </div>
         </div>
 
-        {trend && (
-          <div className="flex items-center gap-2 mb-2">
-            <div className={cn(
-              'flex items-center gap-1 text-sm font-medium px-2 py-1 rounded-md',
-              trend.isPositive ? 'text-green-600 bg-green-500/10' : 'text-red-600 bg-red-500/10'
-            )}>
-              {trend.isPositive ? (
-                <TrendingUp className="h-3 w-3" />
-              ) : (
-                <TrendingDown className="h-3 w-3" />
-              )}
-              <span>{trend.isPositive ? '+' : ''}{trend.value}%</span>
-            </div>
-            {trend.label && (
-              <span className="text-xs text-muted-foreground">{trend.label}</span>
-            )}
+        <div className="space-y-2">
+          <div className="text-3xl font-bold tracking-tight break-words">
+            {prefix}{typeof value === 'number' ? displayValue.toLocaleString('en-IN') : value}{suffix}
           </div>
-        )}
+
+          {trend && (
+            <div className="flex flex-col gap-1">
+              <div className={cn(
+                'inline-flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-md w-fit',
+                trend.isPositive ? 'text-green-600 bg-green-500/10' : 'text-red-600 bg-red-500/10'
+              )}>
+                {trend.isPositive ? (
+                  <TrendingUp className="h-3 w-3 flex-shrink-0" />
+                ) : (
+                  <TrendingDown className="h-3 w-3 flex-shrink-0" />
+                )}
+                <span className="whitespace-nowrap">{trend.isPositive ? '+' : ''}{trend.value}%</span>
+              </div>
+              {trend.label && (
+                <span className="text-xs text-muted-foreground">{trend.label}</span>
+              )}
+            </div>
+          )}
+        </div>
 
         {sparklineData && sparklineData.length > 0 && (
           <div className="h-8 flex items-end gap-0.5">

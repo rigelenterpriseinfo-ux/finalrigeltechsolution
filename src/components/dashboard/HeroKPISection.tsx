@@ -29,7 +29,7 @@ export const HeroKPISection: React.FC<HeroKPISectionProps> = ({
   const ordersSparkline = [12, 15, 13, 18, 16, 20, data?.activeOrders || 22];
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7 gap-6 mb-8">
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-7 gap-4 mb-8">
       {/* Total Revenue */}
       <KPICard
         title="Total Revenue"
