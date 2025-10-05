@@ -935,14 +935,14 @@ function ReturnsModuleContent() {
 
   return (
     <div className="space-y-6">
+      {/* Dashboard Stats */}
+      <ReturnsDashboardStats companyId={company?.id} />
+
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
         <TabsList className="grid w-full grid-cols-2 border-b border-border">
           <TabsTrigger value="returns">Return Sales Orders</TabsTrigger>
           <TabsTrigger value="credit-notes">Credit Notes</TabsTrigger>
         </TabsList>
-
-        {/* Dashboard Stats */}
-        <ReturnsDashboardStats companyId={company?.id} />
 
         <TabsContent value="returns" className="space-y-6">
 
