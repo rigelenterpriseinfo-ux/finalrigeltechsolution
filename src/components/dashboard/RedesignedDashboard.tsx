@@ -28,6 +28,8 @@ import { useFinanceData } from '@/hooks/useFinanceData';
 import { useDashboardCustomization } from '@/hooks/useDashboardCustomization';
 import { useDashboardAnalytics } from '@/hooks/useDashboardAnalytics';
 import { useNavigate } from 'react-router-dom';
+import { MobileNavigation } from '@/components/mobile/MobileNavigation';
+import { PullToRefreshContainer } from '@/components/mobile/PullToRefreshContainer';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Keyboard, Settings2, Maximize2, Minimize2 } from 'lucide-react';
@@ -108,13 +110,14 @@ const RedesignedDashboardComponent: React.FC<RedesignedDashboardProps> = ({ comp
   }
 
   return (
-    <div className="min-h-screen bg-background" role="main" aria-label="Dashboard">
-      <div className={cn(
-        'flex gap-6',
-        isMobile ? 'flex-col p-4' : 'p-6'
-      )}>
-        {/* Main Content */}
-        <div className={cn('flex-1', spacing)} role="region" aria-label="Dashboard content">
+    <PullToRefreshContainer onRefresh={handleRefreshAll} disabled={!isMobile}>
+      <div className="min-h-screen bg-background pb-20 md:pb-0" role="main" aria-label="Dashboard">
+        <div className={cn(
+          'flex gap-6',
+          isMobile ? 'flex-col p-4' : 'p-6'
+        )}>
+          {/* Main Content */}
+          <div className={cn('flex-1', spacing)} role="region" aria-label="Dashboard content">
           {/* Page Header with Action Buttons */}
           <header 
             className={cn(
@@ -350,7 +353,11 @@ const RedesignedDashboardComponent: React.FC<RedesignedDashboardProps> = ({ comp
         open={showCustomization}
         onOpenChange={setShowCustomization}
       />
+
+      {/* Mobile Navigation */}
+      {isMobile && <MobileNavigation />}
     </div>
+    </PullToRefreshContainer>
   );
 };
 
