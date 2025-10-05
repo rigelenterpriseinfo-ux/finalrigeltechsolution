@@ -15,6 +15,7 @@ import { DashboardExportMenu } from './DashboardExportMenu';
 import { KeyboardShortcutsDialog } from './KeyboardShortcutsDialog';
 import { DashboardCustomizationDialog } from './DashboardCustomizationDialog';
 import { DateRangeFilter } from './DateRangeFilter';
+import { DraggableWidgets } from '../DraggableWidgets';
 import { useDashboardData } from '@/hooks/useDashboardData';
 import { useOperationsData } from '@/hooks/useOperationsData';
 import { useRealtimeDashboard } from '@/hooks/useRealtimeDashboard';
@@ -66,10 +67,11 @@ const RedesignedDashboardComponent: React.FC<RedesignedDashboardProps> = ({ comp
   const { data: salesData } = useSalesData(companyId);
   const { data: financeData } = useFinanceData(companyId);
   const { isMobile, cardSpacing } = useMobileOptimizations();
-  const { customization, toggleCompactView } = useDashboardCustomization();
+  const { customization, toggleCompactView, reorderWidgets } = useDashboardCustomization();
   const { trackWidgetInteraction, trackEvent } = useDashboardAnalytics();
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [showCustomization, setShowCustomization] = useState(false);
+  const [dragEnabled, setDragEnabled] = useState(false);
   
   // Enable real-time updates
   useRealtimeDashboard(companyId);
@@ -152,6 +154,20 @@ const RedesignedDashboardComponent: React.FC<RedesignedDashboardProps> = ({ comp
                 variant="outline"
                 size="sm"
                 onClick={() => {
+                  setDragEnabled(!dragEnabled);
+                  trackEvent('toggle_drag_mode', { enabled: !dragEnabled });
+                }}
+                className="gap-2"
+                aria-label="Toggle widget reordering"
+                title="Toggle widget reordering"
+              >
+                <Settings2 className="h-4 w-4" />
+                {dragEnabled ? 'Done' : 'Reorder'}
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
                   toggleCompactView();
                   trackEvent('toggle_compact_view', { compact: !customization.compactView });
                 }}
@@ -193,99 +209,115 @@ const RedesignedDashboardComponent: React.FC<RedesignedDashboardProps> = ({ comp
             </div>
           </header>
 
-          {/* Hero KPI Section */}
-          {customization.widgets.kpi?.visible && (
-            <section aria-labelledby="kpi-section-title">
-              <h2 id="kpi-section-title" className="sr-only">Key Performance Indicators</h2>
-              <DashboardSectionWrapper>
-                <HeroKPISection
-                  data={kpiData}
-                  loading={kpiLoading}
-                  onViewOrders={() => {
-                    trackWidgetInteraction('kpi', 'view_orders');
-                    navigate('/dashboard?module=sales');
-                  }}
-                  onReorderStock={() => {
-                    trackWidgetInteraction('kpi', 'reorder_stock');
-                    navigate('/dashboard?module=purchase');
-                  }}
-                />
-              </DashboardSectionWrapper>
-            </section>
-          )}
+          {/* Dashboard Widgets with Drag & Drop */}
+          <DraggableWidgets
+            widgets={customization.widgets}
+            onReorder={(widgets) => {
+              reorderWidgets(widgets);
+              trackEvent('widgets_reordered');
+            }}
+            enabled={dragEnabled}
+          >
+            {/* Hero KPI Section */}
+            {customization.widgets.kpi?.visible && (
+              <section aria-labelledby="kpi-section-title">
+                <h2 id="kpi-section-title" className="sr-only">Key Performance Indicators</h2>
+                <DashboardSectionWrapper>
+                  <HeroKPISection
+                    data={kpiData}
+                    loading={kpiLoading}
+                    onViewOrders={() => {
+                      trackWidgetInteraction('kpi', 'view_orders');
+                      navigate('/dashboard?module=sales');
+                    }}
+                    onReorderStock={() => {
+                      trackWidgetInteraction('kpi', 'reorder_stock');
+                      navigate('/dashboard?module=purchase');
+                    }}
+                  />
+                </DashboardSectionWrapper>
+              </section>
+            )}
 
-          {/* Urgent Actions Panel */}
-          {customization.widgets.urgentActions?.visible && (
-            <section aria-labelledby="urgent-actions-title">
-              <h2 id="urgent-actions-title" className="sr-only">Urgent Actions</h2>
-              <DashboardSectionWrapper>
-                <UrgentActionsPanel
-                  actions={urgentActions}
-                  loading={actionsLoading}
-                />
-              </DashboardSectionWrapper>
-            </section>
-          )}
+            {/* Urgent Actions Panel */}
+            {customization.widgets.urgentActions?.visible && (
+              <section aria-labelledby="urgent-actions-title">
+                <h2 id="urgent-actions-title" className="sr-only">Urgent Actions</h2>
+                <DashboardSectionWrapper>
+                  <UrgentActionsPanel
+                    actions={urgentActions}
+                    loading={actionsLoading}
+                  />
+                </DashboardSectionWrapper>
+              </section>
+            )}
 
-          {/* Business Performance Sections */}
-          <section aria-labelledby="business-performance-title">
-            <h2 id="business-performance-title" className="sr-only">Business Performance</h2>
-            <div className={spacing}>
-              {/* Purchase & Procurement */}
-              {customization.widgets.purchase?.visible && (
+            {/* Purchase & Procurement */}
+            {customization.widgets.purchase?.visible && (
+              <section aria-labelledby="purchase-section-title">
+                <h2 id="purchase-section-title" className="sr-only">Purchase & Procurement</h2>
                 <DashboardSectionWrapper>
                   <PurchaseSection companyId={companyId} />
                 </DashboardSectionWrapper>
-              )}
-              
-              {/* Inventory & Warehouse */}
-              {customization.widgets.inventory?.visible && (
+              </section>
+            )}
+            
+            {/* Inventory & Warehouse */}
+            {customization.widgets.inventory?.visible && (
+              <section aria-labelledby="inventory-section-title">
+                <h2 id="inventory-section-title" className="sr-only">Inventory & Warehouse</h2>
                 <DashboardSectionWrapper>
                   <InventorySection companyId={companyId} />
                 </DashboardSectionWrapper>
-              )}
-              
-              {/* Sales & Customer */}
-              {customization.widgets.sales?.visible && (
+              </section>
+            )}
+            
+            {/* Sales & Customer */}
+            {customization.widgets.sales?.visible && (
+              <section aria-labelledby="sales-section-title">
+                <h2 id="sales-section-title" className="sr-only">Sales & Customer</h2>
                 <DashboardSectionWrapper>
                   <SalesSection companyId={companyId} />
                 </DashboardSectionWrapper>
-              )}
-              
-              {/* Accounts & Finance */}
-              {customization.widgets.finance?.visible && (
+              </section>
+            )}
+            
+            {/* Accounts & Finance */}
+            {customization.widgets.finance?.visible && (
+              <section aria-labelledby="finance-section-title">
+                <h2 id="finance-section-title" className="sr-only">Accounts & Finance</h2>
                 <DashboardSectionWrapper>
                   <FinanceSection companyId={companyId} />
                 </DashboardSectionWrapper>
-              )}
-            </div>
-          </section>
+              </section>
+            )}
 
-          {/* Operations & Tracking Section */}
-          <section aria-labelledby="operations-title">
-            <h2 id="operations-title" className="sr-only">Operations & Tracking</h2>
-            <div className={spacing}>
-              {/* Shipment Status Board */}
-              {customization.widgets.shipments?.visible && (
+            {/* Shipment Status Board */}
+            {customization.widgets.shipments?.visible && (
+              <section aria-labelledby="shipments-section-title">
+                <h2 id="shipments-section-title" className="sr-only">Shipment Status</h2>
                 <DashboardSectionWrapper>
                   <ShipmentStatusBoard 
                     statuses={operationsData?.shipmentStatuses || []}
                     loading={operationsLoading}
                   />
                 </DashboardSectionWrapper>
-              )}
-              
-              {/* Recent Activities Timeline */}
-              {customization.widgets.activities?.visible && (
+              </section>
+            )}
+            
+            {/* Recent Activities Timeline */}
+            {customization.widgets.activities?.visible && (
+              <section aria-labelledby="activities-section-title">
+                <h2 id="activities-section-title" className="sr-only">Recent Activities</h2>
                 <DashboardSectionWrapper>
                   <RecentActivitiesTimeline 
                     activities={operationsData?.recentActivities || []}
                     loading={operationsLoading}
                   />
                 </DashboardSectionWrapper>
-              )}
-            </div>
-          </section>
+              </section>
+            )}
+          </DraggableWidgets>
         </div>
 
         {/* Quick Actions Sidebar - Sticky on desktop, FAB on mobile */}
