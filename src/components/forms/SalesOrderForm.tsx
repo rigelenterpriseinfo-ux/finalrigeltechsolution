@@ -898,10 +898,7 @@ export function SalesOrderForm({
                                   </FormControl>
                                   <SelectContent>
                                     <SelectItem value="draft">Draft</SelectItem>
-                                    <SelectItem value="pending">Pending</SelectItem>
                                     <SelectItem value="confirmed">Confirmed</SelectItem>
-                                    <SelectItem value="shipped">Shipped</SelectItem>
-                                    <SelectItem value="delivered">Delivered</SelectItem>
                                     <SelectItem value="cancelled">Cancelled</SelectItem>
                                   </SelectContent>
                                 </Select>

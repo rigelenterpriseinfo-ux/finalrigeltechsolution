@@ -64,7 +64,7 @@ export const SalesOrderTable: React.FC<SalesOrderTableProps> = ({
   const [sortField, setSortField] = useState<SortField>('order_date');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
   const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [deliveryStatusFilter, setDeliveryStatusFilter] = useState<string>('all');
+  const [invoiceStatusFilter, setInvoiceStatusFilter] = useState<string>('all');
   const [ordersWithTransactions, setOrdersWithTransactions] = useState<Set<string>>(new Set());
   const [companyData, setCompanyData] = useState<any>(null);
   const itemsPerPage = 5;
@@ -164,7 +164,7 @@ export const SalesOrderTable: React.FC<SalesOrderTableProps> = ({
     );
 
     const matchesStatus = statusFilter === 'all' || order.status === statusFilter;
-    const matchesDeliveryStatus = deliveryStatusFilter === 'all' || order.delivery_status === deliveryStatusFilter;
+    const matchesDeliveryStatus = invoiceStatusFilter === 'all' || order.delivery_status === invoiceStatusFilter;
 
     return matchesSearch && matchesStatus && matchesDeliveryStatus;
   });
@@ -261,7 +261,7 @@ export const SalesOrderTable: React.FC<SalesOrderTableProps> = ({
     );
   };
 
-  const getDeliveryStatusBadge = (status: string) => {
+  const getInvoiceStatusBadge = (status: string) => {
     const variants: Record<string, 'default' | 'secondary' | 'destructive' | 'outline'> = {
       not_started: 'outline',
       partially_delivered: 'secondary',
@@ -1072,17 +1072,15 @@ export const SalesOrderTable: React.FC<SalesOrderTableProps> = ({
                 <SelectItem value="all">All Status</SelectItem>
                 <SelectItem value="draft">Draft</SelectItem>
                 <SelectItem value="confirmed">Confirmed</SelectItem>
-                <SelectItem value="in_progress">In Progress</SelectItem>
-                <SelectItem value="completed">Completed</SelectItem>
                 <SelectItem value="cancelled">Cancelled</SelectItem>
               </SelectContent>
             </Select>
-            <Select value={deliveryStatusFilter} onValueChange={(value) => { setDeliveryStatusFilter(value); setCurrentPage(1); }}>
+            <Select value={invoiceStatusFilter} onValueChange={(value) => { setInvoiceStatusFilter(value); setCurrentPage(1); }}>
               <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="Delivery Status" />
+                <SelectValue placeholder="Invoice Status" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Delivery Status</SelectItem>
+                <SelectItem value="all">All Invoice Status</SelectItem>
                 <SelectItem value="not_started">Not Started</SelectItem>
                 <SelectItem value="partially_delivered">Partially Delivered</SelectItem>
                 <SelectItem value="closed">Closed</SelectItem>
@@ -1180,7 +1178,7 @@ export const SalesOrderTable: React.FC<SalesOrderTableProps> = ({
                     onClick={() => handleSort('status')}
                   >
                     <div className="flex items-center gap-1">
-                      <span>Status</span>
+                      <span>SO Status</span>
                       {getSortIcon('status')}
                     </div>
                   </TableHead>
@@ -1189,7 +1187,7 @@ export const SalesOrderTable: React.FC<SalesOrderTableProps> = ({
                     onClick={() => handleSort('delivery_status')}
                   >
                     <div className="flex items-center gap-1">
-                      <span>Delivery Status</span>
+                      <span>Invoice Status</span>
                       {getSortIcon('delivery_status')}
                     </div>
                   </TableHead>
@@ -1252,7 +1250,7 @@ export const SalesOrderTable: React.FC<SalesOrderTableProps> = ({
                       {getStatusBadge(order.status)}
                     </TableCell>
                     <TableCell>
-                      {getDeliveryStatusBadge(order.delivery_status)}
+                      {getInvoiceStatusBadge(order.delivery_status)}
                     </TableCell>
                     <TableCell className="text-right font-medium">
                       {order.currency} {order.total_amount.toFixed(2)}
