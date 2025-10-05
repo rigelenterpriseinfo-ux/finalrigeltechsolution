@@ -318,6 +318,7 @@ export default function BackorderModule() {
           igst_rate: soItemData.igst_rate || 0,
           warehouse_id: item.warehouse_id || soData.default_warehouse_id || '',
           bin_id: item.bin_id || soData.default_bin_id || '',
+          stock_on_hand: productData.stock_quantity || 0, // Real-time stock from products table
         }]
       };
 
@@ -470,7 +471,8 @@ export default function BackorderModule() {
         const { error: updateError } = await supabase
           .from('sales_order_items')
           .update({
-            back_order_quantity: Math.max(0, newBackorderQty)
+            back_order_quantity: Math.max(0, newBackorderQty),
+            updated_at: new Date().toISOString()
           })
           .eq('id', backorderItem.id);
 

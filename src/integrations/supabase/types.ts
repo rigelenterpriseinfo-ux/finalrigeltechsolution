@@ -2933,6 +2933,7 @@ export type Database = {
           total_price: number
           unit_of_measure: string
           unit_price: number
+          updated_at: string | null
           warehouse_id: string | null
         }
         Insert: {
@@ -2961,6 +2962,7 @@ export type Database = {
           total_price: number
           unit_of_measure?: string
           unit_price: number
+          updated_at?: string | null
           warehouse_id?: string | null
         }
         Update: {
@@ -2989,6 +2991,7 @@ export type Database = {
           total_price?: number
           unit_of_measure?: string
           unit_price?: number
+          updated_at?: string | null
           warehouse_id?: string | null
         }
         Relationships: [
