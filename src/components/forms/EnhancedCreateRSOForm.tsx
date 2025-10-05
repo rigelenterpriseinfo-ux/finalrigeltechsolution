@@ -35,8 +35,12 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Save, X, FileText, Package } from 'lucide-react';
+import { Separator } from '@/components/ui/separator';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Loader2, Save, X, FileText, Package, Calendar, MapPin, Users } from 'lucide-react';
 import { Label } from '@/components/ui/label';
+import { SearchableCombobox } from '@/components/ui/searchable-combobox';
+import { cn } from '@/lib/utils';
 
 // Form validation schema
 const rsoHeaderSchema = z.object({
@@ -594,7 +598,7 @@ export function EnhancedCreateRSOForm({ rsoId, onClose, onSave }: EnhancedCreate
         <CardTitle className="flex items-center justify-between text-2xl">
           <div className="flex items-center gap-3">
             <FileText className="h-6 w-6 text-primary" />
-            <span className="font-bold">{rsoId ? 'Edit' : 'Create'} RSO</span>
+            <span className="font-bold">{rsoId ? 'Edit' : 'Create'} Return Sales Order</span>
           </div>
           {generatedRSONumber && (
             <Badge variant="outline" className="text-lg px-4 py-2 bg-background border-primary">
@@ -603,463 +607,566 @@ export function EnhancedCreateRSOForm({ rsoId, onClose, onSave }: EnhancedCreate
           )}
         </CardTitle>
       </CardHeader>
-      <CardContent className="p-6 space-y-8">
+      <CardContent className="p-6">
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
             
-            {/* Customer and Invoice Selection */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <FormField
-                control={form.control}
-                name="customer_id"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="text-base font-semibold">Customer *</FormLabel>
-                    <FormControl>
-                      <Select onValueChange={handleCustomerChange} value={field.value}>
-                        <SelectTrigger className="h-11 bg-background border-2 hover:border-primary transition-colors">
-                          <SelectValue placeholder="Select a customer" />
-                        </SelectTrigger>
-                        <SelectContent className="bg-background border z-50 max-h-80">
-                          {customers.map((customer) => (
-                            <SelectItem key={customer.id} value={customer.id} className="py-3">
-                              <div className="flex flex-col">
-                                <span className="font-medium">{customer.name}</span>
-                                <span className="text-sm text-muted-foreground">{customer.customer_ref}</span>
-                              </div>
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+            <Tabs defaultValue="order-info" className="w-full">
+              <TabsList className="grid w-full grid-cols-3 h-auto p-1">
+                <TabsTrigger value="order-info" className="flex items-center gap-2 py-2.5">
+                  <FileText className="h-4 w-4" />
+                  <span className="hidden sm:inline">Order Info</span>
+                  <span className="sm:hidden">Info</span>
+                </TabsTrigger>
+                <TabsTrigger value="delivery" className="flex items-center gap-2 py-2.5">
+                  <MapPin className="h-4 w-4" />
+                  <span className="hidden sm:inline">Delivery</span>
+                  <span className="sm:hidden">Delivery</span>
+                </TabsTrigger>
+                <TabsTrigger value="line-items" className="flex items-center gap-2 py-2.5">
+                  <Package className="h-4 w-4" />
+                  <span className="hidden sm:inline">Line Items</span>
+                  <span className="sm:hidden">Items</span>
+                </TabsTrigger>
+              </TabsList>
 
-              <FormField
-                control={form.control}
-                name="invoice_ids"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="text-base font-semibold flex items-center gap-2">
-                      <FileText className="h-4 w-4" />
-                      Sales Invoices * (Last 365 days)
-                    </FormLabel>
-                    <div className="border-2 rounded-lg p-4 bg-muted/30 max-h-48 overflow-y-auto">
-                      {!selectedCustomer ? (
-                        <p className="text-sm text-muted-foreground">Select a customer first</p>
-                      ) : invoices.length === 0 ? (
-                        <p className="text-sm text-muted-foreground">No finalized invoices found</p>
-                      ) : (
-                        <div className="space-y-2">
-                          {invoices.map((invoice) => (
-                            <div 
-                              key={invoice.id} 
-                              className={`flex items-center space-x-3 p-3 rounded-md transition-all ${
-                                selectedInvoices.some(inv => inv.id === invoice.id) 
-                                  ? 'bg-primary/10 border-2 border-primary' 
-                                  : 'bg-background border-2 border-transparent'
-                              }`}
-                            >
-                              <Checkbox
-                                checked={selectedInvoices.some(inv => inv.id === invoice.id)}
-                                onCheckedChange={() => handleInvoiceToggle(invoice.id)}
-                              />
-                              <label 
-                                htmlFor={`invoice-${invoice.id}`}
-                                className="flex-1 cursor-pointer"
-                                onClick={() => handleInvoiceToggle(invoice.id)}
-                              >
-                                <div className="font-medium">{invoice.invoice_number}</div>
-                                <div className="text-sm text-muted-foreground">
-                                  {new Date(invoice.invoice_date).toLocaleDateString()} - ₹{invoice.total_amount.toLocaleString()}
-                                </div>
-                              </label>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-
-            {/* Customer Address Display */}
-            {selectedCustomer && (
-              <div className="space-y-6">
-                <Card className="border-2 bg-gradient-to-br from-muted/50 to-muted/30">
+              {/* Order Info Tab */}
+              <TabsContent value="order-info" className="space-y-6 mt-6">
+                <Card className="shadow-sm border-border/50">
                   <CardHeader className="pb-3">
-                    <CardTitle className="text-sm font-semibold flex items-center gap-2">
-                      <Package className="h-4 w-4" />
-                      Customer Registered Address
+                    <CardTitle className="text-base font-semibold flex items-center gap-2">
+                      <Users className="h-4 w-4 text-primary" />
+                      Customer & Invoice Selection
                     </CardTitle>
                   </CardHeader>
-                  <CardContent className="pt-0">
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                      <div>
-                        <Label className="text-xs text-muted-foreground">Address Line 1</Label>
-                        <p className="font-medium">{selectedCustomer.address_line1 || 'N/A'}</p>
-                      </div>
-                      <div>
-                        <Label className="text-xs text-muted-foreground">Address Line 2</Label>
-                        <p className="font-medium">{selectedCustomer.address_line2 || 'N/A'}</p>
-                      </div>
-                      <div>
-                        <Label className="text-xs text-muted-foreground">City</Label>
-                        <p className="font-medium">{selectedCustomer.city || 'N/A'}</p>
-                      </div>
-                      <div>
-                        <Label className="text-xs text-muted-foreground">State</Label>
-                        <p className="font-medium">{selectedCustomer.state || 'N/A'}</p>
-                      </div>
-                      <div>
-                        <Label className="text-xs text-muted-foreground">Country</Label>
-                        <p className="font-medium">{selectedCustomer.country || 'N/A'}</p>
-                      </div>
-                      <div>
-                        <Label className="text-xs text-muted-foreground">Pin Code</Label>
-                        <p className="font-medium">{selectedCustomer.pin_code || 'N/A'}</p>
-                      </div>
+                  <CardContent className="space-y-4">
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                      <FormField
+                        control={form.control}
+                        name="customer_id"
+                        render={({ field, fieldState }) => (
+                          <FormItem>
+                            <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Customer *</FormLabel>
+                            <FormControl>
+                              <SearchableCombobox
+                                value={field.value}
+                                onSelect={handleCustomerChange}
+                                options={customers.map((customer) => ({
+                                  id: customer.id,
+                                  name: customer.name,
+                                  subtitle: customer.customer_ref,
+                                }))}
+                                placeholder="Select a customer"
+                                emptyMessage="No customers found"
+                                searchPlaceholder="Search customers..."
+                                className={cn(
+                                  "h-9",
+                                  fieldState.error && "border-destructive focus-visible:ring-destructive"
+                                )}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name="invoice_ids"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-2">
+                              <FileText className="h-4 w-4" />
+                              Sales Invoices * (Last 365 days)
+                            </FormLabel>
+                            <div className="border-2 rounded-lg p-4 bg-muted/30 max-h-48 overflow-y-auto">
+                              {!selectedCustomer ? (
+                                <p className="text-sm text-muted-foreground">Select a customer first</p>
+                              ) : invoices.length === 0 ? (
+                                <p className="text-sm text-muted-foreground">No finalized invoices found</p>
+                              ) : (
+                                <div className="space-y-2">
+                                  {invoices.map((invoice) => (
+                                    <div 
+                                      key={invoice.id} 
+                                      className={`flex items-center space-x-3 p-3 rounded-md transition-all ${
+                                        selectedInvoices.some(inv => inv.id === invoice.id) 
+                                          ? 'bg-primary/10 border-2 border-primary' 
+                                          : 'bg-background border-2 border-transparent'
+                                      }`}
+                                    >
+                                      <Checkbox
+                                        checked={selectedInvoices.some(inv => inv.id === invoice.id)}
+                                        onCheckedChange={() => handleInvoiceToggle(invoice.id)}
+                                      />
+                                      <label 
+                                        htmlFor={`invoice-${invoice.id}`}
+                                        className="flex-1 cursor-pointer"
+                                        onClick={() => handleInvoiceToggle(invoice.id)}
+                                      >
+                                        <div className="font-medium">{invoice.invoice_number}</div>
+                                        <div className="text-sm text-muted-foreground">
+                                          {new Date(invoice.invoice_date).toLocaleDateString()} - ₹{invoice.total_amount.toLocaleString()}
+                                        </div>
+                                      </label>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
                     </div>
+
+                    {/* Selected Invoices Display */}
+                    {selectedInvoices.length > 0 && (
+                      <>
+                        <Separator className="my-4" />
+                        <div>
+                          <Label className="text-xs text-muted-foreground uppercase tracking-wide mb-3 block">
+                            Selected Invoices ({selectedInvoices.length})
+                          </Label>
+                          <div className="flex flex-wrap gap-2">
+                            {selectedInvoices.map((invoice) => (
+                              <Badge key={invoice.id} variant="secondary" className="px-3 py-1.5 text-sm">
+                                {invoice.invoice_number} - ₹{invoice.total_amount.toLocaleString()}
+                              </Badge>
+                            ))}
+                          </div>
+                        </div>
+                      </>
+                    )}
                   </CardContent>
                 </Card>
 
-                {/* Delivery Address Option */}
-                <FormField
-                  control={form.control}
-                  name="delivery_same_as_company"
-                  render={({ field }) => (
-                    <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border-2 p-4 bg-muted/30">
-                      <FormControl>
-                        <Checkbox checked={field.value} onCheckedChange={field.onChange} />
-                      </FormControl>
-                      <div className="space-y-1 leading-none">
-                        <FormLabel className="font-medium">Delivery same as company address</FormLabel>
-                      </div>
-                    </FormItem>
-                  )}
-                />
+                <Card className="shadow-sm border-border/50">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-base font-semibold flex items-center gap-2">
+                      <Calendar className="h-4 w-4 text-primary" />
+                      RSO Details
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <FormField
+                        control={form.control}
+                        name="rso_date"
+                        render={({ field, fieldState }) => (
+                          <FormItem>
+                            <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">RSO Date *</FormLabel>
+                            <FormControl>
+                              <Input 
+                                type="date" 
+                                {...field} 
+                                className={cn(
+                                  "h-9",
+                                  fieldState.error && "border-destructive focus-visible:ring-destructive"
+                                )}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
 
-                {!watchDeliverySameAsCompany && (
-                  <Card className="border-2 bg-gradient-to-br from-muted/50 to-muted/30">
+                      <FormField
+                        control={form.control}
+                        name="status"
+                        render={({ field, fieldState }) => (
+                          <FormItem>
+                            <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Status *</FormLabel>
+                            <Select value={field.value} onValueChange={field.onChange}>
+                              <FormControl>
+                                <SelectTrigger className={cn(
+                                  "h-9",
+                                  fieldState.error && "border-destructive focus-visible:ring-destructive"
+                                )}>
+                                  <SelectValue placeholder="Select status" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                <SelectItem value="Draft">Draft</SelectItem>
+                                <SelectItem value="Confirmed">Confirmed</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+
+                    <FormField
+                      control={form.control}
+                      name="reason_for_credit"
+                      render={({ field, fieldState }) => (
+                        <FormItem>
+                          <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Reason for Credit *</FormLabel>
+                          <FormControl>
+                            <RadioGroup 
+                              onValueChange={field.onChange} 
+                              value={field.value} 
+                              className="grid grid-cols-2 md:grid-cols-4 gap-4"
+                            >
+                              <div className="flex items-center space-x-2">
+                                <RadioGroupItem value="Return" id="return" />
+                                <Label htmlFor="return" className="cursor-pointer font-normal">Return</Label>
+                              </div>
+                              <div className="flex items-center space-x-2">
+                                <RadioGroupItem value="Price Correction" id="price-correction" />
+                                <Label htmlFor="price-correction" className="cursor-pointer font-normal">Price Correction</Label>
+                              </div>
+                              <div className="flex items-center space-x-2">
+                                <RadioGroupItem value="Discount" id="discount" />
+                                <Label htmlFor="discount" className="cursor-pointer font-normal">Discount</Label>
+                              </div>
+                              <div className="flex items-center space-x-2">
+                                <RadioGroupItem value="Others" id="others" />
+                                <Label htmlFor="others" className="cursor-pointer font-normal">Others</Label>
+                              </div>
+                            </RadioGroup>
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <FormField
+                        control={form.control}
+                        name="place_of_supply"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Place of Supply</FormLabel>
+                            <FormControl>
+                              <Input {...field} placeholder="Place of supply" className="h-9" />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+
+                    <FormField
+                      control={form.control}
+                      name="notes"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Notes</FormLabel>
+                          <FormControl>
+                            <Textarea 
+                              placeholder="Additional notes or instructions" 
+                              {...field} 
+                              className="min-h-20 resize-none" 
+                            />
+                          </FormControl>
+                        </FormItem>
+                      )}
+                    />
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
+              {/* Delivery Address Tab */}
+              <TabsContent value="delivery" className="space-y-6 mt-6">
+                {selectedCustomer && (
+                  <>
+                    <Card className="shadow-sm border-border/50">
+                      <CardHeader className="pb-3">
+                        <CardTitle className="text-base font-semibold flex items-center gap-2">
+                          <Package className="h-4 w-4 text-primary" />
+                          Customer Registered Address
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
+                          <div>
+                            <Label className="text-xs text-muted-foreground uppercase tracking-wide">Address Line 1</Label>
+                            <p className="font-medium mt-1">{selectedCustomer.address_line1 || 'N/A'}</p>
+                          </div>
+                          <div>
+                            <Label className="text-xs text-muted-foreground uppercase tracking-wide">Address Line 2</Label>
+                            <p className="font-medium mt-1">{selectedCustomer.address_line2 || 'N/A'}</p>
+                          </div>
+                          <div>
+                            <Label className="text-xs text-muted-foreground uppercase tracking-wide">City</Label>
+                            <p className="font-medium mt-1">{selectedCustomer.city || 'N/A'}</p>
+                          </div>
+                          <div>
+                            <Label className="text-xs text-muted-foreground uppercase tracking-wide">State</Label>
+                            <p className="font-medium mt-1">{selectedCustomer.state || 'N/A'}</p>
+                          </div>
+                          <div>
+                            <Label className="text-xs text-muted-foreground uppercase tracking-wide">Country</Label>
+                            <p className="font-medium mt-1">{selectedCustomer.country || 'N/A'}</p>
+                          </div>
+                          <div>
+                            <Label className="text-xs text-muted-foreground uppercase tracking-wide">Pin Code</Label>
+                            <p className="font-medium mt-1">{selectedCustomer.pin_code || 'N/A'}</p>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+
+                    <Card className="shadow-sm border-border/50">
+                      <CardHeader className="pb-3">
+                        <CardTitle className="text-base font-semibold flex items-center gap-2">
+                          <MapPin className="h-4 w-4 text-primary" />
+                          Delivery Address
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="space-y-4">
+                        <FormField
+                          control={form.control}
+                          name="delivery_same_as_company"
+                          render={({ field }) => (
+                            <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
+                              <FormControl>
+                                <Checkbox checked={field.value} onCheckedChange={field.onChange} />
+                              </FormControl>
+                              <div className="space-y-1 leading-none">
+                                <FormLabel className="font-medium">Delivery same as company address</FormLabel>
+                              </div>
+                            </FormItem>
+                          )}
+                        />
+
+                        {!watchDeliverySameAsCompany && (
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <FormField
+                              control={form.control}
+                              name="delivery_address_line1"
+                              render={({ field, fieldState }) => (
+                                <FormItem>
+                                  <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Address Line 1</FormLabel>
+                                  <FormControl>
+                                    <Input 
+                                      {...field} 
+                                      placeholder="Street address"
+                                      className={cn(
+                                        "h-9",
+                                        fieldState.error && "border-destructive focus-visible:ring-destructive"
+                                      )}
+                                    />
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                            <FormField
+                              control={form.control}
+                              name="delivery_address_line2"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Address Line 2</FormLabel>
+                                  <FormControl>
+                                    <Input {...field} placeholder="Apartment, suite, etc." className="h-9" />
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                            <FormField
+                              control={form.control}
+                              name="delivery_city"
+                              render={({ field, fieldState }) => (
+                                <FormItem>
+                                  <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">City</FormLabel>
+                                  <FormControl>
+                                    <Input 
+                                      {...field} 
+                                      placeholder="City"
+                                      className={cn(
+                                        "h-9",
+                                        fieldState.error && "border-destructive focus-visible:ring-destructive"
+                                      )}
+                                    />
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                            <FormField
+                              control={form.control}
+                              name="delivery_country"
+                              render={({ field, fieldState }) => (
+                                <FormItem>
+                                  <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Country</FormLabel>
+                                  <FormControl>
+                                    <Input 
+                                      {...field} 
+                                      placeholder="Country"
+                                      className={cn(
+                                        "h-9",
+                                        fieldState.error && "border-destructive focus-visible:ring-destructive"
+                                      )}
+                                    />
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                            <FormField
+                              control={form.control}
+                              name="delivery_pin_code"
+                              render={({ field, fieldState }) => (
+                                <FormItem>
+                                  <FormLabel className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Pin Code</FormLabel>
+                                  <FormControl>
+                                    <Input 
+                                      {...field} 
+                                      placeholder="Pin code"
+                                      className={cn(
+                                        "h-9",
+                                        fieldState.error && "border-destructive focus-visible:ring-destructive"
+                                      )}
+                                    />
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  </>
+                )}
+              </TabsContent>
+
+              {/* Line Items Tab */}
+              <TabsContent value="line-items" className="space-y-6 mt-6">
+                {returnLineItems.length > 0 ? (
+                  <Card className="shadow-sm border-border/50">
                     <CardHeader className="pb-3">
-                      <CardTitle className="text-sm font-semibold">Delivery Address</CardTitle>
+                      <CardTitle className="text-base font-semibold flex items-center gap-2">
+                        <Package className="h-4 w-4 text-primary" />
+                        Return Line Items
+                      </CardTitle>
                     </CardHeader>
-                    <CardContent className="pt-0">
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                        <FormField
-                          control={form.control}
-                          name="delivery_address_line1"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Address Line 1</FormLabel>
-                              <FormControl>
-                                <Input {...field} className="h-11" />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        <FormField
-                          control={form.control}
-                          name="delivery_address_line2"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Address Line 2</FormLabel>
-                              <FormControl>
-                                <Input {...field} className="h-11" />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        <FormField
-                          control={form.control}
-                          name="delivery_city"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>City</FormLabel>
-                              <FormControl>
-                                <Input {...field} className="h-11" />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        <FormField
-                          control={form.control}
-                          name="delivery_country"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Country</FormLabel>
-                              <FormControl>
-                                <Input {...field} className="h-11" />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        <FormField
-                          control={form.control}
-                          name="delivery_pin_code"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Pin Code</FormLabel>
-                              <FormControl>
-                                <Input {...field} className="h-11" />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
+                    <CardContent>
+                      <div className="overflow-x-auto rounded-lg border">
+                        <Table>
+                          <TableHeader>
+                            <TableRow className="bg-muted/50">
+                              <TableHead className="font-semibold">Product</TableHead>
+                              <TableHead className="font-semibold">SKU</TableHead>
+                              <TableHead className="font-semibold">Invoice #</TableHead>
+                              <TableHead className="font-semibold">HSN/SAC</TableHead>
+                              <TableHead className="font-semibold">UOM</TableHead>
+                              <TableHead className="font-semibold text-right">Invoiced</TableHead>
+                              <TableHead className="font-semibold text-right">Available</TableHead>
+                              <TableHead className="font-semibold text-right">Return Qty</TableHead>
+                              <TableHead className="font-semibold text-right">Pending</TableHead>
+                              <TableHead className="font-semibold text-right">Unit Price</TableHead>
+                              <TableHead className="font-semibold text-right">Disc %</TableHead>
+                              <TableHead className="font-semibold text-right">Disc Amt</TableHead>
+                              <TableHead className="font-semibold text-right">CGST %</TableHead>
+                              <TableHead className="font-semibold text-right">CGST</TableHead>
+                              <TableHead className="font-semibold text-right">SGST %</TableHead>
+                              <TableHead className="font-semibold text-right">SGST</TableHead>
+                              <TableHead className="font-semibold text-right">Total</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {returnLineItems.map((item, index) => (
+                              <TableRow key={`${item.product_id}-${item.source_invoice_id}`} className="hover:bg-muted/30">
+                                <TableCell className="font-medium">{item.product_name}</TableCell>
+                                <TableCell>{item.product_sku}</TableCell>
+                                <TableCell>
+                                  <Badge variant="outline" className="text-xs">{item.source_invoice_number}</Badge>
+                                </TableCell>
+                                <TableCell className="text-sm">{item.hsn_sac_code || 'N/A'}</TableCell>
+                                <TableCell className="text-sm">{item.unit_of_measure}</TableCell>
+                                <TableCell className="text-right">{item.invoice_qty}</TableCell>
+                                <TableCell className="text-right font-semibold text-green-600">{item.available_qty}</TableCell>
+                                <TableCell>
+                                  <Input
+                                    type="number"
+                                    min="0"
+                                    max={item.available_qty}
+                                    value={item.return_qty}
+                                    onChange={(e) => handleReturnQtyChange(index, parseInt(e.target.value) || 0)}
+                                    className="w-20 h-9 text-right"
+                                  />
+                                </TableCell>
+                                <TableCell className="text-right text-sm">{item.pending_return_qty}</TableCell>
+                                <TableCell className="text-right">₹{item.unit_price.toLocaleString()}</TableCell>
+                                <TableCell>
+                                  <Input
+                                    type="number"
+                                    min="0"
+                                    max="100"
+                                    step="0.01"
+                                    value={item.discount_percentage}
+                                    onChange={(e) => handleDiscountPercentageChange(index, parseFloat(e.target.value) || 0)}
+                                    className="w-20 h-9 text-right"
+                                  />
+                                </TableCell>
+                                <TableCell className="text-right text-sm">₹{item.discount_amount.toFixed(2)}</TableCell>
+                                <TableCell className="text-right text-sm">{item.cgst_rate}%</TableCell>
+                                <TableCell className="text-right text-sm">₹{item.cgst_amount.toFixed(2)}</TableCell>
+                                <TableCell className="text-right text-sm">{item.sgst_rate}%</TableCell>
+                                <TableCell className="text-right text-sm">₹{item.sgst_amount.toFixed(2)}</TableCell>
+                                <TableCell className="text-right font-bold">₹{item.line_total.toFixed(2)}</TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ) : (
+                  selectedInvoices.length > 0 && (
+                    <Card className="shadow-sm border-border/50 border-dashed">
+                      <CardContent className="flex items-center justify-center py-12">
+                        <p className="text-muted-foreground">No items available for return</p>
+                      </CardContent>
+                    </Card>
+                  )
+                )}
+
+                {/* Totals */}
+                {returnLineItems.length > 0 && (
+                  <Card className="shadow-sm border-primary/20 bg-gradient-to-r from-primary/5 to-primary/10">
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-base font-semibold">Totals</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div>
+                          <Label className="text-xs text-muted-foreground uppercase tracking-wide">Subtotal</Label>
+                          <p className="text-xl font-bold mt-1">₹{totals.subtotal.toFixed(2)}</p>
+                        </div>
+                        <div>
+                          <Label className="text-xs text-muted-foreground uppercase tracking-wide">Discount</Label>
+                          <p className="text-xl font-bold text-orange-600 mt-1">-₹{totals.discountAmount.toFixed(2)}</p>
+                        </div>
+                        <div>
+                          <Label className="text-xs text-muted-foreground uppercase tracking-wide">Tax</Label>
+                          <p className="text-xl font-bold mt-1">₹{totals.taxAmount.toFixed(2)}</p>
+                        </div>
+                        <div>
+                          <Label className="text-xs text-muted-foreground uppercase tracking-wide">Total Amount</Label>
+                          <p className="text-2xl font-bold text-primary mt-1">₹{totals.total.toFixed(2)}</p>
+                        </div>
                       </div>
                     </CardContent>
                   </Card>
                 )}
-              </div>
-            )}
+              </TabsContent>
+            </Tabs>
 
-            {/* Selected Invoices Display */}
-            {selectedInvoices.length > 0 && (
-              <Card className="border-2 bg-gradient-to-r from-primary/5 to-primary/10">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-sm font-semibold flex items-center gap-2">
-                    <FileText className="h-4 w-4 text-primary" />
-                    Selected Invoices ({selectedInvoices.length})
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="pt-0">
-                  <div className="flex flex-wrap gap-2">
-                    {selectedInvoices.map((invoice) => (
-                      <Badge key={invoice.id} variant="secondary" className="px-3 py-1.5 text-sm">
-                        {invoice.invoice_number} - ₹{invoice.total_amount.toLocaleString()}
-                      </Badge>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-
-            {/* RSO Details */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              <FormField
-                control={form.control}
-                name="rso_date"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="font-semibold">RSO Date *</FormLabel>
-                    <FormControl>
-                      <Input type="date" {...field} className="h-11" />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="reason_for_credit"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="font-semibold">Reason for Credit *</FormLabel>
-                    <FormControl>
-                      <RadioGroup onValueChange={field.onChange} value={field.value} className="flex flex-col space-y-2">
-                        <div className="flex items-center space-x-2">
-                          <RadioGroupItem value="Return" id="return" />
-                          <Label htmlFor="return" className="cursor-pointer">Return</Label>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <RadioGroupItem value="Price Correction" id="price-correction" />
-                          <Label htmlFor="price-correction" className="cursor-pointer">Price Correction</Label>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <RadioGroupItem value="Discount" id="discount" />
-                          <Label htmlFor="discount" className="cursor-pointer">Discount</Label>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <RadioGroupItem value="Others" id="others" />
-                          <Label htmlFor="others" className="cursor-pointer">Others</Label>
-                        </div>
-                      </RadioGroup>
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="place_of_supply"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="font-semibold">Place of Supply</FormLabel>
-                    <FormControl>
-                      <Input placeholder="e.g., Delhi, Mumbai" {...field} className="h-11" />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="status"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="font-semibold">Status</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <FormControl>
-                        <SelectTrigger className="h-11 bg-background">
-                          <SelectValue />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent className="bg-background border z-50">
-                        <SelectItem value="Draft">Draft</SelectItem>
-                        <SelectItem value="Confirmed">Confirmed</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-
-            {/* Return Line Items */}
-            {returnLineItems.length > 0 ? (
-              <div className="space-y-4">
-                <h3 className="text-lg font-bold flex items-center gap-2">
-                  <Package className="h-5 w-5 text-primary" />
-                  Return Line Items
-                </h3>
-                <div className="overflow-x-auto border-2 rounded-lg">
-                  <Table>
-                    <TableHeader>
-                      <TableRow className="bg-muted/50">
-                        <TableHead className="font-bold">Product Name</TableHead>
-                        <TableHead className="font-bold">SKU</TableHead>
-                        <TableHead className="font-bold">Invoice #</TableHead>
-                        <TableHead className="font-bold">HSN/SAC</TableHead>
-                        <TableHead className="font-bold">UOM</TableHead>
-                        <TableHead className="font-bold text-right">Invoice Qty</TableHead>
-                        <TableHead className="font-bold text-right">Available Qty</TableHead>
-                        <TableHead className="font-bold text-right">Return Qty</TableHead>
-                        <TableHead className="font-bold text-right">Pending Qty</TableHead>
-                        <TableHead className="font-bold text-right">Unit Price</TableHead>
-                        <TableHead className="font-bold text-right">Discount %</TableHead>
-                        <TableHead className="font-bold text-right">Discount Amt</TableHead>
-                        <TableHead className="font-bold text-right">CGST %</TableHead>
-                        <TableHead className="font-bold text-right">CGST Amt</TableHead>
-                        <TableHead className="font-bold text-right">SGST %</TableHead>
-                        <TableHead className="font-bold text-right">SGST Amt</TableHead>
-                        <TableHead className="font-bold text-right">Total</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {returnLineItems.map((item, index) => (
-                        <TableRow key={`${item.product_id}-${item.source_invoice_id}`} className="hover:bg-muted/30">
-                          <TableCell className="font-medium">{item.product_name}</TableCell>
-                          <TableCell>{item.product_sku}</TableCell>
-                          <TableCell>
-                            <Badge variant="outline" className="text-xs">{item.source_invoice_number}</Badge>
-                          </TableCell>
-                          <TableCell>{item.hsn_sac_code || 'N/A'}</TableCell>
-                          <TableCell>{item.unit_of_measure}</TableCell>
-                          <TableCell className="text-right">{item.invoice_qty}</TableCell>
-                          <TableCell className="text-right font-semibold text-green-600">{item.available_qty}</TableCell>
-                          <TableCell>
-                            <Input
-                              type="number"
-                              min="0"
-                              max={item.available_qty}
-                              value={item.return_qty}
-                              onChange={(e) => handleReturnQtyChange(index, parseInt(e.target.value) || 0)}
-                              className="w-20 h-9 text-right"
-                            />
-                          </TableCell>
-                          <TableCell className="text-right">{item.pending_return_qty}</TableCell>
-                          <TableCell className="text-right">₹{item.unit_price.toLocaleString()}</TableCell>
-                          <TableCell>
-                            <Input
-                              type="number"
-                              min="0"
-                              max="100"
-                              step="0.01"
-                              value={item.discount_percentage}
-                              onChange={(e) => handleDiscountPercentageChange(index, parseFloat(e.target.value) || 0)}
-                              className="w-20 h-9 text-right"
-                            />
-                          </TableCell>
-                          <TableCell className="text-right">₹{item.discount_amount.toFixed(2)}</TableCell>
-                          <TableCell className="text-right">{item.cgst_rate}%</TableCell>
-                          <TableCell className="text-right">₹{item.cgst_amount.toFixed(2)}</TableCell>
-                          <TableCell className="text-right">{item.sgst_rate}%</TableCell>
-                          <TableCell className="text-right">₹{item.sgst_amount.toFixed(2)}</TableCell>
-                          <TableCell className="text-right font-bold">₹{item.line_total.toFixed(2)}</TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-
-                {/* Totals */}
-                <Card className="border-2 bg-gradient-to-r from-primary/5 to-primary/10">
-                  <CardContent className="pt-6">
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                      <div>
-                        <Label className="text-xs text-muted-foreground">Subtotal</Label>
-                        <p className="text-lg font-bold">₹{totals.subtotal.toFixed(2)}</p>
-                      </div>
-                      <div>
-                        <Label className="text-xs text-muted-foreground">Total Discount</Label>
-                        <p className="text-lg font-bold text-orange-600">-₹{totals.discountAmount.toFixed(2)}</p>
-                      </div>
-                      <div>
-                        <Label className="text-xs text-muted-foreground">Total Tax</Label>
-                        <p className="text-lg font-bold">₹{totals.taxAmount.toFixed(2)}</p>
-                      </div>
-                      <div>
-                        <Label className="text-xs text-muted-foreground">Total Amount</Label>
-                        <p className="text-2xl font-bold text-primary">₹{totals.total.toFixed(2)}</p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-            ) : (
-              selectedInvoices.length > 0 && (
-                <Card className="border-2 border-dashed">
-                  <CardContent className="flex items-center justify-center py-12">
-                    <p className="text-muted-foreground">No items available for return</p>
-                  </CardContent>
-                </Card>
-              )
-            )}
-
-            {/* Notes */}
-            <FormField
-              control={form.control}
-              name="notes"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="font-semibold">Notes</FormLabel>
-                  <FormControl>
-                    <Textarea {...field} rows={3} className="resize-none" placeholder="Add any additional notes..." />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            <Separator className="my-6" />
 
             {/* Action Buttons */}
-            <div className="flex justify-end gap-3 pt-4 border-t">
-              <Button type="button" variant="outline" onClick={onClose} className="h-11 px-6">
+            <div className="flex justify-end gap-3 pt-2">
+              <Button type="button" variant="outline" onClick={onClose} className="h-10 px-6">
                 <X className="h-4 w-4 mr-2" />
                 Cancel
               </Button>
-              <Button type="submit" disabled={saving} className="h-11 px-6 bg-primary hover:bg-primary/90">
+              <Button type="submit" disabled={saving} className="h-10 px-6">
                 {saving ? (
                   <>
                     <Loader2 className="h-4 w-4 mr-2 animate-spin" />
