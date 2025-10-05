@@ -3,12 +3,14 @@ import { AnimatedSection } from './AnimatedSection';
 import { AnimatedList } from './AnimatedList';
 import { AnimatedKPICard } from './AnimatedKPICard';
 import { KPICard } from '@/components/ui/kpi-card';
-import { DollarSign, Package, AlertTriangle, TrendingUp, Percent } from 'lucide-react';
+import { DollarSign, Package, AlertTriangle, TrendingUp, Percent, Clock, RotateCcw } from 'lucide-react';
 import { DashboardKPIs } from '@/hooks/useDashboardData';
+import { useOperationalMetrics } from '@/hooks/useOperationalMetrics';
 
 interface HeroKPISectionProps {
   data?: DashboardKPIs;
   loading?: boolean;
+  companyId?: string;
   onViewOrders?: () => void;
   onReorderStock?: () => void;
 }
@@ -16,15 +18,18 @@ interface HeroKPISectionProps {
 export const HeroKPISection: React.FC<HeroKPISectionProps> = ({
   data,
   loading = false,
+  companyId,
   onViewOrders,
   onReorderStock,
 }) => {
+  const { data: operationalMetrics, isLoading: metricsLoading } = useOperationalMetrics(companyId);
+  
   // Mock sparkline data (last 7 days)
   const revenueSparkline = [45000, 52000, 48000, 61000, 58000, 65000, data?.totalRevenue || 70000];
   const ordersSparkline = [12, 15, 13, 18, 16, 20, data?.activeOrders || 22];
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7 gap-6 mb-8">
       {/* Total Revenue */}
       <KPICard
         title="Total Revenue"
@@ -112,6 +117,42 @@ export const HeroKPISection: React.FC<HeroKPISectionProps> = ({
           label: 'vs last period',
         }}
         loading={loading}
+      />
+
+      {/* Days Sales Outstanding (DSO) */}
+      <KPICard
+        title="DSO"
+        value={operationalMetrics?.dso || 0}
+        suffix=" days"
+        icon={Clock}
+        variant={
+          (operationalMetrics?.dso || 0) <= 30 ? 'success' :
+          (operationalMetrics?.dso || 0) <= 45 ? 'warning' : 'danger'
+        }
+        trend={{
+          value: operationalMetrics?.dsoChange || 0,
+          isPositive: (operationalMetrics?.dsoChange || 0) <= 0,
+          label: 'vs last period',
+        }}
+        loading={metricsLoading}
+      />
+
+      {/* Inventory Turnover Ratio */}
+      <KPICard
+        title="Inventory Turnover"
+        value={operationalMetrics?.inventoryTurnover || 0}
+        suffix="x"
+        icon={RotateCcw}
+        variant={
+          (operationalMetrics?.inventoryTurnover || 0) >= 6 ? 'success' :
+          (operationalMetrics?.inventoryTurnover || 0) >= 4 ? 'warning' : 'danger'
+        }
+        trend={{
+          value: operationalMetrics?.inventoryTurnoverChange || 0,
+          isPositive: (operationalMetrics?.inventoryTurnoverChange || 0) >= 0,
+          label: 'vs last period',
+        }}
+        loading={metricsLoading}
       />
     </div>
   );

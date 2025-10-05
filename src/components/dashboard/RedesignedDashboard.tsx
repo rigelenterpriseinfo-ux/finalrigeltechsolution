@@ -1,8 +1,8 @@
 import React, { memo, useState } from 'react';
 import { HeroKPISection } from './HeroKPISection';
 import { UrgentActionsPanel } from './UrgentActionsPanel';
-import { PurchaseSection } from './PurchaseSection';
-import { InventorySection } from './InventorySection';
+import { SupplyChainSection } from './SupplyChainSection';
+import { OperationalEfficiencySection } from './OperationalEfficiencySection';
 import { SalesSection } from './SalesSection';
 import { FinanceSection } from './FinanceSection';
 
@@ -160,6 +160,7 @@ const RedesignedDashboardComponent: React.FC<RedesignedDashboardProps> = ({ comp
                   <HeroKPISection
                     data={kpiData}
                     loading={kpiLoading}
+                    companyId={companyId}
                     onViewOrders={() => {
                       trackWidgetInteraction('kpi', 'view_orders');
                       navigate('/dashboard?module=sales');
@@ -186,25 +187,23 @@ const RedesignedDashboardComponent: React.FC<RedesignedDashboardProps> = ({ comp
               </section>
             )}
 
-            {/* Purchase & Procurement */}
-            {customization.widgets.purchase?.visible && (
-              <section aria-labelledby="purchase-section-title">
-                <h2 id="purchase-section-title" className="sr-only">Purchase & Procurement</h2>
+            {/* Supply Chain Overview (Combined Purchase + Inventory) */}
+            {(customization.widgets.purchase?.visible || customization.widgets.inventory?.visible) && (
+              <section aria-labelledby="supply-chain-section-title">
+                <h2 id="supply-chain-section-title" className="sr-only">Supply Chain Overview</h2>
                 <DashboardSectionWrapper>
-                  <PurchaseSection companyId={companyId} />
+                  <SupplyChainSection companyId={companyId} />
                 </DashboardSectionWrapper>
               </section>
             )}
-            
-            {/* Inventory & Warehouse */}
-            {customization.widgets.inventory?.visible && (
-              <section aria-labelledby="inventory-section-title">
-                <h2 id="inventory-section-title" className="sr-only">Inventory & Warehouse</h2>
-                <DashboardSectionWrapper>
-                  <InventorySection companyId={companyId} />
-                </DashboardSectionWrapper>
-              </section>
-            )}
+
+            {/* Operational Efficiency */}
+            <section aria-labelledby="operational-efficiency-title">
+              <h2 id="operational-efficiency-title" className="sr-only">Operational Efficiency</h2>
+              <DashboardSectionWrapper>
+                <OperationalEfficiencySection companyId={companyId} />
+              </DashboardSectionWrapper>
+            </section>
             
             {/* Sales & Customer */}
             {customization.widgets.sales?.visible && (
