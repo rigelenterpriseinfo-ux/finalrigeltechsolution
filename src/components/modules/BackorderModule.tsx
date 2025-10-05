@@ -58,10 +58,14 @@ export default function BackorderModule() {
   }, [businessUser?.company_id]);
 
   const fetchBackorders = async () => {
-    if (!businessUser?.company_id) return;
+    if (!businessUser?.company_id) {
+      console.log('No company_id found');
+      return;
+    }
 
     try {
       setLoading(true);
+      console.log('Fetching backorders for company:', businessUser.company_id);
 
       // Step 1: Get all sales orders for this company
       const { data: ordersData, error: ordersError } = await supabase
@@ -69,9 +73,15 @@ export default function BackorderModule() {
         .select('id, order_number, order_date, customer_id, customer_po_number, status')
         .eq('company_id', businessUser?.company_id);
 
-      if (ordersError) throw ordersError;
+      if (ordersError) {
+        console.error('Error fetching orders:', ordersError);
+        throw ordersError;
+      }
+
+      console.log('Orders fetched:', ordersData?.length || 0);
 
       if (!ordersData || ordersData.length === 0) {
+        console.log('No orders found');
         setBackorders([]);
         setStats({ total_lines: 0, total_backorder_qty: 0, total_backorder_value: 0, lines_with_stock: 0 });
         setLoading(false);
@@ -79,6 +89,7 @@ export default function BackorderModule() {
       }
 
       const orderIds = ordersData.map(o => o.id);
+      console.log('Order IDs:', orderIds);
 
       // Step 2: Get backorder items for these orders
       const { data: itemsData, error: itemsError } = await supabase
@@ -87,9 +98,15 @@ export default function BackorderModule() {
         .in('sales_order_id', orderIds)
         .gt('back_order_quantity', 0);
 
-      if (itemsError) throw itemsError;
+      if (itemsError) {
+        console.error('Error fetching items:', itemsError);
+        throw itemsError;
+      }
+
+      console.log('Backorder items fetched:', itemsData?.length || 0, itemsData);
 
       if (!itemsData || itemsData.length === 0) {
+        console.log('No backorder items found');
         setBackorders([]);
         setStats({ total_lines: 0, total_backorder_qty: 0, total_backorder_value: 0, lines_with_stock: 0 });
         setLoading(false);
@@ -103,6 +120,8 @@ export default function BackorderModule() {
       const customerIds = [...new Set(ordersData.map(o => o.customer_id))];
       const productIds = [...new Set(itemsData.map(item => item.product_id))];
 
+      console.log('Fetching customers and products...');
+
       // Fetch customers and products
       const { data: customersData } = await supabase
         .from('customers')
@@ -114,6 +133,8 @@ export default function BackorderModule() {
         .select('id, name, sku, stock_quantity')
         .in('id', productIds);
 
+      console.log('Customers:', customersData?.length || 0, 'Products:', productsData?.length || 0);
+
       // Create lookup maps
       const customersMap = new Map((customersData || []).map(c => [c.id, c]));
       const productsMap = new Map((productsData || []).map(p => [p.id, p]));
@@ -123,6 +144,9 @@ export default function BackorderModule() {
         const order = ordersMap.get(item.sales_order_id);
         const customer = customersMap.get(order?.customer_id);
         const product = productsMap.get(item.product_id);
+
+        // Fix calculation: prevent negative values
+        const readyToDeliver = Math.max(0, (item.ordered_quantity || 0) - (item.quantity || 0) - (item.back_order_quantity || 0));
 
         return {
           id: item.id,
@@ -136,7 +160,7 @@ export default function BackorderModule() {
           product_sku: product?.sku || 'N/A',
           ordered_qty: item.ordered_quantity || 0,
           invoiced_qty: item.quantity || 0,
-          ready_to_deliver_qty: (item.ordered_quantity || 0) - (item.quantity || 0) - (item.back_order_quantity || 0),
+          ready_to_deliver_qty: readyToDeliver,
           backorder_qty: item.back_order_quantity || 0,
           available_stock: product?.stock_quantity || 0,
           unit_price: item.unit_price || 0,
@@ -147,6 +171,7 @@ export default function BackorderModule() {
         };
       });
 
+      console.log('Enriched backorder data:', enrichedData);
       setBackorders(enrichedData);
 
       // Calculate stats
