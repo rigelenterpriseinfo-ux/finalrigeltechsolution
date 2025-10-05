@@ -340,6 +340,12 @@ export default function BackorderModule() {
     try {
       console.log('📝 Submitting invoice with data:', data);
       
+      // Get current user ID
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user?.id) {
+        throw new Error('User not authenticated');
+      }
+      
       // Calculate totals from items
       let subtotalAmount = 0;
       let discountAmount = 0;
@@ -429,7 +435,7 @@ export default function BackorderModule() {
           discount_amount: discountAmount,
           tax_amount: taxAmount,
           total_amount: grandTotal,
-          created_by: businessUser?.id
+          created_by: user.id
         })
         .select()
         .single();
@@ -489,7 +495,7 @@ export default function BackorderModule() {
           transaction_date: data.invoice_date,
           warehouse_id: item.warehouse_id,
           bin_id: item.bin_id,
-          created_by: businessUser?.id
+          created_by: user.id
         });
 
         if (transError) {
