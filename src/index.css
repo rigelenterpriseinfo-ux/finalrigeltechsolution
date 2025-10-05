@@ -407,3 +407,49 @@ All colors MUST be HSL.
 .text-balance {
   text-wrap: balance;
 }
+
+/* Print styles for dashboard export */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  
+  .print-break {
+    page-break-after: always;
+  }
+  
+  body {
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+  
+  /* Hide navigation, buttons, etc */
+  nav,
+  button:not(.print-button),
+  .fab,
+  .sidebar,
+  header,
+  .no-print {
+    display: none !important;
+  }
+  
+  /* Optimize cards for printing */
+  .card {
+    border: 1px solid #e5e7eb;
+    page-break-inside: avoid;
+    box-shadow: none;
+  }
+  
+  /* Remove backgrounds for better printing */
+  * {
+    background: white !important;
+  }
+  
+  /* Ensure text is black for print */
+  body,
+  p,
+  span,
+  div {
+    color: black !important;
+  }
+}

@@ -1,4 +1,4 @@
-import React, { memo } from 'react';
+import React, { memo, useState } from 'react';
 import { HeroKPISection } from './HeroKPISection';
 import { UrgentActionsPanel } from './UrgentActionsPanel';
 import { PurchaseSection } from './PurchaseSection';
@@ -11,12 +11,21 @@ import { QuickActionsSidebar } from './QuickActionsSidebar';
 import { DashboardSectionWrapper } from './DashboardSectionWrapper';
 import { DashboardLoadingState } from './DashboardLoadingState';
 import { DashboardRefreshButton } from './DashboardRefreshButton';
+import { DashboardExportMenu } from './DashboardExportMenu';
+import { KeyboardShortcutsDialog } from './KeyboardShortcutsDialog';
 import { useDashboardData } from '@/hooks/useDashboardData';
 import { useOperationsData } from '@/hooks/useOperationsData';
 import { useRealtimeDashboard } from '@/hooks/useRealtimeDashboard';
 import { useMobileOptimizations } from '@/hooks/useMobileOptimizations';
+import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
+import { usePurchaseData } from '@/hooks/usePurchaseData';
+import { useInventoryData } from '@/hooks/useInventoryData';
+import { useSalesData } from '@/hooks/useSalesData';
+import { useFinanceData } from '@/hooks/useFinanceData';
 import { useNavigate } from 'react-router-dom';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Keyboard } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface RedesignedDashboardProps {
@@ -27,15 +36,36 @@ const RedesignedDashboardComponent: React.FC<RedesignedDashboardProps> = ({ comp
   const navigate = useNavigate();
   const { kpiData, kpiLoading, urgentActions, actionsLoading } = useDashboardData(companyId);
   const { data: operationsData, isLoading: operationsLoading, refetch: refetchOperations } = useOperationsData(companyId);
+  const { data: purchaseData } = usePurchaseData(companyId);
+  const { data: inventoryData } = useInventoryData(companyId);
+  const { data: salesData } = useSalesData(companyId);
+  const { data: financeData } = useFinanceData(companyId);
   const { isMobile, cardSpacing } = useMobileOptimizations();
+  const [showShortcuts, setShowShortcuts] = useState(false);
   
   // Enable real-time updates
   useRealtimeDashboard(companyId);
+  
+  // Enable keyboard shortcuts
+  useKeyboardShortcuts((module) => {
+    if (module === 'dashboard') return;
+    navigate(`/dashboard?module=${module}`);
+  });
 
   // Handle refresh all data
   const handleRefreshAll = async () => {
     await refetchOperations();
     // Other queries will be refetched via real-time subscriptions
+  };
+
+  // Prepare export data
+  const exportData = {
+    kpiData,
+    purchaseData,
+    inventoryData,
+    salesData,
+    financeData,
+    operationsData,
   };
 
   // Show loading state on initial load
@@ -51,7 +81,7 @@ const RedesignedDashboardComponent: React.FC<RedesignedDashboardProps> = ({ comp
       )}>
         {/* Main Content */}
         <div className={cn('flex-1', cardSpacing)}>
-          {/* Page Header with Refresh Button */}
+          {/* Page Header with Action Buttons */}
           <div className={cn(
             'flex items-start justify-between',
             isMobile && 'flex-col gap-3'
@@ -75,7 +105,19 @@ const RedesignedDashboardComponent: React.FC<RedesignedDashboardProps> = ({ comp
                 Monitor your business performance
               </p>
             </div>
-            <DashboardRefreshButton onRefresh={handleRefreshAll} />
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowShortcuts(true)}
+                className="gap-2"
+              >
+                <Keyboard className="h-4 w-4" />
+                <span className="hidden sm:inline">Shortcuts</span>
+              </Button>
+              <DashboardExportMenu data={exportData} companyId={companyId} />
+              <DashboardRefreshButton onRefresh={handleRefreshAll} />
+            </div>
           </div>
 
           {/* Hero KPI Section */}
@@ -149,6 +191,12 @@ const RedesignedDashboardComponent: React.FC<RedesignedDashboardProps> = ({ comp
 
       {/* Mobile FAB */}
       {isMobile && <QuickActionsSidebar />}
+
+      {/* Keyboard Shortcuts Dialog */}
+      <KeyboardShortcutsDialog 
+        open={showShortcuts} 
+        onOpenChange={setShowShortcuts} 
+      />
     </div>
   );
 };
