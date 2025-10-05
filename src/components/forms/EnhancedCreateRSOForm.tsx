@@ -612,18 +612,19 @@ export function EnhancedCreateRSOForm({ rsoId, onClose, onSave }: EnhancedCreate
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
             
             <Tabs defaultValue="order-info" className="w-full">
-              <TabsList className="grid w-full grid-cols-3 h-auto p-1">
-                <TabsTrigger value="order-info" className="flex items-center gap-2 py-2.5">
+              <TabsList className="grid w-full grid-cols-2 h-auto p-1">
+                <TabsTrigger 
+                  value="order-info" 
+                  className="flex items-center gap-2 py-2.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+                >
                   <FileText className="h-4 w-4" />
                   <span className="hidden sm:inline">Order Info</span>
                   <span className="sm:hidden">Info</span>
                 </TabsTrigger>
-                <TabsTrigger value="delivery" className="flex items-center gap-2 py-2.5">
-                  <MapPin className="h-4 w-4" />
-                  <span className="hidden sm:inline">Delivery</span>
-                  <span className="sm:hidden">Delivery</span>
-                </TabsTrigger>
-                <TabsTrigger value="line-items" className="flex items-center gap-2 py-2.5">
+                <TabsTrigger 
+                  value="line-items" 
+                  className="flex items-center gap-2 py-2.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+                >
                   <Package className="h-4 w-4" />
                   <span className="hidden sm:inline">Line Items</span>
                   <span className="sm:hidden">Items</span>
@@ -866,10 +867,8 @@ export function EnhancedCreateRSOForm({ rsoId, onClose, onSave }: EnhancedCreate
                     />
                   </CardContent>
                 </Card>
-              </TabsContent>
 
-              {/* Delivery Address Tab */}
-              <TabsContent value="delivery" className="space-y-6 mt-6">
+                {/* Delivery Address Section */}
                 {selectedCustomer && (
                   <>
                     <Card className="shadow-sm border-border/50">
