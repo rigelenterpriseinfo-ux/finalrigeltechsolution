@@ -159,14 +159,14 @@ export default function SalesModule() {
         invoicedMap.set(key, prev + (invItem.quantity_invoiced || 0));
       }
 
-      // Calculate aggregates with backorder = Ordered Qty - Ready to Deliver Qty
+      // Calculate aggregates with backorder = Ordered Qty - Invoiced Qty - Ready to Deliver Qty
       const aggregates = new Map<string, { ordered: number; invoiced: number; backorder: number }>();
       for (const it of itemsData || []) {
         const ordered = (it.ordered_quantity ?? it.quantity ?? 0) as number;
         const key = `${it.sales_order_id}_${it.product_id}`;
         const invoiced = invoicedMap.get(key) || 0;
         const readyToDeliver = Math.max(0, ordered - invoiced);
-        const backorder = Math.max(0, ordered - readyToDeliver); // Backorder = Ordered - Ready to Deliver = Invoiced
+        const backorder = Math.max(0, ordered - invoiced - readyToDeliver); // Backorder = Ordered - Invoiced - Ready to Deliver
         
         const prev = aggregates.get(it.sales_order_id) || { ordered: 0, invoiced: 0, backorder: 0 };
         aggregates.set(it.sales_order_id, {
