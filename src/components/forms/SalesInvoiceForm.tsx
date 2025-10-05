@@ -216,10 +216,19 @@ export const SalesInvoiceForm: React.FC<SalesInvoiceFormProps> = ({
   const fetchStockLevels = async (productIds: string[], warehouseId?: string, binId?: string) => {
     if (!company?.id || productIds.length === 0) return {};
     
+    console.log('📦 Fetching stock levels:', { 
+      productIds, 
+      warehouseId, 
+      binId,
+      warehouseName: warehouseName || 'Not selected',
+      binName: binName || 'Not selected'
+    });
+    
     try {
+      // Query inventory_transactions directly to calculate stock levels
       let query = supabase
-        .from('current_stock_levels')
-        .select('product_id, current_stock')
+        .from('inventory_transactions')
+        .select('product_id, quantity_change')
         .eq('company_id', company.id)
         .in('product_id', productIds);
       
@@ -230,14 +239,30 @@ export const SalesInvoiceForm: React.FC<SalesInvoiceFormProps> = ({
       
       if (error) throw error;
       
+      console.log('📊 Inventory transactions fetched:', data?.length || 0, 'records');
+      
+      // Aggregate stock by product
       const stockMap: Record<string, number> = {};
       data?.forEach(item => {
-        stockMap[item.product_id] = Math.max(0, item.current_stock || 0);
+        const currentStock = stockMap[item.product_id] || 0;
+        stockMap[item.product_id] = currentStock + (item.quantity_change || 0);
       });
+      
+      // Ensure non-negative values
+      Object.keys(stockMap).forEach(key => {
+        stockMap[key] = Math.max(0, stockMap[key]);
+      });
+      
+      console.log('✅ Stock levels calculated:', stockMap);
       
       return stockMap;
     } catch (error) {
-      console.error('Error fetching stock levels:', error);
+      console.error('❌ Error fetching stock levels:', error);
+      toast({
+        title: "Warning",
+        description: "Could not fetch current stock levels. Please verify stock availability manually.",
+        variant: "destructive",
+      });
       return {};
     }
   };
@@ -1272,8 +1297,20 @@ export const SalesInvoiceForm: React.FC<SalesInvoiceFormProps> = ({
                                   <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
                                     {remainingData?.quantity_remaining || 0}
                                   </td>
-                                  <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
-                                    {stockLevels[item.product_id] || 0}
+                                  <td className="px-4 py-4 whitespace-nowrap text-sm">
+                                    <div className="flex items-center gap-2">
+                                      <span className={cn(
+                                        "font-medium",
+                                        (stockLevels[item.product_id] || 0) === 0 ? "text-red-600" : "text-gray-900"
+                                      )}>
+                                        {stockLevels[item.product_id] !== undefined ? stockLevels[item.product_id] : '—'}
+                                      </span>
+                                      {(stockLevels[item.product_id] || 0) === 0 && (
+                                        <Badge variant="destructive" className="text-xs">
+                                          Out of Stock
+                                        </Badge>
+                                      )}
+                                    </div>
                                   </td>
                                   <td className="px-4 py-4 whitespace-nowrap">
                                     <FormField
