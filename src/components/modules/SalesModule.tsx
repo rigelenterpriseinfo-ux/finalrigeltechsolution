@@ -246,6 +246,40 @@ export default function SalesModule() {
     }
   }, [company?.id, refreshTrigger]);
 
+  // Realtime subscription for sales invoices
+  useEffect(() => {
+    if (!company?.id) return;
+
+    const channel = supabase
+      .channel('sales-invoices-realtime')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'sales_invoices',
+          filter: `company_id=eq.${company.id}`,
+        },
+        (payload) => {
+          console.log('Sales invoice change detected:', payload);
+          // Trigger refresh when invoice is created or updated
+          setRefreshTrigger(prev => prev + 1);
+          
+          if (payload.eventType === 'INSERT') {
+            toast({
+              title: 'New Invoice Created',
+              description: `Invoice ${payload.new.invoice_number || 'created'} has been added`,
+            });
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [company?.id]);
+
   // Customer handlers
   const handleOpenCustomerDialog = () => {
     if (!canEdit) {
