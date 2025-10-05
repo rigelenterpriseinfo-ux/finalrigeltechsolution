@@ -603,13 +603,9 @@ export const SalesInvoiceForm: React.FC<SalesInvoiceFormProps> = ({
                             <FormLabel className="text-sm font-medium">Invoice Number</FormLabel>
                             <FormControl>
                               <Input 
-                                placeholder={
-                                  watchedStatus === 'draft' 
-                                    ? "Will be generated when finalized" 
-                                    : "Auto-generated if empty"
-                                } 
+                                placeholder="Auto-generated if empty" 
                                 {...field} 
-                                disabled={!!editingInvoice || watchedStatus === 'draft'}
+                                disabled={!!editingInvoice}
                                 className="h-9"
                               />
                             </FormControl>
