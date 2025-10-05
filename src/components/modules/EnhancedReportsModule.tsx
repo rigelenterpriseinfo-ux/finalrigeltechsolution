@@ -28,6 +28,7 @@ import {
   BarChart3,
   Activity,
   AlertTriangle,
+  AlertCircle,
   CheckCircle,
   Clock,
   Target,
@@ -113,6 +114,7 @@ const reportCategories: ReportCategory[] = [
     icon: Package,
     reports: [
       { id: 'current_stock', name: 'Current Stock', description: 'Current stock levels', category: 'inventory', dataFields: ['product', 'currentStock', 'minStock', 'maxStock'] },
+      { id: 'low_stock_items', name: 'Low Stock Items', description: 'Items with stock below minimum threshold across all warehouses', category: 'inventory', dataFields: ['product', 'warehouse', 'currentStock', 'minStock', 'maxStock', 'shortage', 'severity'] },
       { id: 'stock_movement', name: 'Stock Movement / Ledger', description: 'Stock movement transactions', category: 'inventory', requiresFilters: ['dateRange'], dataFields: ['product', 'transaction', 'quantity', 'balance'] },
       { id: 'stock_aging', name: 'Stock Aging', description: 'Stock aging analysis', category: 'inventory', dataFields: ['product', 'age', 'quantity', 'value'] },
       { id: 'backorder_report', name: 'Backorder Report', description: 'Customer backorders pending fulfillment', category: 'inventory', requiresFilters: ['dateRange'], dataFields: ['customer', 'product', 'quantity', 'status'] },
@@ -995,6 +997,115 @@ export function EnhancedReportsModule() {
     }));
 
     return { tableData, chartData };
+  };
+
+  // Fetch Low Stock Items Data
+  const fetchLowStockItemsData = async () => {
+    try {
+      const { data: stockData, error } = await supabase
+        .from('current_stock_with_aging')
+        .select(`
+          product_id,
+          current_stock,
+          warehouse_id,
+          bin_id,
+          last_transaction_date,
+          products!inner(
+            name, sku, min_stock_level, max_stock_level,
+            cost_price, company_id
+          )
+        `)
+        .eq('products.company_id', company.id);
+
+      if (error) throw error;
+
+      // Filter items where current stock < min stock level
+      const lowStockItems = stockData?.filter(item => 
+        item.products.min_stock_level && 
+        item.current_stock < item.products.min_stock_level
+      ) || [];
+
+      // Fetch warehouse information separately
+      const warehouseIds = [...new Set(lowStockItems.map(item => item.warehouse_id))];
+      const { data: warehouses } = await supabase
+        .from('warehouse_bins')
+        .select('id, warehouse_name, bin_name, wh_bin_code')
+        .in('id', warehouseIds);
+
+      const warehouseMap = new Map(warehouses?.map(w => [w.id, w]) || []);
+
+      // Calculate severity for each item
+      const calculateSeverity = (current: number, min: number) => {
+        if (!min || min === 0) return { level: 'Warning', color: 'warning', bgColor: 'bg-yellow-50' };
+        const ratio = current / min;
+        if (ratio < 0.25) return { level: 'Critical', color: 'destructive', bgColor: 'bg-red-50' };
+        if (ratio < 0.50) return { level: 'Low', color: 'warning', bgColor: 'bg-orange-50' };
+        return { level: 'Warning', color: 'secondary', bgColor: 'bg-yellow-50' };
+      };
+
+      const tableData = lowStockItems.map(item => {
+        const warehouse = warehouseMap.get(item.warehouse_id);
+        const severity = calculateSeverity(item.current_stock, item.products.min_stock_level || 0);
+        const shortageQty = (item.products.min_stock_level || 0) - item.current_stock;
+        const shortageValue = shortageQty * (item.products.cost_price || 0);
+
+        return {
+          productId: item.product_id,
+          productName: item.products.name,
+          sku: item.products.sku,
+          warehouseId: item.warehouse_id,
+          warehouseName: warehouse?.warehouse_name || 'N/A',
+          binCode: warehouse?.wh_bin_code || warehouse?.bin_name || 'N/A',
+          currentStock: item.current_stock,
+          minStock: item.products.min_stock_level || 0,
+          maxStock: item.products.max_stock_level || 0,
+          shortageQty,
+          shortageValue,
+          severity: severity.level,
+          severityColor: severity.color,
+          severityBgColor: severity.bgColor,
+          lastTransactionDate: item.last_transaction_date,
+          stockRatio: item.products.min_stock_level ? (item.current_stock / item.products.min_stock_level) * 100 : 0
+        };
+      });
+
+      // Sort: Zero stock first, then by shortage quantity
+      tableData.sort((a, b) => {
+        if (a.currentStock === 0 && b.currentStock !== 0) return -1;
+        if (a.currentStock !== 0 && b.currentStock === 0) return 1;
+        return b.shortageQty - a.shortageQty;
+      });
+
+      // Calculate summary metrics
+      const criticalCount = tableData.filter(item => item.severity === 'Critical').length;
+      const totalShortageValue = tableData.reduce((sum, item) => sum + item.shortageValue, 0);
+      const warehousesAffected = new Set(tableData.map(item => item.warehouseId)).size;
+
+      // Chart data for severity distribution
+      const criticalItems = tableData.filter(item => item.severity === 'Critical').length;
+      const lowItems = tableData.filter(item => item.severity === 'Low').length;
+      const warningItems = tableData.filter(item => item.severity === 'Warning').length;
+
+      const chartData = [
+        { name: 'Critical', value: criticalItems, color: '#ef4444' },
+        { name: 'Low', value: lowItems, color: '#f97316' },
+        { name: 'Warning', value: warningItems, color: '#eab308' }
+      ].filter(item => item.value > 0);
+
+      return {
+        tableData,
+        chartData,
+        summary: {
+          totalLowStockItems: tableData.length,
+          criticalItems: criticalCount,
+          totalShortageValue,
+          warehousesAffected
+        }
+      };
+    } catch (error) {
+      console.error('Error fetching low stock items:', error);
+      return { tableData: [], chartData: [], summary: {} };
+    }
   };
 
   const fetchCustomerSalesData = async (filters: FilterState) => {
@@ -2683,6 +2794,8 @@ export function EnhancedReportsModule() {
           return await fetchNetARAPData(filters);
         case 'current_stock':
           return await fetchCurrentStockData();
+        case 'low_stock_items':
+          return await fetchLowStockItemsData();
         case 'stock_aging':
           return await fetchStockAgingData();
         case 'backorder_report':
@@ -3678,6 +3791,193 @@ export function EnhancedReportsModule() {
                 </CardContent>
               </Card>
             </div>
+          ) : selectedReport === 'low_stock_items' ? (
+            // Low Stock Items Specific Layout
+            <div className="space-y-6">
+              {/* Summary Cards */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <Card>
+                  <CardContent className="pt-6">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <div className="text-sm font-medium text-muted-foreground mb-1">Total Low Stock Items</div>
+                        <div className="text-2xl font-bold">{(reportResult as any)?.summary?.totalLowStockItems || 0}</div>
+                      </div>
+                      <AlertTriangle className="h-8 w-8 text-orange-500" />
+                    </div>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="pt-6">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <div className="text-sm font-medium text-muted-foreground mb-1">Critical Items</div>
+                        <div className="text-2xl font-bold text-red-600">{(reportResult as any)?.summary?.criticalItems || 0}</div>
+                      </div>
+                      <AlertCircle className="h-8 w-8 text-red-500" />
+                    </div>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="pt-6">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <div className="text-sm font-medium text-muted-foreground mb-1">Total Shortage Value</div>
+                        <div className="text-2xl font-bold">₹{Number((reportResult as any)?.summary?.totalShortageValue || 0).toLocaleString('en-IN')}</div>
+                      </div>
+                      <DollarSign className="h-8 w-8 text-blue-500" />
+                    </div>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="pt-6">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <div className="text-sm font-medium text-muted-foreground mb-1">Warehouses Affected</div>
+                        <div className="text-2xl font-bold">{(reportResult as any)?.summary?.warehousesAffected || 0}</div>
+                      </div>
+                      <Package className="h-8 w-8 text-purple-500" />
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Severity Distribution Chart */}
+              {chartData.length > 0 && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Severity Distribution</CardTitle>
+                    <CardDescription>Stock level severity breakdown</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <ResponsiveContainer width="100%" height={300}>
+                      <PieChart>
+                        <Pie
+                          data={chartData}
+                          cx="50%"
+                          cy="50%"
+                          innerRadius={60}
+                          outerRadius={100}
+                          dataKey="value"
+                          label={({ name, value }) => `${name}: ${value}`}
+                        >
+                          {chartData.map((entry: any, index: number) => (
+                            <Cell key={`cell-${index}`} fill={entry.color} />
+                          ))}
+                        </Pie>
+                        <Tooltip 
+                          formatter={(value, name) => [`${value} items`, name]}
+                          contentStyle={{
+                            backgroundColor: 'hsl(var(--card))',
+                            border: '1px solid hsl(var(--border))',
+                            borderRadius: '6px'
+                          }}
+                        />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Low Stock Items Table */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Low Stock Items Details</CardTitle>
+                  <CardDescription>Items requiring immediate attention</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {!Array.isArray(reportData) || reportData.length === 0 ? (
+                    <div className="text-center py-8">
+                      <CheckCircle className="h-16 w-16 mx-auto text-green-500 mb-4" />
+                      <p className="text-lg font-semibold mb-2">All Stock Levels Healthy</p>
+                      <p className="text-muted-foreground">No items found below minimum stock levels</p>
+                    </div>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="border-b bg-muted/50">
+                            <th className="text-left p-3 font-semibold">Product</th>
+                            <th className="text-left p-3 font-semibold">Warehouse</th>
+                            <th className="text-right p-3 font-semibold">Current</th>
+                            <th className="text-right p-3 font-semibold">Min</th>
+                            <th className="text-right p-3 font-semibold">Max</th>
+                            <th className="text-right p-3 font-semibold">Shortage</th>
+                            <th className="text-center p-3 font-semibold">Stock Level</th>
+                            <th className="text-center p-3 font-semibold">Status</th>
+                            <th className="text-right p-3 font-semibold">Action</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {reportData.map((item: any, index: number) => (
+                            <tr key={index} className="border-b hover:bg-muted/30 transition-colors">
+                              <td className="p-3">
+                                <div>
+                                  <div className="font-medium">{item.productName}</div>
+                                  <div className="text-xs text-muted-foreground">{item.sku}</div>
+                                </div>
+                              </td>
+                              <td className="p-3">
+                                <div>
+                                  <div className="font-medium">{item.warehouseName}</div>
+                                  <div className="text-xs text-muted-foreground">{item.binCode}</div>
+                                </div>
+                              </td>
+                              <td className="p-3 text-right">
+                                <div className={cn("inline-block px-2 py-1 rounded", item.severityBgColor)}>
+                                  <span className="font-semibold">{item.currentStock}</span>
+                                </div>
+                              </td>
+                              <td className="p-3 text-right">{item.minStock}</td>
+                              <td className="p-3 text-right">{item.maxStock}</td>
+                              <td className="p-3 text-right">
+                                <Badge variant="outline" className="font-semibold">
+                                  {item.shortageQty}
+                                </Badge>
+                              </td>
+                              <td className="p-3">
+                                <div className="space-y-1">
+                                  <div className="flex items-center gap-2">
+                                    <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
+                                      <div 
+                                        className={cn(
+                                          "h-full",
+                                          item.severity === 'Critical' && 'bg-red-500',
+                                          item.severity === 'Low' && 'bg-orange-500',
+                                          item.severity === 'Warning' && 'bg-yellow-500'
+                                        )}
+                                        style={{ width: `${Math.min(item.stockRatio, 100)}%` }}
+                                      />
+                                    </div>
+                                  </div>
+                                  <div className="text-xs text-muted-foreground text-center">
+                                    {Math.round(item.stockRatio)}%
+                                  </div>
+                                </div>
+                              </td>
+                              <td className="p-3 text-center">
+                                <Badge variant={item.severityColor as any}>
+                                  {item.severity}
+                                </Badge>
+                              </td>
+                              <td className="p-3 text-right">
+                                <Button 
+                                  size="sm" 
+                                  variant="outline"
+                                  onClick={() => window.location.href = `/purchase-orders`}
+                                >
+                                  Create PO
+                                </Button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
           ) : (
             <div className="space-y-6">
               {/* Backorder Report Specific Charts */}
@@ -4018,7 +4318,7 @@ export function EnhancedReportsModule() {
               )}
 
               {/* Report Table - Hidden for purchase_orders, customer_sales, current_stock, stock_movement, stock_aging, backorder_report, and bom_consumption */}
-              {!['purchase_orders', 'customer_sales', 'current_stock', 'stock_movement', 'stock_aging', 'backorder_report', 'bom_consumption'].includes(selectedReport) && (
+              {!['purchase_orders', 'customer_sales', 'current_stock', 'low_stock_items', 'stock_movement', 'stock_aging', 'backorder_report', 'bom_consumption'].includes(selectedReport) && (
                 <Card>
                   <CardHeader>
                     <CardTitle className="text-lg font-semibold">Report Data</CardTitle>
