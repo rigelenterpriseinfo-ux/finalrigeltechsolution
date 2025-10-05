@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { Package, CheckCircle, Clock, AlertTriangle } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useBusinessAuth } from '@/hooks/useBusinessAuth';
 import BackorderTable from '@/components/tables/BackorderTable';
+import { SalesInvoiceForm } from '@/components/forms/SalesInvoiceForm';
 
 // Item-wise backorder interface (one row per sales order line item)
 export interface BackorderLineItem {
@@ -46,6 +48,9 @@ export default function BackorderModule() {
     lines_with_stock: 0
   });
   const [loading, setLoading] = useState(true);
+  const [showInvoiceDialog, setShowInvoiceDialog] = useState(false);
+  const [prefilledInvoiceData, setPrefilledInvoiceData] = useState<any>(null);
+  const [releaseQuantity, setReleaseQuantity] = useState(0);
 
   const { company } = useAuth();
   const { businessUser, hasAccess, hasEditAccess } = useBusinessAuth();
@@ -225,30 +230,266 @@ export default function BackorderModule() {
         return;
       }
 
-      // Update sales_order_item: reduce backorder_qty
-      const newBackorderQty = item.backorder_qty - releaseQty;
+      // Store release quantity for later use
+      setReleaseQuantity(releaseQty);
 
-      const { error } = await supabase
+      // Fetch complete sales order item details
+      const { data: soItemData, error: soItemError } = await supabase
         .from('sales_order_items')
-        .update({
-          back_order_quantity: newBackorderQty,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', itemId);
+        .select('*')
+        .eq('id', itemId)
+        .single();
 
-      if (error) throw error;
+      if (soItemError) throw soItemError;
+
+      // Fetch sales order header with all details
+      const { data: soData, error: soError } = await supabase
+        .from('sales_orders')
+        .select('*')
+        .eq('id', soItemData.sales_order_id)
+        .single();
+
+      if (soError) throw soError;
+
+      // Fetch customer details
+      const { data: customerData, error: customerError } = await supabase
+        .from('customers')
+        .select('*')
+        .eq('id', item.customer_id)
+        .single();
+
+      if (customerError) throw customerError;
+
+      // Fetch product details
+      const { data: productData, error: productError } = await supabase
+        .from('products')
+        .select('*')
+        .eq('id', item.product_id)
+        .single();
+
+      if (productError) throw productError;
+
+      // Prepare invoice data with all required fields pre-filled
+      const invoiceData = {
+        invoice_date: new Date(),
+        sales_order_id: soData.id,
+        customer_id: customerData.id,
+        customer_name: customerData.name,
+        billing_address_line1: customerData.address_line1 || '',
+        billing_address_line2: customerData.address_line2 || '',
+        billing_city: customerData.city || '',
+        billing_state: customerData.state || '',
+        billing_pin_code: customerData.pin_code || '',
+        billing_country: customerData.country || 'India',
+        shipping_address_line1: soData.delivery_address_line1 || customerData.address_line1 || '',
+        shipping_address_line2: soData.delivery_address_line2 || customerData.address_line2 || '',
+        shipping_city: soData.delivery_city || customerData.city || '',
+        shipping_state: soData.delivery_state || customerData.state || '',
+        shipping_pin_code: soData.delivery_pin_code || customerData.pin_code || '',
+        shipping_country: soData.delivery_country || customerData.country || 'India',
+        same_as_billing_address: false,
+        customer_po_reference: soData.customer_po_number || '',
+        currency: soData.currency || 'INR',
+        payment_terms: soData.payment_terms || '',
+        account_manager: soData.account_manager || '',
+        mode_of_delivery: soData.mode_of_transport || '',
+        transporter: '',
+        freight_charges: 0,
+        packing_charges: 0,
+        round_off: 0,
+        notes: `Released from backorder - SO ${item.so_number}`,
+        status: 'finalized' as const,
+        default_warehouse_id: item.warehouse_id || soData.default_warehouse_id || '',
+        default_bin_id: item.bin_id || soData.default_bin_id || '',
+        items: [{
+          product_id: productData.id,
+          item_code: productData.sku,
+          item_description: productData.name,
+          hsn_sac_code: soItemData.hsn_sac_code || '',
+          quantity_ordered: item.backorder_qty,
+          quantity_invoiced: releaseQty,
+          unit_of_measure: soItemData.unit_of_measure || 'pcs',
+          unit_price: soItemData.unit_price,
+          discount_percentage: soItemData.discount_percentage || 0,
+          cgst_rate: soItemData.cgst_rate || 0,
+          sgst_rate: soItemData.sgst_rate || 0,
+          igst_rate: soItemData.igst_rate || 0,
+          warehouse_id: item.warehouse_id || soData.default_warehouse_id || '',
+          bin_id: item.bin_id || soData.default_bin_id || '',
+        }]
+      };
+
+      setPrefilledInvoiceData(invoiceData);
+      setShowInvoiceDialog(true);
+
+    } catch (error) {
+      console.error('Error preparing invoice:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to prepare invoice form. Please try again.',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleInvoiceSubmit = async (data: any) => {
+    try {
+      // Create invoice in database
+      const { data: invoiceData, error: invoiceError } = await supabase
+        .from('sales_invoices')
+        .insert({
+          company_id: company?.id,
+          invoice_date: data.invoice_date,
+          sales_order_id: data.sales_order_id,
+          customer_id: data.customer_id,
+          customer_name: data.customer_name,
+          billing_address_line1: data.billing_address_line1,
+          billing_address_line2: data.billing_address_line2,
+          billing_city: data.billing_city,
+          billing_state: data.billing_state,
+          billing_pin_code: data.billing_pin_code,
+          billing_country: data.billing_country,
+          shipping_address_line1: data.shipping_address_line1,
+          shipping_address_line2: data.shipping_address_line2,
+          shipping_city: data.shipping_city,
+          shipping_state: data.shipping_state,
+          shipping_pin_code: data.shipping_pin_code,
+          shipping_country: data.shipping_country,
+          same_as_billing_address: data.same_as_billing_address,
+          customer_po_reference: data.customer_po_reference,
+          currency: data.currency,
+          payment_terms: data.payment_terms,
+          account_manager: data.account_manager,
+          mode_of_delivery: data.mode_of_delivery,
+          transporter: data.transporter,
+          freight_charges: data.freight_charges,
+          packing_charges: data.packing_charges,
+          round_off: data.round_off,
+          notes: data.notes,
+          status: 'finalized',
+          default_warehouse_id: data.default_warehouse_id,
+          default_bin_id: data.default_bin_id,
+          subtotal_amount: 0,
+          discount_amount: 0,
+          tax_amount: 0,
+          total_amount: 0,
+          created_by: businessUser?.id
+        })
+        .select()
+        .single();
+
+      if (invoiceError) throw invoiceError;
+
+      // Insert invoice items
+      const invoiceItems = data.items.map((item: any) => {
+        const unitPrice = item.unit_price;
+        const quantity = item.quantity_invoiced;
+        const discountPercentage = item.discount_percentage || 0;
+        const discountAmount = (unitPrice * quantity * discountPercentage) / 100;
+        const subtotal = (unitPrice * quantity) - discountAmount;
+        
+        const cgstAmount = (subtotal * (item.cgst_rate || 0)) / 100;
+        const sgstAmount = (subtotal * (item.sgst_rate || 0)) / 100;
+        const igstAmount = (subtotal * (item.igst_rate || 0)) / 100;
+        const taxAmount = cgstAmount + sgstAmount + igstAmount;
+        const lineTotal = subtotal + taxAmount;
+
+        return {
+          sales_invoice_id: invoiceData.id,
+          product_id: item.product_id,
+          item_code: item.item_code,
+          item_description: item.item_description,
+          hsn_sac_code: item.hsn_sac_code,
+          quantity_ordered: item.quantity_ordered,
+          quantity_invoiced: item.quantity_invoiced,
+          backorder_quantity: item.quantity_ordered - item.quantity_invoiced,
+          unit_of_measure: item.unit_of_measure,
+          unit_price: unitPrice,
+          discount_percentage: discountPercentage,
+          discount_amount: discountAmount,
+          cgst_rate: item.cgst_rate || 0,
+          cgst_amount: cgstAmount,
+          sgst_rate: item.sgst_rate || 0,
+          sgst_amount: sgstAmount,
+          igst_rate: item.igst_rate || 0,
+          igst_amount: igstAmount,
+          line_subtotal: subtotal,
+          tax_amount: taxAmount,
+          line_total: lineTotal,
+          warehouse_id: item.warehouse_id,
+          bin_id: item.bin_id
+        };
+      });
+
+      const { error: itemsError } = await supabase
+        .from('sales_invoice_items')
+        .insert(invoiceItems);
+
+      if (itemsError) throw itemsError;
+
+      // Update backorder quantity in sales_order_items
+      const backorderItem = backorders.find(b => b.product_id === data.items[0].product_id);
+      if (backorderItem) {
+        const newBackorderQty = backorderItem.backorder_qty - releaseQuantity;
+        
+        const { error: updateError } = await supabase
+          .from('sales_order_items')
+          .update({
+            back_order_quantity: Math.max(0, newBackorderQty),
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', backorderItem.id);
+
+        if (updateError) throw updateError;
+      }
+
+      // Create inventory transactions and update stock
+      for (const item of invoiceItems) {
+        await supabase.from('inventory_transactions').insert({
+          company_id: company?.id,
+          product_id: item.product_id,
+          transaction_type: 'sales_invoice',
+          quantity_change: -item.quantity_invoiced,
+          unit_cost: item.unit_price,
+          reference_id: invoiceData.id,
+          transaction_date: data.invoice_date,
+          warehouse_id: item.warehouse_id,
+          bin_id: item.bin_id,
+          created_by: businessUser?.id
+        });
+
+        // Update product stock quantity
+        const { data: currentProduct } = await supabase
+          .from('products')
+          .select('stock_quantity')
+          .eq('id', item.product_id)
+          .single();
+
+        if (currentProduct) {
+          await supabase
+            .from('products')
+            .update({
+              stock_quantity: (currentProduct.stock_quantity || 0) - item.quantity_invoiced,
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', item.product_id);
+        }
+      }
 
       toast({
         title: 'Success',
-        description: `Released ${releaseQty} units from backorder`,
+        description: `Invoice created successfully for ${releaseQuantity} units`,
       });
 
+      setShowInvoiceDialog(false);
+      setPrefilledInvoiceData(null);
       fetchBackorders();
+
     } catch (error) {
-      console.error('Error releasing backorder:', error);
+      console.error('Error creating invoice:', error);
       toast({
         title: 'Error',
-        description: 'Failed to release backorder. Please try again.',
+        description: 'Failed to create invoice. Please try again.',
         variant: 'destructive',
       });
     }
@@ -331,6 +572,25 @@ export default function BackorderModule() {
         onRelease={handleReleaseBackorder}
         onRefresh={fetchBackorders}
       />
+
+      {/* Invoice Dialog */}
+      <Dialog open={showInvoiceDialog} onOpenChange={setShowInvoiceDialog}>
+        <DialogContent className="max-w-7xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Create Sales Invoice from Backorder Release</DialogTitle>
+          </DialogHeader>
+          {prefilledInvoiceData && (
+            <SalesInvoiceForm
+              editingInvoice={prefilledInvoiceData}
+              onSubmit={handleInvoiceSubmit}
+              onCancel={() => {
+                setShowInvoiceDialog(false);
+                setPrefilledInvoiceData(null);
+              }}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
