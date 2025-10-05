@@ -68,6 +68,7 @@ export function PurchaseOrderTable({
   const isMobile = useIsMobile();
   const [currentPage, setCurrentPage] = useState(1);
   const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
   const [sortField, setSortField] = useState<SortField>('order_date');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
   const [companyData, setCompanyData] = useState<any>(null);
@@ -160,11 +161,15 @@ export function PurchaseOrderTable({
   }, [purchaseOrders, profile?.company_id]);
 
   // Filter and sort data
-  const filteredOrders = purchaseOrders.filter(order =>
-    order.po_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    order.supplier.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    order.status.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredOrders = purchaseOrders.filter(order => {
+    const matchesSearch = order.po_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      order.supplier.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      order.status.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    const matchesStatus = statusFilter === 'all' || order.status === statusFilter;
+    
+    return matchesSearch && matchesStatus;
+  });
 
   const sortedOrders = [...filteredOrders].sort((a, b) => {
     let aValue: any, bValue: any;
@@ -973,51 +978,64 @@ export function PurchaseOrderTable({
 
   return (
     <Card>
-      <CardHeader className="border-b border-border px-6 py-4">
-        <CardTitle>Purchase Orders</CardTitle>
-      </CardHeader>
       <CardContent className="p-0">
         {/* Search and Controls - Mobile Optimized */}
         <div className="p-4 sm:p-6 border-b bg-gradient-to-r from-blue-50 to-blue-100">
-          <div className="flex flex-col gap-4 items-start justify-between">
-            <div className="flex items-center gap-2 w-full">
-              <Search className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-              <Input
-                placeholder="Search by PO number, supplier, or status..."
-                value={searchTerm}
-                onChange={(e) => {
-                  setSearchTerm(e.target.value);
-                  setCurrentPage(1);
-                }}
-                className="bg-white"
-              />
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  // Export all filtered purchase orders
-                  const wsData = filteredOrders.map(order => ({
-                    'PO Number': order.po_number,
-                    'Supplier': order.supplier?.name || 'Unknown',
-                    'Order Date': format(new Date(order.order_date), 'dd/MM/yyyy'),
-                    'Expected Delivery': order.expected_date ? format(new Date(order.expected_date), 'dd/MM/yyyy') : '-',
-                    'Total Amount': order.total_amount,
-                    'Received Amount': order.received_amount || 0,
-                    'Pending Amount': order.pending_amount || 0,
-                    'Status': order.status.toUpperCase()
-                  }));
-                  const ws = XLSX.utils.json_to_sheet(wsData);
-                  const wb = XLSX.utils.book_new();
-                  XLSX.utils.book_append_sheet(wb, ws, 'Purchase Orders');
-                  XLSX.writeFile(wb, `PurchaseOrders_${format(new Date(), 'yyyy-MM-dd')}.xlsx`);
-                  toast({ title: "Success", description: `Exported ${filteredOrders.length} purchase orders to Excel` });
-                }}
-                className="h-9 px-4 gap-2 rounded-md bg-teal-50 text-teal-700 border border-teal-200 hover:bg-teal-100 font-medium transition-colors"
-              >
-                <FileSpreadsheet className="h-4 w-4" />
-                Export Excel
-              </Button>
+          <div className="flex gap-4 items-center">
+            <div className="w-96">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+                <Input
+                  placeholder="Search by PO number, supplier, or status..."
+                  value={searchTerm}
+                  onChange={(e) => {
+                    setSearchTerm(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                  className="bg-white pl-10"
+                />
+              </div>
             </div>
+            <Select value={statusFilter} onValueChange={(value: any) => setStatusFilter(value)}>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Status</SelectItem>
+                <SelectItem value="draft">Draft</SelectItem>
+                <SelectItem value="approved">Approved</SelectItem>
+                <SelectItem value="partially_received">Partially Received</SelectItem>
+                <SelectItem value="received">Received</SelectItem>
+                <SelectItem value="closed">Closed</SelectItem>
+                <SelectItem value="cancelled">Cancelled</SelectItem>
+              </SelectContent>
+            </Select>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                // Export all filtered purchase orders
+                const wsData = filteredOrders.map(order => ({
+                  'PO Number': order.po_number,
+                  'Supplier': order.supplier?.name || 'Unknown',
+                  'Order Date': format(new Date(order.order_date), 'dd/MM/yyyy'),
+                  'Expected Delivery': order.expected_date ? format(new Date(order.expected_date), 'dd/MM/yyyy') : '-',
+                  'Total Amount': order.total_amount,
+                  'Received Amount': order.received_amount || 0,
+                  'Pending Amount': order.pending_amount || 0,
+                  'Status': order.status.toUpperCase()
+                }));
+                const ws = XLSX.utils.json_to_sheet(wsData);
+                const wb = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(wb, ws, 'Purchase Orders');
+                XLSX.writeFile(wb, `PurchaseOrders_${format(new Date(), 'yyyy-MM-dd')}.xlsx`);
+                toast({ title: "Success", description: `Exported ${filteredOrders.length} purchase orders to Excel` });
+              }}
+              className="h-9 px-4 gap-2 rounded-md bg-teal-50 text-teal-700 border border-teal-200 hover:bg-teal-100 font-medium transition-colors"
+            >
+              <FileSpreadsheet className="h-4 w-4" />
+              Export Excel
+            </Button>
           </div>
           
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mt-4 gap-2 text-sm text-muted-foreground">
