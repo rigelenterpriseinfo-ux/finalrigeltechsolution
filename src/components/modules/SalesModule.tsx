@@ -132,21 +132,46 @@ export default function SalesModule() {
         return;
       }
 
+      // Fetch sales order items to get ordered quantities
       const { data: itemsData, error: itemsError } = await supabase
         .from('sales_order_items')
-        .select('sales_order_id, ordered_quantity, quantity, back_order_quantity')
+        .select('sales_order_id, product_id, ordered_quantity, quantity')
         .in('sales_order_id', orderIds);
 
       if (itemsError) throw itemsError;
 
-      const aggregates = new Map<string, { ordered: number; backorder: number }>();
+      // Fetch invoice items to get invoiced quantities
+      const { data: invoiceItemsData, error: invoiceItemsError } = await supabase
+        .from('sales_invoice_items')
+        .select('sales_invoice_id, product_id, quantity_invoiced, sales_invoices!inner(sales_order_id, status)')
+        .in('sales_invoices.sales_order_id', orderIds)
+        .eq('sales_invoices.status', 'finalized');
+
+      if (invoiceItemsError) throw invoiceItemsError;
+
+      // Build map of invoiced quantities per sales order and product
+      const invoicedMap = new Map<string, number>();
+      for (const invItem of invoiceItemsData || []) {
+        const soId = invItem.sales_invoices?.sales_order_id;
+        if (!soId) continue;
+        const key = `${soId}_${invItem.product_id}`;
+        const prev = invoicedMap.get(key) || 0;
+        invoicedMap.set(key, prev + (invItem.quantity_invoiced || 0));
+      }
+
+      // Calculate aggregates with actual backorder based on invoiced quantities
+      const aggregates = new Map<string, { ordered: number; invoiced: number; backorder: number }>();
       for (const it of itemsData || []) {
         const ordered = (it.ordered_quantity ?? it.quantity ?? 0) as number;
-        const back = (it.back_order_quantity ?? 0) as number;
-        const prev = aggregates.get(it.sales_order_id) || { ordered: 0, backorder: 0 };
+        const key = `${it.sales_order_id}_${it.product_id}`;
+        const invoiced = invoicedMap.get(key) || 0;
+        const backorder = Math.max(0, ordered - invoiced);
+        
+        const prev = aggregates.get(it.sales_order_id) || { ordered: 0, invoiced: 0, backorder: 0 };
         aggregates.set(it.sales_order_id, {
           ordered: prev.ordered + ordered,
-          backorder: prev.backorder + back,
+          invoiced: prev.invoiced + invoiced,
+          backorder: prev.backorder + backorder,
         });
       }
 
@@ -156,8 +181,9 @@ export default function SalesModule() {
         return {
           ...o,
           total_ordered_qty: agg.ordered,
+          total_invoiced_qty: agg.invoiced,
           total_backorder_qty: agg.backorder,
-          total_ready_to_deliver_qty: Math.max(0, agg.ordered - agg.backorder),
+          total_ready_to_deliver_qty: Math.max(0, agg.ordered - agg.invoiced),
         };
       });
 
