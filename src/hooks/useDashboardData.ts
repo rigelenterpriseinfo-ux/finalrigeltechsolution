@@ -57,12 +57,17 @@ export const useDashboardData = (companyId: string | undefined) => {
         .eq('company_id', companyId)
         .in('status', ['confirmed', 'partially_fulfilled']);
 
-      // Fetch low stock items
-      const { data: lowStockItems } = await supabase
+      // Fetch low stock items (using min_stock_level threshold)
+      const { data: allProducts } = await supabase
         .from('products')
-        .select('id, name, stock_quantity, unit_price, cost_price')
+        .select('id, name, stock_quantity, min_stock_level, unit_price, cost_price')
         .eq('company_id', companyId)
-        .lt('stock_quantity', 25);
+        .not('min_stock_level', 'is', null);
+
+      // Filter items where current stock < min stock level
+      const lowStockItems = allProducts?.filter(item => 
+        item.stock_quantity < (item.min_stock_level || 0)
+      ) || [];
 
       // Calculate metrics
       const thisWeekRevenue = invoices?.reduce((sum, inv) => sum + (inv.total_amount || 0), 0) || 0;

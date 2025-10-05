@@ -1025,14 +1025,14 @@ export function EnhancedReportsModule() {
         item.current_stock < item.products.min_stock_level
       ) || [];
 
-      // Fetch warehouse information separately
-      const warehouseIds = [...new Set(lowStockItems.map(item => item.warehouse_id))];
-      const { data: warehouses } = await supabase
+      // Fetch warehouse bin information using bin_id
+      const binIds = [...new Set(lowStockItems.map(item => item.bin_id).filter(Boolean))];
+      const { data: warehouseBins } = await supabase
         .from('warehouse_bins')
         .select('id, warehouse_name, bin_name, wh_bin_code')
-        .in('id', warehouseIds);
+        .in('id', binIds);
 
-      const warehouseMap = new Map(warehouses?.map(w => [w.id, w]) || []);
+      const binMap = new Map(warehouseBins?.map(w => [w.id, w]) || []);
 
       // Calculate severity for each item
       const calculateSeverity = (current: number, min: number) => {
@@ -1044,7 +1044,7 @@ export function EnhancedReportsModule() {
       };
 
       const tableData = lowStockItems.map(item => {
-        const warehouse = warehouseMap.get(item.warehouse_id);
+        const bin = binMap.get(item.bin_id);
         const severity = calculateSeverity(item.current_stock, item.products.min_stock_level || 0);
         const shortageQty = (item.products.min_stock_level || 0) - item.current_stock;
         const shortageValue = shortageQty * (item.products.cost_price || 0);
@@ -1054,8 +1054,8 @@ export function EnhancedReportsModule() {
           productName: item.products.name,
           sku: item.products.sku,
           warehouseId: item.warehouse_id,
-          warehouseName: warehouse?.warehouse_name || 'N/A',
-          binCode: warehouse?.wh_bin_code || warehouse?.bin_name || 'N/A',
+          warehouseName: bin?.warehouse_name || 'Unknown Warehouse',
+          binCode: bin?.wh_bin_code || bin?.bin_name || 'N/A',
           currentStock: item.current_stock,
           minStock: item.products.min_stock_level || 0,
           maxStock: item.products.max_stock_level || 0,
@@ -3905,7 +3905,6 @@ export function EnhancedReportsModule() {
                             <th className="text-right p-3 font-semibold">Shortage</th>
                             <th className="text-center p-3 font-semibold">Stock Level</th>
                             <th className="text-center p-3 font-semibold">Status</th>
-                            <th className="text-right p-3 font-semibold">Action</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -3959,15 +3958,6 @@ export function EnhancedReportsModule() {
                                 <Badge variant={item.severityColor as any}>
                                   {item.severity}
                                 </Badge>
-                              </td>
-                              <td className="p-3 text-right">
-                                <Button 
-                                  size="sm" 
-                                  variant="outline"
-                                  onClick={() => window.location.href = `/purchase-orders`}
-                                >
-                                  Create PO
-                                </Button>
                               </td>
                             </tr>
                           ))}
