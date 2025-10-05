@@ -63,6 +63,7 @@ const salesInvoiceSchema = z.object({
     hsn_sac_code: z.string().optional(),
     quantity_ordered: z.number().min(0),
     quantity_invoiced: z.number().min(0, 'Quantity must be at least 0'),
+    backorder_quantity: z.number().optional(),
     unit_of_measure: z.string().default('pcs'),
     unit_price: z.number().min(0, 'Unit price must be at least 0'),
     discount_percentage: z.number().min(0).max(100).default(0),
@@ -135,12 +136,26 @@ export const SalesInvoiceForm: React.FC<SalesInvoiceFormProps> = ({
         ...editingInvoice,
         invoice_date: new Date(editingInvoice.invoice_date),
         due_date: editingInvoice.due_date ? new Date(editingInvoice.due_date) : undefined,
-        items: editingInvoice.sales_invoice_items || [],
+        items: editingInvoice.items || editingInvoice.sales_invoice_items || [],
       });
       
       // Auto-populate sales order details when editing
       if (editingInvoice.sales_order_id) {
         fetchSalesOrderDetails(editingInvoice.sales_order_id);
+      }
+      
+      // Fetch stock levels for pre-filled invoice data
+      if (editingInvoice.items && editingInvoice.items.length > 0) {
+        const productIds = editingInvoice.items.map((item: any) => item.product_id);
+        const warehouseId = editingInvoice.default_warehouse_id;
+        const binId = editingInvoice.default_bin_id;
+        
+        console.log('🔄 Loading stock for pre-filled invoice data:', { productIds, warehouseId, binId });
+        
+        fetchStockLevels(productIds, warehouseId, binId).then(levels => {
+          setStockLevels(levels);
+          console.log('✅ Stock levels loaded for pre-filled data:', levels);
+        });
       }
     }
   }, [editingInvoice]);
@@ -1339,7 +1354,7 @@ export const SalesInvoiceForm: React.FC<SalesInvoiceFormProps> = ({
                                     />
                                   </td>
                                   <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
-                                    {remainingData?.current_backorder_qty || 0}
+                                    {item.backorder_quantity !== undefined ? item.backorder_quantity : (remainingData?.current_backorder_qty || 0)}
                                   </td>
                                   <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">{item.unit_of_measure}</td>
                                   <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">₹{item.unit_price.toFixed(2)}</td>

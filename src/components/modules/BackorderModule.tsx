@@ -308,6 +308,7 @@ export default function BackorderModule() {
           hsn_sac_code: soItemData.hsn_sac_code || '',
           quantity_ordered: item.backorder_qty,
           quantity_invoiced: releaseQty,
+          backorder_quantity: item.backorder_qty - releaseQty, // Remaining backorder after release
           unit_of_measure: soItemData.unit_of_measure || 'pcs',
           unit_price: soItemData.unit_price,
           discount_percentage: soItemData.discount_percentage || 0,

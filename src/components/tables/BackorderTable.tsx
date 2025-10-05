@@ -129,8 +129,19 @@ export default function BackorderTable({
     }
   };
 
-  const handleReleaseQtyChange = (itemId: string, value: string) => {
-    const qty = parseInt(value) || 0;
+  const handleReleaseQtyChange = (itemId: string, value: string, maxAllowed: number) => {
+    let qty = parseInt(value) || 0;
+    
+    // Cap at maximum allowed
+    if (qty > maxAllowed) {
+      qty = maxAllowed;
+      toast({
+        title: 'Quantity Adjusted',
+        description: `Maximum allowed quantity is ${maxAllowed}`,
+        variant: 'default',
+      });
+    }
+    
     setReleaseQuantities(prev => ({ ...prev, [itemId]: qty }));
   };
 
@@ -335,6 +346,7 @@ export default function BackorderTable({
                   {paginatedBackorders.map((item) => {
                     const canRelease = item.available_stock > 0;
                     const releaseQty = releaseQuantities[item.id] || 0;
+                    const maxAllowedQty = Math.min(item.backorder_qty, item.available_stock);
 
                     return (
                       <TableRow 
@@ -373,9 +385,15 @@ export default function BackorderTable({
                               <Input
                                 type="number"
                                 min="0"
-                                max={Math.min(item.backorder_qty, item.available_stock)}
+                                max={maxAllowedQty}
                                 value={releaseQty || ''}
-                                onChange={(e) => handleReleaseQtyChange(item.id, e.target.value)}
+                                onChange={(e) => handleReleaseQtyChange(item.id, e.target.value, maxAllowedQty)}
+                                onBlur={(e) => {
+                                  const value = parseInt(e.target.value) || 0;
+                                  if (value > maxAllowedQty) {
+                                    handleReleaseQtyChange(item.id, maxAllowedQty.toString(), maxAllowedQty);
+                                  }
+                                }}
                                 className="w-20 h-8"
                                 disabled={!canRelease}
                                 placeholder="0"
@@ -385,7 +403,7 @@ export default function BackorderTable({
                               <Button
                                 size="sm"
                                 onClick={() => handleRelease(item)}
-                                disabled={!canRelease || releaseQty <= 0}
+                                disabled={!canRelease || releaseQty <= 0 || releaseQty > maxAllowedQty}
                                 className="h-8"
                               >
                                 Release
