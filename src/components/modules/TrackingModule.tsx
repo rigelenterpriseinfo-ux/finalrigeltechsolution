@@ -802,7 +802,7 @@ export function TrackingModule() {
   };
 
   const filteredOrders = sortData(orders.filter(order => {
-    const matchesSearch = order.order_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    const matchesSearch = (order.order_number && order.order_number.toLowerCase().includes(searchTerm.toLowerCase())) ||
       (order.customer_name && order.customer_name.toLowerCase().includes(searchTerm.toLowerCase())) ||
       (order.awb_no && order.awb_no.toLowerCase().includes(searchTerm.toLowerCase())) ||
       (order.eway_bill_no && order.eway_bill_no.toLowerCase().includes(searchTerm.toLowerCase()));
@@ -813,7 +813,7 @@ export function TrackingModule() {
   }));
 
   const filteredDebitNotes = sortData(debitNotes.filter(note => {
-    const matchesSearch = note.order_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    const matchesSearch = (note.order_number && note.order_number.toLowerCase().includes(searchTerm.toLowerCase())) ||
       (note.supplier_name && note.supplier_name.toLowerCase().includes(searchTerm.toLowerCase())) ||
       (note.awb_no && note.awb_no.toLowerCase().includes(searchTerm.toLowerCase())) ||
       (note.eway_bill_no && note.eway_bill_no.toLowerCase().includes(searchTerm.toLowerCase()));
