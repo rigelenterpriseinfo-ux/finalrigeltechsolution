@@ -14,8 +14,10 @@ import { DashboardRefreshButton } from './DashboardRefreshButton';
 import { useDashboardData } from '@/hooks/useDashboardData';
 import { useOperationsData } from '@/hooks/useOperationsData';
 import { useRealtimeDashboard } from '@/hooks/useRealtimeDashboard';
+import { useMobileOptimizations } from '@/hooks/useMobileOptimizations';
 import { useNavigate } from 'react-router-dom';
 import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
 
 interface RedesignedDashboardProps {
   companyId?: string;
@@ -25,6 +27,7 @@ const RedesignedDashboardComponent: React.FC<RedesignedDashboardProps> = ({ comp
   const navigate = useNavigate();
   const { kpiData, kpiLoading, urgentActions, actionsLoading } = useDashboardData(companyId);
   const { data: operationsData, isLoading: operationsLoading, refetch: refetchOperations } = useOperationsData(companyId);
+  const { isMobile, cardSpacing } = useMobileOptimizations();
   
   // Enable real-time updates
   useRealtimeDashboard(companyId);
@@ -42,20 +45,34 @@ const RedesignedDashboardComponent: React.FC<RedesignedDashboardProps> = ({ comp
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="flex gap-6 p-6">
+      <div className={cn(
+        'flex gap-6',
+        isMobile ? 'flex-col p-4' : 'p-6'
+      )}>
         {/* Main Content */}
-        <div className="flex-1 space-y-8">
+        <div className={cn('flex-1', cardSpacing)}>
           {/* Page Header with Refresh Button */}
-          <div className="flex items-start justify-between">
-            <div>
-              <div className="flex items-center gap-3 mb-2">
-                <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
+          <div className={cn(
+            'flex items-start justify-between',
+            isMobile && 'flex-col gap-3'
+          )}>
+            <div className="flex-1">
+              <div className="flex items-center gap-2 mb-1 flex-wrap">
+                <h1 className={cn(
+                  'font-bold tracking-tight',
+                  isMobile ? 'text-2xl' : 'text-3xl'
+                )}>
+                  Dashboard
+                </h1>
                 <Badge variant="outline" className="text-xs">
                   Live Updates
                 </Badge>
               </div>
-              <p className="text-muted-foreground">
-                Monitor your business performance and take immediate actions
+              <p className={cn(
+                'text-muted-foreground',
+                isMobile ? 'text-sm' : 'text-base'
+              )}>
+                Monitor your business performance
               </p>
             </div>
             <DashboardRefreshButton onRefresh={handleRefreshAll} />
@@ -80,7 +97,7 @@ const RedesignedDashboardComponent: React.FC<RedesignedDashboardProps> = ({ comp
           </DashboardSectionWrapper>
 
           {/* Business Performance Sections */}
-          <div className="space-y-8">
+          <div className={cardSpacing}>
             {/* Purchase & Procurement */}
             <DashboardSectionWrapper>
               <PurchaseSection companyId={companyId} />
@@ -103,7 +120,7 @@ const RedesignedDashboardComponent: React.FC<RedesignedDashboardProps> = ({ comp
           </div>
 
           {/* Operations & Tracking Section */}
-          <div className="space-y-8">
+          <div className={cardSpacing}>
             {/* Shipment Status Board */}
             <DashboardSectionWrapper>
               <ShipmentStatusBoard 
@@ -122,16 +139,16 @@ const RedesignedDashboardComponent: React.FC<RedesignedDashboardProps> = ({ comp
           </div>
         </div>
 
-        {/* Quick Actions Sidebar - Hidden on mobile, sticky on desktop */}
-        <div className="hidden md:block">
-          <QuickActionsSidebar />
-        </div>
+        {/* Quick Actions Sidebar - Sticky on desktop, FAB on mobile */}
+        {!isMobile && (
+          <div className="hidden md:block sticky top-6 h-fit">
+            <QuickActionsSidebar />
+          </div>
+        )}
       </div>
 
-      {/* Mobile FAB is part of QuickActionsSidebar component */}
-      <div className="md:hidden">
-        <QuickActionsSidebar />
-      </div>
+      {/* Mobile FAB */}
+      {isMobile && <QuickActionsSidebar />}
     </div>
   );
 };

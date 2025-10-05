@@ -1,10 +1,12 @@
-import React, { memo, useMemo } from 'react';
+import React, { memo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Package, TrendingUp, Users } from 'lucide-react';
 import { usePurchaseData } from '@/hooks/usePurchaseData';
+import { useMobileOptimizations } from '@/hooks/useMobileOptimizations';
 import { useNavigate } from 'react-router-dom';
+import { cn } from '@/lib/utils';
 
 interface PurchaseSectionProps {
   companyId?: string;
@@ -12,13 +14,16 @@ interface PurchaseSectionProps {
 
 const PurchaseSectionComponent: React.FC<PurchaseSectionProps> = ({ companyId }) => {
   const { data, isLoading } = usePurchaseData(companyId);
+  const { isMobile, maxItemsToShow } = useMobileOptimizations();
   const navigate = useNavigate();
 
   if (isLoading) {
     return (
-      <div className="space-y-4">
-        <h3 className="text-xl font-semibold">Purchase & Procurement</h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="space-y-3">
+        <h3 className={cn('font-semibold', isMobile ? 'text-lg' : 'text-xl')}>
+          Purchase & Procurement
+        </h3>
+        <div className={cn('grid gap-4', isMobile ? 'grid-cols-1' : 'grid-cols-1 md:grid-cols-3')}>
           {[1, 2, 3].map((i) => (
             <div key={i} className="h-48 bg-muted animate-pulse rounded-lg" />
           ))}
@@ -27,44 +32,54 @@ const PurchaseSectionComponent: React.FC<PurchaseSectionProps> = ({ companyId })
     );
   }
 
+  const displayedReceipts = data?.pendingReceipts?.slice(0, maxItemsToShow) || [];
+
   return (
-    <div className="space-y-4">
-      <h3 className="text-xl font-semibold">Purchase & Procurement</h3>
+    <div className="space-y-3">
+      <h3 className={cn('font-semibold', isMobile ? 'text-lg' : 'text-xl')}>
+        Purchase & Procurement
+      </h3>
       
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className={cn('grid gap-4', isMobile ? 'grid-cols-1' : 'grid-cols-1 md:grid-cols-3')}>
         {/* Pending Receipts */}
-        <Card className="md:col-span-2">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Package className="h-5 w-5" />
+        <Card className={cn(isMobile ? '' : 'md:col-span-2')}>
+          <CardHeader className={isMobile ? 'p-4 pb-2' : ''}>
+            <CardTitle className={cn('flex items-center gap-2', isMobile ? 'text-base' : 'text-lg')}>
+              <Package className={cn(isMobile ? 'h-4 w-4' : 'h-5 w-5')} />
               Awaiting Receipt
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-3">
-            {data?.pendingReceipts && data.pendingReceipts.length > 0 ? (
-              data.pendingReceipts.map((item) => {
+          <CardContent className={cn('space-y-3', isMobile && 'p-4 pt-2')}>
+            {displayedReceipts.length > 0 ? (
+              displayedReceipts.map((item) => {
                 const progress = (item.receivedQty / item.quantity) * 100;
                 return (
-                  <div key={item.id} className="p-3 border rounded-lg hover:bg-muted/50 transition-colors">
+                  <div key={item.id} className={cn(
+                    'border rounded-lg hover:bg-muted/50 transition-colors',
+                    isMobile ? 'p-3' : 'p-3'
+                  )}>
                     <div className="flex items-start justify-between mb-2">
-                      <div className="flex-1">
-                        <p className="font-semibold">{item.productName}</p>
-                        <p className="text-sm text-muted-foreground">
+                      <div className="flex-1 min-w-0">
+                        <p className={cn('font-semibold truncate', isMobile && 'text-sm')}>
+                          {item.productName}
+                        </p>
+                        <p className="text-xs text-muted-foreground truncate">
                           {item.quantity} units • {item.supplierName}
                         </p>
                       </div>
-                      <span className="text-xs text-muted-foreground">
-                        {item.daysPending}d ago
+                      <span className="text-xs text-muted-foreground whitespace-nowrap ml-2">
+                        {item.daysPending}d
                       </span>
                     </div>
                     <Progress value={progress} className="h-2 mb-2" />
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="text-muted-foreground">
-                        {item.receivedQty}/{item.quantity} received ({Math.round(progress)}%)
+                    <div className="flex items-center justify-between text-xs gap-2">
+                      <span className="text-muted-foreground truncate">
+                        {item.receivedQty}/{item.quantity} ({Math.round(progress)}%)
                       </span>
                       <Button 
                         size="sm" 
                         variant="outline"
+                        className="h-7 px-2 shrink-0"
                         onClick={() => navigate('/dashboard?module=purchase')}
                       >
                         Receive
@@ -75,7 +90,12 @@ const PurchaseSectionComponent: React.FC<PurchaseSectionProps> = ({ companyId })
               })
             ) : (
               <p className="text-sm text-muted-foreground text-center py-8">
-                All items have been received
+                All items received
+              </p>
+            )}
+            {data?.pendingReceipts && data.pendingReceipts.length > maxItemsToShow && (
+              <p className="text-xs text-muted-foreground text-center pt-2">
+                +{data.pendingReceipts.length - maxItemsToShow} more items
               </p>
             )}
           </CardContent>
@@ -85,13 +105,13 @@ const PurchaseSectionComponent: React.FC<PurchaseSectionProps> = ({ companyId })
         <div className="space-y-4">
           {/* Total Open POs */}
           <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-base">
+            <CardHeader className={isMobile ? 'p-4 pb-2' : ''}>
+              <CardTitle className={cn('flex items-center gap-2', isMobile ? 'text-sm' : 'text-base')}>
                 <TrendingUp className="h-4 w-4" />
                 Open Purchase Orders
               </CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className={isMobile ? 'p-4 pt-2' : ''}>
               <div className="space-y-2">
                 <div className="flex items-baseline gap-2">
                   <span className="text-3xl font-bold">{data?.openPOCount || 0}</span>
@@ -114,13 +134,13 @@ const PurchaseSectionComponent: React.FC<PurchaseSectionProps> = ({ companyId })
 
           {/* Top Vendors */}
           <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-base">
+            <CardHeader className={isMobile ? 'p-4 pb-2' : ''}>
+              <CardTitle className={cn('flex items-center gap-2', isMobile ? 'text-sm' : 'text-base')}>
                 <Users className="h-4 w-4" />
                 Top Vendors
               </CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className={isMobile ? 'p-4 pt-2' : ''}>
               <div className="space-y-2">
                 {data?.topVendors && data.topVendors.length > 0 ? (
                   data.topVendors.map((vendor) => (
