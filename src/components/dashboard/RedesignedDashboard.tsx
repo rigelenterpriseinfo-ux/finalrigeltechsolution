@@ -32,6 +32,8 @@ import { MobileNavigation } from '@/components/mobile/MobileNavigation';
 import { PullToRefreshContainer } from '@/components/mobile/PullToRefreshContainer';
 import { NotificationCenter } from '@/components/notifications/NotificationCenter';
 import { SmartNotificationManager } from '@/components/notifications/SmartNotificationManager';
+import { CommandPalette } from '@/components/command/CommandPalette';
+import { CommandPaletteTrigger } from '@/components/command/CommandPaletteTrigger';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Keyboard, Settings2, Maximize2, Minimize2 } from 'lucide-react';
@@ -114,6 +116,7 @@ const RedesignedDashboardComponent: React.FC<RedesignedDashboardProps> = ({ comp
   return (
     <PullToRefreshContainer onRefresh={handleRefreshAll} disabled={!isMobile}>
       <SmartNotificationManager />
+      <CommandPalette />
       <div className="min-h-screen bg-background pb-20 md:pb-0" role="main" aria-label="Dashboard">
         <div className={cn(
           'flex gap-6',
@@ -155,6 +158,7 @@ const RedesignedDashboardComponent: React.FC<RedesignedDashboardProps> = ({ comp
               </p>
             </div>
             <div className="flex items-center gap-2" role="toolbar" aria-label="Dashboard actions">
+              <CommandPaletteTrigger variant="button" />
               <NotificationCenter />
               <DateRangeFilter />
               <Button
