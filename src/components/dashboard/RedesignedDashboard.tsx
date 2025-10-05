@@ -1,6 +1,10 @@
 import React from 'react';
 import { HeroKPISection } from './HeroKPISection';
 import { UrgentActionsPanel } from './UrgentActionsPanel';
+import { PurchaseSection } from './PurchaseSection';
+import { InventorySection } from './InventorySection';
+import { SalesSection } from './SalesSection';
+import { FinanceSection } from './FinanceSection';
 import { useDashboardData } from '@/hooks/useDashboardData';
 import { useNavigate } from 'react-router-dom';
 
@@ -36,27 +40,19 @@ export const RedesignedDashboard: React.FC<RedesignedDashboardProps> = ({ compan
         loading={actionsLoading}
       />
 
-      {/* Placeholder for future sections */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-        <div className="bg-card border rounded-lg p-6">
-          <h3 className="text-lg font-semibold mb-4">Purchase & Procurement</h3>
-          <p className="text-sm text-muted-foreground">Coming soon...</p>
-        </div>
+      {/* Business Performance Sections */}
+      <div className="space-y-8">
+        {/* Purchase & Procurement */}
+        <PurchaseSection companyId={companyId} />
         
-        <div className="bg-card border rounded-lg p-6">
-          <h3 className="text-lg font-semibold mb-4">Inventory & Warehouse</h3>
-          <p className="text-sm text-muted-foreground">Coming soon...</p>
-        </div>
+        {/* Inventory & Warehouse */}
+        <InventorySection companyId={companyId} />
         
-        <div className="bg-card border rounded-lg p-6">
-          <h3 className="text-lg font-semibold mb-4">Sales & Customer</h3>
-          <p className="text-sm text-muted-foreground">Coming soon...</p>
-        </div>
+        {/* Sales & Customer */}
+        <SalesSection companyId={companyId} />
         
-        <div className="bg-card border rounded-lg p-6">
-          <h3 className="text-lg font-semibold mb-4">Accounts & Finance</h3>
-          <p className="text-sm text-muted-foreground">Coming soon...</p>
-        </div>
+        {/* Accounts & Finance */}
+        <FinanceSection companyId={companyId} />
       </div>
     </div>
   );
