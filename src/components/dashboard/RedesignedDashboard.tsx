@@ -28,6 +28,27 @@ import { Button } from '@/components/ui/button';
 import { Keyboard } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
+/**
+ * RedesignedDashboard Component
+ * 
+ * A comprehensive, real-time business dashboard with the following features:
+ * - Hero KPI metrics (Revenue, Orders, Stock, Cash Flow)
+ * - Urgent actions panel for critical tasks
+ * - Business performance sections (Purchase, Inventory, Sales, Finance)
+ * - Operations tracking (Shipments, Activities)
+ * - Real-time updates via Supabase subscriptions
+ * - Mobile-optimized with responsive layouts
+ * - Keyboard shortcuts for navigation
+ * - Data export (JSON, CSV, Print)
+ * 
+ * @component
+ * @param {string} [companyId] - The company ID to fetch data for
+ * 
+ * @example
+ * ```tsx
+ * <RedesignedDashboard companyId={profile?.company_id} />
+ * ```
+ */
 interface RedesignedDashboardProps {
   companyId?: string;
 }
@@ -74,123 +95,153 @@ const RedesignedDashboardComponent: React.FC<RedesignedDashboardProps> = ({ comp
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background" role="main" aria-label="Dashboard">
       <div className={cn(
         'flex gap-6',
         isMobile ? 'flex-col p-4' : 'p-6'
       )}>
         {/* Main Content */}
-        <div className={cn('flex-1', cardSpacing)}>
+        <div className={cn('flex-1', cardSpacing)} role="region" aria-label="Dashboard content">
           {/* Page Header with Action Buttons */}
-          <div className={cn(
-            'flex items-start justify-between',
-            isMobile && 'flex-col gap-3'
-          )}>
+          <header 
+            className={cn(
+              'flex items-start justify-between',
+              isMobile && 'flex-col gap-3'
+            )}
+            role="banner"
+          >
             <div className="flex-1">
               <div className="flex items-center gap-2 mb-1 flex-wrap">
-                <h1 className={cn(
-                  'font-bold tracking-tight',
-                  isMobile ? 'text-2xl' : 'text-3xl'
-                )}>
+                <h1 
+                  className={cn(
+                    'font-bold tracking-tight',
+                    isMobile ? 'text-2xl' : 'text-3xl'
+                  )}
+                  id="dashboard-title"
+                >
                   Dashboard
                 </h1>
-                <Badge variant="outline" className="text-xs">
+                <Badge variant="outline" className="text-xs" aria-label="Real-time updates enabled">
                   Live Updates
                 </Badge>
               </div>
-              <p className={cn(
-                'text-muted-foreground',
-                isMobile ? 'text-sm' : 'text-base'
-              )}>
+              <p 
+                className={cn(
+                  'text-muted-foreground',
+                  isMobile ? 'text-sm' : 'text-base'
+                )}
+                id="dashboard-description"
+              >
                 Monitor your business performance
               </p>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2" role="toolbar" aria-label="Dashboard actions">
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => setShowShortcuts(true)}
                 className="gap-2"
+                aria-label="Show keyboard shortcuts"
               >
-                <Keyboard className="h-4 w-4" />
+                <Keyboard className="h-4 w-4" aria-hidden="true" />
                 <span className="hidden sm:inline">Shortcuts</span>
               </Button>
               <DashboardExportMenu data={exportData} companyId={companyId} />
               <DashboardRefreshButton onRefresh={handleRefreshAll} />
             </div>
-          </div>
+          </header>
 
           {/* Hero KPI Section */}
-          <DashboardSectionWrapper>
-            <HeroKPISection
-              data={kpiData}
-              loading={kpiLoading}
-              onViewOrders={() => navigate('/dashboard?module=sales')}
-              onReorderStock={() => navigate('/dashboard?module=purchase')}
-            />
-          </DashboardSectionWrapper>
+          <section aria-labelledby="kpi-section-title">
+            <h2 id="kpi-section-title" className="sr-only">Key Performance Indicators</h2>
+            <DashboardSectionWrapper>
+              <HeroKPISection
+                data={kpiData}
+                loading={kpiLoading}
+                onViewOrders={() => navigate('/dashboard?module=sales')}
+                onReorderStock={() => navigate('/dashboard?module=purchase')}
+              />
+            </DashboardSectionWrapper>
+          </section>
 
           {/* Urgent Actions Panel */}
-          <DashboardSectionWrapper>
-            <UrgentActionsPanel
-              actions={urgentActions}
-              loading={actionsLoading}
-            />
-          </DashboardSectionWrapper>
+          <section aria-labelledby="urgent-actions-title">
+            <h2 id="urgent-actions-title" className="sr-only">Urgent Actions</h2>
+            <DashboardSectionWrapper>
+              <UrgentActionsPanel
+                actions={urgentActions}
+                loading={actionsLoading}
+              />
+            </DashboardSectionWrapper>
+          </section>
 
           {/* Business Performance Sections */}
-          <div className={cardSpacing}>
-            {/* Purchase & Procurement */}
-            <DashboardSectionWrapper>
-              <PurchaseSection companyId={companyId} />
-            </DashboardSectionWrapper>
-            
-            {/* Inventory & Warehouse */}
-            <DashboardSectionWrapper>
-              <InventorySection companyId={companyId} />
-            </DashboardSectionWrapper>
-            
-            {/* Sales & Customer */}
-            <DashboardSectionWrapper>
-              <SalesSection companyId={companyId} />
-            </DashboardSectionWrapper>
-            
-            {/* Accounts & Finance */}
-            <DashboardSectionWrapper>
-              <FinanceSection companyId={companyId} />
-            </DashboardSectionWrapper>
-          </div>
+          <section aria-labelledby="business-performance-title">
+            <h2 id="business-performance-title" className="sr-only">Business Performance</h2>
+            <div className={cardSpacing}>
+              {/* Purchase & Procurement */}
+              <DashboardSectionWrapper>
+                <PurchaseSection companyId={companyId} />
+              </DashboardSectionWrapper>
+              
+              {/* Inventory & Warehouse */}
+              <DashboardSectionWrapper>
+                <InventorySection companyId={companyId} />
+              </DashboardSectionWrapper>
+              
+              {/* Sales & Customer */}
+              <DashboardSectionWrapper>
+                <SalesSection companyId={companyId} />
+              </DashboardSectionWrapper>
+              
+              {/* Accounts & Finance */}
+              <DashboardSectionWrapper>
+                <FinanceSection companyId={companyId} />
+              </DashboardSectionWrapper>
+            </div>
+          </section>
 
           {/* Operations & Tracking Section */}
-          <div className={cardSpacing}>
-            {/* Shipment Status Board */}
-            <DashboardSectionWrapper>
-              <ShipmentStatusBoard 
-                statuses={operationsData?.shipmentStatuses || []}
-                loading={operationsLoading}
-              />
-            </DashboardSectionWrapper>
-            
-            {/* Recent Activities Timeline */}
-            <DashboardSectionWrapper>
-              <RecentActivitiesTimeline 
-                activities={operationsData?.recentActivities || []}
-                loading={operationsLoading}
-              />
-            </DashboardSectionWrapper>
-          </div>
+          <section aria-labelledby="operations-title">
+            <h2 id="operations-title" className="sr-only">Operations & Tracking</h2>
+            <div className={cardSpacing}>
+              {/* Shipment Status Board */}
+              <DashboardSectionWrapper>
+                <ShipmentStatusBoard 
+                  statuses={operationsData?.shipmentStatuses || []}
+                  loading={operationsLoading}
+                />
+              </DashboardSectionWrapper>
+              
+              {/* Recent Activities Timeline */}
+              <DashboardSectionWrapper>
+                <RecentActivitiesTimeline 
+                  activities={operationsData?.recentActivities || []}
+                  loading={operationsLoading}
+                />
+              </DashboardSectionWrapper>
+            </div>
+          </section>
         </div>
 
         {/* Quick Actions Sidebar - Sticky on desktop, FAB on mobile */}
         {!isMobile && (
-          <div className="hidden md:block sticky top-6 h-fit">
+          <aside 
+            className="hidden md:block sticky top-6 h-fit" 
+            aria-label="Quick actions"
+            role="complementary"
+          >
             <QuickActionsSidebar />
-          </div>
+          </aside>
         )}
       </div>
 
       {/* Mobile FAB */}
-      {isMobile && <QuickActionsSidebar />}
+      {isMobile && (
+        <div role="complementary" aria-label="Quick actions">
+          <QuickActionsSidebar />
+        </div>
+      )}
 
       {/* Keyboard Shortcuts Dialog */}
       <KeyboardShortcutsDialog 
