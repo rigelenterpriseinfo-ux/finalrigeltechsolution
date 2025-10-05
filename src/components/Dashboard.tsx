@@ -40,6 +40,8 @@ import { CompanyProfile } from '@/components/CompanyProfile';
 import { ReturnsModule } from '@/components/modules/ReturnsModule';
 import { SettingsModule } from '@/components/modules/SettingsModule';
 import { RedesignedDashboard } from '@/components/dashboard/RedesignedDashboard';
+import { ClassicDashboard } from '@/components/dashboard/ClassicDashboard';
+import { DashboardViewToggle } from '@/components/dashboard/DashboardViewToggle';
 
 const menuItems: Array<{ id: ActiveModule; icon: any; label: string; description: string; restricted?: boolean; section?: string }> = [
   { id: 'dashboard', icon: BarChart3, label: 'Welcome back, Girish!', description: "Here's what's happening with your business today" },
@@ -65,11 +67,23 @@ export default function Dashboard() {
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const [activeModule, setActiveModule] = useState<ActiveModule>('dashboard');
+  const [isNewDashboard, setIsNewDashboard] = useState(() => {
+    // Load preference from localStorage, default to new dashboard
+    const saved = localStorage.getItem('dashboard-view-preference');
+    return saved === null ? true : saved === 'new';
+  });
   const [inventoryStats, setInventoryStats] = useState({
     totalSKUs: 0,
     totalUnits: 0,
     totalCost: 0
   });
+
+  // Handle dashboard view toggle
+  const handleDashboardToggle = () => {
+    const newValue = !isNewDashboard;
+    setIsNewDashboard(newValue);
+    localStorage.setItem('dashboard-view-preference', newValue ? 'new' : 'classic');
+  };
 
   // Check for module parameter on component mount and when URL changes
   useEffect(() => {
@@ -333,11 +347,15 @@ export default function Dashboard() {
         );
       default:
         return (
-          <div className="space-y-8 animate-fade-in">
-            {/* Redesigned Dashboard with Hero KPIs and Urgent Actions */}
-            <div className="relative">
+          <div className="space-y-6 animate-fade-in">
+            {isNewDashboard ? (
               <RedesignedDashboard companyId={profile?.company_id} />
-            </div>
+            ) : (
+              <ClassicDashboard 
+                inventoryStats={inventoryStats}
+                onNavigate={handleNavigation}
+              />
+            )}
           </div>
         );
     }
@@ -354,6 +372,12 @@ export default function Dashboard() {
         activeView="dashboard"
         onNavigate={handleNavigation}
         showWelcome={false}
+        headerActions={
+          <DashboardViewToggle 
+            isNewDashboard={isNewDashboard}
+            onToggle={handleDashboardToggle}
+          />
+        }
       >
         {renderActiveModule()}
       </DashboardLayout>
