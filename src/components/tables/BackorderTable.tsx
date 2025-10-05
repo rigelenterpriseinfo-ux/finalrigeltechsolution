@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ChevronDown, ChevronUp, Edit, Trash2, Package, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { ChevronDown, ChevronUp, Package, Download } from 'lucide-react';
 import {
   Table,
   TableBody,
@@ -9,54 +9,46 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-
-interface BackorderSummary {
-  customer_id: string;
-  customer_name: string;
-  product_id: string;
-  product_name: string;
-  product_sku: string;
-  total_backordered: number;
-  current_stock: number;
-  ready_to_deliver: number;
-  available_to_process: number;
-  avg_unit_price: number;
-  oldest_backorder_date: string;
-}
+import { useToast } from '@/hooks/use-toast';
+import { exportToExcel, formatCurrency, formatDate } from '@/utils/excelExport';
+import type { BackorderLineItem } from '@/components/modules/BackorderModule';
 
 interface BackorderTableProps {
-  backorders: BackorderSummary[];
+  backorders: BackorderLineItem[];
   loading: boolean;
-  selectedIds: string[];
-  onSelectionChange: (ids: string[]) => void;
-  onEdit?: (backorder: BackorderSummary) => void;
-  onDelete?: (backorderId: string) => void;
+  canEdit: boolean;
+  onRelease: (itemId: string, releaseQty: number) => void;
   onRefresh: () => void;
 }
 
 export default function BackorderTable({
   backorders,
   loading,
-  selectedIds,
-  onSelectionChange,
-  onEdit,
-  onDelete,
+  canEdit,
+  onRelease,
   onRefresh
 }: BackorderTableProps) {
   const [searchTerm, setSearchTerm] = useState('');
-  const [sortField, setSortField] = useState<keyof BackorderSummary>('oldest_backorder_date');
+  const [sortField, setSortField] = useState<keyof BackorderLineItem>('order_date');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+  const [releaseQuantities, setReleaseQuantities] = useState<Record<string, number>>({});
+  const { toast } = useToast();
 
-  const filteredBackorders = backorders.filter((backorder) =>
-    backorder.customer_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    backorder.product_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    backorder.product_sku.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // Multi-field search: Product Name/SKU, Customer Name, SO Number, PO Number
+  const filteredBackorders = backorders.filter((backorder) => {
+    const search = searchTerm.toLowerCase();
+    return (
+      backorder.product_name.toLowerCase().includes(search) ||
+      backorder.product_sku.toLowerCase().includes(search) ||
+      backorder.customer_name.toLowerCase().includes(search) ||
+      backorder.so_number.toLowerCase().includes(search) ||
+      (backorder.po_number && backorder.po_number.toLowerCase().includes(search))
+    );
+  });
 
   const sortedBackorders = filteredBackorders.sort((a, b) => {
     const aVal = a[sortField];
@@ -73,7 +65,7 @@ export default function BackorderTable({
     return 0;
   });
 
-  const handleSort = (field: keyof BackorderSummary) => {
+  const handleSort = (field: keyof BackorderLineItem) => {
     if (sortField === field) {
       setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
     } else {
@@ -82,45 +74,75 @@ export default function BackorderTable({
     }
   };
 
-  const handleSelectAll = (checked: boolean) => {
-    if (checked) {
-      const processableIds = sortedBackorders
-        .filter(b => b.available_to_process > 0)
-        .map(b => `${b.customer_id}-${b.product_id}`);
-      onSelectionChange(processableIds);
+  const handleReleaseQtyChange = (itemId: string, value: string) => {
+    const qty = parseInt(value) || 0;
+    setReleaseQuantities(prev => ({ ...prev, [itemId]: qty }));
+  };
+
+  const handleRelease = (item: BackorderLineItem) => {
+    const releaseQty = releaseQuantities[item.id] || 0;
+    
+    if (releaseQty <= 0) {
+      toast({
+        title: 'Invalid Quantity',
+        description: 'Please enter a valid release quantity',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    onRelease(item.id, releaseQty);
+    setReleaseQuantities(prev => ({ ...prev, [item.id]: 0 }));
+  };
+
+  const handleExportToExcel = () => {
+    const success = exportToExcel({
+      filename: 'Backorders_ItemWise',
+      sheetName: 'Backorder Items',
+      columns: [
+        { key: 'so_number', label: 'Order No.' },
+        { key: 'order_date', label: 'Order Date', format: formatDate },
+        { key: 'customer_name', label: 'Customer' },
+        { key: 'po_number', label: 'PO Number' },
+        { key: 'product_name', label: 'Product Name' },
+        { key: 'product_sku', label: 'Product SKU' },
+        { key: 'ordered_qty', label: 'Ordered Qty' },
+        { key: 'invoiced_qty', label: 'Invoiced Qty' },
+        { key: 'ready_to_deliver_qty', label: 'Ready to Deliver' },
+        { key: 'backorder_qty', label: 'Backorder Qty' },
+        { key: 'available_stock', label: 'Available Stock' },
+        { key: 'unit_price', label: 'Unit Price', format: (v) => formatCurrency(v) },
+        { key: 'line_total', label: 'Line Total', format: (v) => formatCurrency(v) },
+        { key: 'so_status', label: 'SO Status' },
+      ],
+      data: sortedBackorders,
+      includeMetadata: true,
+      additionalMetadata: [`Total Lines: ${sortedBackorders.length}`]
+    });
+
+    if (success) {
+      toast({
+        title: 'Export Successful',
+        description: 'Backorder data exported to Excel',
+      });
     } else {
-      onSelectionChange([]);
+      toast({
+        title: 'Export Failed',
+        description: 'Failed to export data. Please try again.',
+        variant: 'destructive',
+      });
     }
   };
 
-  const handleSelectItem = (backorder: BackorderSummary, checked: boolean) => {
-    const id = `${backorder.customer_id}-${backorder.product_id}`;
-    if (checked) {
-      onSelectionChange([...selectedIds, id]);
-    } else {
-      onSelectionChange(selectedIds.filter(selectedId => selectedId !== id));
-    }
-  };
-
-  const getStatusBadge = (backorder: BackorderSummary) => {
-    if (backorder.available_to_process >= backorder.total_backordered) {
-      return <Badge className="bg-green-100 text-green-800 border-green-200"><CheckCircle2 className="h-3 w-3 mr-1" />Ready</Badge>;
-    } else if (backorder.available_to_process > 0) {
-      return <Badge className="bg-yellow-100 text-yellow-800 border-yellow-200"><AlertCircle className="h-3 w-3 mr-1" />Partial</Badge>;
-    } else {
-      return <Badge className="bg-red-100 text-red-800 border-red-200"><Package className="h-3 w-3 mr-1" />Pending</Badge>;
-    }
-  };
-
-  const SortButton = ({ field, children }: { field: keyof BackorderSummary; children: React.ReactNode }) => (
+  const SortButton = ({ field, children }: { field: keyof BackorderLineItem; children: React.ReactNode }) => (
     <Button
       variant="ghost"
       onClick={() => handleSort(field)}
-      className="h-auto p-0 font-medium justify-start"
+      className="h-auto p-0 font-medium justify-start hover:bg-transparent"
     >
       {children}
       {sortField === field && (
-        sortDirection === 'asc' ? <ChevronUp className="ml-1 h-4 w-4" /> : <ChevronDown className="ml-1 h-4 w-4" />
+        sortDirection === 'asc' ? <ChevronUp className="ml-1 h-3 w-3" /> : <ChevronDown className="ml-1 h-3 w-3" />
       )}
     </Button>
   );
@@ -129,28 +151,34 @@ export default function BackorderTable({
     return (
       <div className="space-y-4">
         <Skeleton className="h-8 w-full" />
-        <Skeleton className="h-64 w-full" />
+        <Skeleton className="h-96 w-full" />
       </div>
     );
   }
 
-  const processableCount = sortedBackorders.filter(b => b.available_to_process > 0).length;
-
   return (
     <div className="space-y-4">
-      {/* Search and Summary */}
+      {/* Search and Export */}
       <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
         <Input
-          placeholder="Search by customer, product, or SKU..."
+          placeholder="Search by Product, Customer, SO#, or PO#..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
-          className="max-w-sm"
+          className="max-w-md"
         />
-        <div className="text-sm text-muted-foreground">
-          Showing {sortedBackorders.length} backorder{sortedBackorders.length !== 1 ? 's' : ''} 
-          {processableCount > 0 && (
-            <span className="text-green-600 font-medium"> • {processableCount} ready to process</span>
-          )}
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-muted-foreground">
+            {sortedBackorders.length} line{sortedBackorders.length !== 1 ? 's' : ''}
+          </span>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleExportToExcel}
+            className="flex items-center gap-2"
+          >
+            <Download className="h-4 w-4" />
+            Export Excel
+          </Button>
         </div>
       </div>
 
@@ -159,108 +187,103 @@ export default function BackorderTable({
           <CardContent className="py-8 text-center">
             <Package className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
             <p className="text-muted-foreground">
-              {searchTerm ? 'No backorders found matching your search.' : 'No backorders found.'}
+              {searchTerm ? 'No backorder items found matching your search.' : 'No backorder items found.'}
             </p>
           </CardContent>
         </Card>
       ) : (
         <Card>
           <CardHeader className="border-b border-border">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-lg">Backorder Items</CardTitle>
-              {processableCount > 0 && (
-                <div className="flex items-center gap-2">
-                  <Checkbox
-                    checked={selectedIds.length === processableCount}
-                    onCheckedChange={handleSelectAll}
-                  />
-                  <span className="text-sm text-muted-foreground">Select All Ready</span>
-                </div>
-              )}
-            </div>
+            <CardTitle className="text-lg">Backorder Line Items</CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="rounded-md border">
+          <CardContent className="p-0">
+            <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="w-[50px]">Select</TableHead>
-                    <TableHead>Status</TableHead>
+                    <TableHead className="w-[100px]"><SortButton field="so_number">Order No.</SortButton></TableHead>
+                    <TableHead className="w-[100px]"><SortButton field="order_date">Order Date</SortButton></TableHead>
                     <TableHead><SortButton field="customer_name">Customer</SortButton></TableHead>
-                    <TableHead><SortButton field="product_name">Product</SortButton></TableHead>
-                    <TableHead><SortButton field="product_sku">SKU</SortButton></TableHead>
-                    <TableHead className="text-right"><SortButton field="total_backordered">Backordered</SortButton></TableHead>
-                    <TableHead className="text-right"><SortButton field="current_stock">Stock</SortButton></TableHead>
-                    <TableHead className="text-right"><SortButton field="ready_to_deliver">Ready to Deliver</SortButton></TableHead>
-                    <TableHead className="text-right"><SortButton field="available_to_process">Available</SortButton></TableHead>
-                    <TableHead className="text-right"><SortButton field="avg_unit_price">Unit Price</SortButton></TableHead>
-                    <TableHead className="text-right">Total Value</TableHead>
-                    <TableHead><SortButton field="oldest_backorder_date">Age</SortButton></TableHead>
-                    {(onEdit || onDelete) && <TableHead>Actions</TableHead>}
+                    <TableHead className="w-[100px]">PO Number</TableHead>
+                    <TableHead><SortButton field="product_name">Product Name</SortButton></TableHead>
+                    <TableHead className="w-[100px]"><SortButton field="product_sku">SKU</SortButton></TableHead>
+                    <TableHead className="text-right w-[80px]"><SortButton field="ordered_qty">Ordered</SortButton></TableHead>
+                    <TableHead className="text-right w-[80px]"><SortButton field="invoiced_qty">Invoiced</SortButton></TableHead>
+                    <TableHead className="text-right w-[100px]"><SortButton field="ready_to_deliver_qty">Ready</SortButton></TableHead>
+                    <TableHead className="text-right w-[100px]"><SortButton field="backorder_qty">Backorder</SortButton></TableHead>
+                    <TableHead className="text-right w-[100px]"><SortButton field="available_stock">Avail. Stock</SortButton></TableHead>
+                    <TableHead className="text-right w-[100px]"><SortButton field="unit_price">Unit Price</SortButton></TableHead>
+                    <TableHead className="text-right w-[100px]"><SortButton field="line_total">Line Total</SortButton></TableHead>
+                    <TableHead className="w-[100px]"><SortButton field="so_status">SO Status</SortButton></TableHead>
+                    {canEdit && (
+                      <>
+                        <TableHead className="w-[100px]">Release Qty</TableHead>
+                        <TableHead className="w-[100px]">Action</TableHead>
+                      </>
+                    )}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {sortedBackorders.map((backorder) => {
-                    const id = `${backorder.customer_id}-${backorder.product_id}`;
-                    const isSelected = selectedIds.includes(id);
-                    const canProcess = backorder.available_to_process > 0;
-                    const totalValue = backorder.total_backordered * backorder.avg_unit_price;
-                    const ageDays = Math.floor((new Date().getTime() - new Date(backorder.oldest_backorder_date).getTime()) / (1000 * 60 * 60 * 24));
+                  {sortedBackorders.map((item) => {
+                    const canRelease = item.available_stock > 0;
+                    const releaseQty = releaseQuantities[item.id] || 0;
 
                     return (
                       <TableRow 
-                        key={id}
-                        className={`${canProcess ? 'bg-green-50/50' : ''} hover:bg-muted/50`}
+                        key={item.id}
+                        className={canRelease ? 'bg-green-50/30' : ''}
                       >
-                        <TableCell>
-                          <Checkbox
-                            checked={isSelected}
-                            onCheckedChange={(checked) => handleSelectItem(backorder, checked as boolean)}
-                            disabled={!canProcess}
-                          />
+                        <TableCell className="font-medium">{item.so_number}</TableCell>
+                        <TableCell>{new Date(item.order_date).toLocaleDateString()}</TableCell>
+                        <TableCell>{item.customer_name}</TableCell>
+                        <TableCell>{item.po_number || '-'}</TableCell>
+                        <TableCell className="max-w-[200px] truncate" title={item.product_name}>
+                          {item.product_name}
                         </TableCell>
-                        <TableCell>{getStatusBadge(backorder)}</TableCell>
-                        <TableCell className="font-medium">{backorder.customer_name}</TableCell>
-                        <TableCell>{backorder.product_name}</TableCell>
-                        <TableCell className="font-mono text-sm">{backorder.product_sku}</TableCell>
-                        <TableCell className="text-right font-medium">{backorder.total_backordered}</TableCell>
-                        <TableCell className="text-right">{backorder.current_stock}</TableCell>
-                        <TableCell className="text-right">{backorder.ready_to_deliver}</TableCell>
+                        <TableCell className="font-mono text-sm">{item.product_sku}</TableCell>
+                        <TableCell className="text-right">{item.ordered_qty}</TableCell>
+                        <TableCell className="text-right">{item.invoiced_qty}</TableCell>
+                        <TableCell className="text-right">{item.ready_to_deliver_qty}</TableCell>
+                        <TableCell className="text-right font-medium text-orange-600">
+                          {item.backorder_qty}
+                        </TableCell>
                         <TableCell className="text-right">
-                          <span className={canProcess ? 'text-green-600 font-medium' : ''}>
-                            {backorder.available_to_process}
+                          <span className={canRelease ? 'text-green-600 font-medium' : 'text-red-600'}>
+                            {item.available_stock}
                           </span>
                         </TableCell>
-                        <TableCell className="text-right">₹{backorder.avg_unit_price.toFixed(2)}</TableCell>
-                        <TableCell className="text-right font-medium">₹{totalValue.toFixed(2)}</TableCell>
+                        <TableCell className="text-right">₹{item.unit_price.toFixed(2)}</TableCell>
+                        <TableCell className="text-right font-medium">₹{item.line_total.toFixed(2)}</TableCell>
                         <TableCell>
-                          <span className={ageDays > 30 ? 'text-red-600' : ageDays > 7 ? 'text-yellow-600' : ''}>
-                            {ageDays} days
-                          </span>
+                          <Badge variant={item.so_status === 'open' ? 'default' : 'secondary'}>
+                            {item.so_status}
+                          </Badge>
                         </TableCell>
-                        {(onEdit || onDelete) && (
-                          <TableCell>
-                            <div className="flex items-center gap-2">
-                              {onEdit && (
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => onEdit(backorder)}
-                                >
-                                  <Edit className="h-4 w-4" />
-                                </Button>
-                              )}
-                              {onDelete && (
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => onDelete(id)}
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              )}
-                            </div>
-                          </TableCell>
+                        {canEdit && (
+                          <>
+                            <TableCell>
+                              <Input
+                                type="number"
+                                min="0"
+                                max={Math.min(item.backorder_qty, item.available_stock)}
+                                value={releaseQty || ''}
+                                onChange={(e) => handleReleaseQtyChange(item.id, e.target.value)}
+                                className="w-20 h-8"
+                                disabled={!canRelease}
+                                placeholder="0"
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <Button
+                                size="sm"
+                                onClick={() => handleRelease(item)}
+                                disabled={!canRelease || releaseQty <= 0}
+                                className="h-8"
+                              >
+                                Release
+                              </Button>
+                            </TableCell>
+                          </>
                         )}
                       </TableRow>
                     );

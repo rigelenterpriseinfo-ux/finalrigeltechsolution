@@ -1,52 +1,51 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Package, CheckCircle, Clock, AlertTriangle } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Package, CheckCircle, Clock, AlertTriangle } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/hooks/useAuth';
 import { useBusinessAuth } from '@/hooks/useBusinessAuth';
 import BackorderTable from '@/components/tables/BackorderTable';
-import ProcessBackorderDialog from '@/components/dialogs/ProcessBackorderDialog';
-import BackorderForm from '@/components/forms/BackorderForm';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
-interface BackorderSummary {
+// Item-wise backorder interface (one row per sales order line item)
+export interface BackorderLineItem {
+  id: string; // sales_order_item id
+  so_number: string;
+  order_date: string;
   customer_id: string;
   customer_name: string;
+  po_number: string | null;
   product_id: string;
   product_name: string;
   product_sku: string;
-  total_backordered: number;
-  current_stock: number;
-  ready_to_deliver: number;
-  available_to_process: number;
-  avg_unit_price: number;
-  oldest_backorder_date: string;
+  ordered_qty: number;
+  invoiced_qty: number;
+  ready_to_deliver_qty: number;
+  backorder_qty: number;
+  available_stock: number;
+  unit_price: number;
+  line_total: number;
+  so_status: string;
+  warehouse_id: string | null;
+  bin_id: string | null;
 }
 
 interface BackorderStats {
-  total_backorders: number;
-  total_value: number;
-  available_to_process: number;
-  processable_value: number;
+  total_lines: number;
+  total_backorder_qty: number;
+  total_backorder_value: number;
+  lines_with_stock: number;
 }
 
 export default function BackorderModule() {
-  const [backorders, setBackorders] = useState<BackorderSummary[]>([]);
+  const [backorders, setBackorders] = useState<BackorderLineItem[]>([]);
   const [stats, setStats] = useState<BackorderStats>({
-    total_backorders: 0,
-    total_value: 0,
-    available_to_process: 0,
-    processable_value: 0
+    total_lines: 0,
+    total_backorder_qty: 0,
+    total_backorder_value: 0,
+    lines_with_stock: 0
   });
   const [loading, setLoading] = useState(true);
-  const [processDialogOpen, setProcessDialogOpen] = useState(false);
-  const [editDialogOpen, setEditDialogOpen] = useState(false);
-  const [selectedBackorders, setSelectedBackorders] = useState<string[]>([]);
-  const [editingBackorder, setEditingBackorder] = useState<any>(null);
 
-  const { user } = useAuth();
   const { businessUser, hasAccess, hasEditAccess } = useBusinessAuth();
   const { toast } = useToast();
 
@@ -62,27 +61,91 @@ export default function BackorderModule() {
     try {
       setLoading(true);
       
-      // Fetch backorder summary using the database function
-      const { data, error } = await supabase.rpc('get_backorder_summary', {
-        p_company_id: businessUser?.company_id
-      });
+      // Fetch item-wise backorder data from sales_order_items
+      const { data, error } = await supabase
+        .from('sales_order_items')
+        .select(`
+          id,
+          sales_order_id,
+          product_id,
+          ordered_quantity,
+          quantity,
+          back_order_quantity,
+          unit_price,
+          warehouse_id,
+          bin_id,
+          sales_orders!inner (
+            order_number,
+            order_date,
+            customer_id,
+            customer_po_number,
+            status,
+            customers!inner (
+              id,
+              name
+            )
+          ),
+          products!inner (
+            id,
+            name,
+            sku
+          )
+        `)
+        .eq('sales_orders.company_id', businessUser?.company_id)
+        .gt('back_order_quantity', 0)
+        .order('sales_orders.order_date', { ascending: true });
 
       if (error) throw error;
 
-      const backorderData = data || [];
-      setBackorders(backorderData);
+      // Transform and enrich data with available stock
+      const enrichedData: BackorderLineItem[] = await Promise.all(
+        (data || []).map(async (item: any) => {
+          // Calculate available stock for this product
+          const { data: stockData } = await supabase
+            .from('inventory_transactions')
+            .select('quantity_change')
+            .eq('product_id', item.product_id)
+            .eq('warehouse_id', item.warehouse_id || '');
+
+          const availableStock = (stockData || []).reduce((sum, t) => sum + (t.quantity_change || 0), 0);
+
+          return {
+            id: item.id,
+            so_number: item.sales_orders.order_number,
+            order_date: item.sales_orders.order_date,
+            customer_id: item.sales_orders.customer_id,
+            customer_name: item.sales_orders.customers.name,
+            po_number: item.sales_orders.customer_po_number,
+            product_id: item.product_id,
+            product_name: item.products.name,
+            product_sku: item.products.sku,
+            ordered_qty: item.ordered_quantity,
+            invoiced_qty: item.quantity,
+            ready_to_deliver_qty: item.ordered_quantity - item.quantity - item.back_order_quantity,
+            backorder_qty: item.back_order_quantity,
+            available_stock: availableStock,
+            unit_price: item.unit_price,
+            line_total: item.back_order_quantity * item.unit_price,
+            so_status: item.sales_orders.status,
+            warehouse_id: item.warehouse_id,
+            bin_id: item.bin_id
+          };
+        })
+      );
+
+      setBackorders(enrichedData);
 
       // Calculate stats
-      const totalBackorders = backorderData.reduce((sum: number, item: any) => sum + item.total_backordered, 0);
-      const totalValue = backorderData.reduce((sum: number, item: any) => sum + (item.total_backordered * item.avg_unit_price), 0);
-      const availableToProcess = backorderData.reduce((sum: number, item: any) => sum + Math.min(item.total_backordered, item.available_to_process), 0);
-      const processableValue = backorderData.reduce((sum: number, item: any) => sum + (Math.min(item.total_backordered, item.available_to_process) * item.avg_unit_price), 0);
+      const totalLines = enrichedData.length;
+      const totalBackorderQty = enrichedData.reduce((sum, item) => sum + item.backorder_qty, 0);
+      const totalBackorderValue = enrichedData.reduce((sum, item) => sum + item.line_total, 0);
+      const linesWithStock = enrichedData.filter(item => item.available_stock > 0).length;
 
       setStats({
-        total_backorders: totalBackorders,
-        total_value: totalValue,
-        available_to_process: availableToProcess,
-        processable_value: processableValue
+        total_lines: totalLines,
+        total_backorder_qty: totalBackorderQty,
+        total_backorder_value: totalBackorderValue,
+        lines_with_stock: linesWithStock
       });
 
     } catch (error) {
@@ -97,59 +160,54 @@ export default function BackorderModule() {
     }
   };
 
-  const handleProcessSelected = async (backorderIds: string[]) => {
+  const handleReleaseBackorder = async (itemId: string, releaseQty: number) => {
     try {
-      const { data, error } = await supabase.rpc('process_backorder_fulfillment', {
-        p_backorder_ids: backorderIds,
-        p_company_id: businessUser?.company_id
-      });
+      const item = backorders.find(b => b.id === itemId);
+      if (!item) return;
 
-      if (error) throw error;
+      // Validate release quantity
+      if (releaseQty <= 0 || releaseQty > item.backorder_qty) {
+        toast({
+          title: 'Invalid Quantity',
+          description: `Release quantity must be between 1 and ${item.backorder_qty}`,
+          variant: 'destructive',
+        });
+        return;
+      }
 
-      const result = data as any;
-      toast({
-        title: 'Success',
-        description: `Processed ${result.processed_count} backorder items, created ${result.orders_created} new sales orders`,
-      });
+      if (releaseQty > item.available_stock) {
+        toast({
+          title: 'Insufficient Stock',
+          description: `Only ${item.available_stock} units available in stock`,
+          variant: 'destructive',
+        });
+        return;
+      }
 
-      setProcessDialogOpen(false);
-      setSelectedBackorders([]);
-      fetchBackorders();
-    } catch (error) {
-      console.error('Error processing backorders:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to process backorders. Please try again.',
-        variant: 'destructive',
-      });
-    }
-  };
+      // Update sales_order_item: reduce backorder_qty
+      const newBackorderQty = item.backorder_qty - releaseQty;
 
-  const handleEditBackorder = (backorder: BackorderSummary) => {
-    setEditingBackorder(backorder);
-    setEditDialogOpen(true);
-  };
-
-  const handleDeleteBackorder = async (backorderId: string) => {
-    try {
       const { error } = await supabase
-        .from('backorder_items')
-        .delete()
-        .eq('id', backorderId);
+        .from('sales_order_items')
+        .update({
+          back_order_quantity: newBackorderQty,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', itemId);
 
       if (error) throw error;
 
       toast({
         title: 'Success',
-        description: 'Backorder deleted successfully',
+        description: `Released ${releaseQty} units from backorder`,
       });
 
       fetchBackorders();
     } catch (error) {
-      console.error('Error deleting backorder:', error);
+      console.error('Error releasing backorder:', error);
       toast({
         title: 'Error',
-        description: 'Failed to delete backorder. Please try again.',
+        description: 'Failed to release backorder. Please try again.',
         variant: 'destructive',
       });
     }
@@ -169,144 +227,69 @@ export default function BackorderModule() {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Backorders</CardTitle>
+            <CardTitle className="text-sm font-medium">Total Backorder Lines</CardTitle>
             <Package className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.total_backorders}</div>
+            <div className="text-2xl font-bold">{stats.total_lines}</div>
             <p className="text-xs text-muted-foreground">
-              ₹{stats.total_value.toLocaleString()} value
+              {stats.total_backorder_qty} total units
             </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Available to Process</CardTitle>
+            <CardTitle className="text-sm font-medium">Total Backorder Value</CardTitle>
             <CheckCircle className="h-4 w-4 text-green-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-600">{stats.available_to_process}</div>
+            <div className="text-2xl font-bold">₹{stats.total_backorder_value.toLocaleString()}</div>
             <p className="text-xs text-muted-foreground">
-              ₹{stats.processable_value.toLocaleString()} value
+              Combined value
             </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Pending</CardTitle>
+            <CardTitle className="text-sm font-medium">Lines with Stock</CardTitle>
             <Clock className="h-4 w-4 text-orange-600" />
           </CardHeader>
           <CardContent>
+            <div className="text-2xl font-bold text-green-600">
+              {stats.lines_with_stock}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Can be released
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Out of Stock</CardTitle>
+            <AlertTriangle className="h-4 w-4 text-yellow-600" />
+          </CardHeader>
+          <CardContent>
             <div className="text-2xl font-bold text-orange-600">
-              {stats.total_backorders - stats.available_to_process}
+              {stats.total_lines - stats.lines_with_stock}
             </div>
             <p className="text-xs text-muted-foreground">
               Awaiting stock
             </p>
           </CardContent>
         </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Action Required</CardTitle>
-            <AlertTriangle className="h-4 w-4 text-yellow-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-yellow-600">
-              {backorders.filter(b => b.available_to_process > 0).length}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Items ready to process
-            </p>
-          </CardContent>
-        </Card>
       </div>
-
-      {/* Action Buttons */}
-      {canEdit && (
-        <div className="flex gap-2">
-          <Button
-            onClick={() => setProcessDialogOpen(true)}
-            disabled={stats.available_to_process === 0}
-            className="flex items-center gap-2"
-          >
-            <CheckCircle className="h-4 w-4" />
-            Process Available ({stats.available_to_process})
-          </Button>
-        </div>
-      )}
 
       {/* Backorders Table */}
       <BackorderTable
         backorders={backorders}
         loading={loading}
-        selectedIds={selectedBackorders}
-        onSelectionChange={setSelectedBackorders}
-        onEdit={canEdit ? handleEditBackorder : undefined}
-        onDelete={canEdit ? handleDeleteBackorder : undefined}
+        canEdit={canEdit}
+        onRelease={handleReleaseBackorder}
         onRefresh={fetchBackorders}
       />
-
-      {/* Process Dialog */}
-      <ProcessBackorderDialog
-        open={processDialogOpen}
-        onOpenChange={setProcessDialogOpen}
-        backorders={backorders.filter(b => b.available_to_process > 0)}
-        onProcess={handleProcessSelected}
-      />
-
-      {/* Edit Dialog */}
-      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Edit Backorder</DialogTitle>
-          </DialogHeader>
-          {editingBackorder && (
-            <BackorderForm
-              backorder={editingBackorder}
-              onSubmit={async (data) => {
-                // Handle backorder update
-                try {
-                  const { error } = await supabase
-                    .from('backorder_items')
-                    .update({
-                      quantity_backordered: data.quantity,
-                      unit_price: data.unitPrice,
-                      updated_at: new Date().toISOString()
-                    })
-                    .eq('product_id', editingBackorder.product_id)
-                    .eq('customer_id', editingBackorder.customer_id)
-                    .eq('company_id', businessUser?.company_id);
-
-                  if (error) throw error;
-
-                  toast({
-                    title: 'Success',
-                    description: 'Backorder updated successfully',
-                  });
-
-                  setEditDialogOpen(false);
-                  setEditingBackorder(null);
-                  fetchBackorders();
-                } catch (error) {
-                  console.error('Error updating backorder:', error);
-                  toast({
-                    title: 'Error',
-                    description: 'Failed to update backorder. Please try again.',
-                    variant: 'destructive',
-                  });
-                }
-              }}
-              onCancel={() => {
-                setEditDialogOpen(false);
-                setEditingBackorder(null);
-              }}
-            />
-          )}
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
