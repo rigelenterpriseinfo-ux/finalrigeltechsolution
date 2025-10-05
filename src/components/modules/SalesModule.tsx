@@ -132,10 +132,10 @@ export default function SalesModule() {
         return;
       }
 
-      // Fetch sales order items to get ordered quantities
+      // Fetch sales order items to get ordered quantities and backorders
       const { data: itemsData, error: itemsError } = await supabase
         .from('sales_order_items')
-        .select('sales_order_id, product_id, ordered_quantity, quantity')
+        .select('sales_order_id, product_id, ordered_quantity, quantity, back_order_quantity')
         .in('sales_order_id', orderIds);
 
       if (itemsError) throw itemsError;
@@ -159,14 +159,13 @@ export default function SalesModule() {
         invoicedMap.set(key, prev + (invItem.quantity_invoiced || 0));
       }
 
-      // Calculate aggregates with backorder = Ordered Qty - Invoiced Qty - Ready to Deliver Qty
+      // Calculate aggregates using actual back_order_quantity from database
       const aggregates = new Map<string, { ordered: number; invoiced: number; backorder: number }>();
       for (const it of itemsData || []) {
         const ordered = (it.ordered_quantity ?? it.quantity ?? 0) as number;
         const key = `${it.sales_order_id}_${it.product_id}`;
         const invoiced = invoicedMap.get(key) || 0;
-        const readyToDeliver = Math.max(0, ordered - invoiced);
-        const backorder = Math.max(0, ordered - invoiced - readyToDeliver); // Backorder = Ordered - Invoiced - Ready to Deliver
+        const backorder = it.back_order_quantity || 0; // Use actual backorder from database
         
         const prev = aggregates.get(it.sales_order_id) || { ordered: 0, invoiced: 0, backorder: 0 };
         aggregates.set(it.sales_order_id, {
@@ -184,7 +183,7 @@ export default function SalesModule() {
           total_ordered_qty: agg.ordered,
           total_invoiced_qty: agg.invoiced,
           total_backorder_qty: agg.backorder,
-          total_ready_to_deliver_qty: Math.max(0, agg.ordered - agg.invoiced),
+          total_ready_to_deliver_qty: Math.max(0, agg.ordered - agg.invoiced - agg.backorder),
         };
       });
 
