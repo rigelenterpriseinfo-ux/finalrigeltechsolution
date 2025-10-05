@@ -426,34 +426,23 @@ export const CustomerTable: React.FC<CustomerTableProps> = ({
   return (
     <TooltipProvider>
       <Card>
-        <CardHeader className="border-b border-border animate-in fade-in-0 slide-in-from-top-2 duration-300 bg-primary/5">
-          <div className="flex justify-between items-center">
-            <CardTitle>Customers</CardTitle>
-          </div>
-        </CardHeader>
         <CardContent>
-          <div className="mb-4 flex items-center gap-3">
-            <div className="relative flex-1 max-w-sm">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-              <Input
-                placeholder="Search by name or reference..."
-                value={searchTerm}
-                onChange={(e) => {
-                  setSearchTerm(e.target.value);
-                  setCurrentPage(1);
-                }}
-                className="pl-10"
-              />
+          {/* Search, Filter and Export Controls */}
+          <div className="flex gap-4 items-center mb-4 pt-6">
+            <div className="w-96">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+                <Input
+                  placeholder="Search by name or reference..."
+                  value={searchTerm}
+                  onChange={(e) => {
+                    setSearchTerm(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                  className="pl-10"
+                />
+              </div>
             </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleExportToExcel}
-              className="gap-2"
-            >
-              <Download className="h-4 w-4" />
-              Export
-            </Button>
             <Select value={statusFilter} onValueChange={setStatusFilter}>
               <SelectTrigger className="w-[140px]">
                 <SelectValue placeholder="Filter Status" />
@@ -464,6 +453,15 @@ export const CustomerTable: React.FC<CustomerTableProps> = ({
                 <SelectItem value="inactive">Inactive</SelectItem>
               </SelectContent>
             </Select>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleExportToExcel}
+              className="h-9 px-4 gap-2 rounded-md bg-teal-50 text-teal-700 border border-teal-200 hover:bg-teal-100 font-medium transition-colors"
+            >
+              <Download className="h-4 w-4" />
+              Export
+            </Button>
           </div>
         {loading ? (
           <div className="flex items-center justify-center p-8">
