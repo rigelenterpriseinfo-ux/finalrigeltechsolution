@@ -2961,9 +2961,13 @@ export function EnhancedReportsModule() {
           }).join(' ');
         };
 
-        const columns = Object.keys(dataToExport[0]).map(key => ({
-          key,
-          label: toTitleCase(key),
+        // Filter out internal ID fields from export
+        const fieldsToExclude = ['productId', 'warehouseId', 'severityBgColor', 'severityColor', 'stockRatio'];
+        const columns = Object.keys(dataToExport[0])
+          .filter(key => !fieldsToExclude.includes(key))
+          .map(key => ({
+            key,
+            label: toTitleCase(key),
           format: (value: any) => {
             // Handle GST percentage
             if (key.includes('GST%') || key.toLowerCase().includes('gstpercent')) {
