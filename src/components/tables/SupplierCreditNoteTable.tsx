@@ -712,37 +712,24 @@ export function SupplierCreditNoteTable({
 
   return (
     <Card>
-      <CardHeader className="border-b border-border px-6 py-4">
-        <CardTitle>Supplier Credit Notes</CardTitle>
-      </CardHeader>
       <CardContent className="p-0">
-        {/* Search and Export Controls */}
+        {/* Search, Filter and Export Controls */}
         <div className="p-4 sm:p-6 border-b bg-gradient-to-r from-blue-50 to-blue-100">
-          <div className="flex flex-col gap-4 items-start justify-between">
-            <div className="flex items-center gap-2 w-full">
-              <Search className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-              <Input
-                placeholder="Search by credit note number, supplier, or reason..."
-                value={searchTerm}
-                onChange={(e) => {
-                  setSearchTerm(e.target.value);
-                  setCurrentPage(1);
-                }}
-                className="bg-white"
-              />
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={exportToExcel}
-                className="h-9 px-4 gap-2 rounded-md bg-teal-50 text-teal-700 border border-teal-200 hover:bg-teal-100 font-medium transition-colors ml-2"
-              >
-                <FileSpreadsheet className="h-4 w-4" />
-                Export Excel
-              </Button>
+          <div className="flex gap-4 items-center">
+            <div className="w-96">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+                <Input
+                  placeholder="Search by credit note number, supplier, or reason..."
+                  value={searchTerm}
+                  onChange={(e) => {
+                    setSearchTerm(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                  className="bg-white pl-10"
+                />
+              </div>
             </div>
-          </div>
-          
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mt-4 gap-2">
             <Select value={statusFilter} onValueChange={(value: any) => setStatusFilter(value)}>
               <SelectTrigger className="w-[180px]">
                 <SelectValue placeholder="Status" />
@@ -754,7 +741,18 @@ export function SupplierCreditNoteTable({
                 <SelectItem value="cancelled">Cancelled</SelectItem>
               </SelectContent>
             </Select>
-            
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={exportToExcel}
+              className="h-9 px-4 gap-2 rounded-md bg-teal-50 text-teal-700 border border-teal-200 hover:bg-teal-100 font-medium transition-colors"
+            >
+              <FileSpreadsheet className="h-4 w-4" />
+              Export Excel
+            </Button>
+          </div>
+          
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mt-4 gap-2">
             <div className="text-sm text-muted-foreground">
               Showing {paginatedCreditNotes.length} of {sortedCreditNotes.length} credit notes
             </div>

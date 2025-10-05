@@ -874,13 +874,10 @@ export function DebitNoteTable({ refreshTrigger, onView, onEdit, onDelete, onFil
 
   return (
     <Card>
-      <CardHeader className="border-b border-border">
-        <CardTitle>Debit Notes</CardTitle>
-      </CardHeader>
       <CardContent>
-        {/* Filters */}
-        <div className="flex flex-col sm:flex-row gap-4 mb-4">
-          <div className="flex-1">
+        {/* Search, Filter and Export Controls */}
+        <div className="flex gap-4 items-center mb-4 pt-6">
+          <div className="w-96">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
               <Input
@@ -891,6 +888,17 @@ export function DebitNoteTable({ refreshTrigger, onView, onEdit, onDelete, onFil
               />
             </div>
           </div>
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder="Filter by status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Status</SelectItem>
+              <SelectItem value="open">Open (Settlement)</SelectItem>
+              <SelectItem value="settled">Settled</SelectItem>
+              <SelectItem value="partially_settled">Partially Settled</SelectItem>
+            </SelectContent>
+          </Select>
           <Button
             variant="outline"
             size="sm"
@@ -916,17 +924,6 @@ export function DebitNoteTable({ refreshTrigger, onView, onEdit, onDelete, onFil
             <FileSpreadsheet className="h-4 w-4" />
             Export Excel
           </Button>
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-full sm:w-48">
-              <SelectValue placeholder="Filter by status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Status</SelectItem>
-              <SelectItem value="open">Open (Settlement)</SelectItem>
-              <SelectItem value="settled">Settled</SelectItem>
-              <SelectItem value="partially_settled">Partially Settled</SelectItem>
-            </SelectContent>
-          </Select>
         </div>
       </CardContent>
 
