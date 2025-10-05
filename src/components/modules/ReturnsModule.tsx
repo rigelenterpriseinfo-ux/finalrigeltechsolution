@@ -914,10 +914,12 @@ function ReturnsModuleContent() {
   };
 
   const handleExportCreditNote = (cn: CreditNote) => {
-    toast({
-      title: "Export Credit Note",
-      description: `Exporting ${cn.cn_number}...`,
-    });
+    // Export functionality is handled in the table component
+  };
+
+  // RSO Export Handler - Re-export through the wrapper
+  const handleExportRSO = (rso: ReturnOrder) => {
+    // Export functionality is handled in the table component
   };
 
   const getStatusBadge = (status: 'Draft' | 'Confirmed') => {
@@ -1001,6 +1003,7 @@ function ReturnsModuleContent() {
               onEdit={handleEditRso}
               onDelete={handleDeleteRso}
               onViewCreditNotes={handleViewCreditNotes}
+              onExport={handleExportRSO}
               loading={loading}
             />
           )}

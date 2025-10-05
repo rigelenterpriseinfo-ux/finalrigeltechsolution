@@ -14,7 +14,8 @@ import {
   Calendar,
   DollarSign,
   User,
-  FileText
+  FileText,
+  Download
 } from 'lucide-react';
 
 interface ReturnOrder {
@@ -43,6 +44,7 @@ interface RSOTableMobileProps {
   onEdit: (rsoId: string) => void;
   onDelete: (rsoId: string) => void;
   onViewCreditNotes: (rso: ReturnOrder) => void;
+  onExport?: (rso: ReturnOrder) => void;
   loading?: boolean;
 }
 
@@ -53,6 +55,7 @@ export function RSOTableMobile({
   onEdit,
   onDelete,
   onViewCreditNotes,
+  onExport,
   loading = false
 }: RSOTableMobileProps) {
   const [searchTerm, setSearchTerm] = useState('');
@@ -294,6 +297,19 @@ export function RSOTableMobile({
                             title="View Credit Notes"
                           >
                             <FileText className="h-4 w-4" />
+                          </Button>
+                        )}
+                        {onExport && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onExport(order);
+                            }}
+                            title="Export RSO"
+                          >
+                            <Download className="h-4 w-4" />
                           </Button>
                         )}
                         {order.status === 'Draft' && (

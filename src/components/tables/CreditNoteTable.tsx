@@ -1,11 +1,14 @@
-import { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/hooks/useAuth';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { supabase } from '@/integrations/supabase/client';
 import { 
   Eye, 
   Edit, 
@@ -19,6 +22,7 @@ import {
   Search,
   Loader2
 } from 'lucide-react';
+import * as XLSX from 'xlsx';
 import { CreditNoteTableMobile } from './CreditNoteTableMobile';
 
 interface CreditNote {
@@ -49,14 +53,39 @@ export function CreditNoteTable({
   onExport,
   loading = false
 }: CreditNoteTableProps) {
+  const { toast } = useToast();
+  const { profile } = useAuth();
   const isMobile = useIsMobile();
   const [currentPage, setCurrentPage] = useState(1);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [sortField, setSortField] = useState<SortField>('cn_date');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
+  const [companyData, setCompanyData] = useState<any>(null);
   
   const itemsPerPage = 5;
+
+  // Fetch company data
+  React.useEffect(() => {
+    const fetchCompanyData = async () => {
+      if (!profile?.company_id) return;
+      
+      try {
+        const { data, error } = await supabase
+          .from('companies')
+          .select('*')
+          .eq('id', profile.company_id)
+          .single();
+        
+        if (error) throw error;
+        setCompanyData(data);
+      } catch (error) {
+        console.error('Error fetching company data:', error);
+      }
+    };
+
+    fetchCompanyData();
+  }, [profile?.company_id]);
 
   // Mobile view
   if (isMobile) {
@@ -70,6 +99,206 @@ export function CreditNoteTable({
       />
     );
   }
+
+  // Helper function to convert number to words (Indian format)
+  const convertNumberToWords = (num: number): string => {
+    if (num === 0) return 'Zero Rupees Only';
+    
+    const ones = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine'];
+    const tens = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
+    const teens = ['Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'];
+    
+    const convertGroup = (n: number): string => {
+      if (n === 0) return '';
+      if (n < 10) return ones[n];
+      if (n < 20) return teens[n - 10];
+      if (n < 100) return tens[Math.floor(n / 10)] + (n % 10 ? ' ' + ones[n % 10] : '');
+      return ones[Math.floor(n / 100)] + ' Hundred' + (n % 100 ? ' ' + convertGroup(n % 100) : '');
+    };
+    
+    const crore = Math.floor(num / 10000000);
+    const lakh = Math.floor((num % 10000000) / 100000);
+    const thousand = Math.floor((num % 100000) / 1000);
+    const remainder = Math.floor(num % 1000);
+    
+    let result = '';
+    if (crore) result += convertGroup(crore) + ' Crore ';
+    if (lakh) result += convertGroup(lakh) + ' Lakh ';
+    if (thousand) result += convertGroup(thousand) + ' Thousand ';
+    if (remainder) result += convertGroup(remainder);
+    
+    return result.trim() + ' Rupees Only';
+  };
+
+  const exportToExcel = async (note: CreditNote) => {
+    try {
+      // Fetch complete credit note details
+      const { data: fullCN, error: cnError } = await supabase
+        .from('credit_notes')
+        .select('*')
+        .eq('id', note.id)
+        .single();
+
+      if (cnError || !fullCN) {
+        toast({
+          title: "Error",
+          description: "Failed to fetch credit note details",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Fetch credit note line items
+      const { data: cnItems, error: itemsError } = await supabase
+        .from('credit_note_items')
+        .select('*')
+        .eq('credit_note_id', note.id)
+        .order('created_at', { ascending: true });
+
+      if (itemsError) {
+        toast({
+          title: "Error",
+          description: "Failed to fetch credit note items",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Company Header
+      const companyInfo = [
+        ['CREDIT NOTE'],
+        [''],
+        [`Company: ${companyData?.name || 'Your Company Name'}`],
+        [companyData?.address_line1 || 'Address Line 1'],
+        [`${companyData?.city || 'City'}, ${companyData?.state || 'State'} - ${companyData?.postal_code || 'PIN'}`],
+        [`GSTIN: ${companyData?.gstn || 'N/A'} | Phone: ${companyData?.phone || 'N/A'}`],
+        [`Email: ${companyData?.email || 'company@example.com'}`],
+        ['']
+      ];
+
+      // Credit Note Header Details
+      const cnHeader = [
+        ['CN Number:', fullCN.cn_number, '', 'Date:', new Date(fullCN.cn_date).toLocaleDateString('en-IN')],
+        ['RSO Reference:', note.rso_number, '', 'Status:', fullCN.status],
+        [''],
+      ];
+
+      // Customer Details
+      const customerDetails = [
+        ['CUSTOMER DETAILS'],
+        [fullCN.customer_name],
+        [''],
+      ];
+
+      // Line Items Header
+      const lineItemsHeader = [
+        ['LINE ITEMS'],
+        ['S.No', 'Item Code', 'Description', 'HSN', 'Return Qty', 'Rate', 'Disc%', 'Disc Amt', 'CGST%', 'SGST%', 'IGST%', 'Tax Amt', 'Amount']
+      ];
+
+      // Map credit note items
+      const lineItems = (cnItems || []).map((item: any, index: number) => {
+        const taxAmount = (item.cgst_amount || 0) + (item.sgst_amount || 0) + (item.igst_amount || 0);
+        
+        return [
+          index + 1,
+          item.product_sku || 'N/A',
+          item.product_name || 'Item',
+          item.hsn_sac_code || '-',
+          item.return_qty || 0,
+          Math.round(item.unit_price || 0),
+          item.discount_percentage || 0,
+          Math.round(item.discount_amount || 0),
+          item.cgst_rate || 0,
+          item.sgst_rate || 0,
+          item.igst_rate || 0,
+          Math.round(taxAmount),
+          Math.round(item.line_total || 0)
+        ];
+      });
+
+      // Totals Section
+      const totalsSection = [
+        [''],
+        ['', '', '', '', '', '', '', '', '', '', 'Subtotal:', `₹ ${Math.round(fullCN.subtotal_amount || 0).toLocaleString('en-IN')}`],
+        ['', '', '', '', '', '', '', '', '', '', 'Tax:', `₹ ${Math.round(fullCN.tax_amount || 0).toLocaleString('en-IN')}`],
+        ['', '', '', '', '', '', '', '', '', '', 'Total:', `₹ ${Math.round(fullCN.total_amount || 0).toLocaleString('en-IN')}`],
+        ['', '', '', '', '', '', '', '', '', '', 'Amount in words:', convertNumberToWords(fullCN.total_amount || 0)]
+      ];
+
+      // Terms and Notes
+      const termsSection = [
+        [''],
+        ['TERMS & CONDITIONS'],
+        ['1. This credit note is issued against returned goods as per RSO.'],
+        ['2. The credit amount will be adjusted against future invoices or refunded as per terms.'],
+        ['3. Please retain this credit note for your records.'],
+        ['']
+      ];
+
+      if (fullCN.notes) {
+        termsSection.push(['Notes:', fullCN.notes]);
+        termsSection.push(['']);
+      }
+
+      // Authorization Section
+      const authSection = [
+        ['AUTHORIZATION'],
+        ['Prepared By:', '', '', 'Approved By:'],
+        ['Name & Signature:', '', '', 'Name & Signature:'],
+        [`Date: ${new Date().toLocaleDateString('en-IN')}`, '', '', `Date: ${new Date().toLocaleDateString('en-IN')}`],
+        [''],
+        [`Generated on: ${new Date().toLocaleString('en-IN')}`, '', '', 'This is a computer-generated document']
+      ];
+
+      // Combine all sections
+      const fullData = [
+        ...companyInfo,
+        ...cnHeader,
+        ...customerDetails,
+        ...lineItemsHeader,
+        ...lineItems,
+        ...totalsSection,
+        ...termsSection,
+        ...authSection
+      ];
+
+      const ws = XLSX.utils.aoa_to_sheet(fullData);
+      const wb = XLSX.utils.book_new();
+
+      // Set column widths
+      ws['!cols'] = [
+        { wch: 6 },   // S.No
+        { wch: 12 },  // Item Code
+        { wch: 30 },  // Description
+        { wch: 12 },  // HSN
+        { wch: 8 },   // Qty
+        { wch: 12 },  // Rate
+        { wch: 8 },   // Disc%
+        { wch: 12 },  // Disc Amt
+        { wch: 8 },   // CGST%
+        { wch: 8 },   // SGST%
+        { wch: 8 },   // IGST%
+        { wch: 12 },  // Tax Amt
+        { wch: 15 }   // Amount
+      ];
+
+      XLSX.utils.book_append_sheet(wb, ws, 'Credit Note');
+      XLSX.writeFile(wb, `CN_${fullCN.cn_number}_${new Date().toISOString().split('T')[0]}.xlsx`);
+      
+      toast({
+        title: "Excel Export Successful",
+        description: `Credit Note ${fullCN.cn_number} has been exported`,
+      });
+    } catch (error) {
+      console.error('Export to Excel failed:', error);
+      toast({
+        title: "Export Failed",
+        description: "Failed to export to Excel",
+        variant: "destructive",
+      });
+    }
+  };
 
   // Filter and sort data
   const filteredNotes = creditNotes.filter(note => {

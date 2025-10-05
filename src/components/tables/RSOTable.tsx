@@ -20,8 +20,11 @@ import {
   ArrowUp,
   ArrowDown,
   Search,
-  Loader2
+  Loader2,
+  Download,
+  FileSpreadsheet
 } from 'lucide-react';
+import * as XLSX from 'xlsx';
 import { RSOTableMobile } from './RSOTableMobile';
 
 interface ReturnOrder {
@@ -50,6 +53,7 @@ interface RSOTableProps {
   onEdit: (rsoId: string) => void;
   onDelete: (rsoId: string) => void;
   onViewCreditNotes: (rso: ReturnOrder) => void;
+  onExport?: (rso: ReturnOrder) => void;
   loading?: boolean;
 }
 
@@ -63,6 +67,7 @@ export function RSOTable({
   onEdit,
   onDelete,
   onViewCreditNotes,
+  onExport,
   loading = false
 }: RSOTableProps) {
   const { toast } = useToast();
@@ -73,11 +78,34 @@ export function RSOTable({
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [sortField, setSortField] = useState<SortField>('rso_date');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
+  const [companyData, setCompanyData] = useState<any>(null);
   
   // Track RSOs with credit notes
   const [rsosWithCreditNotes, setRSOsWithCreditNotes] = useState<Set<string>>(new Set());
   
   const itemsPerPage = 5;
+
+  // Fetch company data
+  useEffect(() => {
+    const fetchCompanyData = async () => {
+      if (!profile?.company_id) return;
+      
+      try {
+        const { data, error } = await supabase
+          .from('companies')
+          .select('*')
+          .eq('id', profile.company_id)
+          .single();
+        
+        if (error) throw error;
+        setCompanyData(data);
+      } catch (error) {
+        console.error('Error fetching company data:', error);
+      }
+    };
+
+    fetchCompanyData();
+  }, [profile?.company_id]);
 
   // Mobile view
   if (isMobile) {
@@ -89,10 +117,217 @@ export function RSOTable({
         onEdit={onEdit}
         onDelete={onDelete}
         onViewCreditNotes={onViewCreditNotes}
+        onExport={onExport}
         loading={loading}
       />
     );
   }
+
+  // Helper function to convert number to words (Indian format)
+  const convertNumberToWords = (num: number): string => {
+    if (num === 0) return 'Zero Rupees Only';
+    
+    const ones = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine'];
+    const tens = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
+    const teens = ['Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'];
+    
+    const convertGroup = (n: number): string => {
+      if (n === 0) return '';
+      if (n < 10) return ones[n];
+      if (n < 20) return teens[n - 10];
+      if (n < 100) return tens[Math.floor(n / 10)] + (n % 10 ? ' ' + ones[n % 10] : '');
+      return ones[Math.floor(n / 100)] + ' Hundred' + (n % 100 ? ' ' + convertGroup(n % 100) : '');
+    };
+    
+    const crore = Math.floor(num / 10000000);
+    const lakh = Math.floor((num % 10000000) / 100000);
+    const thousand = Math.floor((num % 100000) / 1000);
+    const remainder = Math.floor(num % 1000);
+    
+    let result = '';
+    if (crore) result += convertGroup(crore) + ' Crore ';
+    if (lakh) result += convertGroup(lakh) + ' Lakh ';
+    if (thousand) result += convertGroup(thousand) + ' Thousand ';
+    if (remainder) result += convertGroup(remainder);
+    
+    return result.trim() + ' Rupees Only';
+  };
+
+  const exportToExcel = async (order: ReturnOrder) => {
+    try {
+      // Fetch complete RSO details
+      const { data: fullRSO, error: rsoError } = await supabase
+        .from('return_order_header')
+        .select('*')
+        .eq('id', order.id)
+        .single();
+
+      if (rsoError || !fullRSO) {
+        toast({
+          title: "Error",
+          description: "Failed to fetch RSO details",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Fetch RSO line items
+      const { data: rsoItems, error: itemsError } = await supabase
+        .from('return_order_lines')
+        .select('*')
+        .eq('return_order_id', order.id)
+        .order('created_at', { ascending: true });
+
+      if (itemsError) {
+        toast({
+          title: "Error",
+          description: "Failed to fetch RSO items",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Company Header
+      const companyInfo = [
+        ['RETURN SALES ORDER (RSO)'],
+        [''],
+        [`Company: ${companyData?.name || 'Your Company Name'}`],
+        [companyData?.address_line1 || 'Address Line 1'],
+        [`${companyData?.city || 'City'}, ${companyData?.state || 'State'} - ${companyData?.postal_code || 'PIN'}`],
+        [`GSTIN: ${companyData?.gstn || 'N/A'} | Phone: ${companyData?.phone || 'N/A'}`],
+        [`Email: ${companyData?.email || 'company@example.com'}`],
+        ['']
+      ];
+
+      // RSO Header Details
+      const rsoHeader = [
+        ['RSO Number:', fullRSO.rso_number, '', 'Date:', new Date(fullRSO.rso_date).toLocaleDateString('en-IN')],
+        ['Invoice Number:', fullRSO.invoice_number, '', 'Invoice Date:', new Date(fullRSO.invoice_date).toLocaleDateString('en-IN')],
+        [''],
+      ];
+
+      // Customer Details
+      const customerDetails = [
+        ['CUSTOMER DETAILS', '', '', 'DELIVERY ADDRESS'],
+        [fullRSO.customer_name, '', '', fullRSO.delivery_address_line1 || companyData?.address_line1 || 'N/A'],
+        ['', '', '', fullRSO.delivery_address_line2 || ''],
+        ['', '', '', `${fullRSO.delivery_city || companyData?.city || 'City'}`],
+        ['', '', '', `PIN: ${fullRSO.delivery_pin_code || fullRSO.delivery_country || 'N/A'}`],
+        [''],
+        ['Reason for Return:', fullRSO.reason_for_credit],
+        ['']
+      ];
+
+      // Line Items Header
+      const lineItemsHeader = [
+        ['LINE ITEMS'],
+        ['S.No', 'Item Code', 'Description', 'HSN', 'Return Qty', 'Rate', 'Disc%', 'Disc Amt', 'CGST%', 'SGST%', 'IGST%', 'Tax Amt', 'Amount']
+      ];
+
+      // Map RSO items
+      const lineItems = (rsoItems || []).map((item: any, index: number) => {
+        const taxAmount = (item.cgst_amount || 0) + (item.sgst_amount || 0) + (item.igst_amount || 0);
+        
+        return [
+          index + 1,
+          item.product_sku || 'N/A',
+          item.product_name || 'Item',
+          item.hsn_sac_code || '-',
+          item.return_qty || 0,
+          Math.round(item.unit_price || 0),
+          item.discount_percentage || 0,
+          Math.round(item.discount_amount || 0),
+          item.cgst_rate || 0,
+          item.sgst_rate || 0,
+          item.igst_rate || 0,
+          Math.round(taxAmount),
+          Math.round(item.line_total || 0)
+        ];
+      });
+
+      // Totals Section
+      const totalsSection = [
+        [''],
+        ['', '', '', '', '', '', '', '', '', '', 'Subtotal:', `₹ ${Math.round(fullRSO.subtotal_amount || 0).toLocaleString('en-IN')}`],
+        ['', '', '', '', '', '', '', '', '', '', 'Tax:', `₹ ${Math.round(fullRSO.tax_amount || 0).toLocaleString('en-IN')}`],
+        ['', '', '', '', '', '', '', '', '', '', 'Total:', `₹ ${Math.round(fullRSO.total_amount || 0).toLocaleString('en-IN')}`],
+        ['', '', '', '', '', '', '', '', '', '', 'Amount in words:', convertNumberToWords(fullRSO.total_amount || 0)]
+      ];
+
+      // Terms and Notes
+      const termsSection = [
+        [''],
+        ['TERMS & CONDITIONS'],
+        ['1. Returns must be processed as per company return policy.'],
+        ['2. All returned items must be in original condition and packaging.'],
+        ['3. Credit notes will be issued after inspection and approval of returned goods.'],
+        ['4. Processing time for returns: 7-10 business days from receipt of goods.'],
+        ['']
+      ];
+
+      if (fullRSO.notes) {
+        termsSection.push(['Notes:', fullRSO.notes]);
+        termsSection.push(['']);
+      }
+
+      // Authorization Section
+      const authSection = [
+        ['AUTHORIZATION'],
+        ['Prepared By:', '', '', 'Approved By:'],
+        ['Name & Signature:', '', '', 'Name & Signature:'],
+        [`Date: ${new Date().toLocaleDateString('en-IN')}`, '', '', `Date: ${new Date().toLocaleDateString('en-IN')}`],
+        [''],
+        [`Generated on: ${new Date().toLocaleString('en-IN')}`, '', '', 'This is a computer-generated document']
+      ];
+
+      // Combine all sections
+      const fullData = [
+        ...companyInfo,
+        ...rsoHeader,
+        ...customerDetails,
+        ...lineItemsHeader,
+        ...lineItems,
+        ...totalsSection,
+        ...termsSection,
+        ...authSection
+      ];
+
+      const ws = XLSX.utils.aoa_to_sheet(fullData);
+      const wb = XLSX.utils.book_new();
+
+      // Set column widths
+      ws['!cols'] = [
+        { wch: 6 },   // S.No
+        { wch: 12 },  // Item Code
+        { wch: 30 },  // Description
+        { wch: 12 },  // HSN
+        { wch: 8 },   // Qty
+        { wch: 12 },  // Rate
+        { wch: 8 },   // Disc%
+        { wch: 12 },  // Disc Amt
+        { wch: 8 },   // CGST%
+        { wch: 8 },   // SGST%
+        { wch: 8 },   // IGST%
+        { wch: 12 },  // Tax Amt
+        { wch: 15 }   // Amount
+      ];
+
+      XLSX.utils.book_append_sheet(wb, ws, 'Return Sales Order');
+      XLSX.writeFile(wb, `RSO_${fullRSO.rso_number}_${new Date().toISOString().split('T')[0]}.xlsx`);
+      
+      toast({
+        title: "Excel Export Successful",
+        description: `RSO ${fullRSO.rso_number} has been exported`,
+      });
+    } catch (error) {
+      console.error('Export to Excel failed:', error);
+      toast({
+        title: "Export Failed",
+        description: "Failed to export to Excel",
+        variant: "destructive",
+      });
+    }
+  };
 
   // Check for RSOs with credit notes
   useEffect(() => {
@@ -385,6 +620,14 @@ export function RSOTable({
                               <FileText className="h-4 w-4" />
                             </Button>
                           )}
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => onExport ? onExport(order) : exportToExcel(order)}
+                            title="Export RSO"
+                          >
+                            <Download className="h-4 w-4" />
+                          </Button>
                           {order.status === 'Draft' && (
                             <Button
                               variant="ghost"
