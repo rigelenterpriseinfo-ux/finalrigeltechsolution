@@ -3,6 +3,7 @@ import { Package, CheckCircle, Clock, AlertTriangle } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
 import { useBusinessAuth } from '@/hooks/useBusinessAuth';
 import BackorderTable from '@/components/tables/BackorderTable';
 
@@ -46,32 +47,33 @@ export default function BackorderModule() {
   });
   const [loading, setLoading] = useState(true);
 
+  const { company } = useAuth();
   const { businessUser, hasAccess, hasEditAccess } = useBusinessAuth();
   const { toast } = useToast();
 
   const canEdit = hasEditAccess('sales');
 
   useEffect(() => {
-    if (businessUser?.company_id) {
+    if (company?.id) {
       fetchBackorders();
     }
-  }, [businessUser?.company_id]);
+  }, [company?.id]);
 
   const fetchBackorders = async () => {
-    if (!businessUser?.company_id) {
+    if (!company?.id) {
       console.log('No company_id found');
       return;
     }
 
     try {
       setLoading(true);
-      console.log('Fetching backorders for company:', businessUser.company_id);
+      console.log('Fetching backorders for company:', company.id);
 
       // Step 1: Get all sales orders for this company
       const { data: ordersData, error: ordersError } = await supabase
         .from('sales_orders')
         .select('id, order_number, order_date, customer_id, customer_po_number, status')
-        .eq('company_id', businessUser?.company_id);
+        .eq('company_id', company.id);
 
       if (ordersError) {
         console.error('Error fetching orders:', ordersError);
