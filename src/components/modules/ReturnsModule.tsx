@@ -22,6 +22,8 @@ import { EnhancedCreateRSOForm } from '@/components/forms/EnhancedCreateRSOForm'
 import { RSOViewDialog } from '@/components/dialogs/RSOViewDialog';
 import { ARDashboardWidget } from '@/components/dashboard/ARDashboardWidget';
 import { APARFilterProvider, useAPARFilters } from '@/contexts/APARFilterContext';
+import { RSOTable } from '@/components/tables/RSOTable';
+import { CreditNoteTable } from '@/components/tables/CreditNoteTable';
 import { 
   RotateCcw, 
   FileText, 
@@ -114,6 +116,7 @@ interface CreditNote {
   cn_number: string;
   cn_date: string;
   customer_name: string;
+  rso_id: string;
   rso_number: string;
   status: 'Draft' | 'Confirmed';
   total_amount: number;
@@ -305,6 +308,7 @@ function ReturnsModuleContent() {
       cn_number: cn.cn_number || 'Pending',
       cn_date: cn.cn_date,
       customer_name: cn.customer_name,
+      rso_id: cn.rso_id,
       rso_number: cn.return_order_header?.rso_number || 'Unknown',
       status: cn.status as 'Draft' | 'Confirmed',
       total_amount: cn.total_amount
@@ -894,6 +898,28 @@ function ReturnsModuleContent() {
     }
   };
 
+  // Credit Note Action Handlers
+  const handleViewCreditNote = (cnId: string) => {
+    toast({
+      title: "View Credit Note",
+      description: "Credit Note viewer coming soon",
+    });
+  };
+
+  const handleEditCreditNote = (cnId: string) => {
+    toast({
+      title: "Edit Credit Note",
+      description: "Credit Note editor coming soon",
+    });
+  };
+
+  const handleExportCreditNote = (cn: CreditNote) => {
+    toast({
+      title: "Export Credit Note",
+      description: `Exporting ${cn.cn_number}...`,
+    });
+  };
+
   const getStatusBadge = (status: 'Draft' | 'Confirmed') => {
     return (
       <Badge variant={status === 'Confirmed' ? 'default' : 'secondary'}>
@@ -968,155 +994,16 @@ function ReturnsModuleContent() {
 
           {/* RSO Table */}
           {!isCreateRSOFormOpen && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center justify-between">
-                  RSO List
-                  <div className="flex items-center gap-2">
-                    <Input
-                      placeholder="Search RSOs..."
-                      className="w-64"
-                      value={arFilters.searchTerm}
-                      onChange={(e) => setARFilters({ searchTerm: e.target.value })}
-                    />
-                    <Select value={arFilters.statusFilter} onValueChange={(value) => setARFilters({ statusFilter: value })}>
-                      <SelectTrigger className="w-32">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All Status</SelectItem>
-                        <SelectItem value="Draft">Draft</SelectItem>
-                        <SelectItem value="Confirmed">Confirmed</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {loading ? (
-                  <div className="flex justify-center items-center py-8">
-                    <Loader2 className="h-8 w-8 animate-spin" />
-                  </div>
-                ) : returnOrders.length === 0 ? (
-                  <div className="text-center py-8">
-                    <p className="text-muted-foreground">No return sales orders found.</p>
-                  </div>
-                ) : (
-                  <div className="overflow-x-auto">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>RSO Number</TableHead>
-                          <TableHead>RSO Date</TableHead>
-                          <TableHead>Customer</TableHead>
-                          <TableHead>Invoice</TableHead>
-                          <TableHead>Status</TableHead>
-                          <TableHead>Total Amount</TableHead>
-                          <TableHead>Actions</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                       <TableBody>
-                  {returnOrders
-                    .filter(rso => {
-                      const matchesSearch = arFilters.searchTerm === '' || 
-                        rso.rso_number?.toLowerCase().includes(arFilters.searchTerm.toLowerCase()) ||
-                        rso.customer_name?.toLowerCase().includes(arFilters.searchTerm.toLowerCase()) ||
-                        rso.invoice_number?.toLowerCase().includes(arFilters.searchTerm.toLowerCase());
-                      
-                      const matchesStatus = arFilters.statusFilter === 'all' || rso.status === arFilters.statusFilter;
-                      
-                      return matchesSearch && matchesStatus;
-                    })
-                    .map((rso) => {
-                           // Check if RSO has linked credit notes
-                           const linkedCreditNotes = creditNotes.filter(cn => cn.rso_number === rso.rso_number);
-                           const hasLinkedCreditNotes = linkedCreditNotes.length > 0;
-                           const creditNoteStatus = hasLinkedCreditNotes ? 
-                             (linkedCreditNotes.some(cn => cn.status === 'Confirmed') ? 'processed' : 'draft') : 
-                             'pending';
-
-                           return (
-                             <TableRow key={rso.id}>
-                               <TableCell className="font-medium">{rso.rso_number}</TableCell>
-                               <TableCell>{rso.rso_date}</TableCell>
-                               <TableCell>{rso.customer_name}</TableCell>
-                               <TableCell>{rso.invoice_number}</TableCell>
-                               <TableCell>
-                                 <div className="flex flex-col space-y-1">
-                                   <Badge variant={rso.status === 'Confirmed' ? 'default' : 'secondary'}>
-                                     {rso.status}
-                                   </Badge>
-                                   {/* Credit Note Status Badge */}
-                                   <Badge variant={
-                                     creditNoteStatus === 'processed' ? 'default' :
-                                     creditNoteStatus === 'draft' ? 'secondary' : 'destructive'
-                                   } className={`text-xs ${
-                                     creditNoteStatus === 'processed' ? 'bg-green-100 text-green-800' :
-                                     creditNoteStatus === 'draft' ? 'bg-yellow-100 text-yellow-800' :
-                                     'bg-red-100 text-red-800'
-                                   }`}>
-                                     {creditNoteStatus === 'processed' ? 'CN Processed' :
-                                      creditNoteStatus === 'draft' ? 'CN Draft' : 'CN Pending'}
-                                   </Badge>
-                                   {hasLinkedCreditNotes && (
-                                     <div className="text-xs text-blue-600 max-w-[120px] truncate" title={linkedCreditNotes.map(cn => cn.cn_number).join(', ')}>
-                                       CN: {linkedCreditNotes.map(cn => cn.cn_number).join(', ')}
-                                     </div>
-                                   )}
-                                 </div>
-                               </TableCell>
-                               <TableCell>₹{rso.total_amount.toLocaleString()}</TableCell>
-                               <TableCell>
-                                 <div className="flex space-x-2">
-                                   <Button
-                                     variant="outline"
-                                     size="sm"
-                                     onClick={() => handleViewRso(rso.id)}
-                                   >
-                                     <Eye className="h-4 w-4" />
-                                   </Button>
-                                   {hasLinkedCreditNotes && (
-                                     <Button 
-                                       variant="outline" 
-                                       size="sm"
-                                       onClick={() => handleViewCreditNotes(rso)}
-                                       className="text-blue-600 hover:text-blue-700"
-                                       title="View Credit Notes"
-                                     >
-                                       <FileText className="h-4 w-4" />
-                                     </Button>
-                                   )}
-                                   {rso.status === 'Draft' && (
-                                     <>
-                                       <Button
-                                         variant="outline"
-                                         size="sm"
-                                         onClick={() => handleEditRso(rso.id)}
-                                       >
-                                         <Edit className="h-4 w-4" />
-                                       </Button>
-                                       <Button
-                                         variant="outline"
-                                         size="sm"
-                                         onClick={() => handleDeleteRso(rso.id)}
-                                         className="text-red-600 hover:text-red-700"
-                                       >
-                                         <Trash2 className="h-4 w-4" />
-                                       </Button>
-                                     </>
-                                   )}
-                                 </div>
-                               </TableCell>
-                             </TableRow>
-                           );
-                          })}
-                       </TableBody>
-                     </Table>
-                   </div>
-                 )}
-               </CardContent>
-             </Card>
-           )}
+            <RSOTable
+              returnOrders={returnOrders}
+              creditNotes={creditNotes}
+              onView={handleViewRso}
+              onEdit={handleEditRso}
+              onDelete={handleDeleteRso}
+              onViewCreditNotes={handleViewCreditNotes}
+              loading={loading}
+            />
+          )}
          </TabsContent>
 
         <TabsContent value="credit-notes" className="space-y-6">
@@ -1350,59 +1237,15 @@ function ReturnsModuleContent() {
           )}
 
           {/* Credit Notes Table */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Credit Notes List</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>CN Number</TableHead>
-                    <TableHead>Date</TableHead>
-                    <TableHead>Customer</TableHead>
-                    <TableHead>RSO Number</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Amount</TableHead>
-                    <TableHead>Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {creditNotes.map((cn) => (
-                    <TableRow key={cn.id}>
-                      <TableCell>{cn.cn_number}</TableCell>
-                      <TableCell>{cn.cn_date}</TableCell>
-                      <TableCell>{cn.customer_name}</TableCell>
-                      <TableCell>{cn.rso_number}</TableCell>
-                      <TableCell>{getStatusBadge(cn.status)}</TableCell>
-                      <TableCell>₹{cn.total_amount.toLocaleString()}</TableCell>
-                      <TableCell>
-                        <div className="flex space-x-2">
-                          <Button variant="outline" size="sm">
-                            <Eye className="h-4 w-4" />
-                          </Button>
-                          {cn.status === 'Draft' && (
-                            <Button variant="outline" size="sm">
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                          )}
-                          <Button variant="outline" size="sm">
-                            <Download className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-
-              {creditNotes.length === 0 && (
-                <div className="text-center py-8">
-                  <p className="text-muted-foreground">No credit notes found</p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+          {!isCreateCreditNoteFormOpen && (
+            <CreditNoteTable
+              creditNotes={creditNotes}
+              onView={handleViewCreditNote}
+              onEdit={handleEditCreditNote}
+              onExport={handleExportCreditNote}
+              loading={loading}
+            />
+          )}
         </TabsContent>
       </Tabs>
 
