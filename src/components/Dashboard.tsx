@@ -40,6 +40,7 @@ import { CompanyProfile } from '@/components/CompanyProfile';
 import { ReturnsModule } from '@/components/modules/ReturnsModule';
 import { SettingsModule } from '@/components/modules/SettingsModule';
 import { RedesignedDashboard } from '@/components/dashboard/RedesignedDashboard';
+import { FinancialSummaryChart } from '@/components/dashboard/FinancialSummaryChart';
 import { ImprovedClassicDashboard } from '@/components/dashboard/ImprovedClassicDashboard';
 import { DashboardViewToggle } from '@/components/dashboard/DashboardViewToggle';
 
@@ -356,6 +357,13 @@ export default function Dashboard() {
                 companyId={profile?.company_id}
                 onNavigate={handleNavigation}
               />
+            )}
+            
+            {/* Financial Summary Chart for Classic View */}
+            {!isNewDashboard && (
+              <div className="mt-6">
+                <FinancialSummaryChart companyId={profile?.company_id} />
+              </div>
             )}
           </div>
         );

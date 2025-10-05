@@ -12,6 +12,8 @@ import { DashboardRefreshButton } from './DashboardRefreshButton';
 import { KeyboardShortcutsDialog } from './KeyboardShortcutsDialog';
 import { DashboardCustomizationDialog } from './DashboardCustomizationDialog';
 import { EnhancedDateRangeFilter } from './EnhancedDateRangeFilter';
+import { QuickFilters, DashboardFilters } from './QuickFilters';
+import { DashboardExportButton } from './DashboardExportButton';
 import { DraggableWidgets } from '../DraggableWidgets';
 import { useDashboardData } from '@/hooks/useDashboardData';
 import { useOperationsData } from '@/hooks/useOperationsData';
@@ -25,6 +27,7 @@ import { useFinanceData } from '@/hooks/useFinanceData';
 import { useDashboardCustomization } from '@/hooks/useDashboardCustomization';
 import { useDashboardAnalytics } from '@/hooks/useDashboardAnalytics';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '@/hooks/useAuth';
 import { MobileNavigation } from '@/components/mobile/MobileNavigation';
 import { PullToRefreshContainer } from '@/components/mobile/PullToRefreshContainer';
 import { NotificationCenter } from '@/components/notifications/NotificationCenter';
@@ -62,6 +65,7 @@ interface RedesignedDashboardProps {
 
 const RedesignedDashboardComponent: React.FC<RedesignedDashboardProps> = ({ companyId }) => {
   const navigate = useNavigate();
+  const { company } = useAuth();
   const { kpiData, kpiLoading, urgentActions, actionsLoading } = useDashboardData(companyId);
   const { data: operationsData, isLoading: operationsLoading, refetch: refetchOperations } = useOperationsData(companyId);
   const { data: purchaseData } = usePurchaseData(companyId);
@@ -73,6 +77,7 @@ const RedesignedDashboardComponent: React.FC<RedesignedDashboardProps> = ({ comp
   const { trackWidgetInteraction, trackEvent } = useDashboardAnalytics();
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [showCustomization, setShowCustomization] = useState(false);
+  const [filters, setFilters] = useState<DashboardFilters>({ warehouses: [], categories: [] });
   
   // Enable real-time updates
   useRealtimeDashboard(companyId);
@@ -122,7 +127,22 @@ const RedesignedDashboardComponent: React.FC<RedesignedDashboardProps> = ({ comp
             </Badge>
             <div className="flex items-center gap-2" role="toolbar" aria-label="Dashboard actions">
               <NotificationCenter />
+              <QuickFilters 
+                companyId={companyId}
+                filters={filters}
+                onFiltersChange={setFilters}
+              />
               <EnhancedDateRangeFilter />
+              <DashboardExportButton
+                data={{
+                  kpis: kpiData,
+                  purchases: purchaseData,
+                  inventory: inventoryData,
+                  sales: salesData,
+                  finance: financeData,
+                }}
+                companyName={company?.name}
+              />
               <Button
                 variant="outline"
                 size="sm"
