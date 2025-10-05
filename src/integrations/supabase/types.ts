@@ -2478,7 +2478,9 @@ export type Database = {
           id: string
           invoice_date: string
           invoice_id: string
+          invoice_ids: string[] | null
           invoice_number: string
+          invoice_numbers: string[] | null
           notes: string | null
           place_of_supply: string | null
           reason_for_credit: string
@@ -2505,7 +2507,9 @@ export type Database = {
           id?: string
           invoice_date: string
           invoice_id: string
+          invoice_ids?: string[] | null
           invoice_number: string
+          invoice_numbers?: string[] | null
           notes?: string | null
           place_of_supply?: string | null
           reason_for_credit: string
@@ -2532,7 +2536,9 @@ export type Database = {
           id?: string
           invoice_date?: string
           invoice_id?: string
+          invoice_ids?: string[] | null
           invoice_number?: string
+          invoice_numbers?: string[] | null
           notes?: string | null
           place_of_supply?: string | null
           reason_for_credit?: string
@@ -2576,6 +2582,7 @@ export type Database = {
           return_qty: number
           sgst_amount: number | null
           sgst_rate: number | null
+          source_invoice_id: string | null
           tax_amount: number
           unit_of_measure: string
           unit_price: number
@@ -2601,6 +2608,7 @@ export type Database = {
           return_qty?: number
           sgst_amount?: number | null
           sgst_rate?: number | null
+          source_invoice_id?: string | null
           tax_amount?: number
           unit_of_measure?: string
           unit_price?: number
@@ -2626,6 +2634,7 @@ export type Database = {
           return_qty?: number
           sgst_amount?: number | null
           sgst_rate?: number | null
+          source_invoice_id?: string | null
           tax_amount?: number
           unit_of_measure?: string
           unit_price?: number
