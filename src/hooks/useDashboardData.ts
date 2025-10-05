@@ -10,6 +10,8 @@ export interface DashboardKPIs {
   lowStockValue: number;
   cashFlow: number;
   cashFlowChange: number;
+  grossProfitMargin: number;
+  profitMarginChange: number;
 }
 
 export interface UrgentAction {
@@ -58,7 +60,7 @@ export const useDashboardData = (companyId: string | undefined) => {
       // Fetch low stock items
       const { data: lowStockItems } = await supabase
         .from('products')
-        .select('id, name, stock_quantity, unit_price')
+        .select('id, name, stock_quantity, unit_price, cost_price')
         .eq('company_id', companyId)
         .lt('stock_quantity', 25);
 
@@ -87,6 +89,12 @@ export const useDashboardData = (companyId: string | undefined) => {
         return sum + (p.payment_type === 'received' ? p.amount : -p.amount);
       }, 0) || 0;
 
+      // Calculate Gross Profit Margin (Revenue - Cost of Goods Sold)
+      const totalCosts = lowStockItems?.reduce((sum, item) => 
+        sum + ((item.cost_price || 0) * (item.stock_quantity || 0)), 0) || 0;
+      const grossProfit = thisWeekRevenue - totalCosts;
+      const grossProfitMargin = thisWeekRevenue > 0 ? (grossProfit / thisWeekRevenue) * 100 : 0;
+
       const kpis: DashboardKPIs = {
         totalRevenue: thisWeekRevenue,
         revenueChange: Math.round(revenueChange),
@@ -96,6 +104,8 @@ export const useDashboardData = (companyId: string | undefined) => {
         lowStockValue: lowStockValue,
         cashFlow: cashFlow,
         cashFlowChange: 3, // TODO: Calculate from historical data
+        grossProfitMargin: Math.round(grossProfitMargin * 10) / 10,
+        profitMarginChange: 2.5, // TODO: Calculate from historical data
       };
 
       return kpis;

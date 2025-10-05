@@ -24,7 +24,6 @@ const DEFAULT_WIDGETS: Record<string, DashboardWidgetConfig> = {
   inventory: { id: 'inventory', visible: true, order: 3 },
   sales: { id: 'sales', visible: true, order: 4 },
   finance: { id: 'finance', visible: true, order: 5 },
-  shipments: { id: 'shipments', visible: true, order: 6 },
 };
 
 const DEFAULT_CUSTOMIZATION: DashboardCustomization = {

@@ -5,13 +5,13 @@ import { PurchaseSection } from './PurchaseSection';
 import { InventorySection } from './InventorySection';
 import { SalesSection } from './SalesSection';
 import { FinanceSection } from './FinanceSection';
-import { ShipmentStatusBoard } from './ShipmentStatusBoard';
+
 import { DashboardSectionWrapper } from './DashboardSectionWrapper';
 import { DashboardLoadingState } from './DashboardLoadingState';
 import { DashboardRefreshButton } from './DashboardRefreshButton';
 import { KeyboardShortcutsDialog } from './KeyboardShortcutsDialog';
 import { DashboardCustomizationDialog } from './DashboardCustomizationDialog';
-import { DateRangeFilter } from './DateRangeFilter';
+import { EnhancedDateRangeFilter } from './EnhancedDateRangeFilter';
 import { DraggableWidgets } from '../DraggableWidgets';
 import { useDashboardData } from '@/hooks/useDashboardData';
 import { useOperationsData } from '@/hooks/useOperationsData';
@@ -122,7 +122,7 @@ const RedesignedDashboardComponent: React.FC<RedesignedDashboardProps> = ({ comp
             </Badge>
             <div className="flex items-center gap-2" role="toolbar" aria-label="Dashboard actions">
               <NotificationCenter />
-              <DateRangeFilter />
+              <EnhancedDateRangeFilter />
               <Button
                 variant="outline"
                 size="sm"
@@ -226,19 +226,6 @@ const RedesignedDashboardComponent: React.FC<RedesignedDashboardProps> = ({ comp
               </section>
             )}
 
-            {/* Shipment Status Board */}
-            {customization.widgets.shipments?.visible && (
-              <section aria-labelledby="shipments-section-title">
-                <h2 id="shipments-section-title" className="sr-only">Shipment Status</h2>
-                <DashboardSectionWrapper>
-                  <ShipmentStatusBoard 
-                    statuses={operationsData?.shipmentStatuses || []}
-                    loading={operationsLoading}
-                  />
-                </DashboardSectionWrapper>
-              </section>
-            )}
-            
           </div>
         </div>
       </div>

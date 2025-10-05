@@ -109,17 +109,22 @@ export const UrgentActionsPanel: React.FC<UrgentActionsPanelProps> = ({
     );
   }
 
+  // Limit to top 5 high-priority actions only
+  const topActions = actions.slice(0, 5);
+  const hasMore = actions.length > 5;
+
   return (
     <div className="mb-8">
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-2xl font-semibold">Urgent Actions</h2>
         <span className="text-sm text-muted-foreground">
-          {actions.length} {actions.length === 1 ? 'action' : 'actions'} require attention
+          {topActions.length} {topActions.length === 1 ? 'action' : 'actions'} require attention
+          {hasMore && ` (+${actions.length - 5} more)`}
         </span>
       </div>
       
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {actions.map((action) => (
+        {topActions.map((action) => (
           <AlertCard
             key={action.id}
             title={action.title}

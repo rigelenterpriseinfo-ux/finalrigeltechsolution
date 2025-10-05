@@ -3,7 +3,7 @@ import { AnimatedSection } from './AnimatedSection';
 import { AnimatedList } from './AnimatedList';
 import { AnimatedKPICard } from './AnimatedKPICard';
 import { KPICard } from '@/components/ui/kpi-card';
-import { DollarSign, Package, AlertTriangle, TrendingUp } from 'lucide-react';
+import { DollarSign, Package, AlertTriangle, TrendingUp, Percent } from 'lucide-react';
 import { DashboardKPIs } from '@/hooks/useDashboardData';
 
 interface HeroKPISectionProps {
@@ -24,7 +24,7 @@ export const HeroKPISection: React.FC<HeroKPISectionProps> = ({
   const ordersSparkline = [12, 15, 13, 18, 16, 20, data?.activeOrders || 22];
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
       {/* Total Revenue */}
       <KPICard
         title="Total Revenue"
@@ -92,6 +92,24 @@ export const HeroKPISection: React.FC<HeroKPISectionProps> = ({
           value: data?.cashFlowChange || 0,
           isPositive: (data?.cashFlowChange || 0) >= 0,
           label: 'vs last week',
+        }}
+        loading={loading}
+      />
+
+      {/* Gross Profit Margin */}
+      <KPICard
+        title="Profit Margin"
+        value={data?.grossProfitMargin || 0}
+        suffix="%"
+        icon={Percent}
+        variant={
+          (data?.grossProfitMargin || 0) > 30 ? 'success' :
+          (data?.grossProfitMargin || 0) > 15 ? 'warning' : 'danger'
+        }
+        trend={{
+          value: data?.profitMarginChange || 0,
+          isPositive: (data?.profitMarginChange || 0) >= 0,
+          label: 'vs last period',
         }}
         loading={loading}
       />

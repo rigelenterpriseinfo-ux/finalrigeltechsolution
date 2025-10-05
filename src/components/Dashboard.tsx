@@ -40,7 +40,7 @@ import { CompanyProfile } from '@/components/CompanyProfile';
 import { ReturnsModule } from '@/components/modules/ReturnsModule';
 import { SettingsModule } from '@/components/modules/SettingsModule';
 import { RedesignedDashboard } from '@/components/dashboard/RedesignedDashboard';
-import { ClassicDashboard } from '@/components/dashboard/ClassicDashboard';
+import { ImprovedClassicDashboard } from '@/components/dashboard/ImprovedClassicDashboard';
 import { DashboardViewToggle } from '@/components/dashboard/DashboardViewToggle';
 
 const menuItems: Array<{ id: ActiveModule; icon: any; label: string; description: string; restricted?: boolean; section?: string }> = [
@@ -351,8 +351,9 @@ export default function Dashboard() {
             {isNewDashboard ? (
               <RedesignedDashboard companyId={profile?.company_id} />
             ) : (
-              <ClassicDashboard 
+              <ImprovedClassicDashboard 
                 inventoryStats={inventoryStats}
+                companyId={profile?.company_id}
                 onNavigate={handleNavigation}
               />
             )}
