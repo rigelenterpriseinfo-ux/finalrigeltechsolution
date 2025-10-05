@@ -11,6 +11,7 @@ import {
 import { Download, FileJson, FileSpreadsheet, Printer } from 'lucide-react';
 import { exportDashboardToJSON, exportDashboardToCSV, printDashboard } from '@/utils/dashboardExport';
 import { useToast } from '@/hooks/use-toast';
+import { useDashboardAnalytics } from '@/hooks/useDashboardAnalytics';
 
 interface DashboardExportMenuProps {
   data: any;
@@ -22,6 +23,7 @@ export const DashboardExportMenu: React.FC<DashboardExportMenuProps> = ({
   companyId 
 }) => {
   const { toast } = useToast();
+  const { trackExport } = useDashboardAnalytics();
 
   const handleExportJSON = () => {
     try {
@@ -30,6 +32,7 @@ export const DashboardExportMenu: React.FC<DashboardExportMenuProps> = ({
         exportDate: new Date().toISOString(),
         companyId: companyId || 'unknown',
       });
+      trackExport('json');
       toast({
         title: 'Export Successful',
         description: 'Dashboard data exported as JSON',
@@ -50,6 +53,7 @@ export const DashboardExportMenu: React.FC<DashboardExportMenuProps> = ({
         exportDate: new Date().toISOString(),
         companyId: companyId || 'unknown',
       });
+      trackExport('csv');
       toast({
         title: 'Export Successful',
         description: 'Dashboard data exported as CSV',
@@ -66,6 +70,7 @@ export const DashboardExportMenu: React.FC<DashboardExportMenuProps> = ({
   const handlePrint = () => {
     try {
       printDashboard();
+      trackExport('print');
     } catch (error) {
       toast({
         title: 'Print Failed',

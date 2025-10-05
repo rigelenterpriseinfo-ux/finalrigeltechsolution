@@ -13,6 +13,8 @@ import { DashboardLoadingState } from './DashboardLoadingState';
 import { DashboardRefreshButton } from './DashboardRefreshButton';
 import { DashboardExportMenu } from './DashboardExportMenu';
 import { KeyboardShortcutsDialog } from './KeyboardShortcutsDialog';
+import { DashboardCustomizationDialog } from './DashboardCustomizationDialog';
+import { DateRangeFilter } from './DateRangeFilter';
 import { useDashboardData } from '@/hooks/useDashboardData';
 import { useOperationsData } from '@/hooks/useOperationsData';
 import { useRealtimeDashboard } from '@/hooks/useRealtimeDashboard';
@@ -22,10 +24,12 @@ import { usePurchaseData } from '@/hooks/usePurchaseData';
 import { useInventoryData } from '@/hooks/useInventoryData';
 import { useSalesData } from '@/hooks/useSalesData';
 import { useFinanceData } from '@/hooks/useFinanceData';
+import { useDashboardCustomization } from '@/hooks/useDashboardCustomization';
+import { useDashboardAnalytics } from '@/hooks/useDashboardAnalytics';
 import { useNavigate } from 'react-router-dom';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Keyboard } from 'lucide-react';
+import { Keyboard, Settings2, Maximize2, Minimize2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 /**
@@ -62,7 +66,10 @@ const RedesignedDashboardComponent: React.FC<RedesignedDashboardProps> = ({ comp
   const { data: salesData } = useSalesData(companyId);
   const { data: financeData } = useFinanceData(companyId);
   const { isMobile, cardSpacing } = useMobileOptimizations();
+  const { customization, toggleCompactView } = useDashboardCustomization();
+  const { trackWidgetInteraction, trackEvent } = useDashboardAnalytics();
   const [showShortcuts, setShowShortcuts] = useState(false);
+  const [showCustomization, setShowCustomization] = useState(false);
   
   // Enable real-time updates
   useRealtimeDashboard(companyId);
@@ -73,8 +80,12 @@ const RedesignedDashboardComponent: React.FC<RedesignedDashboardProps> = ({ comp
     navigate(`/dashboard?module=${module}`);
   });
 
+  // Use compact spacing if enabled
+  const spacing = customization.compactView ? 'space-y-4' : cardSpacing;
+
   // Handle refresh all data
   const handleRefreshAll = async () => {
+    trackEvent('dashboard_refresh');
     await refetchOperations();
     // Other queries will be refetched via real-time subscriptions
   };
@@ -101,7 +112,7 @@ const RedesignedDashboardComponent: React.FC<RedesignedDashboardProps> = ({ comp
         isMobile ? 'flex-col p-4' : 'p-6'
       )}>
         {/* Main Content */}
-        <div className={cn('flex-1', cardSpacing)} role="region" aria-label="Dashboard content">
+        <div className={cn('flex-1', spacing)} role="region" aria-label="Dashboard content">
           {/* Page Header with Action Buttons */}
           <header 
             className={cn(
@@ -136,6 +147,37 @@ const RedesignedDashboardComponent: React.FC<RedesignedDashboardProps> = ({ comp
               </p>
             </div>
             <div className="flex items-center gap-2" role="toolbar" aria-label="Dashboard actions">
+              <DateRangeFilter />
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  toggleCompactView();
+                  trackEvent('toggle_compact_view', { compact: !customization.compactView });
+                }}
+                className="gap-2"
+                aria-label="Toggle compact view"
+                title="Toggle compact view"
+              >
+                {customization.compactView ? (
+                  <Maximize2 className="h-4 w-4" />
+                ) : (
+                  <Minimize2 className="h-4 w-4" />
+                )}
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setShowCustomization(true);
+                  trackEvent('open_customization');
+                }}
+                className="gap-2"
+                aria-label="Customize dashboard"
+              >
+                <Settings2 className="h-4 w-4" aria-hidden="true" />
+                <span className="hidden sm:inline">Customize</span>
+              </Button>
               <Button
                 variant="outline"
                 size="sm"
@@ -152,74 +194,96 @@ const RedesignedDashboardComponent: React.FC<RedesignedDashboardProps> = ({ comp
           </header>
 
           {/* Hero KPI Section */}
-          <section aria-labelledby="kpi-section-title">
-            <h2 id="kpi-section-title" className="sr-only">Key Performance Indicators</h2>
-            <DashboardSectionWrapper>
-              <HeroKPISection
-                data={kpiData}
-                loading={kpiLoading}
-                onViewOrders={() => navigate('/dashboard?module=sales')}
-                onReorderStock={() => navigate('/dashboard?module=purchase')}
-              />
-            </DashboardSectionWrapper>
-          </section>
+          {customization.widgets.kpi?.visible && (
+            <section aria-labelledby="kpi-section-title">
+              <h2 id="kpi-section-title" className="sr-only">Key Performance Indicators</h2>
+              <DashboardSectionWrapper>
+                <HeroKPISection
+                  data={kpiData}
+                  loading={kpiLoading}
+                  onViewOrders={() => {
+                    trackWidgetInteraction('kpi', 'view_orders');
+                    navigate('/dashboard?module=sales');
+                  }}
+                  onReorderStock={() => {
+                    trackWidgetInteraction('kpi', 'reorder_stock');
+                    navigate('/dashboard?module=purchase');
+                  }}
+                />
+              </DashboardSectionWrapper>
+            </section>
+          )}
 
           {/* Urgent Actions Panel */}
-          <section aria-labelledby="urgent-actions-title">
-            <h2 id="urgent-actions-title" className="sr-only">Urgent Actions</h2>
-            <DashboardSectionWrapper>
-              <UrgentActionsPanel
-                actions={urgentActions}
-                loading={actionsLoading}
-              />
-            </DashboardSectionWrapper>
-          </section>
+          {customization.widgets.urgentActions?.visible && (
+            <section aria-labelledby="urgent-actions-title">
+              <h2 id="urgent-actions-title" className="sr-only">Urgent Actions</h2>
+              <DashboardSectionWrapper>
+                <UrgentActionsPanel
+                  actions={urgentActions}
+                  loading={actionsLoading}
+                />
+              </DashboardSectionWrapper>
+            </section>
+          )}
 
           {/* Business Performance Sections */}
           <section aria-labelledby="business-performance-title">
             <h2 id="business-performance-title" className="sr-only">Business Performance</h2>
-            <div className={cardSpacing}>
+            <div className={spacing}>
               {/* Purchase & Procurement */}
-              <DashboardSectionWrapper>
-                <PurchaseSection companyId={companyId} />
-              </DashboardSectionWrapper>
+              {customization.widgets.purchase?.visible && (
+                <DashboardSectionWrapper>
+                  <PurchaseSection companyId={companyId} />
+                </DashboardSectionWrapper>
+              )}
               
               {/* Inventory & Warehouse */}
-              <DashboardSectionWrapper>
-                <InventorySection companyId={companyId} />
-              </DashboardSectionWrapper>
+              {customization.widgets.inventory?.visible && (
+                <DashboardSectionWrapper>
+                  <InventorySection companyId={companyId} />
+                </DashboardSectionWrapper>
+              )}
               
               {/* Sales & Customer */}
-              <DashboardSectionWrapper>
-                <SalesSection companyId={companyId} />
-              </DashboardSectionWrapper>
+              {customization.widgets.sales?.visible && (
+                <DashboardSectionWrapper>
+                  <SalesSection companyId={companyId} />
+                </DashboardSectionWrapper>
+              )}
               
               {/* Accounts & Finance */}
-              <DashboardSectionWrapper>
-                <FinanceSection companyId={companyId} />
-              </DashboardSectionWrapper>
+              {customization.widgets.finance?.visible && (
+                <DashboardSectionWrapper>
+                  <FinanceSection companyId={companyId} />
+                </DashboardSectionWrapper>
+              )}
             </div>
           </section>
 
           {/* Operations & Tracking Section */}
           <section aria-labelledby="operations-title">
             <h2 id="operations-title" className="sr-only">Operations & Tracking</h2>
-            <div className={cardSpacing}>
+            <div className={spacing}>
               {/* Shipment Status Board */}
-              <DashboardSectionWrapper>
-                <ShipmentStatusBoard 
-                  statuses={operationsData?.shipmentStatuses || []}
-                  loading={operationsLoading}
-                />
-              </DashboardSectionWrapper>
+              {customization.widgets.shipments?.visible && (
+                <DashboardSectionWrapper>
+                  <ShipmentStatusBoard 
+                    statuses={operationsData?.shipmentStatuses || []}
+                    loading={operationsLoading}
+                  />
+                </DashboardSectionWrapper>
+              )}
               
               {/* Recent Activities Timeline */}
-              <DashboardSectionWrapper>
-                <RecentActivitiesTimeline 
-                  activities={operationsData?.recentActivities || []}
-                  loading={operationsLoading}
-                />
-              </DashboardSectionWrapper>
+              {customization.widgets.activities?.visible && (
+                <DashboardSectionWrapper>
+                  <RecentActivitiesTimeline 
+                    activities={operationsData?.recentActivities || []}
+                    loading={operationsLoading}
+                  />
+                </DashboardSectionWrapper>
+              )}
             </div>
           </section>
         </div>
@@ -247,6 +311,12 @@ const RedesignedDashboardComponent: React.FC<RedesignedDashboardProps> = ({ comp
       <KeyboardShortcutsDialog 
         open={showShortcuts} 
         onOpenChange={setShowShortcuts} 
+      />
+
+      {/* Dashboard Customization Dialog */}
+      <DashboardCustomizationDialog
+        open={showCustomization}
+        onOpenChange={setShowCustomization}
       />
     </div>
   );
