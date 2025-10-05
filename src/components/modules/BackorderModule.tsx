@@ -470,8 +470,7 @@ export default function BackorderModule() {
         const { error: updateError } = await supabase
           .from('sales_order_items')
           .update({
-            back_order_quantity: Math.max(0, newBackorderQty),
-            updated_at: new Date().toISOString()
+            back_order_quantity: Math.max(0, newBackorderQty)
           })
           .eq('id', backorderItem.id);
 
