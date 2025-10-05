@@ -3,7 +3,9 @@ import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
+import { SwipeActions } from '@/components/ui/swipe-actions';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { useHaptics } from '@/hooks/useHaptics';
 import { 
   Eye, 
   Edit, 
@@ -61,6 +63,7 @@ export function RSOTableMobile({
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set());
+  const { triggerHaptic } = useHaptics();
   
   const itemsPerPage = 10;
 
@@ -197,13 +200,64 @@ export function RSOTableMobile({
           currentOrders.map((order) => {
             const isExpanded = expandedCards.has(order.id);
             const cnStatus = getCNStatus(order.id);
+            const canDeleteOrder = canDelete(order.id);
+            
+            const swipeActions = [
+              {
+                id: 'view',
+                label: 'View',
+                onClick: () => {
+                  triggerHaptic('light');
+                  onView(order.id);
+                },
+                icon: Eye,
+                variant: 'secondary' as const
+              },
+              ...(order.status === 'Draft' ? [{
+                id: 'edit',
+                label: 'Edit',
+                onClick: () => {
+                  triggerHaptic('light');
+                  onEdit(order.id);
+                },
+                icon: Edit,
+                variant: 'default' as const
+              }] : []),
+              ...(onExport ? [{
+                id: 'export',
+                label: 'Export',
+                onClick: () => {
+                  triggerHaptic('light');
+                  onExport(order);
+                },
+                icon: Download,
+                variant: 'secondary' as const
+              }] : []),
+              ...(order.status === 'Draft' && canDeleteOrder ? [{
+                id: 'delete',
+                label: 'Delete',
+                onClick: () => {
+                  triggerHaptic('medium');
+                  if (confirm('Are you sure you want to delete this return order?')) {
+                    onDelete(order.id);
+                  }
+                },
+                icon: Trash2,
+                variant: 'destructive' as const
+              }] : [])
+            ];
+            
             return (
-              <Card key={order.id} className="card-interactive">
-                <Collapsible>
-                  <CollapsibleTrigger
-                    onClick={() => toggleCard(order.id)}
-                    className="w-full"
-                  >
+              <SwipeActions key={order.id} actions={swipeActions}>
+                <Card className="card-interactive">
+                  <Collapsible>
+                    <CollapsibleTrigger
+                      onClick={() => {
+                        triggerHaptic('light');
+                        toggleCard(order.id);
+                      }}
+                      className="w-full"
+                    >
                     <CardHeader className="pb-3">
                       <div className="mobile-card-header">
                         <div className="mobile-card-content">
@@ -259,15 +313,16 @@ export function RSOTableMobile({
                         </div>
                       </div>
 
-                      <div className="flex gap-2">
+                      <div className="flex gap-2 flex-wrap">
                         <Button
                           variant="outline"
                           size="sm"
                           onClick={(e) => {
                             e.stopPropagation();
+                            triggerHaptic('light');
                             onView(order.id);
                           }}
-                          className="flex-1"
+                          className="flex-1 min-h-[44px]"
                         >
                           <Eye className="h-4 w-4 mr-1" />
                           View
@@ -278,9 +333,10 @@ export function RSOTableMobile({
                             size="sm"
                             onClick={(e) => {
                               e.stopPropagation();
+                              triggerHaptic('light');
                               onEdit(order.id);
                             }}
-                            className="flex-1"
+                            className="flex-1 min-h-[44px]"
                           >
                             <Edit className="h-4 w-4 mr-1" />
                             Edit
@@ -292,8 +348,10 @@ export function RSOTableMobile({
                             size="sm"
                             onClick={(e) => {
                               e.stopPropagation();
+                              triggerHaptic('light');
                               onViewCreditNotes(order);
                             }}
+                            className="min-h-[44px]"
                             title="View Credit Notes"
                           >
                             <FileText className="h-4 w-4" />
@@ -305,8 +363,10 @@ export function RSOTableMobile({
                             size="sm"
                             onClick={(e) => {
                               e.stopPropagation();
+                              triggerHaptic('light');
                               onExport(order);
                             }}
+                            className="min-h-[44px]"
                             title="Export RSO"
                           >
                             <Download className="h-4 w-4" />
@@ -318,12 +378,18 @@ export function RSOTableMobile({
                             size="sm"
                             onClick={(e) => {
                               e.stopPropagation();
-                              if (confirm('Are you sure you want to delete this return order?')) {
-                                onDelete(order.id);
+                              triggerHaptic('medium');
+                              if (canDeleteOrder) {
+                                if (confirm('Are you sure you want to delete this return order?')) {
+                                  onDelete(order.id);
+                                }
+                              } else {
+                                alert('Cannot delete - this RSO has linked credit notes');
                               }
                             }}
-                            disabled={!canDelete(order.id)}
-                            title={canDelete(order.id) ? 'Delete return order' : 'Cannot delete - has credit notes'}
+                            disabled={!canDeleteOrder}
+                            className="min-h-[44px]"
+                            title={canDeleteOrder ? 'Delete return order' : 'Cannot delete - has credit notes'}
                           >
                             <Trash2 className="h-4 w-4" />
                           </Button>
@@ -333,6 +399,7 @@ export function RSOTableMobile({
                   </CollapsibleContent>
                 </Collapsible>
               </Card>
+              </SwipeActions>
             );
           })
         )}

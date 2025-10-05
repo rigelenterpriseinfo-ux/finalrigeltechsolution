@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -86,19 +87,6 @@ export function CreditNoteTable({
 
     fetchCompanyData();
   }, [profile?.company_id]);
-
-  // Mobile view
-  if (isMobile) {
-    return (
-      <CreditNoteTableMobile
-        creditNotes={creditNotes}
-        onView={onView}
-        onEdit={onEdit}
-        onExport={onExport}
-        loading={loading}
-      />
-    );
-  }
 
   // Helper function to convert number to words (Indian format)
   const convertNumberToWords = (num: number): string => {
@@ -300,6 +288,19 @@ export function CreditNoteTable({
     }
   };
 
+  // Mobile view
+  if (isMobile) {
+    return (
+      <CreditNoteTableMobile
+        creditNotes={creditNotes}
+        onView={onView}
+        onEdit={onEdit}
+        onExport={exportToExcel}
+        loading={loading}
+      />
+    );
+  }
+
   // Filter and sort data
   const filteredNotes = creditNotes.filter(note => {
     const matchesSearch = 
@@ -445,147 +446,166 @@ export function CreditNoteTable({
                 : 'Create your first credit note to get started'}
             </p>
           </div>
-        ) : (
-          <>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead 
-                    className="cursor-pointer hover:bg-muted/50"
-                    onClick={() => handleSort('cn_number')}
-                  >
-                    <div className="flex items-center gap-2">
-                      CN Number
-                      {getSortIcon('cn_number')}
-                    </div>
-                  </TableHead>
-                  <TableHead 
-                    className="cursor-pointer hover:bg-muted/50"
-                    onClick={() => handleSort('cn_date')}
-                  >
-                    <div className="flex items-center gap-2">
-                      CN Date
-                      {getSortIcon('cn_date')}
-                    </div>
-                  </TableHead>
-                  <TableHead 
-                    className="cursor-pointer hover:bg-muted/50"
-                    onClick={() => handleSort('customer_name')}
-                  >
-                    <div className="flex items-center gap-2">
-                      Customer
-                      {getSortIcon('customer_name')}
-                    </div>
-                  </TableHead>
-                  <TableHead 
-                    className="cursor-pointer hover:bg-muted/50"
-                    onClick={() => handleSort('rso_number')}
-                  >
-                    <div className="flex items-center gap-2">
-                      RSO Number
-                      {getSortIcon('rso_number')}
-                    </div>
-                  </TableHead>
-                  <TableHead 
-                    className="cursor-pointer hover:bg-muted/50"
-                    onClick={() => handleSort('status')}
-                  >
-                    <div className="flex items-center gap-2">
-                      Status
-                      {getSortIcon('status')}
-                    </div>
-                  </TableHead>
-                  <TableHead 
-                    className="cursor-pointer hover:bg-muted/50 text-right"
-                    onClick={() => handleSort('total_amount')}
-                  >
-                    <div className="flex items-center gap-2 justify-end">
-                      Amount
-                      {getSortIcon('total_amount')}
-                    </div>
-                  </TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {currentNotes.map((note) => (
-                  <TableRow key={note.id} className="hover:bg-muted/50">
-                    <TableCell className="font-medium">{note.cn_number}</TableCell>
-                    <TableCell>{new Date(note.cn_date).toLocaleDateString()}</TableCell>
-                    <TableCell>{note.customer_name}</TableCell>
-                    <TableCell>{note.rso_number}</TableCell>
-                    <TableCell>
-                      <Badge className={getStatusColor(note.status)}>
-                        {note.status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-right font-medium">
-                      ₹{note.total_amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end gap-2">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => onView(note.id)}
-                          title="View Credit Note"
-                        >
-                          <Eye className="h-4 w-4" />
-                        </Button>
-                        {note.status === 'Draft' && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => onEdit(note.id)}
-                            title="Edit Credit Note"
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                        )}
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => onExport(note)}
-                          title="Export Credit Note"
-                        >
-                          <Download className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+          ) : (
+            <>
+              <TooltipProvider>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead 
+                        className="cursor-pointer hover:bg-muted/50 transition-colors"
+                        onClick={() => handleSort('cn_number')}
+                      >
+                        <div className="flex items-center gap-2">
+                          CN Number
+                          {getSortIcon('cn_number')}
+                        </div>
+                      </TableHead>
+                      <TableHead 
+                        className="cursor-pointer hover:bg-muted/50 transition-colors"
+                        onClick={() => handleSort('cn_date')}
+                      >
+                        <div className="flex items-center gap-2">
+                          CN Date
+                          {getSortIcon('cn_date')}
+                        </div>
+                      </TableHead>
+                      <TableHead 
+                        className="cursor-pointer hover:bg-muted/50 transition-colors"
+                        onClick={() => handleSort('customer_name')}
+                      >
+                        <div className="flex items-center gap-2">
+                          Customer
+                          {getSortIcon('customer_name')}
+                        </div>
+                      </TableHead>
+                      <TableHead 
+                        className="cursor-pointer hover:bg-muted/50 transition-colors"
+                        onClick={() => handleSort('rso_number')}
+                      >
+                        <div className="flex items-center gap-2">
+                          RSO Number
+                          {getSortIcon('rso_number')}
+                        </div>
+                      </TableHead>
+                      <TableHead 
+                        className="cursor-pointer hover:bg-muted/50 transition-colors"
+                        onClick={() => handleSort('status')}
+                      >
+                        <div className="flex items-center gap-2">
+                          Status
+                          {getSortIcon('status')}
+                        </div>
+                      </TableHead>
+                      <TableHead 
+                        className="cursor-pointer hover:bg-muted/50 transition-colors text-right"
+                        onClick={() => handleSort('total_amount')}
+                      >
+                        <div className="flex items-center gap-2 justify-end">
+                          Amount
+                          {getSortIcon('total_amount')}
+                        </div>
+                      </TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {currentNotes.map((note) => (
+                      <TableRow key={note.id} className="hover:bg-muted/50 transition-colors">
+                        <TableCell className="font-medium">{note.cn_number}</TableCell>
+                        <TableCell>{new Date(note.cn_date).toLocaleDateString()}</TableCell>
+                        <TableCell>{note.customer_name}</TableCell>
+                        <TableCell>{note.rso_number}</TableCell>
+                        <TableCell>
+                          <Badge className={getStatusColor(note.status)}>
+                            {note.status}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-right font-medium">
+                          ₹{note.total_amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex justify-end gap-1">
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => onView(note.id)}
+                                  className="hover:bg-primary/10 hover:text-primary transition-colors"
+                                >
+                                  <Eye className="h-4 w-4" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>View Credit Note</TooltipContent>
+                            </Tooltip>
 
-            {/* Pagination */}
-            <div className="flex items-center justify-between mt-4">
-              <div className="text-sm text-muted-foreground">
-                Showing {startIndex + 1} to {Math.min(endIndex, sortedNotes.length)} of {sortedNotes.length} entries
+                            {note.status === 'Draft' && (
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => onEdit(note.id)}
+                                    className="hover:bg-blue-100 hover:text-blue-700 transition-colors"
+                                  >
+                                    <Edit className="h-4 w-4" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>Edit Credit Note</TooltipContent>
+                              </Tooltip>
+                            )}
+
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => exportToExcel(note)}
+                                  className="hover:bg-green-100 hover:text-green-700 transition-colors"
+                                >
+                                  <Download className="h-4 w-4" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>Export to Excel</TooltipContent>
+                            </Tooltip>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </TooltipProvider>
+
+              {/* Pagination */}
+              <div className="flex items-center justify-between mt-4">
+                <div className="text-sm text-muted-foreground">
+                  Showing {startIndex + 1} to {Math.min(endIndex, sortedNotes.length)} of {sortedNotes.length} entries
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                    disabled={currentPage === 1}
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  <span className="text-sm">
+                    Page {currentPage} of {totalPages}
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                    disabled={currentPage === totalPages}
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
               </div>
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                  disabled={currentPage === 1}
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                </Button>
-                <span className="text-sm">
-                  Page {currentPage} of {totalPages}
-                </span>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                  disabled={currentPage === totalPages}
-                >
-                  <ChevronRight className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
-          </>
-        )}
+            </>
+          )}
       </CardContent>
     </Card>
   );

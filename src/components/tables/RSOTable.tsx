@@ -5,6 +5,8 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -22,7 +24,9 @@ import {
   Search,
   Loader2,
   Download,
-  FileSpreadsheet
+  FileSpreadsheet,
+  AlertTriangle,
+  Lock
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { RSOTableMobile } from './RSOTableMobile';
@@ -79,9 +83,12 @@ export function RSOTable({
   const [sortField, setSortField] = useState<SortField>('rso_date');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
   const [companyData, setCompanyData] = useState<any>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [rsoToDelete, setRsoToDelete] = useState<ReturnOrder | null>(null);
   
   // Track RSOs with credit notes
   const [rsosWithCreditNotes, setRSOsWithCreditNotes] = useState<Set<string>>(new Set());
+  const [rsoLinkedCNs, setRsoLinkedCNs] = useState<Map<string, CreditNote[]>>(new Map());
   
   const itemsPerPage = 5;
 
@@ -332,10 +339,19 @@ export function RSOTable({
   // Check for RSOs with credit notes
   useEffect(() => {
     const rsosWithCN = new Set<string>();
+    const cnMap = new Map<string, CreditNote[]>();
+    
     creditNotes.forEach(cn => {
       rsosWithCN.add(cn.rso_id);
+      
+      if (!cnMap.has(cn.rso_id)) {
+        cnMap.set(cn.rso_id, []);
+      }
+      cnMap.get(cn.rso_id)?.push(cn);
     });
+    
     setRSOsWithCreditNotes(rsosWithCN);
+    setRsoLinkedCNs(cnMap);
   }, [creditNotes]);
 
   // Filter and sort data
@@ -442,6 +458,52 @@ export function RSOTable({
     return !rsosWithCreditNotes.has(rsoId);
   };
 
+  const canEditRSO = (rsoId: string) => {
+    const linkedCNs = rsoLinkedCNs.get(rsoId) || [];
+    return !linkedCNs.some(cn => cn.status === 'Confirmed');
+  };
+
+  const getDeleteTooltip = (rsoId: string) => {
+    const linkedCNs = rsoLinkedCNs.get(rsoId) || [];
+    if (linkedCNs.length === 0) return "Delete RSO";
+    
+    const cnNumbers = linkedCNs.map(cn => cn.cn_number).join(', ');
+    return `Cannot delete - Has linked credit notes: ${cnNumbers}`;
+  };
+
+  const getEditTooltip = (rsoId: string) => {
+    const linkedCNs = rsoLinkedCNs.get(rsoId) || [];
+    const confirmedCNs = linkedCNs.filter(cn => cn.status === 'Confirmed');
+    
+    if (confirmedCNs.length === 0) return "Edit RSO";
+    
+    const cnNumbers = confirmedCNs.map(cn => cn.cn_number).join(', ');
+    return `Cannot edit - Has confirmed credit notes: ${cnNumbers}`;
+  };
+
+  const handleDeleteClick = (order: ReturnOrder) => {
+    if (!canDeleteRSO(order.id)) {
+      const linkedCNs = rsoLinkedCNs.get(order.id) || [];
+      toast({
+        title: "Cannot Delete RSO",
+        description: `This RSO has ${linkedCNs.length} linked credit note(s): ${linkedCNs.map(cn => cn.cn_number).join(', ')}`,
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    setRsoToDelete(order);
+    setDeleteDialogOpen(true);
+  };
+
+  const confirmDelete = () => {
+    if (rsoToDelete) {
+      onDelete(rsoToDelete.id);
+      setDeleteDialogOpen(false);
+      setRsoToDelete(null);
+    }
+  };
+
   if (loading) {
     return (
       <Card>
@@ -459,235 +521,322 @@ export function RSOTable({
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center justify-between flex-wrap gap-4">
-          <span>Return Sales Orders</span>
-          <div className="flex items-center gap-2 flex-wrap">
-            <div className="relative">
-              <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search RSOs..."
-                className="pl-8 w-64"
-                value={searchTerm}
-                onChange={(e) => {
-                  setSearchTerm(e.target.value);
-                  setCurrentPage(1);
-                }}
-              />
+    <>
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center justify-between flex-wrap gap-4">
+            <span>Return Sales Orders</span>
+            <div className="flex items-center gap-2 flex-wrap">
+              <div className="relative">
+                <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search RSOs..."
+                  className="pl-8 w-64"
+                  value={searchTerm}
+                  onChange={(e) => {
+                    setSearchTerm(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                />
+              </div>
+              <Select value={statusFilter} onValueChange={(value) => {
+                setStatusFilter(value);
+                setCurrentPage(1);
+              }}>
+                <SelectTrigger className="w-40">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Status</SelectItem>
+                  <SelectItem value="Draft">Draft</SelectItem>
+                  <SelectItem value="Confirmed">Confirmed</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
-            <Select value={statusFilter} onValueChange={(value) => {
-              setStatusFilter(value);
-              setCurrentPage(1);
-            }}>
-              <SelectTrigger className="w-40">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Status</SelectItem>
-                <SelectItem value="Draft">Draft</SelectItem>
-                <SelectItem value="Confirmed">Confirmed</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        {currentOrders.length === 0 ? (
-          <div className="text-center py-12">
-            <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-            <p className="text-muted-foreground text-lg">No return orders found</p>
-            <p className="text-sm text-muted-foreground mt-2">
-              {searchTerm || statusFilter !== 'all' 
-                ? 'Try adjusting your filters' 
-                : 'Create your first RSO to get started'}
-            </p>
-          </div>
-        ) : (
-          <>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead 
-                    className="cursor-pointer hover:bg-muted/50"
-                    onClick={() => handleSort('rso_number')}
-                  >
-                    <div className="flex items-center gap-2">
-                      RSO Number
-                      {getSortIcon('rso_number')}
-                    </div>
-                  </TableHead>
-                  <TableHead 
-                    className="cursor-pointer hover:bg-muted/50"
-                    onClick={() => handleSort('rso_date')}
-                  >
-                    <div className="flex items-center gap-2">
-                      RSO Date
-                      {getSortIcon('rso_date')}
-                    </div>
-                  </TableHead>
-                  <TableHead 
-                    className="cursor-pointer hover:bg-muted/50"
-                    onClick={() => handleSort('customer_name')}
-                  >
-                    <div className="flex items-center gap-2">
-                      Customer
-                      {getSortIcon('customer_name')}
-                    </div>
-                  </TableHead>
-                  <TableHead 
-                    className="cursor-pointer hover:bg-muted/50"
-                    onClick={() => handleSort('invoice_number')}
-                  >
-                    <div className="flex items-center gap-2">
-                      Invoice Number
-                      {getSortIcon('invoice_number')}
-                    </div>
-                  </TableHead>
-                  <TableHead 
-                    className="cursor-pointer hover:bg-muted/50"
-                    onClick={() => handleSort('status')}
-                  >
-                    <div className="flex items-center gap-2">
-                      Status
-                      {getSortIcon('status')}
-                    </div>
-                  </TableHead>
-                  <TableHead>CN Status</TableHead>
-                  <TableHead 
-                    className="cursor-pointer hover:bg-muted/50 text-right"
-                    onClick={() => handleSort('total_amount')}
-                  >
-                    <div className="flex items-center gap-2 justify-end">
-                      Amount
-                      {getSortIcon('total_amount')}
-                    </div>
-                  </TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {currentOrders.map((order) => {
-                  const cnStatus = getCNStatusColor(order.id);
-                  const canDelete = canDeleteRSO(order.id);
-                  
-                  return (
-                    <TableRow key={order.id} className="hover:bg-muted/50">
-                      <TableCell className="font-medium">{order.rso_number}</TableCell>
-                      <TableCell>{new Date(order.rso_date).toLocaleDateString()}</TableCell>
-                      <TableCell>{order.customer_name}</TableCell>
-                      <TableCell>{order.invoice_number}</TableCell>
-                      <TableCell>
-                        <Badge className={getStatusColor(order.status)}>
-                          {order.status}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <Badge className={cnStatus.color}>
-                          {cnStatus.text}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-right font-medium">
-                        ₹{order.total_amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex justify-end gap-2">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => onView(order.id)}
-                            title="View RSO"
-                          >
-                            <Eye className="h-4 w-4" />
-                          </Button>
-                          {order.status === 'Draft' && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => onEdit(order.id)}
-                              title="Edit RSO"
-                            >
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                          )}
-                          {rsosWithCreditNotes.has(order.id) && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => onViewCreditNotes(order)}
-                              title="View Credit Notes"
-                            >
-                              <FileText className="h-4 w-4" />
-                            </Button>
-                          )}
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => onExport ? onExport(order) : exportToExcel(order)}
-                            title="Export RSO"
-                          >
-                            <Download className="h-4 w-4" />
-                          </Button>
-                          {order.status === 'Draft' && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => {
-                                if (!canDelete) {
-                                  toast({
-                                    title: "Cannot Delete",
-                                    description: "This RSO has linked credit notes and cannot be deleted",
-                                    variant: "destructive"
-                                  });
-                                  return;
-                                }
-                                onDelete(order.id);
-                              }}
-                              disabled={!canDelete}
-                              title={canDelete ? "Delete RSO" : "Cannot delete - has credit notes"}
-                              className={!canDelete ? 'opacity-50 cursor-not-allowed' : ''}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          )}
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {currentOrders.length === 0 ? (
+            <div className="text-center py-12">
+              <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+              <p className="text-muted-foreground text-lg">No return orders found</p>
+              <p className="text-sm text-muted-foreground mt-2">
+                {searchTerm || statusFilter !== 'all' 
+                  ? 'Try adjusting your filters' 
+                  : 'Create your first RSO to get started'}
+              </p>
+            </div>
+          ) : (
+            <>
+              <TooltipProvider>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead 
+                        className="cursor-pointer hover:bg-muted/50 transition-colors"
+                        onClick={() => handleSort('rso_number')}
+                      >
+                        <div className="flex items-center gap-2">
+                          RSO Number
+                          {getSortIcon('rso_number')}
                         </div>
-                      </TableCell>
+                      </TableHead>
+                      <TableHead 
+                        className="cursor-pointer hover:bg-muted/50 transition-colors"
+                        onClick={() => handleSort('rso_date')}
+                      >
+                        <div className="flex items-center gap-2">
+                          RSO Date
+                          {getSortIcon('rso_date')}
+                        </div>
+                      </TableHead>
+                      <TableHead 
+                        className="cursor-pointer hover:bg-muted/50 transition-colors"
+                        onClick={() => handleSort('customer_name')}
+                      >
+                        <div className="flex items-center gap-2">
+                          Customer
+                          {getSortIcon('customer_name')}
+                        </div>
+                      </TableHead>
+                      <TableHead 
+                        className="cursor-pointer hover:bg-muted/50 transition-colors"
+                        onClick={() => handleSort('invoice_number')}
+                      >
+                        <div className="flex items-center gap-2">
+                          Invoice Number
+                          {getSortIcon('invoice_number')}
+                        </div>
+                      </TableHead>
+                      <TableHead 
+                        className="cursor-pointer hover:bg-muted/50 transition-colors"
+                        onClick={() => handleSort('status')}
+                      >
+                        <div className="flex items-center gap-2">
+                          Status
+                          {getSortIcon('status')}
+                        </div>
+                      </TableHead>
+                      <TableHead>CN Status</TableHead>
+                      <TableHead 
+                        className="cursor-pointer hover:bg-muted/50 transition-colors text-right"
+                        onClick={() => handleSort('total_amount')}
+                      >
+                        <div className="flex items-center gap-2 justify-end">
+                          Amount
+                          {getSortIcon('total_amount')}
+                        </div>
+                      </TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {currentOrders.map((order) => {
+                      const cnStatus = getCNStatusColor(order.id);
+                      const canDelete = canDeleteRSO(order.id);
+                      const canEdit = canEditRSO(order.id);
+                      const linkedCNs = rsoLinkedCNs.get(order.id) || [];
+                      
+                      return (
+                        <TableRow key={order.id} className="hover:bg-muted/50 transition-colors">
+                          <TableCell className="font-medium">{order.rso_number}</TableCell>
+                          <TableCell>{new Date(order.rso_date).toLocaleDateString()}</TableCell>
+                          <TableCell>{order.customer_name}</TableCell>
+                          <TableCell>{order.invoice_number}</TableCell>
+                          <TableCell>
+                            <Badge className={getStatusColor(order.status)}>
+                              {order.status}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              <Badge className={cnStatus.color}>
+                                {cnStatus.text}
+                              </Badge>
+                              {linkedCNs.length > 0 && (
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <div className="text-xs text-muted-foreground cursor-help">
+                                      ({linkedCNs.length})
+                                    </div>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    <div className="space-y-1">
+                                      <p className="font-semibold">Linked Credit Notes:</p>
+                                      {linkedCNs.map(cn => (
+                                        <p key={cn.id} className="text-xs">
+                                          {cn.cn_number} - {cn.status}
+                                        </p>
+                                      ))}
+                                    </div>
+                                  </TooltipContent>
+                                </Tooltip>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-right font-medium">
+                            ₹{order.total_amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex justify-end gap-1">
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => onView(order.id)}
+                                    className="hover:bg-primary/10 hover:text-primary transition-colors"
+                                  >
+                                    <Eye className="h-4 w-4" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>View RSO</TooltipContent>
+                              </Tooltip>
 
-            {/* Pagination */}
-            <div className="flex items-center justify-between mt-4">
-              <div className="text-sm text-muted-foreground">
-                Showing {startIndex + 1} to {Math.min(endIndex, sortedOrders.length)} of {sortedOrders.length} entries
+                              {order.status === 'Draft' && (
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <span>
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => canEdit ? onEdit(order.id) : undefined}
+                                        disabled={!canEdit}
+                                        className={canEdit ? "hover:bg-blue-100 hover:text-blue-700 transition-colors" : "opacity-50 cursor-not-allowed"}
+                                      >
+                                        {!canEdit && <Lock className="h-3 w-3 mr-1" />}
+                                        <Edit className="h-4 w-4" />
+                                      </Button>
+                                    </span>
+                                  </TooltipTrigger>
+                                  <TooltipContent>{getEditTooltip(order.id)}</TooltipContent>
+                                </Tooltip>
+                              )}
+
+                              {rsosWithCreditNotes.has(order.id) && (
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => onViewCreditNotes(order)}
+                                      className="hover:bg-blue-100 hover:text-blue-700 transition-colors"
+                                    >
+                                      <FileText className="h-4 w-4" />
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    View {linkedCNs.length} Credit Note{linkedCNs.length > 1 ? 's' : ''}
+                                  </TooltipContent>
+                                </Tooltip>
+                              )}
+
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => onExport ? onExport(order) : exportToExcel(order)}
+                                    className="hover:bg-green-100 hover:text-green-700 transition-colors"
+                                  >
+                                    <Download className="h-4 w-4" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>Export to Excel</TooltipContent>
+                              </Tooltip>
+
+                              {order.status === 'Draft' && (
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <span>
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => handleDeleteClick(order)}
+                                        disabled={!canDelete}
+                                        className={canDelete ? "hover:bg-destructive/10 hover:text-destructive transition-colors" : "opacity-50 cursor-not-allowed"}
+                                      >
+                                        {!canDelete && <Lock className="h-3 w-3 mr-1" />}
+                                        <Trash2 className="h-4 w-4" />
+                                      </Button>
+                                    </span>
+                                  </TooltipTrigger>
+                                  <TooltipContent>{getDeleteTooltip(order.id)}</TooltipContent>
+                                </Tooltip>
+                              )}
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </TooltipProvider>
+
+              {/* Pagination */}
+              <div className="flex items-center justify-between mt-4">
+                <div className="text-sm text-muted-foreground">
+                  Showing {startIndex + 1} to {Math.min(endIndex, sortedOrders.length)} of {sortedOrders.length} entries
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                    disabled={currentPage === 1}
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  <span className="text-sm">
+                    Page {currentPage} of {totalPages}
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                    disabled={currentPage === totalPages}
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
               </div>
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                  disabled={currentPage === 1}
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                </Button>
-                <span className="text-sm">
-                  Page {currentPage} of {totalPages}
-                </span>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                  disabled={currentPage === totalPages}
-                >
-                  <ChevronRight className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
-          </>
-        )}
-      </CardContent>
-    </Card>
+            </>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-destructive" />
+              Delete Return Sales Order
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete RSO <strong>{rsoToDelete?.rso_number}</strong>?
+              <br /><br />
+              <span className="text-destructive font-medium">This action cannot be undone.</span>
+              <br /><br />
+              Details:
+              <ul className="list-disc list-inside mt-2 space-y-1">
+                <li>Customer: {rsoToDelete?.customer_name}</li>
+                <li>Invoice: {rsoToDelete?.invoice_number}</li>
+                <li>Amount: ₹{rsoToDelete?.total_amount.toLocaleString('en-IN')}</li>
+              </ul>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete RSO
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }

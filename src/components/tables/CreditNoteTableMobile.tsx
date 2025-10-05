@@ -3,7 +3,9 @@ import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
+import { SwipeActions } from '@/components/ui/swipe-actions';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { useHaptics } from '@/hooks/useHaptics';
 import { 
   Eye, 
   Edit, 
@@ -45,6 +47,7 @@ export function CreditNoteTableMobile({
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set());
+  const { triggerHaptic } = useHaptics();
   
   const itemsPerPage = 10;
 
@@ -157,101 +160,144 @@ export function CreditNoteTableMobile({
         ) : (
           currentNotes.map((note) => {
             const isExpanded = expandedCards.has(note.id);
+            
+            const swipeActions = [
+              {
+                id: 'view',
+                label: 'View',
+                onClick: () => {
+                  triggerHaptic('light');
+                  onView(note.id);
+                },
+                icon: Eye,
+                variant: 'secondary' as const
+              },
+              ...(note.status === 'Draft' ? [{
+                id: 'edit',
+                label: 'Edit',
+                onClick: () => {
+                  triggerHaptic('light');
+                  onEdit(note.id);
+                },
+                icon: Edit,
+                variant: 'default' as const
+              }] : []),
+              {
+                id: 'export',
+                label: 'Export',
+                onClick: () => {
+                  triggerHaptic('light');
+                  onExport(note);
+                },
+                icon: Download,
+                variant: 'secondary' as const
+              }
+            ];
+            
             return (
-              <Card key={note.id} className="card-interactive">
-                <Collapsible>
-                  <CollapsibleTrigger
-                    onClick={() => toggleCard(note.id)}
-                    className="w-full"
-                  >
-                    <CardHeader className="pb-3">
-                      <div className="mobile-card-header">
-                        <div className="mobile-card-content">
-                          <div className="mobile-card-title">
-                            {note.cn_number}
+              <SwipeActions key={note.id} actions={swipeActions}>
+                <Card className="card-interactive">
+                  <Collapsible>
+                    <CollapsibleTrigger
+                      onClick={() => {
+                        triggerHaptic('light');
+                        toggleCard(note.id);
+                      }}
+                      className="w-full"
+                    >
+                      <CardHeader className="pb-3">
+                        <div className="mobile-card-header">
+                          <div className="mobile-card-content">
+                            <div className="mobile-card-title">
+                              {note.cn_number}
+                            </div>
+                            <div className="mobile-card-subtitle flex items-center gap-1">
+                              <User className="h-3 w-3 flex-shrink-0" />
+                              <span className="truncate">{note.customer_name}</span>
+                            </div>
                           </div>
-                          <div className="mobile-card-subtitle flex items-center gap-1">
-                            <User className="h-3 w-3 flex-shrink-0" />
-                            <span className="truncate">{note.customer_name}</span>
+                          <div className="mobile-card-actions">
+                            <Badge className={`${getStatusColor(note.status)} text-xs`}>
+                              {note.status}
+                            </Badge>
+                            {isExpanded ? (
+                              <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                            ) : (
+                              <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                            )}
                           </div>
                         </div>
-                        <div className="mobile-card-actions">
-                          <Badge className={`${getStatusColor(note.status)} text-xs`}>
-                            {note.status}
-                          </Badge>
-                          {isExpanded ? (
-                            <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                          ) : (
-                            <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                          )}
-                        </div>
-                      </div>
 
-                      <div className="grid grid-cols-2 gap-4 text-sm mt-3">
-                        <div className="flex items-center gap-1 text-muted-foreground">
-                          <Calendar className="h-3 w-3" />
-                          <span>{new Date(note.cn_date).toLocaleDateString()}</span>
+                        <div className="grid grid-cols-2 gap-4 text-sm mt-3">
+                          <div className="flex items-center gap-1 text-muted-foreground">
+                            <Calendar className="h-3 w-3" />
+                            <span>{new Date(note.cn_date).toLocaleDateString()}</span>
+                          </div>
+                          <div className="flex items-center gap-1 font-medium">
+                            <DollarSign className="h-3 w-3" />
+                            <span>{formatCurrency(note.total_amount)}</span>
+                          </div>
                         </div>
-                        <div className="flex items-center gap-1 font-medium">
-                          <DollarSign className="h-3 w-3" />
-                          <span>{formatCurrency(note.total_amount)}</span>
-                        </div>
-                      </div>
-                    </CardHeader>
-                  </CollapsibleTrigger>
+                      </CardHeader>
+                    </CollapsibleTrigger>
 
-                  <CollapsibleContent>
-                    <CardContent className="pt-0">
-                      <div className="space-y-3 mb-4">
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground text-sm">RSO Number:</span>
-                          <span className="text-sm">{note.rso_number}</span>
+                    <CollapsibleContent>
+                      <CardContent className="pt-0">
+                        <div className="space-y-3 mb-4">
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground text-sm">RSO Number:</span>
+                            <span className="text-sm">{note.rso_number}</span>
+                          </div>
                         </div>
-                      </div>
 
-                      <div className="flex gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onView(note.id);
-                          }}
-                          className="flex-1"
-                        >
-                          <Eye className="h-4 w-4 mr-1" />
-                          View
-                        </Button>
-                        {note.status === 'Draft' && (
+                        <div className="flex gap-2 flex-wrap">
                           <Button
                             variant="outline"
                             size="sm"
                             onClick={(e) => {
                               e.stopPropagation();
-                              onEdit(note.id);
+                              triggerHaptic('light');
+                              onView(note.id);
                             }}
-                            className="flex-1"
+                            className="flex-1 min-h-[44px]"
                           >
-                            <Edit className="h-4 w-4 mr-1" />
-                            Edit
+                            <Eye className="h-4 w-4 mr-1" />
+                            View
                           </Button>
-                        )}
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onExport(note);
-                          }}
-                          title="Export Credit Note"
-                        >
-                          <Download className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </CollapsibleContent>
-                </Collapsible>
-              </Card>
+                          {note.status === 'Draft' && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                triggerHaptic('light');
+                                onEdit(note.id);
+                              }}
+                              className="flex-1 min-h-[44px]"
+                            >
+                              <Edit className="h-4 w-4 mr-1" />
+                              Edit
+                            </Button>
+                          )}
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              triggerHaptic('light');
+                              onExport(note);
+                            }}
+                            className="min-h-[44px]"
+                            title="Export Credit Note"
+                          >
+                            <Download className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </CollapsibleContent>
+                  </Collapsible>
+                </Card>
+              </SwipeActions>
             );
           })
         )}
