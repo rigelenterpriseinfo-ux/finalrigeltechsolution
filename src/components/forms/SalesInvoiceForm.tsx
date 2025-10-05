@@ -53,7 +53,7 @@ const salesInvoiceSchema = z.object({
   packing_charges: z.number().default(0),
   round_off: z.number().default(0),
   notes: z.string().optional(),
-  status: z.enum(['draft', 'finalized']).default('draft'),
+  status: z.enum(['finalized']).default('finalized'),
   default_warehouse_id: z.string().min(1, 'Default warehouse is required'),
   default_bin_id: z.string().min(1, 'Default bin is required'),
   items: z.array(z.object({
@@ -110,7 +110,7 @@ export const SalesInvoiceForm: React.FC<SalesInvoiceFormProps> = ({
       freight_charges: 0,
       packing_charges: 0,
       round_off: 0,
-      status: 'draft',
+      status: 'finalized',
       default_warehouse_id: '',
       default_bin_id: '',
       items: [],
@@ -1562,8 +1562,7 @@ export const SalesInvoiceForm: React.FC<SalesInvoiceFormProps> = ({
                                 </SelectTrigger>
                               </FormControl>
                               <SelectContent className="bg-background border shadow-md z-50">
-                                <SelectItem value="draft">Draft</SelectItem>
-                                <SelectItem value="finalized">Finalize & Generate Invoice Number</SelectItem>
+                                <SelectItem value="finalized">Finalized</SelectItem>
                               </SelectContent>
                             </Select>
                             <FormMessage />
