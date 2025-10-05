@@ -136,11 +136,10 @@ export const SalesInvoiceTable: React.FC<SalesInvoiceTableProps> = ({
 
   const getStatusBadge = (status: string) => {
     const statusConfig = {
-      draft: { label: 'Draft', variant: 'secondary' as const },
       finalized: { label: 'Finalized', variant: 'default' as const },
     };
 
-    const config = statusConfig[status as keyof typeof statusConfig] || statusConfig.draft;
+    const config = statusConfig[status as keyof typeof statusConfig] || statusConfig.finalized;
     return <Badge variant={config.variant}>{config.label}</Badge>;
   };
 
@@ -928,11 +927,13 @@ export const SalesInvoiceTable: React.FC<SalesInvoiceTableProps> = ({
   };
 
   const canEdit = (invoice: SalesInvoice) => {
-    return invoice.status === 'draft';
+    // All invoices are finalized and cannot be edited
+    return false;
   };
 
   const canDelete = (invoice: SalesInvoice) => {
-    return invoice.status === 'draft';
+    // All invoices are finalized and cannot be deleted
+    return false;
   };
 
   if (loading) {
@@ -972,7 +973,6 @@ export const SalesInvoiceTable: React.FC<SalesInvoiceTableProps> = ({
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Status</SelectItem>
-                <SelectItem value="draft">Draft</SelectItem>
                 <SelectItem value="finalized">Finalized</SelectItem>
               </SelectContent>
             </Select>

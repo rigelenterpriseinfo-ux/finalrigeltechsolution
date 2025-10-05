@@ -1566,18 +1566,17 @@ export const SalesInvoiceForm: React.FC<SalesInvoiceFormProps> = ({
                         )}
                       />
                       
-                      <div className="flex items-center">
-                        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 w-full">
-                          <div className="flex items-center gap-2">
-                            <Info className="h-4 w-4 text-blue-600" />
-                            <span className="text-xs font-medium text-blue-700">Status Guide</span>
+                          <div className="flex items-center">
+                            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 w-full">
+                              <div className="flex items-center gap-2">
+                                <Info className="h-4 w-4 text-blue-600" />
+                                <span className="text-xs font-medium text-blue-700">Status Guide</span>
+                              </div>
+                              <p className="text-xs text-blue-600 mt-1">
+                                Finalized: Locked, official invoice number assigned
+                              </p>
+                            </div>
                           </div>
-                          <p className="text-xs text-blue-600 mt-1">
-                            Draft: Editable, no invoice number generated<br/>
-                            Finalized: Locked, official invoice number assigned
-                          </p>
-                        </div>
-                      </div>
                     </div>
 
                     <div className="mt-4">
