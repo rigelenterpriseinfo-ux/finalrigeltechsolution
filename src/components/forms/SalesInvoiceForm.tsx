@@ -138,7 +138,8 @@ export const SalesInvoiceForm: React.FC<SalesInvoiceFormProps> = ({
         hasPrefilledItems,
         items: editingInvoice.items,
         warehouseId: editingInvoice.default_warehouse_id,
-        binId: editingInvoice.default_bin_id
+        binId: editingInvoice.default_bin_id,
+        salesOrderId: editingInvoice.sales_order_id
       });
       
       form.reset({
@@ -148,12 +149,36 @@ export const SalesInvoiceForm: React.FC<SalesInvoiceFormProps> = ({
         items: editingInvoice.items || editingInvoice.sales_invoice_items || [],
       });
       
-      // Only fetch sales order details if items are NOT pre-filled (i.e., not from backorder release)
-      if (editingInvoice.sales_order_id && !hasPrefilledItems) {
-        console.log('🔄 Fetching sales order details...');
-        fetchSalesOrderDetails(editingInvoice.sales_order_id);
-      } else if (hasPrefilledItems) {
-        console.log('✅ Using pre-filled items, skipping sales order fetch');
+      // Fetch the specific sales order for pre-filled data to populate dropdown
+      if (editingInvoice.sales_order_id && hasPrefilledItems) {
+        console.log('🔄 Fetching specific sales order for pre-filled data:', editingInvoice.sales_order_id);
+        
+        // Fetch the sales order to populate selectedSalesOrder and add to salesOrders list
+        supabase
+          .from('sales_orders')
+          .select('*, customers!inner(name)')
+          .eq('id', editingInvoice.sales_order_id)
+          .single()
+          .then(({ data, error }) => {
+            if (error) {
+              console.error('Error fetching sales order:', error);
+              return;
+            }
+            
+            if (data) {
+              console.log('✅ Sales order fetched:', data.order_number);
+              setSelectedSalesOrder(data);
+              
+              // Add to salesOrders list if not already present
+              setSalesOrders(prev => {
+                const exists = prev.some(so => so.id === data.id);
+                if (!exists) {
+                  return [data, ...prev];
+                }
+                return prev;
+              });
+            }
+          });
         
         // Set up remaining quantities map for pre-filled items
         const remainingMap: Record<string, any> = {};
@@ -167,6 +192,10 @@ export const SalesInvoiceForm: React.FC<SalesInvoiceFormProps> = ({
         });
         setRemainingQuantities(remainingMap);
         console.log('📊 Set remaining quantities:', remainingMap);
+      } else if (editingInvoice.sales_order_id && !hasPrefilledItems) {
+        // Regular editing mode - fetch full sales order details
+        console.log('🔄 Fetching sales order details for editing...');
+        fetchSalesOrderDetails(editingInvoice.sales_order_id);
       }
       
       // Fetch warehouse/bin-specific stock levels for pre-filled invoice data
