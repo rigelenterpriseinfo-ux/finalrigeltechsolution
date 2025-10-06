@@ -294,7 +294,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
       toast({
         title: "Account created successfully!",
-        description: "Welcome to Rigel ERP. Your account is ready to use.",
+        description: "Welcome to Rigel Inventory. Your account is ready to use.",
       });
 
       return { error: null };
