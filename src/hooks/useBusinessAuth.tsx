@@ -23,35 +23,73 @@ export const useBusinessAuth = () => {
 
   useEffect(() => {
     const fetchAllData = async () => {
-      if (user?.email && user?.id && company?.id) {
-        console.log('[BusinessAuth] Starting data fetch for:', { email: user.email, userId: user.id, companyId: company.id });
-        
-        try {
-          // Fetch all data in parallel
-          await Promise.all([
-            fetchBusinessUser(),
-            fetchSectionPermissions(),
-            fetchUserRole()
-          ]);
-          
-          console.log('[BusinessAuth] All data fetched successfully. Current state:', {
-            hasBusinessUser: !!businessUser,
-            hasSectionPermissions: Object.keys(sectionPermissions).length > 0,
-            userRole: userRole
-          });
-        } catch (error) {
-          console.error('[BusinessAuth] Error fetching data:', error);
-        } finally {
-          // Only set loading to false after all data is fetched
-          console.log('[BusinessAuth] Setting loading to false');
-          setLoading(false);
-        }
-      } else {
-        console.log('[BusinessAuth] Missing user data or company id', { 
+      if (!user?.email || !user?.id || !company?.id) {
+        console.log('[BusinessAuth] Missing required data:', { 
           userEmail: user?.email, 
           userId: user?.id, 
           companyId: company?.id 
         });
+        setLoading(false);
+        return;
+      }
+
+      console.log('[BusinessAuth] Starting data fetch for:', { 
+        email: user.email, 
+        userId: user.id, 
+        companyId: company.id 
+      });
+      
+      try {
+        // Fetch business user
+        const { data: businessUserData, error: businessUserError } = await supabase
+          .from('company_users_safe')
+          .select('*')
+          .eq('email', user.email)
+          .eq('company_id', company.id)
+          .maybeSingle();
+
+        if (businessUserError) {
+          console.error('[BusinessAuth] Error fetching business user:', businessUserError);
+        }
+
+        // Fetch section permissions
+        const { data: permData, error: permError } = await supabase
+          .from('company_user_section_permissions')
+          .select('access_sections')
+          .eq('company_id', company.id)
+          .eq('user_email', user.email)
+          .maybeSingle();
+
+        if (permError) {
+          console.error('[BusinessAuth] Error fetching section permissions:', permError);
+        }
+
+        // Fetch user role
+        const { data: roleData, error: roleError } = await supabase
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', user.id)
+          .maybeSingle();
+        
+        if (roleError) {
+          console.error('[BusinessAuth] Error fetching user role:', roleError);
+        }
+
+        // Update all state at once
+        console.log('[BusinessAuth] Fetched data:', {
+          businessUser: businessUserData,
+          permissions: permData?.access_sections,
+          role: roleData?.role
+        });
+
+        setBusinessUser(businessUserData as BusinessUser);
+        setSectionPermissions((permData?.access_sections as SectionPermissions) || {});
+        setUserRole(roleData?.role || null);
+        
+      } catch (error) {
+        console.error('[BusinessAuth] Error fetching data:', error);
+      } finally {
+        console.log('[BusinessAuth] Setting loading to false');
         setLoading(false);
       }
     };
@@ -61,7 +99,7 @@ export const useBusinessAuth = () => {
 
   const fetchBusinessUser = async () => {
     try {
-      console.log('BusinessAuth: About to fetch business user');
+      console.log('[BusinessAuth] Fetching business user for refetch');
       const { data, error } = await supabase
         .from('company_users_safe')
         .select('*')
@@ -69,15 +107,15 @@ export const useBusinessAuth = () => {
         .eq('company_id', company?.id)
         .maybeSingle();
 
-      console.log('BusinessAuth: Company users query result:', { data, error });
+      console.log('[BusinessAuth] Business user refetch result:', { data, error });
 
       if (error) {
-        console.error('Error fetching business user:', error);
+        console.error('[BusinessAuth] Error refetching business user:', error);
       } else {
         setBusinessUser(data as BusinessUser);
       }
     } catch (error) {
-      console.error('Business user fetch error:', error);
+      console.error('[BusinessAuth] Business user refetch error:', error);
     }
   };
 
