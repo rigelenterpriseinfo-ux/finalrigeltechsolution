@@ -4,30 +4,15 @@ import { Resend } from "https://esm.sh/resend@2.0.0";
 
 const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
 
-const allowedOrigins = [
-  'https://63be031f-eceb-4ef8-a148-241fcdfde80c.lovableproject.com',
-  'http://localhost:3000',
-  'http://localhost:5173',
-];
-
-const securityHeaders = {
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
   'X-Content-Type-Options': 'nosniff',
   'X-Frame-Options': 'DENY',
   'X-XSS-Protection': '1; mode=block',
   'Referrer-Policy': 'strict-origin-when-cross-origin',
 };
-
-function getCorsHeaders(req: Request) {
-  const origin = req.headers.get('origin') || '';
-  const allowedOrigin = allowedOrigins.includes(origin) ? origin : allowedOrigins[0];
-  
-  return {
-    'Access-Control-Allow-Origin': allowedOrigin,
-    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-    'Access-Control-Allow-Methods': 'POST, OPTIONS',
-    ...securityHeaders,
-  };
-}
 
 interface SendOtpRequest {
   email: string;
@@ -49,8 +34,6 @@ async function hashOTP(otp: string): Promise<string> {
 }
 
 serve(async (req) => {
-  const corsHeaders = getCorsHeaders(req);
-  
   // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -61,9 +44,12 @@ serve(async (req) => {
   }
 
   try {
+    console.log('Received request to send-otp function');
     const { email, purpose }: SendOtpRequest = await req.json();
+    console.log('Request details:', { email, purpose });
 
     if (!email || !purpose) {
+      console.error('Missing email or purpose');
       return new Response(
         JSON.stringify({ error: "Email and purpose are required" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
