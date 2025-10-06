@@ -3789,6 +3789,41 @@ export type Database = {
           },
         ]
       }
+      user_roles: {
+        Row: {
+          company_id: string | null
+          granted_at: string | null
+          granted_by: string | null
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          company_id?: string | null
+          granted_at?: string | null
+          granted_by?: string | null
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          company_id?: string | null
+          granted_at?: string | null
+          granted_by?: string | null
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_roles_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       warehouse_bins: {
         Row: {
           address_line1: string | null
@@ -4345,6 +4380,10 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: string
       }
+      get_user_role: {
+        Args: { p_user_id?: string }
+        Returns: Database["public"]["Enums"]["app_role"]
+      }
       get_user_role_safe: {
         Args: Record<PropertyKey, never>
         Returns: string
@@ -4374,6 +4413,10 @@ export type Database = {
       }
       is_user_admin: {
         Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
+      is_user_admin_v2: {
+        Args: { p_user_id?: string }
         Returns: boolean
       }
       process_backorder_fulfillment: {
