@@ -22,6 +22,28 @@ export function CompanyProfile({ readonly = false }: CompanyProfileProps) {
   const { hasEditAccess } = useBusinessAuth();
   const { toast } = useToast();
   
+  // Initialize all state before any conditional returns (React hooks rule)
+  const [isLoading, setIsLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState('company-info');
+  const [formData, setFormData] = useState({
+    name: '',
+    email: '',
+    phone: '',
+    addressLine1: '',
+    addressLine2: '',
+    city: '',
+    state: '',
+    country: '',
+    postalCode: '',
+    website: '',
+    status: 'active',
+    gstn: '',
+    logoUrl: '',
+    tagline: '',
+  });
+  const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [logoPreview, setLogoPreview] = useState<string | null>(null);
+  
   console.log('[CompanyProfile] Render - company:', company, 'profile:', profile, 'loading:', loading);
   
   // Check if user has edit access for company profile
@@ -42,26 +64,6 @@ export function CompanyProfile({ readonly = false }: CompanyProfileProps) {
       </div>
     );
   }
-  const [isLoading, setIsLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState('company-info');
-  const [formData, setFormData] = useState({
-    name: company?.name || '',
-    email: company?.email || '',
-    phone: company?.phone || '',
-    addressLine1: '',
-    addressLine2: '',
-    city: '',
-    state: '',
-    country: '',
-    postalCode: '',
-    website: company?.website || '',
-    status: company?.status || 'active',
-    gstn: '',
-    logoUrl: (company as any)?.logo_url || '',
-    tagline: (company as any)?.tagline || '',
-  });
-  const [logoFile, setLogoFile] = useState<File | null>(null);
-  const [logoPreview, setLogoPreview] = useState<string | null>(null);
 
   // Generate Business ID based on company name and current date
   const generateBusinessId = (companyName: string) => {
@@ -196,7 +198,7 @@ export function CompanyProfile({ readonly = false }: CompanyProfileProps) {
         country: sanitizeHtml(formData.country),
         postal_code: formData.postalCode,
         website: formData.website,
-        status: formData.status,
+        status: formData.status as "active" | "inactive" | "suspended",
         gstn: formData.gstn,
         business_ref_no: generateBusinessId(formData.name),
         logo_url: logoUrl,
