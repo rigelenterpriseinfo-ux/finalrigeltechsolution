@@ -169,7 +169,7 @@ export function PurchaseOrderForm({
       try {
         const [suppliersRes, productsRes, companyRes, warehousesRes] = await Promise.all([
           supabase
-            .from('suppliers')
+            .from('suppliers_safe')
             .select('*')
             .eq('company_id', profile.company_id)
             .eq('is_active', true),

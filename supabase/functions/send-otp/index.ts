@@ -1,30 +1,18 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { Resend } from "https://esm.sh/resend@2.0.0";
 
-const allowedOrigins = [
-  'https://63be031f-eceb-4ef8-a148-241fcdfde80c.lovableproject.com',
-  'http://localhost:3000',
-  'http://localhost:5173',
-];
+const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
 
-const securityHeaders = {
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
   'X-Content-Type-Options': 'nosniff',
   'X-Frame-Options': 'DENY',
   'X-XSS-Protection': '1; mode=block',
   'Referrer-Policy': 'strict-origin-when-cross-origin',
 };
-
-function getCorsHeaders(req: Request) {
-  const origin = req.headers.get('origin') || '';
-  const allowedOrigin = allowedOrigins.includes(origin) ? origin : allowedOrigins[0];
-  
-  return {
-    'Access-Control-Allow-Origin': allowedOrigin,
-    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-    'Access-Control-Allow-Methods': 'POST, OPTIONS',
-    ...securityHeaders,
-  };
-}
 
 interface SendOtpRequest {
   email: string;
@@ -46,8 +34,6 @@ async function hashOTP(otp: string): Promise<string> {
 }
 
 serve(async (req) => {
-  const corsHeaders = getCorsHeaders(req);
-  
   // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -58,9 +44,12 @@ serve(async (req) => {
   }
 
   try {
+    console.log('Received request to send-otp function');
     const { email, purpose }: SendOtpRequest = await req.json();
+    console.log('Request details:', { email, purpose });
 
     if (!email || !purpose) {
+      console.error('Missing email or purpose');
       return new Response(
         JSON.stringify({ error: "Email and purpose are required" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -73,6 +62,32 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
       { auth: { persistSession: false } }
     );
+
+    // Check if email is already registered (only for business_registration)
+    if (purpose === 'business_registration') {
+      const { data: existingRequest, error: checkError } = await supabase
+        .from("business_registration_requests")
+        .select("id, status")
+        .eq("email", email)
+        .limit(1)
+        .maybeSingle();
+
+      if (checkError) {
+        console.error('Database check error:', checkError);
+      } else if (existingRequest) {
+        const message = existingRequest.status === 'pending' 
+          ? 'This email has a pending registration request'
+          : 'This email is already registered';
+        
+        return new Response(
+          JSON.stringify({ 
+            error: message,
+            status: existingRequest.status
+          }),
+          { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+    }
 
     // Check rate limiting - max 3 OTPs per hour per email
     const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
@@ -91,6 +106,14 @@ serve(async (req) => {
     }
 
     if (recentOtps && recentOtps.length >= 3) {
+      // Log security event for rate limit hit
+      await supabase.from('security_audit_log').insert({
+        action: 'otp_rate_limit_exceeded',
+        details: { email, attempt_count: recentOtps.length },
+        ip_address: req.headers.get('x-forwarded-for') || 'unknown',
+        severity: 'medium'
+      });
+      
       return new Response(
         JSON.stringify({ error: "Too many OTP requests. Please try again in an hour." }),
         { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -120,26 +143,69 @@ serve(async (req) => {
       );
     }
 
-    // Send OTP via Supabase Auth email
+    // Send OTP via Resend
     try {
-      const { data: emailData, error: emailError } = await supabase.auth.admin.generateLink({
-        type: 'magiclink',
-        email: email,
-        options: {
-          data: {
-            otp_code: otp,
-            purpose: purpose,
-            expires_in: '3 minutes'
-          }
-        }
+      const emailHtml = `
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <meta charset="utf-8">
+            <style>
+              body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+              .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+              .header { background-color: #4F46E5; color: white; padding: 20px; text-align: center; }
+              .content { background-color: #f9fafb; padding: 30px; border-radius: 8px; margin: 20px 0; }
+              .otp-code { font-size: 32px; font-weight: bold; letter-spacing: 8px; text-align: center; 
+                          background-color: white; padding: 20px; border-radius: 8px; 
+                          border: 2px solid #4F46E5; color: #4F46E5; margin: 20px 0; }
+              .warning { background-color: #FEF3C7; padding: 15px; border-radius: 6px; margin: 20px 0; }
+              .footer { text-align: center; color: #6B7280; font-size: 14px; margin-top: 20px; }
+            </style>
+          </head>
+          <body>
+            <div class="container">
+              <div class="header">
+                <h1>Verification Code</h1>
+              </div>
+              <div class="content">
+                <p>Hello,</p>
+                <p>Your verification code is:</p>
+                <div class="otp-code">${otp}</div>
+                <div class="warning">
+                  <strong>⏰ This code expires in 3 minutes</strong>
+                </div>
+                <p>Enter this code to complete your ${purpose} verification.</p>
+                <p>If you didn't request this code, please ignore this email.</p>
+              </div>
+              <div class="footer">
+                <p>This is an automated message, please do not reply.</p>
+              </div>
+            </div>
+          </body>
+        </html>
+      `;
+
+      const { data: emailData, error: emailError } = await resend.emails.send({
+        from: 'Verification <onboarding@resend.dev>',
+        to: [email],
+        subject: 'Your Verification Code',
+        html: emailHtml,
       });
 
       if (emailError) {
-        console.error("Supabase email error:", emailError);
+        console.error("Resend email error:", emailError);
         throw emailError;
       }
 
-      console.log("Email sent successfully via Supabase");
+      console.log("Email sent successfully via Resend:", emailData);
+      
+      // Log successful OTP generation
+      await supabase.from('security_audit_log').insert({
+        action: 'otp_sent',
+        details: { email, purpose, email_id: emailData?.id },
+        ip_address: req.headers.get('x-forwarded-for') || 'unknown',
+        severity: 'low'
+      });
     } catch (emailError) {
       console.error("Email sending error:", emailError);
       return new Response(

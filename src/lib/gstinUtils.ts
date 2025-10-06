@@ -99,9 +99,9 @@ export async function fetchGSTINOptions(): Promise<GSTINOption[]> {
       console.error('Error fetching company GSTINs:', companyError);
     }
 
-    // Fetch from customers table (column: gstin) 
+    // Fetch from customers_safe view (secure)
     const { data: customerGSTINs, error: customerError } = await supabase
-      .from('customers')
+      .from('customers_safe')
       .select('gstin')
       .not('gstin', 'is', null)
       .neq('gstin', '');

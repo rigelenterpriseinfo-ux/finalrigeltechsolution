@@ -3,9 +3,16 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Rigel ERP — Secure Auth</title>
-    <meta name="description" content="Sign in to Rigel ERP — secure business management platform." />
-    <meta name="author" content="Rigel ERP" />
+    <title>Rigel Inventory — Secure Auth</title>
+    <meta name="description" content="Sign in to Rigel Inventory — secure business management platform." />
+    <meta name="author" content="Rigel Inventory" />
+    
+    <!-- Security Headers via Meta Tags (Note: Some headers should be set server-side) -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://rkqgxrwnvyccxumiwfip.supabase.co https://esm.sh https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https://rkqgxrwnvyccxumiwfip.supabase.co wss://rkqgxrwnvyccxumiwfip.supabase.co; frame-ancestors 'none';" />
+    <meta http-equiv="X-Content-Type-Options" content="nosniff" />
+    <meta http-equiv="X-Frame-Options" content="DENY" />
+    <meta http-equiv="Permissions-Policy" content="geolocation=(), microphone=(), camera=()" />
+    
     <!-- Optional: Cloudflare Turnstile site key (public). Set this to enable captcha: -->
     <meta name="turnstile-sitekey" content="" />
 

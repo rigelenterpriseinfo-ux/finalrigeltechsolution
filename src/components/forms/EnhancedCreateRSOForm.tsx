@@ -188,7 +188,7 @@ export function EnhancedCreateRSOForm({ rsoId, onClose, onSave }: EnhancedCreate
     try {
       setLoading(true);
       const { data, error } = await supabase
-        .from('customers')
+        .from('customers_safe')
         .select('id, name, customer_ref, address_line1, address_line2, city, state, country, pin_code')
         .eq('company_id', companyId)
         .eq('is_active', true)

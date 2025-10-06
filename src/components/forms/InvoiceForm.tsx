@@ -115,10 +115,10 @@ export default function InvoiceForm({ invoice, onSubmit, onCancel }: InvoiceForm
         const salesOrdersWithCustomers = await Promise.all(
           (salesOrderData || []).map(async (so) => {
             const { data: customerData } = await supabase
-              .from('customers')
+              .from('customers_safe')
               .select('name')
               .eq('id', so.customer_id)
-              .single();
+              .maybeSingle();
 
             return {
               ...so,
@@ -172,10 +172,10 @@ export default function InvoiceForm({ invoice, onSubmit, onCancel }: InvoiceForm
       if (data) {
         // Fetch customer name
         const { data: customerData } = await supabase
-          .from('customers')
+          .from('customers_safe')
           .select('name')
           .eq('id', data.customer_id)
-          .single();
+          .maybeSingle();
 
         setSelectedSalesOrder({
           ...data,
@@ -223,10 +223,10 @@ export default function InvoiceForm({ invoice, onSubmit, onCancel }: InvoiceForm
 
       // Fetch customer name
       const { data: customerData } = await supabase
-        .from('customers')
+        .from('customers_safe')
         .select('name')
         .eq('id', data.customer_id)
-        .single();
+        .maybeSingle();
 
       const salesOrderWithCustomer = {
         ...data,

@@ -238,7 +238,7 @@ export function SalesOrderForm({
     
     try {
       const { data, error } = await supabase
-        .from('customers')
+        .from('customers_safe')
         .select('*')
         .eq('company_id', profile.company_id);
 

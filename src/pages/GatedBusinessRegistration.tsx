@@ -37,6 +37,7 @@ const GatedBusinessRegistration = () => {
   const [resendCount, setResendCount] = useState(0);
   const [otpCode, setOtpCode] = useState('');
   const [isVerifyingOtp, setIsVerifyingOtp] = useState(false);
+  const [emailError, setEmailError] = useState('');
 
   const paymentData = location.state as any;
   const searchParams = new URLSearchParams(location.search);
@@ -159,7 +160,10 @@ const GatedBusinessRegistration = () => {
     if (!validateStep1()) return;
     
     setIsLoading(true);
+    setEmailError('');
+    
     try {
+      // Send OTP (includes duplicate email check)
       const { data, error } = await supabase.functions.invoke('send-otp', {
         body: { 
           email: formData.email,
@@ -176,11 +180,24 @@ const GatedBusinessRegistration = () => {
         description: "Please check your email for a 6-digit verification code."
       });
     } catch (error: any) {
-      toast({
-        title: "Failed to send verification code",
-        description: error.message,
-        variant: "destructive"
-      });
+      console.error('Send OTP error:', error);
+      console.error('Error details:', JSON.stringify(error, null, 2));
+      
+      // Handle duplicate email error (409 status)
+      if (error.message?.includes('already registered') || error.message?.includes('pending registration')) {
+        setEmailError(error.message);
+        toast({
+          title: "Email Already Registered",
+          description: error.message,
+          variant: "destructive"
+        });
+      } else {
+        toast({
+          title: "Failed to send verification code",
+          description: error.message || "An error occurred. Please check your email configuration.",
+          variant: "destructive"
+        });
+      }
     } finally {
       setIsLoading(false);
     }
@@ -401,11 +418,18 @@ const GatedBusinessRegistration = () => {
                         id="email"
                         type="email"
                         value={formData.email}
-                        onChange={(e) => handleInputChange('email', e.target.value)}
+                        onChange={(e) => {
+                          handleInputChange('email', e.target.value);
+                          setEmailError(''); // Clear error when user types
+                        }}
                         placeholder="business@example.com"
                         required
                         disabled={emailVerified}
+                        className={emailError ? "border-destructive" : ""}
                       />
+                      {emailError && (
+                        <p className="text-sm text-destructive mt-1">{emailError}</p>
+                      )}
                     </div>
 
                     <div>
