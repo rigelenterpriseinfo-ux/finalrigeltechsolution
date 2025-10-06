@@ -77,20 +77,28 @@ export const useBusinessAuth = () => {
     }
   };
 
-  // Consolidated role checking to prevent privilege escalation
+  // Query user_roles table for role (CRITICAL: prevents privilege escalation)
+  const [userRole, setUserRole] = useState<'owner' | 'admin' | 'manager' | 'staff' | null>(null);
+
+  useEffect(() => {
+    const fetchUserRole = async () => {
+      if (!user?.id) return;
+      const { data } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', user.id)
+        .maybeSingle();
+      setUserRole(data?.role || null);
+    };
+    fetchUserRole();
+  }, [user?.id]);
+
   const getEffectiveRole = (): 'OWNER' | 'ADMIN' | 'MANAGER' | 'USER' => {
-    // Primary source: profile.role (from Supabase auth system)
-    if (profile?.role === 'owner') return 'OWNER';
-    if (profile?.role === 'admin') return 'ADMIN';
-    if (profile?.role === 'manager') return 'MANAGER';
-    
-    // Fallback: businessUser.access_type (company-specific roles)
-    // Only use if profile role is not set to prevent conflicts
-    if (!profile?.role && businessUser?.access_type) {
-      return businessUser.access_type;
-    }
-    
-    return 'USER'; // Default to lowest privilege
+    if (userRole === 'owner') return 'OWNER';
+    if (userRole === 'admin') return 'ADMIN';
+    if (userRole === 'manager') return 'MANAGER';
+    if (businessUser?.access_type) return businessUser.access_type;
+    return 'USER';
   };
 
   const hasAccess = (section: string): boolean => {

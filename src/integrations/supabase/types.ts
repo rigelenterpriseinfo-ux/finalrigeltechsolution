@@ -1571,13 +1571,6 @@ export type Database = {
             referencedColumns: ["user_id"]
           },
           {
-            foreignKeyName: "fk_inventory_transactions_created_by"
-            columns: ["created_by"]
-            isOneToOne: false
-            referencedRelation: "profiles_safe"
-            referencedColumns: ["user_id"]
-          },
-          {
             foreignKeyName: "fk_inventory_transactions_product_id"
             columns: ["product_id"]
             isOneToOne: false
@@ -1794,13 +1787,6 @@ export type Database = {
             columns: ["created_by"]
             isOneToOne: false
             referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "payments_created_by_fkey"
-            columns: ["created_by"]
-            isOneToOne: false
-            referencedRelation: "profiles_safe"
             referencedColumns: ["id"]
           },
           {
@@ -2202,7 +2188,6 @@ export type Database = {
           last_name: string | null
           phone: string | null
           phone_verified: boolean | null
-          role: Database["public"]["Enums"]["app_role"]
           state: string | null
           updated_at: string
           user_id: string
@@ -2219,7 +2204,6 @@ export type Database = {
           last_name?: string | null
           phone?: string | null
           phone_verified?: boolean | null
-          role?: Database["public"]["Enums"]["app_role"]
           state?: string | null
           updated_at?: string
           user_id: string
@@ -2236,7 +2220,6 @@ export type Database = {
           last_name?: string | null
           phone?: string | null
           phone_verified?: boolean | null
-          role?: Database["public"]["Enums"]["app_role"]
           state?: string | null
           updated_at?: string
           user_id?: string
@@ -2486,13 +2469,6 @@ export type Database = {
             columns: ["created_by"]
             isOneToOne: false
             referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "purchase_orders_created_by_fkey"
-            columns: ["created_by"]
-            isOneToOne: false
-            referencedRelation: "profiles_safe"
             referencedColumns: ["id"]
           },
           {
@@ -3279,13 +3255,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "sales_orders_created_by_fkey"
-            columns: ["created_by"]
-            isOneToOne: false
-            referencedRelation: "profiles_safe"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "sales_orders_customer_id_fkey"
             columns: ["customer_id"]
             isOneToOne: false
@@ -3820,13 +3789,6 @@ export type Database = {
             referencedColumns: ["user_id"]
           },
           {
-            foreignKeyName: "fk_transaction_audit_log_user_id"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "profiles_safe"
-            referencedColumns: ["user_id"]
-          },
-          {
             foreignKeyName: "transaction_audit_log_company_id_fkey"
             columns: ["company_id"]
             isOneToOne: false
@@ -4138,67 +4100,100 @@ export type Database = {
       }
       customers_safe: {
         Row: {
+          account_number: string | null
+          address: string | null
+          address_line1: string | null
+          address_line2: string | null
           city: string | null
           company_id: string | null
+          contact_person: string | null
           country: string | null
           created_at: string | null
           credit_limit: number | null
-          credit_limit_days: number | null
           customer_ref: string | null
           customer_type: string | null
-          gst_tax_location: string | null
+          email: string | null
           gstin: string | null
           id: string | null
           is_active: boolean | null
           name: string | null
           pan_number: string | null
           payment_terms: string | null
+          phone: string | null
           pin_code: string | null
-          preferred_currency: string | null
+          shipping_address_line1: string | null
+          shipping_address_line2: string | null
+          shipping_city: string | null
+          shipping_country: string | null
+          shipping_pin_code: string | null
+          shipping_state: string | null
           state: string | null
           updated_at: string | null
+          website: string | null
         }
         Insert: {
+          account_number?: never
+          address?: string | null
+          address_line1?: string | null
+          address_line2?: string | null
           city?: string | null
           company_id?: string | null
+          contact_person?: string | null
           country?: string | null
           created_at?: string | null
-          credit_limit?: number | null
-          credit_limit_days?: number | null
+          credit_limit?: never
           customer_ref?: string | null
           customer_type?: string | null
-          gst_tax_location?: string | null
+          email?: never
           gstin?: string | null
           id?: string | null
           is_active?: boolean | null
           name?: string | null
           pan_number?: string | null
-          payment_terms?: string | null
+          payment_terms?: never
+          phone?: never
           pin_code?: string | null
-          preferred_currency?: string | null
+          shipping_address_line1?: string | null
+          shipping_address_line2?: string | null
+          shipping_city?: string | null
+          shipping_country?: string | null
+          shipping_pin_code?: string | null
+          shipping_state?: string | null
           state?: string | null
           updated_at?: string | null
+          website?: string | null
         }
         Update: {
+          account_number?: never
+          address?: string | null
+          address_line1?: string | null
+          address_line2?: string | null
           city?: string | null
           company_id?: string | null
+          contact_person?: string | null
           country?: string | null
           created_at?: string | null
-          credit_limit?: number | null
-          credit_limit_days?: number | null
+          credit_limit?: never
           customer_ref?: string | null
           customer_type?: string | null
-          gst_tax_location?: string | null
+          email?: never
           gstin?: string | null
           id?: string | null
           is_active?: boolean | null
           name?: string | null
           pan_number?: string | null
-          payment_terms?: string | null
+          payment_terms?: never
+          phone?: never
           pin_code?: string | null
-          preferred_currency?: string | null
+          shipping_address_line1?: string | null
+          shipping_address_line2?: string | null
+          shipping_city?: string | null
+          shipping_country?: string | null
+          shipping_pin_code?: string | null
+          shipping_state?: string | null
           state?: string | null
           updated_at?: string | null
+          website?: string | null
         }
         Relationships: [
           {
@@ -4210,125 +4205,84 @@ export type Database = {
           },
         ]
       }
-      profiles_safe: {
-        Row: {
-          avatar_url: string | null
-          city: string | null
-          company_id: string | null
-          country: string | null
-          created_at: string | null
-          first_name: string | null
-          id: string | null
-          is_active: boolean | null
-          last_name: string | null
-          phone_verified: boolean | null
-          role: Database["public"]["Enums"]["app_role"] | null
-          state: string | null
-          updated_at: string | null
-          user_id: string | null
-        }
-        Insert: {
-          avatar_url?: string | null
-          city?: string | null
-          company_id?: string | null
-          country?: string | null
-          created_at?: string | null
-          first_name?: string | null
-          id?: string | null
-          is_active?: boolean | null
-          last_name?: string | null
-          phone_verified?: boolean | null
-          role?: Database["public"]["Enums"]["app_role"] | null
-          state?: string | null
-          updated_at?: string | null
-          user_id?: string | null
-        }
-        Update: {
-          avatar_url?: string | null
-          city?: string | null
-          company_id?: string | null
-          country?: string | null
-          created_at?: string | null
-          first_name?: string | null
-          id?: string | null
-          is_active?: boolean | null
-          last_name?: string | null
-          phone_verified?: boolean | null
-          role?: Database["public"]["Enums"]["app_role"] | null
-          state?: string | null
-          updated_at?: string | null
-          user_id?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "profiles_company_id_fkey"
-            columns: ["company_id"]
-            isOneToOne: false
-            referencedRelation: "companies"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       suppliers_safe: {
         Row: {
+          account_number: string | null
+          address: string | null
+          address_line1: string | null
+          address_line2: string | null
           city: string | null
           company_id: string | null
           country: string | null
           created_at: string | null
           credit_time: number | null
+          email: string | null
           gst_number: string | null
           id: string | null
           is_active: boolean | null
           name: string | null
           pan_number: string | null
           payment_terms: string | null
+          phone: string | null
           pin_code: string | null
           place_of_supply: string | null
-          preferred_currency: string | null
           state: string | null
           supplier_ref: string | null
           supplier_type: string | null
           updated_at: string | null
+          website: string | null
         }
         Insert: {
+          account_number?: never
+          address?: string | null
+          address_line1?: string | null
+          address_line2?: string | null
           city?: string | null
           company_id?: string | null
           country?: string | null
           created_at?: string | null
-          credit_time?: number | null
+          credit_time?: never
+          email?: never
           gst_number?: string | null
           id?: string | null
           is_active?: boolean | null
           name?: string | null
           pan_number?: string | null
-          payment_terms?: string | null
+          payment_terms?: never
+          phone?: never
           pin_code?: string | null
           place_of_supply?: string | null
-          preferred_currency?: string | null
           state?: string | null
           supplier_ref?: string | null
           supplier_type?: string | null
           updated_at?: string | null
+          website?: string | null
         }
         Update: {
+          account_number?: never
+          address?: string | null
+          address_line1?: string | null
+          address_line2?: string | null
           city?: string | null
           company_id?: string | null
           country?: string | null
           created_at?: string | null
-          credit_time?: number | null
+          credit_time?: never
+          email?: never
           gst_number?: string | null
           id?: string | null
           is_active?: boolean | null
           name?: string | null
           pan_number?: string | null
-          payment_terms?: string | null
+          payment_terms?: never
+          phone?: never
           pin_code?: string | null
           place_of_supply?: string | null
-          preferred_currency?: string | null
           state?: string | null
           supplier_ref?: string | null
           supplier_type?: string | null
           updated_at?: string | null
+          website?: string | null
         }
         Relationships: [
           {
@@ -4690,6 +4644,13 @@ export type Database = {
           total_value: number
           warehouse_name: string
         }[]
+      }
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
       }
       is_password_reused: {
         Args: { p_new_password_hash: string; p_user_id: string }

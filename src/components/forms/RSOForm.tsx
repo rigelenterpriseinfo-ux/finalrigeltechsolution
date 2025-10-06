@@ -176,7 +176,7 @@ export function RSOForm({ rsoId, onClose, onSave }: RSOFormProps) {
 
     try {
       const { data, error } = await supabase
-        .from('customers')
+        .from('customers_safe')
         .select('id, name, customer_ref')
         .eq('company_id', company.id)
         .eq('is_active', true)

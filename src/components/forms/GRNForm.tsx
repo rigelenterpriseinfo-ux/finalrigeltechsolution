@@ -194,7 +194,7 @@ export function GRNForm({ grn, onSubmit, onCancel, readOnly = false, mode }: GRN
   const fetchSuppliers = async () => {
     try {
       const { data, error } = await supabase
-        .from('suppliers')
+        .from('suppliers_safe')
         .select('*')
         .eq('company_id', profile?.company_id)
         .eq('is_active', true)

@@ -114,7 +114,7 @@ export function DebitNoteForm({ debitNote, onSubmit, onCancel, mode }: DebitNote
   const fetchSuppliers = async () => {
     try {
       const { data, error } = await supabase
-        .from('suppliers')
+        .from('suppliers_safe')
         .select('*')
         .order('name');
       
