@@ -37,6 +37,7 @@ const GatedBusinessRegistration = () => {
   const [resendCount, setResendCount] = useState(0);
   const [otpCode, setOtpCode] = useState('');
   const [isVerifyingOtp, setIsVerifyingOtp] = useState(false);
+  const [emailError, setEmailError] = useState('');
 
   const paymentData = location.state as any;
   const searchParams = new URLSearchParams(location.search);
@@ -159,7 +160,38 @@ const GatedBusinessRegistration = () => {
     if (!validateStep1()) return;
     
     setIsLoading(true);
+    setEmailError('');
+    
     try {
+      // Check if email is already registered before sending OTP
+      const { data: availabilityData, error: availabilityError } = await supabase.functions.invoke(
+        'check-email-availability',
+        {
+          body: { email: formData.email }
+        }
+      );
+
+      if (availabilityError) {
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "Failed to verify email availability"
+        });
+        return;
+      }
+
+      if (!availabilityData.available) {
+        const errorMessage = availabilityData.message || "This email is already registered";
+        setEmailError(errorMessage);
+        toast({
+          variant: "destructive",
+          title: "Email Already Registered",
+          description: errorMessage
+        });
+        return;
+      }
+
+      // Email is available, proceed to send OTP
       const { data, error } = await supabase.functions.invoke('send-otp', {
         body: { 
           email: formData.email,
@@ -401,11 +433,18 @@ const GatedBusinessRegistration = () => {
                         id="email"
                         type="email"
                         value={formData.email}
-                        onChange={(e) => handleInputChange('email', e.target.value)}
+                        onChange={(e) => {
+                          handleInputChange('email', e.target.value);
+                          setEmailError(''); // Clear error when user types
+                        }}
                         placeholder="business@example.com"
                         required
                         disabled={emailVerified}
+                        className={emailError ? "border-destructive" : ""}
                       />
+                      {emailError && (
+                        <p className="text-sm text-destructive mt-1">{emailError}</p>
+                      )}
                     </div>
 
                     <div>
