@@ -180,6 +180,9 @@ const GatedBusinessRegistration = () => {
         description: "Please check your email for a 6-digit verification code."
       });
     } catch (error: any) {
+      console.error('Send OTP error:', error);
+      console.error('Error details:', JSON.stringify(error, null, 2));
+      
       // Handle duplicate email error (409 status)
       if (error.message?.includes('already registered') || error.message?.includes('pending registration')) {
         setEmailError(error.message);
@@ -191,7 +194,7 @@ const GatedBusinessRegistration = () => {
       } else {
         toast({
           title: "Failed to send verification code",
-          description: error.message || "An error occurred",
+          description: error.message || "An error occurred. Please check your email configuration.",
           variant: "destructive"
         });
       }
