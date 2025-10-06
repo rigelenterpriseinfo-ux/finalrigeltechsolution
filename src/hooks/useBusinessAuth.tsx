@@ -20,7 +20,6 @@ export const useBusinessAuth = () => {
   const [businessUser, setBusinessUser] = useState<BusinessUser | null>(null);
   const [sectionPermissions, setSectionPermissions] = useState<SectionPermissions>({});
   const [loading, setLoading] = useState(true);
-  const [userRole, setUserRole] = useState<'owner' | 'admin' | 'manager' | 'staff' | null>(null);
 
   useEffect(() => {
     const fetchAllData = async () => {
@@ -65,28 +64,15 @@ export const useBusinessAuth = () => {
           console.error('[BusinessAuth] Error fetching section permissions:', permError);
         }
 
-        // Fetch user role
-        const { data: roleData, error: roleError } = await supabase
-          .from('user_roles')
-          .select('role')
-          .eq('user_id', user.id)
-          .eq('company_id', company.id)
-          .maybeSingle();
-        
-        if (roleError) {
-          console.error('[BusinessAuth] Error fetching user role:', roleError);
-        }
-
         // Update all state at once
         console.log('[BusinessAuth] Fetched data:', {
           businessUser: businessUserData,
           permissions: permData?.access_sections,
-          role: roleData?.role
+          accessType: businessUserData?.access_type
         });
 
         setBusinessUser(businessUserData as BusinessUser);
         setSectionPermissions((permData?.access_sections as SectionPermissions) || {});
-        setUserRole(roleData?.role || null);
         
       } catch (error) {
         console.error('[BusinessAuth] Error fetching data:', error);
@@ -142,43 +128,12 @@ export const useBusinessAuth = () => {
     }
   };
 
-  const fetchUserRole = async () => {
-    if (!user?.id || !company?.id) {
-      console.log('[BusinessAuth] fetchUserRole: No user ID or company ID, skipping');
-      return;
-    }
-    
-    try {
-      console.log('[BusinessAuth] Fetching user role for user ID:', user.id, 'company:', company.id);
-      const { data, error } = await supabase
-        .from('user_roles')
-        .select('role')
-        .eq('user_id', user.id)
-        .eq('company_id', company.id)
-        .maybeSingle();
-      
-      if (error) {
-        console.error('[BusinessAuth] Error fetching user role:', error);
-      } else {
-        console.log('[BusinessAuth] User role fetched:', data?.role);
-        setUserRole(data?.role || null);
-      }
-    } catch (error) {
-      console.error('[BusinessAuth] User role fetch error:', error);
-    }
-  };
-
   const getEffectiveRole = (): 'OWNER' | 'ADMIN' | 'MANAGER' | 'STAFF' | 'USER' => {
-    // CRITICAL: Only use userRole from user_roles table (single source of truth)
-    // This prevents privilege escalation attacks and ensures consistency
-    const role = userRole === 'owner' ? 'OWNER' :
-                 userRole === 'admin' ? 'ADMIN' :
-                 userRole === 'manager' ? 'MANAGER' :
-                 userRole === 'staff' ? 'STAFF' :
-                 'USER';
+    // Use access_type from company_users table (single source of truth)
+    const role = businessUser?.access_type || 'USER';
     
     console.log('[BusinessAuth] getEffectiveRole called:', {
-      userRole,
+      accessType: businessUser?.access_type,
       effectiveRole: role,
       loading
     });
@@ -191,8 +146,7 @@ export const useBusinessAuth = () => {
     
     console.log(`[BusinessAuth] hasAccess('${section}') called:`, {
       effectiveRole,
-      userRole,
-      businessUserAccessType: businessUser?.access_type,
+      accessType: businessUser?.access_type,
       sectionPermissions,
       loading
     });
