@@ -32,6 +32,9 @@ export const useBusinessAuth = () => {
           fetchSectionPermissions(),
           fetchUserRole()
         ]);
+        
+        // Only set loading to false after all data is fetched
+        setLoading(false);
       } else {
         console.log('BusinessAuth: Missing user data or company id', { 
           userEmail: user?.email, 
@@ -64,8 +67,6 @@ export const useBusinessAuth = () => {
       }
     } catch (error) {
       console.error('Business user fetch error:', error);
-    } finally {
-      setLoading(false);
     }
   };
 
