@@ -3797,44 +3797,6 @@ export type Database = {
           },
         ]
       }
-      user_company_access: {
-        Row: {
-          company_id: string
-          granted_at: string | null
-          granted_by: string | null
-          id: string
-          is_active: boolean | null
-          role: string
-          user_id: string
-        }
-        Insert: {
-          company_id: string
-          granted_at?: string | null
-          granted_by?: string | null
-          id?: string
-          is_active?: boolean | null
-          role?: string
-          user_id: string
-        }
-        Update: {
-          company_id?: string
-          granted_at?: string | null
-          granted_by?: string | null
-          id?: string
-          is_active?: boolean | null
-          role?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "user_company_access_company_id_fkey"
-            columns: ["company_id"]
-            isOneToOne: false
-            referencedRelation: "companies"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       user_roles: {
         Row: {
           company_id: string | null

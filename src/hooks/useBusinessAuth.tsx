@@ -166,16 +166,17 @@ export const useBusinessAuth = () => {
     }
   };
 
-  const getEffectiveRole = (): 'OWNER' | 'ADMIN' | 'MANAGER' | 'USER' => {
+  const getEffectiveRole = (): 'OWNER' | 'ADMIN' | 'MANAGER' | 'STAFF' | 'USER' => {
+    // CRITICAL: Only use userRole from user_roles table (single source of truth)
+    // This prevents privilege escalation attacks and ensures consistency
     const role = userRole === 'owner' ? 'OWNER' :
                  userRole === 'admin' ? 'ADMIN' :
                  userRole === 'manager' ? 'MANAGER' :
-                 businessUser?.access_type ? businessUser.access_type :
+                 userRole === 'staff' ? 'STAFF' :
                  'USER';
     
     console.log('[BusinessAuth] getEffectiveRole called:', {
       userRole,
-      businessUserAccessType: businessUser?.access_type,
       effectiveRole: role,
       loading
     });

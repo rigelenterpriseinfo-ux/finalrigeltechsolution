@@ -458,6 +458,24 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           return;
         }
 
+        // Also create company_users record for business context
+        const { error: companyUserError } = await supabase
+          .from('company_users')
+          .insert({
+            company_id: newCompany.id,
+            user_id: user.id,
+            username: user.email || '',
+            email: user.email || '',
+            password_hash: '', // Empty for Supabase Auth users
+            access_type: 'OWNER',
+            status: 'ACTIVE'
+          });
+
+        if (companyUserError) {
+          console.error('Company user creation error:', companyUserError);
+          // Continue anyway as user_roles is the source of truth
+        }
+
         console.log('Successfully created missing records, refreshing...');
         // Refresh data
         setTimeout(() => {
