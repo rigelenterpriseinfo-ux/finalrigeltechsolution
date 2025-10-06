@@ -190,7 +190,7 @@ serve(async (req) => {
     const { data: existingRequest, error: checkError } = await supabase
       .from("business_registration_requests")
       .select("id, status")
-      .eq("business_email", email)
+      .eq("email", email)
       .limit(1);
 
     if (checkError) {
@@ -222,18 +222,21 @@ serve(async (req) => {
     // Sanitize all string inputs before storage
     const sanitizedData = {
       business_name: sanitizeString(name),
-      business_email: sanitizeString(email),
-      business_phone: sanitizeString(phone),
+      email: sanitizeString(email),
+      phone: sanitizeString(phone),
       address_line1: sanitizeString(addrLine1),
       address_line2: addrLine2 ? sanitizeString(addrLine2) : null,
+      city: sanitizeString(state), // Using state as city for now
       state: sanitizeString(state),
       postal_code: sanitizeString(pinCode),
       country: sanitizeString(country),
       gstin: gstin ? sanitizeString(gstin) : null,
       business_type: sanitizeString(businessType),
-      industry_type: sanitizeString(industryType),
-      admin_username: sanitizeString(username),
-      admin_password_hash: passwordHash,
+      industry: sanitizeString(industryType),
+      admin_details: {
+        username: sanitizeString(username),
+        password_hash: passwordHash
+      },
       status: 'pending' as const
     };
 
@@ -258,7 +261,7 @@ serve(async (req) => {
       details: {
         request_id: requestData.id,
         business_name: sanitizedData.business_name,
-        business_email: sanitizedData.business_email
+        email: sanitizedData.email
       },
       ip_address: req.headers.get('x-forwarded-for') || 'unknown',
       severity: 'low'
