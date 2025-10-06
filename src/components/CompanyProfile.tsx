@@ -22,6 +22,8 @@ export function CompanyProfile({ readonly = false }: CompanyProfileProps) {
   const { hasEditAccess } = useBusinessAuth();
   const { toast } = useToast();
   
+  console.log('[CompanyProfile] Render - company:', company, 'profile:', profile, 'loading:', loading);
+  
   // Check if user has edit access for company profile
   const canEdit = !readonly && hasEditAccess('company_profile');
 
@@ -334,7 +336,13 @@ export function CompanyProfile({ readonly = false }: CompanyProfileProps) {
 
   // Update form data when company data changes
   React.useEffect(() => {
+    console.log('[CompanyProfile] useEffect triggered - company:', company);
     if (company) {
+      console.log('[CompanyProfile] Setting form data with company:', {
+        name: company.name,
+        email: company.email,
+        hasAddressLine1: !!(company as any).address_line1
+      });
       setFormData(prev => ({
         ...prev,
         name: company.name || '',
@@ -357,6 +365,8 @@ export function CompanyProfile({ readonly = false }: CompanyProfileProps) {
       if ((company as any).logo_url) {
         setLogoPreview((company as any).logo_url);
       }
+    } else {
+      console.log('[CompanyProfile] No company data in useEffect');
     }
   }, [company]);
 

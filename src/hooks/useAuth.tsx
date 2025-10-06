@@ -125,20 +125,29 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
               }
 
               if (effectiveProfile?.company_id) {
-                console.log('Fetching company data...');
+                console.log('[useAuth] Fetching company for company_id:', effectiveProfile.company_id);
                 const { data: companyData, error: companyError } = await supabase
                   .from('companies')
                   .select('*')
                   .eq('id', effectiveProfile.company_id)
                   .maybeSingle();
 
+                console.log('[useAuth] Company fetch result:', { 
+                  companyData, 
+                  companyError,
+                  hasData: !!companyData,
+                  companyId: effectiveProfile.company_id 
+                });
+
                 if (companyError && (companyError as any).code !== 'PGRST116') {
-                  console.error('Error fetching company:', companyError);
+                  console.error('[useAuth] Error fetching company:', companyError);
                 }
 
                 if (companyData) {
-                  console.log('Company fetched:', companyData);
+                  console.log('[useAuth] Setting company state:', companyData);
                   setCompany(companyData as any);
+                } else {
+                  console.warn('[useAuth] No company data returned for company_id:', effectiveProfile.company_id);
                 }
               }
             } catch (error) {
