@@ -96,6 +96,14 @@ serve(async (req) => {
     }
 
     if (recentRequests && recentRequests.length >= 3) {
+      // Log security event for rate limit hit
+      await supabase.from('security_audit_log').insert({
+        action: 'email_confirmation_rate_limit_exceeded',
+        details: { email, attempt_count: recentRequests.length },
+        ip_address: req.headers.get('x-forwarded-for') || 'unknown',
+        severity: 'medium'
+      });
+      
       return new Response(
         JSON.stringify({ error: "Too many confirmation requests. Please try again in an hour." }),
         { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -155,6 +163,14 @@ serve(async (req) => {
       });
 
       console.log("Email sent successfully:", emailResult);
+      
+      // Log successful email confirmation sent
+      await supabase.from('security_audit_log').insert({
+        action: 'email_confirmation_sent',
+        details: { email, purpose },
+        ip_address: req.headers.get('x-forwarded-for') || 'unknown',
+        severity: 'low'
+      });
     } catch (emailError) {
       console.error("Email sending error:", emailError);
       // Still return success as token is stored, user can try again

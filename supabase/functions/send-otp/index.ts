@@ -91,6 +91,14 @@ serve(async (req) => {
     }
 
     if (recentOtps && recentOtps.length >= 3) {
+      // Log security event for rate limit hit
+      await supabase.from('security_audit_log').insert({
+        action: 'otp_rate_limit_exceeded',
+        details: { email, attempt_count: recentOtps.length },
+        ip_address: req.headers.get('x-forwarded-for') || 'unknown',
+        severity: 'medium'
+      });
+      
       return new Response(
         JSON.stringify({ error: "Too many OTP requests. Please try again in an hour." }),
         { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -140,6 +148,14 @@ serve(async (req) => {
       }
 
       console.log("Email sent successfully via Supabase");
+      
+      // Log successful OTP generation
+      await supabase.from('security_audit_log').insert({
+        action: 'otp_sent',
+        details: { email, purpose },
+        ip_address: req.headers.get('x-forwarded-for') || 'unknown',
+        severity: 'low'
+      });
     } catch (emailError) {
       console.error("Email sending error:", emailError);
       return new Response(
