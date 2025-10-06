@@ -68,7 +68,7 @@ export function CompanyProfile({ readonly = false }: CompanyProfileProps) {
     const currentDate = new Date();
     const month = String(currentDate.getMonth() + 1).padStart(2, '0');
     const year = currentDate.getFullYear();
-    return `PRISM-${firstFourLetters}-${month}-${year}`;
+    return `Rigel-${firstFourLetters}-${month}-${year}`;
   };
 
   const handleInputChange = (field: string, value: string) => {
@@ -424,7 +424,7 @@ export function CompanyProfile({ readonly = false }: CompanyProfileProps) {
                       className="bg-muted/50 border-muted font-mono text-sm"
                     />
                     <p className="text-xs text-muted-foreground">
-                      Format: PRISM-(First 4 letters)-(MM)-(YYYY)
+                      Format: Rigel-(First 4 letters)-(MM)-(YYYY)
                     </p>
                   </div>
 

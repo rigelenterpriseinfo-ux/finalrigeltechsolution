@@ -165,7 +165,7 @@ export default function EnhancedAuth() {
               <Building2 className="h-7 w-7 text-primary" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-foreground">PRISM ERP</h1>
+              <h1 className="text-2xl font-bold text-foreground">Rigel ERP</h1>
               <p className="text-sm text-muted-foreground">Business Management Platform</p>
             </div>
           </div>
