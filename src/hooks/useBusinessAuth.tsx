@@ -23,32 +23,15 @@ export const useBusinessAuth = () => {
 
   useEffect(() => {
     const fetchAllData = async () => {
-      console.log('[BusinessAuth] useEffect triggered with:', { 
-        userEmail: user?.email, 
-        userId: user?.id, 
-        companyId: company?.id,
-        user: user,
-        company: company
-      });
-
       if (!user?.email || !user?.id || !company?.id) {
-        console.log('[BusinessAuth] Missing required data, setting default USER role');
         setBusinessUser(null);
         setSectionPermissions({});
         setLoading(false);
         return;
       }
-
-      console.log('[BusinessAuth] All required data present, starting fetch');
       
       try {
-        // Fetch business user - try direct table first
-        console.log('[BusinessAuth] Querying company_users with:', {
-          email: user.email,
-          company_id: company.id,
-          user_id: user.id
-        });
-
+        // Fetch business user from company_users table
         const { data: businessUserData, error: businessUserError } = await supabase
           .from('company_users')
           .select('id, user_id, email, username, access_type, company_id, full_name, designation, status')
@@ -56,19 +39,8 @@ export const useBusinessAuth = () => {
           .eq('company_id', company.id)
           .maybeSingle();
 
-        console.log('[BusinessAuth] Query result:', {
-          data: businessUserData,
-          error: businessUserError,
-          hasData: !!businessUserData,
-          accessType: businessUserData?.access_type
-        });
-
         if (businessUserError) {
           console.error('[BusinessAuth] Error fetching business user:', businessUserError);
-        }
-
-        if (!businessUserData) {
-          console.warn('[BusinessAuth] No business user found! This user may not be in company_users table');
         }
 
         // Fetch section permissions
@@ -83,20 +55,12 @@ export const useBusinessAuth = () => {
           console.error('[BusinessAuth] Error fetching section permissions:', permError);
         }
 
-        // Update all state at once
-        console.log('[BusinessAuth] Final state update:', {
-          businessUser: businessUserData,
-          accessType: businessUserData?.access_type,
-          permissions: permData?.access_sections
-        });
-
         setBusinessUser(businessUserData as BusinessUser);
         setSectionPermissions((permData?.access_sections as SectionPermissions) || {});
         
       } catch (error) {
-        console.error('[BusinessAuth] Unexpected error:', error);
+        console.error('[BusinessAuth] Error:', error);
       } finally {
-        console.log('[BusinessAuth] Fetch complete, loading = false');
         setLoading(false);
       }
     };
@@ -106,15 +70,12 @@ export const useBusinessAuth = () => {
 
   const fetchBusinessUser = async () => {
     try {
-      console.log('[BusinessAuth] Fetching business user for refetch');
       const { data, error } = await supabase
-        .from('company_users_safe')
-        .select('*')
-        .eq('email', user?.email)
+        .from('company_users')
+        .select('id, user_id, email, username, access_type, company_id, full_name, designation, status')
+        .eq('user_id', user?.id)
         .eq('company_id', company?.id)
         .maybeSingle();
-
-      console.log('[BusinessAuth] Business user refetch result:', { data, error });
 
       if (error) {
         console.error('[BusinessAuth] Error refetching business user:', error);
@@ -148,51 +109,29 @@ export const useBusinessAuth = () => {
   };
 
   const getEffectiveRole = (): 'OWNER' | 'ADMIN' | 'MANAGER' | 'STAFF' | 'USER' => {
-    // Use access_type from company_users table (single source of truth)
-    const role = businessUser?.access_type || 'USER';
-    
-    console.log('[BusinessAuth] getEffectiveRole called:', {
-      accessType: businessUser?.access_type,
-      effectiveRole: role,
-      loading
-    });
-    
-    return role;
+    return businessUser?.access_type || 'USER';
   };
 
   const hasAccess = (section: string): boolean => {
     const effectiveRole = getEffectiveRole();
     
-    console.log(`[BusinessAuth] hasAccess('${section}') called:`, {
-      effectiveRole,
-      accessType: businessUser?.access_type,
-      sectionPermissions,
-      loading
-    });
-    
     // Owners and Admins always have access
     if (effectiveRole === 'OWNER' || effectiveRole === 'ADMIN') {
-      console.log(`[BusinessAuth] Access granted to '${section}' - User is ${effectiveRole}`);
       return true;
     }
     
     // Managers have access but may be restricted in some sections
     if (effectiveRole === 'MANAGER') {
-      console.log(`[BusinessAuth] Access granted to '${section}' - User is MANAGER`);
       return true;
     }
     
     // Special case for company_profile - allow broader access
     if (section === 'company_profile') {
-      const hasAccess = ['OWNER', 'ADMIN', 'MANAGER'].includes(effectiveRole);
-      console.log(`[BusinessAuth] Company profile access check: ${hasAccess}`);
-      return hasAccess;
+      return ['OWNER', 'ADMIN', 'MANAGER'].includes(effectiveRole);
     }
     
     // Regular users need explicit section permissions
-    const hasPermission = sectionPermissions[section] === 'read' || sectionPermissions[section] === 'edit';
-    console.log(`[BusinessAuth] Access check for '${section}' - Permission: ${hasPermission}`);
-    return hasPermission;
+    return sectionPermissions[section] === 'read' || sectionPermissions[section] === 'edit';
   };
 
   const hasEditAccess = (section: string): boolean => {
