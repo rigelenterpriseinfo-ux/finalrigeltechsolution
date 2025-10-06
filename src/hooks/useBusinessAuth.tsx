@@ -23,33 +23,52 @@ export const useBusinessAuth = () => {
 
   useEffect(() => {
     const fetchAllData = async () => {
+      console.log('[BusinessAuth] useEffect triggered with:', { 
+        userEmail: user?.email, 
+        userId: user?.id, 
+        companyId: company?.id,
+        user: user,
+        company: company
+      });
+
       if (!user?.email || !user?.id || !company?.id) {
-        console.log('[BusinessAuth] Missing required data:', { 
-          userEmail: user?.email, 
-          userId: user?.id, 
-          companyId: company?.id 
-        });
+        console.log('[BusinessAuth] Missing required data, setting default USER role');
+        setBusinessUser(null);
+        setSectionPermissions({});
         setLoading(false);
         return;
       }
 
-      console.log('[BusinessAuth] Starting data fetch for:', { 
-        email: user.email, 
-        userId: user.id, 
-        companyId: company.id 
-      });
+      console.log('[BusinessAuth] All required data present, starting fetch');
       
       try {
-        // Fetch business user
+        // Fetch business user - try direct table first
+        console.log('[BusinessAuth] Querying company_users with:', {
+          email: user.email,
+          company_id: company.id,
+          user_id: user.id
+        });
+
         const { data: businessUserData, error: businessUserError } = await supabase
-          .from('company_users_safe')
-          .select('*')
-          .eq('email', user.email)
+          .from('company_users')
+          .select('id, user_id, email, username, access_type, company_id, full_name, designation, status')
+          .eq('user_id', user.id)
           .eq('company_id', company.id)
           .maybeSingle();
 
+        console.log('[BusinessAuth] Query result:', {
+          data: businessUserData,
+          error: businessUserError,
+          hasData: !!businessUserData,
+          accessType: businessUserData?.access_type
+        });
+
         if (businessUserError) {
           console.error('[BusinessAuth] Error fetching business user:', businessUserError);
+        }
+
+        if (!businessUserData) {
+          console.warn('[BusinessAuth] No business user found! This user may not be in company_users table');
         }
 
         // Fetch section permissions
@@ -65,19 +84,19 @@ export const useBusinessAuth = () => {
         }
 
         // Update all state at once
-        console.log('[BusinessAuth] Fetched data:', {
+        console.log('[BusinessAuth] Final state update:', {
           businessUser: businessUserData,
-          permissions: permData?.access_sections,
-          accessType: businessUserData?.access_type
+          accessType: businessUserData?.access_type,
+          permissions: permData?.access_sections
         });
 
         setBusinessUser(businessUserData as BusinessUser);
         setSectionPermissions((permData?.access_sections as SectionPermissions) || {});
         
       } catch (error) {
-        console.error('[BusinessAuth] Error fetching data:', error);
+        console.error('[BusinessAuth] Unexpected error:', error);
       } finally {
-        console.log('[BusinessAuth] Setting loading to false');
+        console.log('[BusinessAuth] Fetch complete, loading = false');
         setLoading(false);
       }
     };
