@@ -436,12 +436,25 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             phone: userData.phone,
             city: userData.city,
             state: userData.state,
-            country: userData.country,
-            role: 'owner'
+            country: userData.country
           });
 
         if (profileError) {
           console.error('Profile creation error:', profileError);
+          return;
+        }
+
+        // Assign owner role in user_roles table
+        const { error: roleError } = await supabase
+          .from('user_roles')
+          .insert({
+            user_id: user.id,
+            company_id: newCompany.id,
+            role: 'owner'
+          });
+
+        if (roleError) {
+          console.error('Role assignment error:', roleError);
           return;
         }
 
