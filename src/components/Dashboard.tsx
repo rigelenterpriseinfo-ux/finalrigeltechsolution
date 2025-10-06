@@ -168,11 +168,15 @@ export default function Dashboard() {
   }
 
   const renderActiveModule = () => {
-    console.log('Rendering active module:', activeModule, { 
-      authLoading, 
-      effectiveRole: getEffectiveRole(),
-      hasInventoryAccess: hasAccess('inventory')
-    });
+    console.log('=== DASHBOARD RENDER ===');
+    console.log('Active module:', activeModule);
+    console.log('Auth loading:', authLoading);
+    console.log('Effective role:', getEffectiveRole());
+    
+    if (activeModule === 'inventory') {
+      const inventoryAccess = hasAccess('inventory');
+      console.log('Has inventory access:', inventoryAccess);
+    }
     
     switch (activeModule) {
       case 'inventory':

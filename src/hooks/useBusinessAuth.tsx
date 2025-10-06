@@ -188,19 +188,37 @@ export const useBusinessAuth = () => {
   const hasAccess = (section: string): boolean => {
     const effectiveRole = getEffectiveRole();
     
+    console.log(`[BusinessAuth] hasAccess('${section}') called:`, {
+      effectiveRole,
+      userRole,
+      businessUserAccessType: businessUser?.access_type,
+      sectionPermissions,
+      loading
+    });
+    
     // Owners and Admins always have access
-    if (effectiveRole === 'OWNER' || effectiveRole === 'ADMIN') return true;
+    if (effectiveRole === 'OWNER' || effectiveRole === 'ADMIN') {
+      console.log(`[BusinessAuth] Access granted to '${section}' - User is ${effectiveRole}`);
+      return true;
+    }
     
     // Managers have access but may be restricted in some sections
-    if (effectiveRole === 'MANAGER') return true;
+    if (effectiveRole === 'MANAGER') {
+      console.log(`[BusinessAuth] Access granted to '${section}' - User is MANAGER`);
+      return true;
+    }
     
     // Special case for company_profile - allow broader access
     if (section === 'company_profile') {
-      return ['OWNER', 'ADMIN', 'MANAGER'].includes(effectiveRole);
+      const hasAccess = ['OWNER', 'ADMIN', 'MANAGER'].includes(effectiveRole);
+      console.log(`[BusinessAuth] Company profile access check: ${hasAccess}`);
+      return hasAccess;
     }
     
     // Regular users need explicit section permissions
-    return sectionPermissions[section] === 'read' || sectionPermissions[section] === 'edit';
+    const hasPermission = sectionPermissions[section] === 'read' || sectionPermissions[section] === 'edit';
+    console.log(`[BusinessAuth] Access check for '${section}' - Permission: ${hasPermission}`);
+    return hasPermission;
   };
 
   const hasEditAccess = (section: string): boolean => {
