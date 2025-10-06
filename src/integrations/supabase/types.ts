@@ -4117,7 +4117,9 @@ export type Database = {
           is_active: boolean | null
           name: string | null
           pan_number: string | null
+          payment_terms: string | null
           pin_code: string | null
+          preferred_currency: string | null
           state: string | null
           updated_at: string | null
         }
@@ -4136,7 +4138,9 @@ export type Database = {
           is_active?: boolean | null
           name?: string | null
           pan_number?: string | null
+          payment_terms?: string | null
           pin_code?: string | null
+          preferred_currency?: string | null
           state?: string | null
           updated_at?: string | null
         }
@@ -4155,7 +4159,9 @@ export type Database = {
           is_active?: boolean | null
           name?: string | null
           pan_number?: string | null
+          payment_terms?: string | null
           pin_code?: string | null
+          preferred_currency?: string | null
           state?: string | null
           updated_at?: string | null
         }
@@ -4181,8 +4187,10 @@ export type Database = {
           is_active: boolean | null
           name: string | null
           pan_number: string | null
+          payment_terms: string | null
           pin_code: string | null
           place_of_supply: string | null
+          preferred_currency: string | null
           state: string | null
           supplier_ref: string | null
           supplier_type: string | null
@@ -4199,8 +4207,10 @@ export type Database = {
           is_active?: boolean | null
           name?: string | null
           pan_number?: string | null
+          payment_terms?: string | null
           pin_code?: string | null
           place_of_supply?: string | null
+          preferred_currency?: string | null
           state?: string | null
           supplier_ref?: string | null
           supplier_type?: string | null
@@ -4217,8 +4227,10 @@ export type Database = {
           is_active?: boolean | null
           name?: string | null
           pan_number?: string | null
+          payment_terms?: string | null
           pin_code?: string | null
           place_of_supply?: string | null
+          preferred_currency?: string | null
           state?: string | null
           supplier_ref?: string | null
           supplier_type?: string | null
