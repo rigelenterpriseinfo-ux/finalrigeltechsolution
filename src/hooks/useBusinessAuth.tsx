@@ -70,6 +70,7 @@ export const useBusinessAuth = () => {
           .from('user_roles')
           .select('role')
           .eq('user_id', user.id)
+          .eq('company_id', company.id)
           .maybeSingle();
         
         if (roleError) {
