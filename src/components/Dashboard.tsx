@@ -184,7 +184,14 @@ export default function Dashboard() {
           );
         }
         
-        if (!hasAccess('inventory')) {
+        // Only check access after loading is complete
+        const inventoryAccess = hasAccess('inventory');
+        console.log('Inventory access check:', {
+          hasAccess: inventoryAccess,
+          effectiveRole: getEffectiveRole()
+        });
+        
+        if (!inventoryAccess) {
           console.log('Access denied to inventory - Role:', getEffectiveRole());
           return (
             <div className="flex items-center justify-center h-96">
