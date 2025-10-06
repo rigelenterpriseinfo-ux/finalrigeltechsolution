@@ -282,19 +282,10 @@ const Index = () => {
               <div className="flex flex-col sm:flex-row gap-4 pt-4">
                 <Button 
                   size="lg" 
-                  className="btn-gradient text-lg px-8 h-14 hover-scale"
+                  className="btn-gradient text-lg px-8 h-14 hover-scale w-full sm:w-auto"
                   onClick={() => navigate('/business-registration?plan=trial')}
                 >
                   Start Free 30-Day Trial <ArrowRight className="ml-2 h-5 w-5" />
-                </Button>
-                <Button 
-                  size="lg" 
-                  variant="outline" 
-                  className="text-lg px-8 h-14 hover-scale"
-                  onClick={() => document.getElementById('demo')?.scrollIntoView({ behavior: 'smooth' })}
-                >
-                  <BarChart3 className="mr-2 h-5 w-5" />
-                  Watch Demo
                 </Button>
               </div>
 

@@ -23,17 +23,17 @@ const Subscribe = () => {
     },
     monthly: {
       name: "Monthly Plan",
-      price: "₹2,500",
+      price: "₹999",
       period: "/month",
-      amount: 2500,
+      amount: 999,
       description: "Perfect for getting started"
     },
     yearly: {
       name: "Yearly Plan", 
-      price: "₹24,000",
+      price: "₹10,000",
       period: "/year",
-      amount: 24000,
-      description: "Best value - Save ₹6,000 annually"
+      amount: 10000,
+      description: "Best value - Save ₹1,988 annually"
     }
   };
 
