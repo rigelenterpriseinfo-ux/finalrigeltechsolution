@@ -163,31 +163,7 @@ const GatedBusinessRegistration = () => {
     setEmailError('');
     
     try {
-      // Check if email is already registered before sending OTP
-      const { data: availabilityData, error: availabilityError } = await supabase.functions.invoke(
-        'check-email-availability',
-        {
-          body: { email: formData.email }
-        }
-      );
-
-      // Check availability result only if check succeeded
-      if (!availabilityError && availabilityData) {
-        if (!availabilityData.available) {
-          const errorMessage = availabilityData.message || "This email is already registered";
-          setEmailError(errorMessage);
-          toast({
-            variant: "destructive",
-            title: "Email Already Registered",
-            description: errorMessage
-          });
-          return;
-        }
-      } else if (availabilityError) {
-        console.warn('Email availability check failed, proceeding anyway:', availabilityError);
-      }
-
-      // Email is available (or check failed), proceed to send OTP
+      // Send OTP (includes duplicate email check)
       const { data, error } = await supabase.functions.invoke('send-otp', {
         body: { 
           email: formData.email,
@@ -204,11 +180,21 @@ const GatedBusinessRegistration = () => {
         description: "Please check your email for a 6-digit verification code."
       });
     } catch (error: any) {
-      toast({
-        title: "Failed to send verification code",
-        description: error.message,
-        variant: "destructive"
-      });
+      // Handle duplicate email error (409 status)
+      if (error.message?.includes('already registered') || error.message?.includes('pending registration')) {
+        setEmailError(error.message);
+        toast({
+          title: "Email Already Registered",
+          description: error.message,
+          variant: "destructive"
+        });
+      } else {
+        toast({
+          title: "Failed to send verification code",
+          description: error.message || "An error occurred",
+          variant: "destructive"
+        });
+      }
     } finally {
       setIsLoading(false);
     }

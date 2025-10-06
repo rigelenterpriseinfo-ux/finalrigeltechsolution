@@ -77,6 +77,32 @@ serve(async (req) => {
       { auth: { persistSession: false } }
     );
 
+    // Check if email is already registered (only for business_registration)
+    if (purpose === 'business_registration') {
+      const { data: existingRequest, error: checkError } = await supabase
+        .from("business_registration_requests")
+        .select("id, status")
+        .eq("email", email)
+        .limit(1)
+        .maybeSingle();
+
+      if (checkError) {
+        console.error('Database check error:', checkError);
+      } else if (existingRequest) {
+        const message = existingRequest.status === 'pending' 
+          ? 'This email has a pending registration request'
+          : 'This email is already registered';
+        
+        return new Response(
+          JSON.stringify({ 
+            error: message,
+            status: existingRequest.status
+          }),
+          { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+    }
+
     // Check rate limiting - max 3 OTPs per hour per email
     const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
     const { data: recentOtps, error: countError } = await supabase
