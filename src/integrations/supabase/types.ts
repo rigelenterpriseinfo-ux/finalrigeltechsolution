@@ -4614,6 +4614,10 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_company_owner_or_admin: {
+        Args: { p_user_id: string }
+        Returns: boolean
+      }
       is_password_reused: {
         Args: { p_new_password_hash: string; p_user_id: string }
         Returns: boolean
