@@ -142,17 +142,18 @@ export const useBusinessAuth = () => {
   };
 
   const fetchUserRole = async () => {
-    if (!user?.id) {
-      console.log('[BusinessAuth] fetchUserRole: No user ID, skipping');
+    if (!user?.id || !company?.id) {
+      console.log('[BusinessAuth] fetchUserRole: No user ID or company ID, skipping');
       return;
     }
     
     try {
-      console.log('[BusinessAuth] Fetching user role for user ID:', user.id);
+      console.log('[BusinessAuth] Fetching user role for user ID:', user.id, 'company:', company.id);
       const { data, error } = await supabase
         .from('user_roles')
         .select('role')
         .eq('user_id', user.id)
+        .eq('company_id', company.id)
         .maybeSingle();
       
       if (error) {
