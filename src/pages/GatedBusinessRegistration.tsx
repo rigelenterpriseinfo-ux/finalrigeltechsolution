@@ -172,10 +172,20 @@ const GatedBusinessRegistration = () => {
       );
 
       if (availabilityError) {
+        console.warn('Email availability check failed:', availabilityError);
+        // Continue with OTP if availability check fails (function may still be deploying)
+        toast({
+          variant: "default",
+          title: "Proceeding with verification",
+          description: "Email availability check is temporarily unavailable"
+        });
+      } else if (!availabilityData.available) {
+        const errorMessage = availabilityData.message || "This email is already registered";
+        setEmailError(errorMessage);
         toast({
           variant: "destructive",
-          title: "Error",
-          description: "Failed to verify email availability"
+          title: "Email Already Registered",
+          description: errorMessage
         });
         return;
       }
