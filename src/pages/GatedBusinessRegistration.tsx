@@ -19,7 +19,8 @@ import {
   FileText,
   CheckCircle,
   Send,
-  Clock
+  Clock,
+  ArrowLeft
 } from 'lucide-react';
 
 const GatedBusinessRegistration = () => {
@@ -315,8 +316,18 @@ const GatedBusinessRegistration = () => {
 
   return (
     <div className="min-h-screen bg-gradient-subtle">
-      <div className="content-container section-padding py-20">
-        <div className="max-w-2xl mx-auto">
+      <div className="content-container section-padding py-8 md:py-20">
+        <div className="max-w-2xl mx-auto px-4">
+          {/* Back to Plans Button */}
+          <Button 
+            variant="ghost" 
+            onClick={() => navigate('/')}
+            className="mb-6 md:mb-8"
+          >
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Back to Plans
+          </Button>
+
           {/* Payment Success Badge */}
           {paymentData?.paymentVerified && (
             <Card className="mb-8 border-success/20 bg-success/5">
