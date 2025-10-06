@@ -20,6 +20,7 @@ export const useBusinessAuth = () => {
   const [businessUser, setBusinessUser] = useState<BusinessUser | null>(null);
   const [sectionPermissions, setSectionPermissions] = useState<SectionPermissions>({});
   const [loading, setLoading] = useState(true);
+  const [userRole, setUserRole] = useState<'owner' | 'admin' | 'manager' | 'staff' | null>(null);
 
   useEffect(() => {
     const fetchAllData = async () => {
@@ -139,9 +140,6 @@ export const useBusinessAuth = () => {
       console.error('Section permissions fetch error:', error);
     }
   };
-
-  // Query user_roles table for role (CRITICAL: prevents privilege escalation)
-  const [userRole, setUserRole] = useState<'owner' | 'admin' | 'manager' | 'staff' | null>(null);
 
   const fetchUserRole = async () => {
     if (!user?.id) {
