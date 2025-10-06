@@ -42,7 +42,7 @@ interface BusinessUser {
 
 const UserManagement = () => {
   const { company, profile, user } = useAuth();
-  const { businessUser, canManageCompany, hasEditAccess, isOwnerOrAdmin, updateSectionPermissions, getEffectiveRole } = useBusinessAuth();
+  const { businessUser, canManageCompany, hasEditAccess, isOwnerOrAdmin, updateSectionPermissions, getEffectiveRole, loading: authLoading } = useBusinessAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
   const [users, setUsers] = useState<BusinessUser[]>([]);
@@ -77,6 +77,45 @@ const UserManagement = () => {
     { key: 'users', label: 'Team Management', icon: Users, description: 'Manage team members and user permissions' },
     { key: 'settings', label: 'Settings', icon: Settings, description: 'Configure system settings and preferences' }
   ];
+
+  // Show loading state while authentication data is being fetched
+  if (authLoading) {
+    return (
+      <DashboardLayout title="User Management">
+        <div className="flex items-center justify-center h-screen">
+          <div className="text-center space-y-4">
+            <Loader2 className="h-8 w-8 animate-spin mx-auto text-primary" />
+            <p className="text-muted-foreground">Loading user permissions...</p>
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  // Check permissions only after authentication data is loaded
+  if (!isOwnerOrAdmin()) {
+    return (
+      <DashboardLayout title="User Management">
+        <div className="flex items-center justify-center h-screen">
+          <Card className="max-w-md">
+            <CardHeader className="text-center">
+              <Lock className="h-12 w-12 text-destructive mx-auto mb-4" />
+              <CardTitle>Access Denied</CardTitle>
+              <CardDescription>
+                You don't have permission to access User Management. Only Owners and Admins can manage users.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="text-center">
+              <Button onClick={() => navigate('/')} variant="outline">
+                <ArrowLeft className="mr-2 h-4 w-4" />
+                Return to Dashboard
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   // Enhanced permission checker that provides fallback access
   const hasTabAccess = (tab: string): boolean => {
