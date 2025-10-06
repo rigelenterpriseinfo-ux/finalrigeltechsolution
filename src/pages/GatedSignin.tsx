@@ -74,21 +74,23 @@ const GatedSignin = () => {
       if (error) throw error;
 
       if (data?.success) {
-        // Store session data in localStorage (in production, use more secure storage)
-        localStorage.setItem('gatedBusinessSession', JSON.stringify({
-          sessionToken: data.sessionToken,
-          user: data.user,
-          business: data.business,
-          loginTime: Date.now()
-        }));
+        // Now actually sign in with Supabase Auth to create a proper session
+        const { error: authError } = await supabase.auth.signInWithPassword({
+          email: data.user.email,
+          password: formData.password
+        });
+
+        if (authError) {
+          throw new Error('Authentication failed: ' + authError.message);
+        }
 
         toast({
           title: "Sign In Successful!",
-          description: `Welcome back, ${data.user.username}!`
+          description: `Welcome back, ${data.user.email}!`
         });
 
         // Redirect to main app
-        navigate('/gated-app');
+        navigate('/');
       } else {
         throw new Error(data?.error || 'Sign in failed');
       }

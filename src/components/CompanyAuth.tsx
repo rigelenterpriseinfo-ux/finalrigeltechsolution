@@ -56,6 +56,18 @@ export const CompanyAuth = ({ onSuccess }: CompanyAuthProps) => {
         return;
       }
 
+      // Now actually sign in with Supabase Auth to create a proper session
+      const { error: authError } = await supabase.auth.signInWithPassword({
+        email: data.user.email,
+        password: formData.password
+      });
+
+      if (authError) {
+        console.error('Auth error:', authError);
+        toast.error("Authentication failed: " + authError.message);
+        return;
+      }
+
       toast.success("Sign in successful!");
       onSuccess(data);
       
