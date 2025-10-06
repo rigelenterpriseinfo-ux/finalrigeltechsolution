@@ -80,6 +80,7 @@ const UserManagement = () => {
 
   // Show loading state while authentication data is being fetched
   if (authLoading) {
+    console.log('[UserManagement] Still loading auth data...');
     return (
       <DashboardLayout title="User Management">
         <div className="flex items-center justify-center h-screen">
@@ -93,7 +94,15 @@ const UserManagement = () => {
   }
 
   // Check permissions only after authentication data is loaded
-  if (!isOwnerOrAdmin()) {
+  const hasAccess = isOwnerOrAdmin();
+  console.log('[UserManagement] Auth loaded. Checking access:', {
+    hasAccess,
+    effectiveRole: getEffectiveRole(),
+    authLoading
+  });
+  
+  if (!hasAccess) {
+    console.log('[UserManagement] Access denied for user');
     return (
       <DashboardLayout title="User Management">
         <div className="flex items-center justify-center h-screen">
