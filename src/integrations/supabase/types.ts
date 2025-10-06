@@ -718,6 +718,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "fk_credit_notes_customer"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers_safe"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "fk_credit_notes_rso"
             columns: ["rso_id"]
             isOneToOne: false
@@ -1087,6 +1094,13 @@ export type Database = {
             referencedRelation: "suppliers"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "fk_debit_notes_supplier"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers_safe"
+            referencedColumns: ["id"]
+          },
         ]
       }
       document_format_configs: {
@@ -1271,6 +1285,13 @@ export type Database = {
             columns: ["supplier_id"]
             isOneToOne: false
             referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_grn_header_supplier"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers_safe"
             referencedColumns: ["id"]
           },
         ]
@@ -2460,6 +2481,13 @@ export type Database = {
             referencedRelation: "suppliers"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "purchase_orders_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers_safe"
+            referencedColumns: ["id"]
+          },
         ]
       }
       return_order_header: {
@@ -2556,6 +2584,13 @@ export type Database = {
             columns: ["customer_id"]
             isOneToOne: false
             referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_return_order_header_customer"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers_safe"
             referencedColumns: ["id"]
           },
         ]
@@ -2903,6 +2938,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "fk_sales_invoices_customer"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers_safe"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "sales_invoices_default_bin_id_fkey"
             columns: ["default_bin_id"]
             isOneToOne: false
@@ -3220,6 +3262,13 @@ export type Database = {
             columns: ["customer_id"]
             isOneToOne: false
             referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sales_orders_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers_safe"
             referencedColumns: ["id"]
           },
           {
@@ -4048,6 +4097,139 @@ export type Database = {
             columns: ["warehouse_id"]
             isOneToOne: false
             referencedRelation: "warehouse_bins"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      customers_safe: {
+        Row: {
+          city: string | null
+          company_id: string | null
+          country: string | null
+          created_at: string | null
+          credit_limit: number | null
+          credit_limit_days: number | null
+          customer_ref: string | null
+          customer_type: string | null
+          gst_tax_location: string | null
+          gstin: string | null
+          id: string | null
+          is_active: boolean | null
+          name: string | null
+          pan_number: string | null
+          pin_code: string | null
+          state: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          city?: string | null
+          company_id?: string | null
+          country?: string | null
+          created_at?: string | null
+          credit_limit?: number | null
+          credit_limit_days?: number | null
+          customer_ref?: string | null
+          customer_type?: string | null
+          gst_tax_location?: string | null
+          gstin?: string | null
+          id?: string | null
+          is_active?: boolean | null
+          name?: string | null
+          pan_number?: string | null
+          pin_code?: string | null
+          state?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          city?: string | null
+          company_id?: string | null
+          country?: string | null
+          created_at?: string | null
+          credit_limit?: number | null
+          credit_limit_days?: number | null
+          customer_ref?: string | null
+          customer_type?: string | null
+          gst_tax_location?: string | null
+          gstin?: string | null
+          id?: string | null
+          is_active?: boolean | null
+          name?: string | null
+          pan_number?: string | null
+          pin_code?: string | null
+          state?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customers_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      suppliers_safe: {
+        Row: {
+          city: string | null
+          company_id: string | null
+          country: string | null
+          created_at: string | null
+          credit_time: number | null
+          gst_number: string | null
+          id: string | null
+          is_active: boolean | null
+          name: string | null
+          pan_number: string | null
+          pin_code: string | null
+          place_of_supply: string | null
+          state: string | null
+          supplier_ref: string | null
+          supplier_type: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          city?: string | null
+          company_id?: string | null
+          country?: string | null
+          created_at?: string | null
+          credit_time?: number | null
+          gst_number?: string | null
+          id?: string | null
+          is_active?: boolean | null
+          name?: string | null
+          pan_number?: string | null
+          pin_code?: string | null
+          place_of_supply?: string | null
+          state?: string | null
+          supplier_ref?: string | null
+          supplier_type?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          city?: string | null
+          company_id?: string | null
+          country?: string | null
+          created_at?: string | null
+          credit_time?: number | null
+          gst_number?: string | null
+          id?: string | null
+          is_active?: boolean | null
+          name?: string | null
+          pan_number?: string | null
+          pin_code?: string | null
+          place_of_supply?: string | null
+          state?: string | null
+          supplier_ref?: string | null
+          supplier_type?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "suppliers_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
             referencedColumns: ["id"]
           },
         ]
