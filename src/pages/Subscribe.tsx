@@ -83,35 +83,35 @@ const Subscribe = () => {
 
   return (
     <div className="min-h-screen bg-gradient-subtle">
-      <div className="content-container section-padding py-20">
-        <div className="max-w-2xl mx-auto">
+      <div className="content-container section-padding py-8 md:py-20">
+        <div className="max-w-2xl mx-auto px-4">
           <Button 
             variant="ghost" 
             onClick={() => navigate('/')}
-            className="mb-8"
+            className="mb-6 md:mb-8"
           >
             <ArrowLeft className="mr-2 h-4 w-4" />
             Back to Plans
           </Button>
 
           <Card className="shadow-elevated">
-            <CardHeader className="text-center">
+            <CardHeader className="text-center px-4 md:px-6">
               <Badge variant="secondary" className="w-fit mx-auto mb-4">
                 Selected Plan
               </Badge>
-              <CardTitle className="text-3xl">{currentPlan.name}</CardTitle>
+              <CardTitle className="text-2xl md:text-3xl">{currentPlan.name}</CardTitle>
               <div className="mt-4">
-                <span className="text-5xl font-bold text-primary">{currentPlan.price}</span>
-                <span className="text-muted-foreground text-lg">{currentPlan.period}</span>
+                <span className="text-4xl md:text-5xl font-bold text-primary">{currentPlan.price}</span>
+                <span className="text-muted-foreground text-base md:text-lg">{currentPlan.period}</span>
               </div>
-              <CardDescription className="text-lg mt-4">
+              <CardDescription className="text-base md:text-lg mt-4">
                 {currentPlan.description}
               </CardDescription>
             </CardHeader>
 
-            <CardContent className="space-y-6">
-              <div className="bg-muted/50 p-6 rounded-lg">
-                <h3 className="font-semibold mb-4">What's Included:</h3>
+            <CardContent className="space-y-6 px-4 md:px-6">
+              <div className="bg-muted/50 p-4 md:p-6 rounded-lg">
+                <h3 className="font-semibold mb-3 md:mb-4">What's Included:</h3>
                 <div className="space-y-3">
                    {[
                     "Unlimited products & inventory tracking",
@@ -138,35 +138,35 @@ const Subscribe = () => {
                 </div>
               </div>
 
-              <div className="border-t pt-6">
+              <div className="border-t pt-4 md:pt-6">
                 {planType !== 'trial' && (
-                  <div className="flex justify-between items-center text-lg font-semibold mb-6">
+                  <div className="flex justify-between items-center text-base md:text-lg font-semibold mb-4 md:mb-6">
                     <span>Total Amount:</span>
                     <span className="text-primary">{currentPlan.price}</span>
                   </div>
                 )}
 
                 <Button 
-                  className="w-full btn-gradient text-lg py-6"
+                  className="w-full btn-gradient text-base md:text-lg py-5 md:py-6"
                   size="lg"
                   onClick={handlePayment}
                   disabled={isLoading}
                 >
                   {isLoading ? (
                     <>
-                      <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                      <Loader2 className="mr-2 h-4 w-4 md:h-5 md:w-5 animate-spin" />
                       {planType === 'trial' ? 'Activating Trial...' : 'Processing Payment...'}
                     </>
                   ) : (
                     <>
                       {planType === 'trial' ? (
                         <>
-                          <Check className="mr-2 h-5 w-5" />
+                          <Check className="mr-2 h-4 w-4 md:h-5 md:w-5" />
                           Start Free Trial
                         </>
                       ) : (
                         <>
-                          <CreditCard className="mr-2 h-5 w-5" />
+                          <CreditCard className="mr-2 h-4 w-4 md:h-5 md:w-5" />
                           Pay Securely
                         </>
                       )}

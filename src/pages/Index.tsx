@@ -198,7 +198,11 @@ const Index = () => {
   ];
 
   const handleSubscribe = (planType: string) => {
-    navigate(`/business-registration?plan=${planType}`);
+    if (planType === 'trial') {
+      navigate('/business-registration?plan=trial');
+    } else {
+      navigate(`/subscribe/${planType}`);
+    }
   };
 
   return (
@@ -437,18 +441,18 @@ const Index = () => {
       </section>
 
       {/* Demo Section */}
-      <section id="demo" className="section-padding py-20 bg-gradient-to-br from-primary/5 to-chart-2/5">
+      <section id="demo" className="section-padding py-12 md:py-20 bg-gradient-to-br from-primary/5 to-chart-2/5">
         <div className="content-container">
           <div className="max-w-4xl mx-auto">
-            <div className="text-center space-y-6 mb-12">
+            <div className="text-center space-y-4 md:space-y-6 mb-8 md:mb-12">
               <Badge variant="outline">
                 <BarChart3 className="w-3 h-3 mr-2" />
                 See It In Action
               </Badge>
-              <h2 className="text-3xl md:text-5xl font-bold text-foreground">
+              <h2 className="text-2xl md:text-5xl font-bold text-foreground px-4">
                 Watch Rigel Inventory in Action
               </h2>
-              <p className="text-xl text-muted-foreground">
+              <p className="text-base md:text-xl text-muted-foreground px-4">
                 See how businesses transform their operations in just 5 minutes
               </p>
             </div>
@@ -456,25 +460,25 @@ const Index = () => {
             <Card className="overflow-hidden shadow-2xl">
               <div className="aspect-video bg-gradient-to-br from-muted to-muted/50 flex items-center justify-center relative group cursor-pointer hover:scale-[1.02] transition-transform">
                 <div className="absolute inset-0 bg-gradient-to-br from-primary/20 to-chart-2/20"></div>
-                <div className="relative z-10 text-center space-y-4">
-                  <div className="w-20 h-20 mx-auto rounded-full bg-primary/20 backdrop-blur-sm flex items-center justify-center group-hover:scale-110 transition-transform">
-                    <div className="w-16 h-16 rounded-full bg-primary flex items-center justify-center">
-                      <BarChart3 className="w-8 h-8 text-primary-foreground" />
+                <div className="relative z-10 text-center space-y-3 md:space-y-4 px-4">
+                  <div className="w-16 h-16 md:w-20 md:h-20 mx-auto rounded-full bg-primary/20 backdrop-blur-sm flex items-center justify-center group-hover:scale-110 transition-transform">
+                    <div className="w-14 h-14 md:w-16 md:h-16 rounded-full bg-primary flex items-center justify-center">
+                      <BarChart3 className="w-6 h-6 md:w-8 md:h-8 text-primary-foreground" />
                     </div>
                   </div>
                   <div>
-                    <p className="font-bold text-2xl text-foreground">Interactive Product Demo</p>
-                    <p className="text-muted-foreground">Click to explore features</p>
+                    <p className="font-bold text-lg md:text-2xl text-foreground">Interactive Product Demo</p>
+                    <p className="text-sm md:text-base text-muted-foreground">Click to explore features</p>
                   </div>
                 </div>
               </div>
-              <CardFooter className="justify-center gap-4 py-6 bg-card">
-                <Button size="lg" className="btn-gradient" onClick={() => navigate('/business-registration?plan=trial')}>
-                  <Sparkles className="mr-2 h-5 w-5" />
+              <CardFooter className="flex-col sm:flex-row justify-center gap-3 md:gap-4 py-4 md:py-6 bg-card">
+                <Button size="lg" className="btn-gradient w-full sm:w-auto text-sm md:text-base" onClick={() => navigate('/business-registration?plan=trial')}>
+                  <Sparkles className="mr-2 h-4 w-4 md:h-5 md:w-5" />
                   Try Free for 30 Days
                 </Button>
-                <Button size="lg" variant="outline">
-                  <Globe className="mr-2 h-5 w-5" />
+                <Button size="lg" variant="outline" className="w-full sm:w-auto text-sm md:text-base">
+                  <Globe className="mr-2 h-4 w-4 md:h-5 md:w-5" />
                   Book Live Demo
                 </Button>
               </CardFooter>
