@@ -62,44 +62,6 @@ function validateGSTIN(gstin: string): boolean {
   return regex.test(gstin) && gstin.length === 15;
 }
 
-// Sanitize string input (prevents injection attacks)
-function sanitizeString(input: string): string {
-  return input.trim().replace(/[<>\"']/g, '');
-}
-
-// Validate business details structure to prevent JSONB injection
-function validateBusinessDetails(details: any): boolean {
-  // Ensure all expected fields are present and have correct types
-  const requiredFields = ['name', 'email', 'phone', 'addrLine1', 'state', 'pinCode', 'country', 'businessType', 'industryType'];
-  
-  for (const field of requiredFields) {
-    if (!details[field] || typeof details[field] !== 'string') {
-      return false;
-    }
-    // Check for reasonable length limits
-    if (details[field].length > 255) {
-      return false;
-    }
-  }
-  
-  // Optional fields validation
-  if (details.addrLine2 && typeof details.addrLine2 !== 'string') {
-    return false;
-  }
-  
-  // Ensure no unexpected fields (prevent JSONB injection)
-  const allowedFields = ['name', 'email', 'phone', 'addrLine1', 'addrLine2', 'state', 'pinCode', 'country', 'businessType', 'industryType', 'gstin'];
-  const providedFields = Object.keys(details);
-  const unexpectedFields = providedFields.filter(f => !allowedFields.includes(f));
-  
-  if (unexpectedFields.length > 0) {
-    console.warn('Unexpected fields in business details:', unexpectedFields);
-    return false;
-  }
-  
-  return true;
-}
-
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
@@ -117,14 +79,6 @@ serve(async (req) => {
     if (!businessDetails || !username || !password) {
       return new Response(
         JSON.stringify({ error: "Missing required fields" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    // Validate business details structure (prevent JSONB injection)
-    if (!validateBusinessDetails(businessDetails)) {
-      return new Response(
-        JSON.stringify({ error: "Invalid business details structure" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -190,7 +144,7 @@ serve(async (req) => {
     const { data: existingRequest, error: checkError } = await supabase
       .from("business_registration_requests")
       .select("id, status")
-      .eq("email", email)
+      .eq("business_email", email)
       .limit(1);
 
     if (checkError) {
@@ -219,31 +173,25 @@ serve(async (req) => {
     // Hash password
     const passwordHash = await hashPassword(password);
 
-    // Sanitize all string inputs before storage
-    const sanitizedData = {
-      business_name: sanitizeString(name),
-      email: sanitizeString(email),
-      phone: sanitizeString(phone),
-      address_line1: sanitizeString(addrLine1),
-      address_line2: addrLine2 ? sanitizeString(addrLine2) : null,
-      city: sanitizeString(state), // Using state as city for now
-      state: sanitizeString(state),
-      postal_code: sanitizeString(pinCode),
-      country: sanitizeString(country),
-      gstin: gstin ? sanitizeString(gstin) : null,
-      business_type: sanitizeString(businessType),
-      industry: sanitizeString(industryType),
-      admin_details: {
-        username: sanitizeString(username),
-        password_hash: passwordHash
-      },
-      status: 'pending' as const
-    };
-
     // Create registration request (pending super admin approval)
     const { data: requestData, error: requestError } = await supabase
       .from("business_registration_requests")
-      .insert(sanitizedData)
+      .insert({
+        business_name: name,
+        business_email: email,
+        business_phone: phone,
+        address_line1: addrLine1,
+        address_line2: addrLine2 || null,
+        state,
+        postal_code: pinCode,
+        country,
+        gstin: gstin || null,
+        business_type: businessType,
+        industry_type: industryType,
+        admin_username: username,
+        admin_password_hash: passwordHash,
+        status: 'pending'
+      })
       .select()
       .single();
 
@@ -254,18 +202,6 @@ serve(async (req) => {
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
-
-    // Log security event
-    await supabase.from('security_audit_log').insert({
-      action: 'business_registration_request',
-      details: {
-        request_id: requestData.id,
-        business_name: sanitizedData.business_name,
-        email: sanitizedData.email
-      },
-      ip_address: req.headers.get('x-forwarded-for') || 'unknown',
-      severity: 'low'
-    });
 
     return new Response(
       JSON.stringify({ 

@@ -64,7 +64,7 @@ type ActiveModule = 'dashboard' | 'inventory' | 'purchase' | 'sales' | 'returns'
 export default function Dashboard() {
   const { user, profile, company, signOut, loading } = useAuth();
   // Call all hooks unconditionally at the top to preserve hook order
-  const { hasAccess, isOwnerOrAdmin, loading: authLoading, getEffectiveRole } = useBusinessAuth();
+  const { hasAccess, isOwnerOrAdmin } = useBusinessAuth();
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const [activeModule, setActiveModule] = useState<ActiveModule>('dashboard');
@@ -168,31 +168,11 @@ export default function Dashboard() {
   }
 
   const renderActiveModule = () => {
-    console.log('=== DASHBOARD RENDER ===', { activeModule, authLoading });
+    console.log('Rendering active module:', activeModule);
     
     switch (activeModule) {
       case 'inventory':
-        // Show loading state while auth data is being fetched
-        if (authLoading) {
-          return (
-            <div className="flex items-center justify-center h-96">
-              <div className="text-center">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-                <p className="text-muted-foreground">Loading permissions...</p>
-              </div>
-            </div>
-          );
-        }
-        
-        // Only check access after loading is complete
-        const inventoryAccess = hasAccess('inventory');
-        console.log('Inventory access check:', {
-          hasAccess: inventoryAccess,
-          effectiveRole: getEffectiveRole()
-        });
-        
-        if (!inventoryAccess) {
-          console.log('Access denied to inventory - Role:', getEffectiveRole());
+        if (!hasAccess('inventory')) {
           return (
             <div className="flex items-center justify-center h-96">
               <div className="text-center">

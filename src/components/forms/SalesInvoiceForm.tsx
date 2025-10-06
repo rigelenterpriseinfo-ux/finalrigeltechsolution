@@ -251,7 +251,7 @@ export const SalesInvoiceForm: React.FC<SalesInvoiceFormProps> = ({
   const fetchCustomers = async () => {
     try {
       const { data, error } = await supabase
-        .from('customers_safe')
+        .from('customers')
         .select('*')
         .eq('company_id', company.id)
         .eq('is_active', true)

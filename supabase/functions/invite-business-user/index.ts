@@ -137,10 +137,10 @@ serve(async (req) => {
     const requesterId = requesterData.user.id;
     console.log('Request from user:', requesterId);
 
-    // Verify requester has admin/owner permissions (CRITICAL: use user_roles table)
+    // Verify requester has admin/owner permissions for the target company
     const { data: requesterProfile, error: profileFetchErr } = await admin
       .from('profiles')
-      .select('company_id')
+      .select('role, company_id')
       .eq('user_id', requesterId)
       .single();
 
@@ -152,15 +152,9 @@ serve(async (req) => {
       });
     }
 
-    // Check role from user_roles table (prevents privilege escalation)
-    const { data: roleData, error: roleErr } = await admin
-      .from('user_roles')
-      .select('role')
-      .eq('user_id', requesterId)
-      .maybeSingle();
-
-    if (roleErr || !roleData || !['owner', 'admin'].includes(roleData.role)) {
-      console.error('Insufficient permissions - user role:', roleData?.role);
+    // Verify requester is admin/owner of the target company
+    if (!['owner', 'admin'].includes(requesterProfile.role)) {
+      console.error('Insufficient permissions - user role:', requesterProfile.role);
       return new Response(JSON.stringify({ error: 'Insufficient permissions. Only admins and owners can invite users.' }), {
         status: 403,
         headers: { "Content-Type": "application/json", ...corsHeaders },

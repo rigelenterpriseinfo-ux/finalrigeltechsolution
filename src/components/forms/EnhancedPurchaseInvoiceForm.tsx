@@ -121,7 +121,7 @@ export function EnhancedPurchaseInvoiceForm({
   const fetchSuppliers = async () => {
     try {
       const { data, error } = await supabase
-        .from('suppliers_safe')
+        .from('suppliers')
         .select('*')
         .eq('is_active', true)
         .order('name');

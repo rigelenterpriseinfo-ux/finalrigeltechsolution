@@ -10,7 +10,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { sanitizeHtml } from '@/lib/security';
 import { Separator } from '@/components/ui/separator';
 import { useBusinessAuth } from '@/hooks/useBusinessAuth';
-import { Loader2, Building2, Save, Phone, Mail, Globe, MapPin, IdCard, Settings, FileText, Upload, X, Image as ImageIcon, Edit, XCircle } from 'lucide-react';
+import { Loader2, Building2, Save, Phone, Mail, Globe, MapPin, IdCard, Settings, FileText, Upload, X, Image as ImageIcon } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
 
 interface CompanyProfileProps {
@@ -22,33 +22,8 @@ export function CompanyProfile({ readonly = false }: CompanyProfileProps) {
   const { hasEditAccess } = useBusinessAuth();
   const { toast } = useToast();
   
-  // Initialize all state before any conditional returns (React hooks rule)
-  const [isLoading, setIsLoading] = useState(false);
-  const [isEditing, setIsEditing] = useState(false);
-  const [activeTab, setActiveTab] = useState('company-info');
-  const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    phone: '',
-    addressLine1: '',
-    addressLine2: '',
-    city: '',
-    state: '',
-    country: '',
-    postalCode: '',
-    website: '',
-    status: 'active',
-    gstn: '',
-    logoUrl: '',
-    tagline: '',
-  });
-  const [logoFile, setLogoFile] = useState<File | null>(null);
-  const [logoPreview, setLogoPreview] = useState<string | null>(null);
-  
-  console.log('[CompanyProfile] Render - company:', company, 'profile:', profile, 'loading:', loading);
-  
   // Check if user has edit access for company profile
-  const canEdit = !readonly && hasEditAccess('company_profile') && isEditing;
+  const canEdit = !readonly && hasEditAccess('company_profile');
 
   // Show loading state while auth is initializing
   if (loading) {
@@ -65,6 +40,26 @@ export function CompanyProfile({ readonly = false }: CompanyProfileProps) {
       </div>
     );
   }
+  const [isLoading, setIsLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState('company-info');
+  const [formData, setFormData] = useState({
+    name: company?.name || '',
+    email: company?.email || '',
+    phone: company?.phone || '',
+    addressLine1: '',
+    addressLine2: '',
+    city: '',
+    state: '',
+    country: '',
+    postalCode: '',
+    website: company?.website || '',
+    status: company?.status || 'active',
+    gstn: '',
+    logoUrl: (company as any)?.logo_url || '',
+    tagline: (company as any)?.tagline || '',
+  });
+  const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [logoPreview, setLogoPreview] = useState<string | null>(null);
 
   // Generate Business ID based on company name and current date
   const generateBusinessId = (companyName: string) => {
@@ -199,7 +194,7 @@ export function CompanyProfile({ readonly = false }: CompanyProfileProps) {
         country: sanitizeHtml(formData.country),
         postal_code: formData.postalCode,
         website: formData.website,
-        status: formData.status as "active" | "inactive" | "suspended",
+        status: formData.status,
         gstn: formData.gstn,
         business_ref_no: generateBusinessId(formData.name),
         logo_url: logoUrl,
@@ -324,8 +319,7 @@ export function CompanyProfile({ readonly = false }: CompanyProfileProps) {
         description: "Your company details have been saved successfully.",
       });
 
-      // Exit edit mode and refresh
-      setIsEditing(false);
+      // Refresh the page to reload context
       setTimeout(() => window.location.reload(), 800);
     } catch (error: any) {
       toast({
@@ -338,40 +332,9 @@ export function CompanyProfile({ readonly = false }: CompanyProfileProps) {
     }
   };
 
-  const handleCancelEdit = () => {
-    setIsEditing(false);
-    // Reset form to original company data
-    if (company) {
-      setFormData({
-        name: company.name || '',
-        email: company.email || '',
-        phone: company.phone || '',
-        addressLine1: (company as any).address_line1 || '',
-        addressLine2: (company as any).address_line2 || '',
-        city: (company as any).city || '',
-        state: (company as any).state || '',
-        country: (company as any).country || '',
-        postalCode: (company as any).postal_code || '',
-        website: company.website || '',
-        status: company.status || 'active',
-        gstn: (company as any).gstn || '',
-        logoUrl: (company as any).logo_url || '',
-        tagline: (company as any).tagline || '',
-      });
-      setLogoFile(null);
-      setLogoPreview((company as any).logo_url || null);
-    }
-  };
-
   // Update form data when company data changes
   React.useEffect(() => {
-    console.log('[CompanyProfile] useEffect triggered - company:', company);
     if (company) {
-      console.log('[CompanyProfile] Setting form data with company:', {
-        name: company.name,
-        email: company.email,
-        hasAddressLine1: !!(company as any).address_line1
-      });
       setFormData(prev => ({
         ...prev,
         name: company.name || '',
@@ -394,8 +357,6 @@ export function CompanyProfile({ readonly = false }: CompanyProfileProps) {
       if ((company as any).logo_url) {
         setLogoPreview((company as any).logo_url);
       }
-    } else {
-      console.log('[CompanyProfile] No company data in useEffect');
     }
   }, [company]);
 
@@ -403,41 +364,16 @@ export function CompanyProfile({ readonly = false }: CompanyProfileProps) {
     <div className="max-w-4xl mx-auto space-y-6">
       {/* Header */}
       <div className="space-y-2">
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <div className="p-3 rounded-xl bg-primary/10 text-primary">
-              <Building2 className="h-6 w-6" />
-            </div>
-            <div>
-              <h1 className="text-2xl font-semibold">Company Profile</h1>
-              <p className="text-muted-foreground">
-                Manage your company information and business settings
-              </p>
-            </div>
+        <div className="flex items-center gap-3">
+          <div className="p-3 rounded-xl bg-primary/10 text-primary">
+            <Building2 className="h-6 w-6" />
           </div>
-          
-          {/* Edit/Cancel Toggle Button */}
-          {!readonly && hasEditAccess('company_profile') && !isEditing && (
-            <Button 
-              onClick={() => setIsEditing(true)}
-              variant="default"
-              className="flex items-center gap-2"
-            >
-              <Edit className="h-4 w-4" />
-              Edit Profile
-            </Button>
-          )}
-          
-          {!readonly && hasEditAccess('company_profile') && isEditing && (
-            <Button 
-              onClick={handleCancelEdit}
-              variant="outline"
-              className="flex items-center gap-2"
-            >
-              <XCircle className="h-4 w-4" />
-              Cancel
-            </Button>
-          )}
+          <div>
+            <h1 className="text-2xl font-semibold">Company Profile</h1>
+            <p className="text-muted-foreground">
+              Manage your company information and business settings
+            </p>
+          </div>
         </div>
       </div>
 
@@ -827,41 +763,29 @@ export function CompanyProfile({ readonly = false }: CompanyProfileProps) {
               </TabsContent>
 
               {/* Action Buttons */}
-              {isEditing && (
-                <div className="border-t border-border bg-muted/30 px-6 py-4">
-                  <div className="flex flex-col-reverse sm:flex-row gap-3 sm:justify-between sm:items-center">
-                    <div className="text-xs text-muted-foreground">
-                      All changes will be saved to the database
-                    </div>
-                    
-                    <div className="flex gap-3">
-                      <Button 
-                        type="button" 
-                        variant="outline" 
-                        onClick={handleCancelEdit}
-                        disabled={isLoading}
-                      >
-                        <XCircle className="mr-2 h-4 w-4" />
-                        Cancel
-                      </Button>
-                      
-                      <Button type="submit" disabled={isLoading} className="btn-gradient">
-                        {isLoading ? (
-                          <>
-                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                            Saving Changes...
-                          </>
-                        ) : (
-                          <>
-                            <Save className="mr-2 h-4 w-4" />
-                            Save Changes
-                          </>
-                        )}
-                      </Button>
-                    </div>
+              <div className="border-t border-border bg-muted/30 px-6 py-4">
+                <div className="flex flex-col-reverse sm:flex-row gap-3 sm:justify-between sm:items-center">
+                  <div className="text-xs text-muted-foreground">
+                    {!canEdit ? "You don't have permission to edit company details" : "All changes will be saved immediately"}
                   </div>
+                  
+                  {canEdit && (
+                    <Button type="submit" disabled={isLoading} className="btn-gradient">
+                      {isLoading ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Saving Changes...
+                        </>
+                      ) : (
+                        <>
+                          <Save className="mr-2 h-4 w-4" />
+                          Save Changes
+                        </>
+                      )}
+                    </Button>
+                  )}
                 </div>
-              )}
+              </div>
             </form>
           </Tabs>
         </CardContent>
