@@ -121,7 +121,7 @@ export default function Auth() {
       <div className="w-full max-w-md">
         <div className="flex items-center justify-center mb-8">
           <Building2 className="h-8 w-8 text-primary mr-2" />
-          <h1 className="text-2xl font-bold">Rigel Inventory</h1>
+          <h1 className="text-2xl font-bold">Rigel ERP</h1>
         </div>
 
         <Tabs defaultValue={defaultTab} className="w-full">
