@@ -79,15 +79,39 @@ const Signin = () => {
       if (error) throw error;
 
       if (data?.success) {
+        console.log('✅ Edge function signin successful:', { 
+          userId: data.user.id, 
+          email: data.user.email 
+        });
+
         // Now actually sign in with Supabase Auth to create a proper session
-        const { error: authError } = await supabase.auth.signInWithPassword({
+        const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
           email: data.user.email,
           password: formData.password
         });
 
         if (authError) {
+          console.error('❌ Auth sign-in failed:', authError);
           throw new Error('Authentication failed: ' + authError.message);
         }
+
+        console.log('✅ Supabase auth session created:', {
+          userId: authData.user?.id,
+          sessionExists: !!authData.session
+        });
+
+        // Verify auth.uid() is now available
+        const { data: testData, error: testError } = await supabase
+          .from('company_users')
+          .select('*')
+          .eq('user_id', authData.user?.id)
+          .single();
+
+        console.log('🔍 Company user lookup after auth:', {
+          success: !testError,
+          data: testData,
+          error: testError
+        });
 
         toast({
           title: "Sign In Successful!",
