@@ -145,7 +145,7 @@ const GatedResetPassword = () => {
                 You can now sign in to your business portal with your new password.
               </p>
               <Button 
-                onClick={() => navigate('/signin')}
+                onClick={() => navigate('/gated-signin')}
                 className="w-full btn-gradient"
               >
                 Sign In Now

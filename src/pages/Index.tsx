@@ -223,7 +223,7 @@ const Index = () => {
                 <p className="text-xs text-muted-foreground">Navigate Your Business to Success</p>
               </div>
             </div>
-            <Button onClick={() => navigate('/signin')} variant="outline" className="hover-scale">
+            <Button onClick={() => navigate('/auth')} variant="outline" className="hover-scale">
               Sign In
             </Button>
           </div>

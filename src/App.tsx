@@ -14,6 +14,7 @@ import Subscribe from "@/pages/Subscribe";
 import BusinessRegistration from "@/pages/BusinessRegistration";
 import Checkout from "@/pages/Checkout";
 import GatedBusinessRegistration from "@/pages/GatedBusinessRegistration";
+import GatedSignin from "@/pages/GatedSignin";
 import GatedForgotPassword from "@/pages/GatedForgotPassword";
 import GatedResetPassword from "@/pages/GatedResetPassword";
 import Signin from "@/pages/Signin";
@@ -50,8 +51,11 @@ const App = () => (
             <Route path="/register/business" element={<GatedBusinessRegistration />} />
             <Route path="/confirm-email" element={<EmailConfirmation />} />
             <Route path="/signin" element={<Signin />} />
+            <Route path="/gated-signin" element={<GatedSignin />} />
             <Route path="/forgot-password" element={<GatedForgotPassword />} />
+            <Route path="/gated-forgot-password" element={<GatedForgotPassword />} />
             <Route path="/reset-password" element={<GatedResetPassword />} />
+            <Route path="/gated-reset-password" element={<GatedResetPassword />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </BrowserRouter>
