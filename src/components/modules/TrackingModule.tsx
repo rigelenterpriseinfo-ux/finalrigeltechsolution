@@ -81,7 +81,7 @@ interface OrderDetailDialogProps {
 }
 
 export function TrackingModule() {
-  const { hasAccess } = useBusinessAuth();
+  const { hasAccess, loading: authLoading } = useBusinessAuth();
   const { toast } = useToast();
   const [orders, setOrders] = useState<TrackableOrder[]>([]);
   const [debitNotes, setDebitNotes] = useState<TrackableOrder[]>([]);
@@ -264,7 +264,12 @@ export function TrackingModule() {
       setOrders(trackableSalesInvoices);
       setDebitNotes(trackableDebitNotes);
     } catch (error) {
-      console.error('Error fetching trackable orders:', error);
+      console.error('💥 CRITICAL ERROR in fetchTrackableOrders:', error);
+      toast({
+        title: "Error loading tracking data",
+        description: error instanceof Error ? error.message : "Unknown error",
+        variant: "destructive"
+      });
     } finally {
       setLoading(false);
     }
@@ -772,15 +777,33 @@ export function TrackingModule() {
 
   useEffect(() => {
     const initializeTracking = async () => {
-      if (hasAccess && hasAccess('tracking')) {
+      // Wait for hasAccess to be defined
+      if (!hasAccess || typeof hasAccess !== 'function') {
+        console.log('⏳ Waiting for hasAccess to be defined...');
+        return;
+      }
+      
+      if (hasAccess('tracking')) {
+        console.log('✅ User has access to tracking, fetching orders...');
         await fetchTrackableOrders();
       } else {
+        console.log('❌ User does NOT have access to tracking');
         setLoading(false);
       }
     };
     
     initializeTracking();
-  }, []);
+  }, [hasAccess]);
+
+  // Early return for auth loading
+  if (authLoading) {
+    return (
+      <div className="flex items-center justify-center h-48">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+        <p className="ml-3">Loading permissions...</p>
+      </div>
+    );
+  }
 
   // Early return for access check
   if (typeof hasAccess !== 'function') {
