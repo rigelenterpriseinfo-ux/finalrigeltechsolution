@@ -16,6 +16,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useTrackingModuleData } from '@/hooks/useTrackingModuleData';
 import { useAuth } from '@/hooks/useAuth';
+import { useQueryClient } from '@tanstack/react-query';
 
 interface TrackableOrder {
   id: string;
@@ -87,6 +88,7 @@ export function TrackingModule() {
   const { hasAccess, loading: authLoading } = useBusinessAuth();
   const { toast } = useToast();
   const { company } = useAuth();
+  const queryClient = useQueryClient();
   
   // Use optimized data hook with parallel fetching and caching
   const { orders, debitNotes, isLoading, refetch } = useTrackingModuleData(company?.id);
@@ -213,6 +215,8 @@ export function TrackingModule() {
   const handleTrackingUpdate = () => {
     setIsDialogOpen(false);
     setEditingOrder(null);
+    // Invalidate cache to force fresh data fetch
+    queryClient.invalidateQueries({ queryKey: ['tracking-orders', company?.id] });
     refetch();
   };
 
