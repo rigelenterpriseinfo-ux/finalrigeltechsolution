@@ -161,6 +161,7 @@ interface Warehouse {
   id: string;
   name: string;
   location?: string;
+  warehouse_code?: string;
 }
 
 
@@ -202,6 +203,17 @@ function ReturnsModuleContent() {
   const [creditNoteItems, setCreditNoteItems] = useState<CreditNoteItem[]>([]);
   const [creditNoteStatus, setCreditNoteStatus] = useState<'Draft' | 'Confirmed'>('Draft');
   const [creditNoteNotes, setCreditNoteNotes] = useState('');
+
+  // Filter bins based on selected default warehouse
+  const filteredBinsForLineItems = useMemo(() => {
+    if (!selectedWarehouse?.name) return warehouses;
+    
+    // Extract warehouse code from selected warehouse name (format: "Chennai - WH006")
+    const selectedWarehouseCode = selectedWarehouse.name.split(' - ')[1];
+    
+    // Filter bins that belong to the selected warehouse
+    return warehouses.filter(w => w.warehouse_code === selectedWarehouseCode);
+  }, [warehouses, selectedWarehouse]);
 
   // Load initial data
   useEffect(() => {
@@ -281,7 +293,8 @@ function ReturnsModuleContent() {
     const warehouseData: Warehouse[] = (data || []).map(item => ({
       id: item.id,
       name: `${item.warehouse_name || 'Unknown'} - ${item.warehouse_code || 'N/A'}`, // For default location dropdown
-      location: `${item.wh_bin_code || 'N/A'} - ${item.bin_name || 'Unknown'}` // For line items dropdown
+      location: `${item.wh_bin_code || 'N/A'} - ${item.bin_name || 'Unknown'}`, // For line items dropdown
+      warehouse_code: item.warehouse_code // Store warehouse code for filtering
     }));
     setWarehouses(warehouseData);
   };
@@ -1177,7 +1190,7 @@ function ReturnsModuleContent() {
                                     onSelect={(warehouseId) => handleItemWarehouseChange(item.id, warehouseId)}
                                     placeholder="Select warehouse/bin"
                                     searchPlaceholder="Search warehouses..."
-                                    options={warehouses.map(w => ({
+                                    options={filteredBinsForLineItems.map(w => ({
                                       id: w.id,
                                       name: w.location,
                                       subtitle: w.name
