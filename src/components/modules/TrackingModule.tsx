@@ -103,6 +103,11 @@ export function TrackingModule() {
   const fetchTrackableOrders = async () => {
     try {
       setLoading(true);
+
+      // Debug: Check authentication
+      const { data: { user } } = await supabase.auth.getUser();
+      console.log('🔐 Current user:', user?.id);
+      console.log('🔐 User email:', user?.email);
       
       // Fetch sales invoices with their corresponding sales order tracking information
       const { data: salesInvoices, error: invoicesError } = await supabase
@@ -138,8 +143,14 @@ export function TrackingModule() {
           )
         `);
 
+      console.log('📦 Sales Invoices Query Result:', { 
+        count: salesInvoices?.length || 0, 
+        data: salesInvoices,
+        error: invoicesError 
+      });
+
       if (invoicesError) {
-        console.error('Error fetching sales invoices:', invoicesError);
+        console.error('❌ Error fetching sales invoices:', invoicesError);
         return;
       }
 
@@ -171,8 +182,14 @@ export function TrackingModule() {
           supplier_id
         `);
 
+      console.log('📋 Debit Notes Query Result:', { 
+        count: debitNotesData?.length || 0, 
+        data: debitNotesData,
+        error: debitError 
+      });
+
       if (debitError) {
-        console.error('Error fetching debit notes:', debitError);
+        console.error('❌ Error fetching debit notes:', debitError);
         return;
       }
 
@@ -241,6 +258,9 @@ export function TrackingModule() {
         notes: note.notes
       }));
 
+      console.log('✅ Final trackable sales invoices:', trackableSalesInvoices.length);
+      console.log('✅ Final trackable debit notes:', trackableDebitNotes.length);
+
       setOrders(trackableSalesInvoices);
       setDebitNotes(trackableDebitNotes);
     } catch (error) {
@@ -255,7 +275,7 @@ export function TrackingModule() {
     let customerAddress: CustomerAddress | undefined;
 
     try {
-      if (order.type === 'sales') {
+      if (order.type === 'sales_invoice') {
         // Fetch sales order items
         const { data: salesItems, error: salesItemsError } = await supabase
           .from('sales_order_items')
