@@ -1106,22 +1106,22 @@ export function InventoryModule() {
 
       <Tabs defaultValue="products" className="w-full">
          <TabsList className="grid w-full grid-cols-6 border-b border-border">
-          <TabsTrigger value="products">
+          <TabsTrigger value="products" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
             Products
           </TabsTrigger>
-          <TabsTrigger value="bom">
+          <TabsTrigger value="bom" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
             BOM
           </TabsTrigger>
-          <TabsTrigger value="bins">
+          <TabsTrigger value="bins" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
             Warehouse BINs
           </TabsTrigger>
-          <TabsTrigger value="adjustments">
+          <TabsTrigger value="adjustments" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
             Adjustments
           </TabsTrigger>
-          <TabsTrigger value="transactions">
+          <TabsTrigger value="transactions" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
             Transactions
           </TabsTrigger>
-          <TabsTrigger value="stock">
+          <TabsTrigger value="stock" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
             Current Stock
           </TabsTrigger>
         </TabsList>
