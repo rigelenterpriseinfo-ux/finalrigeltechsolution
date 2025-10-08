@@ -113,49 +113,12 @@ export const useBusinessAuth = () => {
   };
 
   const hasAccess = (section: string): boolean => {
-    const effectiveRole = getEffectiveRole();
-    
-    // Owners and Admins always have access
-    if (effectiveRole === 'OWNER' || effectiveRole === 'ADMIN') {
-      return true;
-    }
-    
-    // Managers have access but may be restricted in some sections
-    if (effectiveRole === 'MANAGER') {
-      return true;
-    }
-    
-    // Special case for company_profile - allow broader access
-    if (section === 'company_profile') {
-      return ['OWNER', 'ADMIN', 'MANAGER'].includes(effectiveRole);
-    }
-    
-    // Regular users need explicit section permissions
+    // Only check section permissions - no automatic role-based access
     return sectionPermissions[section] === 'read' || sectionPermissions[section] === 'edit';
   };
 
   const hasEditAccess = (section: string): boolean => {
-    const effectiveRole = getEffectiveRole();
-    
-    // Owners and Admins always have edit access
-    if (effectiveRole === 'OWNER' || effectiveRole === 'ADMIN') return true;
-    
-    // Managers may have edit access depending on section
-    if (effectiveRole === 'MANAGER') {
-      // Define manager restrictions for sensitive sections
-      const restrictedSections = ['user-management', 'company-settings', 'billing'];
-      if (restrictedSections.includes(section)) {
-        return false; // Managers cannot edit these sections
-      }
-      return true;
-    }
-    
-    // Special case for company_profile - allow broader edit access for managers
-    if (section === 'company_profile') {
-      return ['OWNER', 'ADMIN', 'MANAGER'].includes(effectiveRole);
-    }
-    
-    // Regular users need explicit edit permissions
+    // Only check section permissions - no automatic role-based access
     return sectionPermissions[section] === 'edit';
   };
 

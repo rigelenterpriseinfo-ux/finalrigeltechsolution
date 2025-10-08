@@ -42,7 +42,7 @@ interface BusinessUser {
 
 const UserManagement = () => {
   const { company, profile, user } = useAuth();
-  const { businessUser, canManageCompany, hasEditAccess, isOwnerOrAdmin, updateSectionPermissions, getEffectiveRole, loading: authLoading } = useBusinessAuth();
+  const { businessUser, canManageCompany, hasAccess, hasEditAccess, isOwnerOrAdmin, updateSectionPermissions, getEffectiveRole, loading: authLoading } = useBusinessAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
   const [users, setUsers] = useState<BusinessUser[]>([]);
@@ -561,7 +561,7 @@ const UserManagement = () => {
     }
   };
 
-  if (!isOwnerOrAdmin()) {
+  if (!hasAccess('users')) {
     return (
       <DashboardLayout title="User Management" subtitle="Access Denied">
         <Card className="max-w-md mx-auto">
@@ -619,7 +619,7 @@ const UserManagement = () => {
             <TabsTrigger 
               value="users" 
               className="flex items-center gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground transition-all duration-200"
-              disabled={!isOwnerOrAdmin()}
+              disabled={!hasAccess('users')}
             >
               <Users className="h-4 w-4" />
               Team Members
@@ -627,7 +627,7 @@ const UserManagement = () => {
             <TabsTrigger 
               value="audit" 
               className="flex items-center gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground transition-all duration-200"
-              disabled={!isOwnerOrAdmin()}
+              disabled={!hasAccess('users')}
             >
               <Clock className="h-4 w-4" />
               Audit Logs
@@ -655,7 +655,7 @@ const UserManagement = () => {
                 <Button 
                   onClick={() => handleOpenDialog()} 
                   className="btn-gradient"
-                  disabled={!hasEditAccess('user_management')}
+                  disabled={!hasEditAccess('users')}
                 >
                   <UserPlus className="mr-2 h-4 w-4" />
                   Add User
@@ -762,7 +762,7 @@ const UserManagement = () => {
                                 variant="outline"
                                 size="sm"
                                 onClick={() => handleOpenDialog(user)}
-                                disabled={!hasEditAccess('user_management')}
+                                disabled={!hasEditAccess('users')}
                                 className="hover:bg-primary/5 hover:border-primary/20 hover:text-primary transition-all hover-scale"
                               >
                                 <Edit className="w-4 h-4 mr-1" />
@@ -772,7 +772,7 @@ const UserManagement = () => {
                                 variant="outline"
                                 size="sm"
                                 onClick={() => handleDeleteUser(user.id, user.name)}
-                                disabled={!hasEditAccess('user_management')}
+                                disabled={!hasEditAccess('users')}
                                 className="hover:bg-destructive/5 hover:text-destructive hover:border-destructive/20 transition-all hover-scale"
                               >
                                 <Trash2 className="w-4 h-4 mr-1" />
@@ -872,7 +872,7 @@ const UserManagement = () => {
 
           <TabsContent value="audit" className="space-y-6">
               <PermissionErrorBoundary>
-                {!isOwnerOrAdmin() ? (
+                {!hasAccess('users') ? (
                   <div className="flex items-center justify-center h-96">
                     <div className="text-center">
                       <Shield className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
