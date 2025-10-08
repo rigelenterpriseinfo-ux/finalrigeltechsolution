@@ -53,17 +53,19 @@ export const NavigationSidebar: React.FC<NavigationSidebarProps> = ({
   const { hasAccess, loading: authLoading } = useBusinessAuth();
 
   // Filter navigation items based on permissions
-  const visibleItems = navigationItems.filter(item => {
-    // Show public items (dashboard, profile) to everyone
-    if (item.public) return true;
-    
-    // If section permission is defined, check access
-    if (item.section) {
-      return hasAccess && hasAccess(item.section);
-    }
-    
-    return true;
-  });
+  const visibleItems = authLoading 
+    ? navigationItems.filter(item => item.public) // Show only public items during load
+    : navigationItems.filter(item => {
+        // Show public items (dashboard, profile) to everyone
+        if (item.public) return true;
+        
+        // If section permission is defined, check access (explicitly check for true)
+        if (item.section) {
+          return hasAccess(item.section) === true;
+        }
+        
+        return true;
+      });
 
   return (
     <div className={cn(
@@ -75,35 +77,29 @@ export const NavigationSidebar: React.FC<NavigationSidebarProps> = ({
       </div>
       
       <nav className="flex-1 p-2">
-        {authLoading ? (
-          <div className="flex items-center justify-center py-8">
-            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
-          </div>
-        ) : (
-          <ul className="space-y-1">
-            {visibleItems.map((item) => {
-              const Icon = item.icon;
-              const isActive = activeView === item.id;
-              
-              return (
-                <li key={item.id}>
-                  <button
-                    onClick={() => onNavigate(item.id)}
-                    className={cn(
-                      "w-full flex items-center gap-2 sm:gap-3 px-2 sm:px-3 py-3 text-sm rounded-md transition-colors text-left min-h-[48px]",
-                      isActive 
-                        ? "bg-primary text-primary-foreground font-medium" 
-                        : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-                    )}
-                  >
-                    <Icon className="h-4 w-4 flex-shrink-0" />
-                    <span className="truncate">{item.label}</span>
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
-        )}
+        <ul className="space-y-1">
+          {visibleItems.map((item) => {
+            const Icon = item.icon;
+            const isActive = activeView === item.id;
+            
+            return (
+              <li key={item.id}>
+                <button
+                  onClick={() => onNavigate(item.id)}
+                  className={cn(
+                    "w-full flex items-center gap-2 sm:gap-3 px-2 sm:px-3 py-3 text-sm rounded-md transition-colors text-left min-h-[48px]",
+                    isActive 
+                      ? "bg-primary text-primary-foreground font-medium" 
+                      : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                  )}
+                >
+                  <Icon className="h-4 w-4 flex-shrink-0" />
+                  <span className="truncate">{item.label}</span>
+                </button>
+              </li>
+            );
+          })}
+        </ul>
       </nav>
     </div>
   );

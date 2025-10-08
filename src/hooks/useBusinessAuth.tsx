@@ -112,17 +112,23 @@ export const useBusinessAuth = () => {
     return businessUser?.access_type || 'USER';
   };
 
-  const hasAccess = (section: string): boolean => {
-    // Only check section permissions - no automatic role-based access
+  const hasAccess = (section: string): boolean | undefined => {
+    // Return undefined during loading to indicate "don't know yet"
+    if (loading) return undefined;
+    
+    // Only check section permissions after loading completes
     return sectionPermissions[section] === 'read' || sectionPermissions[section] === 'edit';
   };
 
-  const hasEditAccess = (section: string): boolean => {
-    // Only check section permissions - no automatic role-based access
+  const hasEditAccess = (section: string): boolean | undefined => {
+    // Return undefined during loading to indicate "don't know yet"
+    if (loading) return undefined;
+    
+    // Only check section permissions after loading completes
     return sectionPermissions[section] === 'edit';
   };
 
-  const canPerformAction = (section: string, action: 'read' | 'edit'): boolean => {
+  const canPerformAction = (section: string, action: 'read' | 'edit'): boolean | undefined => {
     if (action === 'read') {
       return hasAccess(section);
     }
