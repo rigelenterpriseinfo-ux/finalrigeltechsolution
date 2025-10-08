@@ -19,6 +19,8 @@ import { GRNDetailsDialog } from '@/components/dialogs/GRNDetailsDialog';
 import { SalesInvoiceDetailsDialog } from '@/components/dialogs/SalesInvoiceDetailsDialog';
 import { CustomerVendorLedger } from '@/components/modules/CustomerVendorLedger';
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from '@/components/ui/pagination';
+import { Skeleton } from '@/components/ui/skeleton';
+import { usePaymentsModuleData } from '@/hooks/usePaymentsModuleData';
 
 interface Payment {
   id: string;
@@ -85,13 +87,19 @@ export function PaymentsModule() {
   const { toast } = useToast();
   const { hasEditAccess } = useBusinessAuth();
   const canEdit = hasEditAccess('payments');
-  const [accountPayable, setAccountPayable] = useState<GRNPayable[]>([]);
-  const [accountReceivable, setAccountReceivable] = useState<SalesInvoiceReceivable[]>([]);
+  
+  // Use optimized data hook with parallel fetching and caching
+  const { 
+    accountPayable, 
+    accountReceivable, 
+    isLoading, 
+    refetchAll 
+  } = usePaymentsModuleData(profile?.company_id);
+  
   const [overdueVendors, setOverdueVendors] = useState<{name: string, amount: number}[]>([]);
   const [overdueCustomers, setOverdueCustomers] = useState<{name: string, amount: number}[]>([]);
   const [topAPVendors, setTopAPVendors] = useState<{name: string, amount: number}[]>([]);
   const [topARCustomers, setTopARCustomers] = useState<{name: string, amount: number}[]>([]);
-  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [showAPDetails, setShowAPDetails] = useState(false);
   const [showARDetails, setShowARDetails] = useState(false);
@@ -146,13 +154,11 @@ export function PaymentsModule() {
   const [arSortDirection, setArSortDirection] = useState<'asc' | 'desc'>('desc');
 
   useEffect(() => {
-    fetchAccountPayable();
-    fetchAccountReceivable();
     fetchOverdueVendors();
     fetchOverdueCustomers();
   }, []);
 
-  // Separate useEffect to calculate top vendors/customers after data is loaded
+  // Calculate top vendors/customers from cached data
   useEffect(() => {
     if (accountPayable.length > 0) {
       fetchTopAPVendors();
@@ -165,243 +171,6 @@ export function PaymentsModule() {
     }
   }, [accountReceivable]);
 
-  const fetchAccountPayable = async () => {
-    try {
-      setLoading(true);
-      
-      // Get GRN data with supplier information using the new foreign key
-      const { data: grnData, error: grnError } = await supabase
-        .from('grn_header')
-        .select(`
-          id,
-          grn_number,
-          grn_date,
-          total_amount,
-          supplier_name,
-          supplier_id,
-          status,
-          purchase_order_id,
-          supplier:supplier_id(payment_terms)
-        `)
-        .eq('company_id', profile.company_id)
-        .in('status', ['received', 'partially_received'])
-        .order('grn_date', { ascending: false });
-
-      if (grnError) {
-        console.error('Error fetching GRN data:', grnError);
-        toast({
-          title: "Error",
-          description: "Failed to load account payable data",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      console.log('Fetched GRN data:', grnData);
-
-      // Get payment terms from purchase orders where available
-      const purchaseOrderIds = grnData?.map(grn => grn.purchase_order_id).filter(Boolean) || [];
-      let purchaseOrderData: any[] = [];
-      
-      if (purchaseOrderIds.length > 0) {
-        const { data: poData } = await supabase
-          .from('purchase_orders')
-          .select('id, payment_terms')
-          .in('id', purchaseOrderIds);
-        
-        purchaseOrderData = poData || [];
-      }
-
-      // Get payment data for all purchase orders and directly for GRNs
-      const grnIds = grnData?.map(grn => grn.id) || [];
-      let paymentsData: any[] = [];
-      
-      if (purchaseOrderIds.length > 0 || grnIds.length > 0) {
-        const { data: payments, error: paymentsError } = await supabase
-          .from('payments')
-          .select('*')
-          .eq('company_id', profile.company_id)
-          .or(`purchase_order_id.in.(${purchaseOrderIds.join(',')}),grn_id.in.(${grnIds.join(',')})`);
-          
-        if (!paymentsError) {
-          paymentsData = payments || [];
-        }
-      }
-
-      // Transform data to include payment information
-      const transformedData = (grnData || []).map(grn => {
-        const relatedPayments = paymentsData.filter(payment => 
-          payment.purchase_order_id === grn.purchase_order_id || payment.grn_id === grn.id
-        );
-        const advancePayments = relatedPayments.filter(p => p.payment_type === 'advance');
-        const regularPayments = relatedPayments.filter(p => p.payment_type !== 'advance');
-        
-        const totalAdvancePayment = advancePayments.reduce((sum, payment) => sum + payment.amount, 0);
-        const totalAmountReceived = regularPayments.reduce((sum, payment) => sum + payment.amount, 0);
-        const pendingPayment = grn.total_amount - totalAdvancePayment - totalAmountReceived;
-        const latestPayment = relatedPayments.sort((a, b) => 
-          new Date(b.payment_date).getTime() - new Date(a.payment_date).getTime()
-        )[0];
-
-        let invoiceStatus = 'Outstanding';
-        if (pendingPayment <= 0) {
-          invoiceStatus = 'Fully Paid';
-        } else if (totalAmountReceived > 0 || totalAdvancePayment > 0) {
-          invoiceStatus = 'Partially Paid';
-        }
-
-        // Get payment terms from PO first, fallback to supplier default
-        const poPaymentTerms = purchaseOrderData.find(po => po.id === grn.purchase_order_id)?.payment_terms;
-        const paymentTerms = poPaymentTerms || grn.supplier?.payment_terms || 'Net 30';
-
-        return {
-          id: grn.id,
-          grn_number: grn.grn_number,
-          grn_date: grn.grn_date,
-          total_amount: grn.total_amount,
-          supplier_name: grn.supplier_name,
-          supplier_id: grn.supplier_id,
-          status: grn.status,
-          advance_payment: totalAdvancePayment,
-          amount_received: totalAmountReceived,
-          payment_date: latestPayment?.payment_date || null,
-          payment_method: latestPayment?.payment_method || null,
-          payment_reference_no: latestPayment?.reference_number || null,
-          pending_payment: Math.max(0, pendingPayment),
-          invoice_status: invoiceStatus,
-          payment_terms: paymentTerms
-        };
-      });
-
-      setAccountPayable(transformedData);
-    } catch (error) {
-      console.error('Error fetching account payable:', error);
-      toast({
-        title: "Error",
-        description: "An unexpected error occurred while loading account payable data",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchAccountReceivable = async () => {
-    try {
-      // Get sales invoice data with customer details using the new foreign key
-      const { data: invoiceData, error: invoiceError } = await supabase
-        .from('sales_invoices')
-        .select(`
-          id,
-          invoice_number,
-          invoice_date,
-          total_amount,
-          payment_terms,
-          customer_id,
-          customer_name,
-          sales_order_id,
-          customer:customer_id(id, name)
-        `)
-        .eq('company_id', profile.company_id)
-        .eq('status', 'finalized')
-        .order('invoice_date', { ascending: false });
-
-      if (invoiceError) {
-        console.error('Error fetching sales invoice data:', invoiceError);
-        toast({
-          title: "Error",
-          description: "Failed to load account receivable data",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      console.log('Fetched sales invoice data:', invoiceData);
-
-      // Get payment data for all sales orders and directly for invoices
-      const salesOrderIds = invoiceData?.map(invoice => invoice.sales_order_id).filter(Boolean) || [];
-      const invoiceIds = invoiceData?.map(invoice => invoice.id) || [];
-      let paymentsData: any[] = [];
-      
-      if (salesOrderIds.length > 0 || invoiceIds.length > 0) {
-        const { data: payments, error: paymentsError } = await supabase
-          .from('payments')
-          .select('*')
-          .eq('company_id', profile.company_id)
-          .or(`sales_order_id.in.(${salesOrderIds.join(',')}),sales_invoice_id.in.(${invoiceIds.join(',')})`);
-          
-        if (!paymentsError) {
-          paymentsData = payments || [];
-        }
-      }
-
-      // Transform data to include payment information and status logic
-      const transformedData = (invoiceData || []).map(invoice => {
-        const relatedPayments = paymentsData.filter(payment => 
-          payment.sales_order_id === invoice.sales_order_id || payment.sales_invoice_id === invoice.id
-        );
-        const advancePayments = relatedPayments.filter(p => p.payment_type === 'advance');
-        const regularPayments = relatedPayments.filter(p => p.payment_type !== 'advance');
-        
-        const totalAdvancePayment = advancePayments.reduce((sum, payment) => sum + payment.amount, 0);
-        const totalAmountReceived = regularPayments.reduce((sum, payment) => sum + payment.amount, 0);
-        const pendingPayment = invoice.total_amount - totalAdvancePayment - totalAmountReceived;
-        const latestPayment = relatedPayments.sort((a, b) => 
-          new Date(b.payment_date).getTime() - new Date(a.payment_date).getTime()
-        )[0];
-
-        // Calculate invoice status including overdue logic
-        let invoiceStatus = 'Outstanding';
-        if (pendingPayment <= 0) {
-          invoiceStatus = 'Fully Paid';
-        } else if (totalAmountReceived > 0 || totalAdvancePayment > 0) {
-          invoiceStatus = 'Partially Paid';
-        }
-
-        // Check for overdue status
-        if (pendingPayment > 0) {
-          const invoiceDate = new Date(invoice.invoice_date);
-          const paymentTermDays = parseInt(invoice.payment_terms?.replace(/\D/g, '') || '30');
-          const dueDate = new Date(invoiceDate.getTime() + (paymentTermDays * 24 * 60 * 60 * 1000));
-          const currentDate = new Date();
-          
-          if (currentDate > dueDate) {
-            invoiceStatus = 'Overdue';
-          }
-        }
-
-        return {
-          id: invoice.id,
-          invoice_number: invoice.invoice_number,
-          invoice_date: invoice.invoice_date,
-          total_amount: invoice.total_amount,
-          payment_terms: invoice.payment_terms,
-          customer: { 
-            id: invoice.customer_id,
-            name: invoice.customer?.name || invoice.customer_name 
-          },
-          advance_payment: totalAdvancePayment,
-          amount_received: totalAmountReceived,
-          payment_date: latestPayment?.payment_date || null,
-          payment_method: latestPayment?.payment_method || null,
-          payment_reference_no: latestPayment?.reference_number || null,
-          pending_payment: Math.max(0, pendingPayment),
-          invoice_status: invoiceStatus
-        };
-      });
-
-      setAccountReceivable(transformedData);
-    } catch (error) {
-      console.error('Error fetching account receivable:', error);
-      toast({
-        title: "Error",
-        description: "An unexpected error occurred while loading account receivable data",
-        variant: "destructive",
-      });
-    }
-  };
-
-  // Fetch top 5 overdue vendors
   const fetchOverdueVendors = async () => {
     if (!profile?.company_id) return;
 
@@ -726,7 +495,7 @@ export function PaymentsModule() {
     setShowOverdueCustomers(false);
   };
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="flex items-center justify-center h-48">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
@@ -1574,8 +1343,7 @@ export function PaymentsModule() {
           totalAmount={selectedRecord.totalAmount}
           companyId={profile?.company_id || ''}
           onPaymentChange={() => {
-            fetchAccountPayable();
-            fetchAccountReceivable();
+            refetchAll();
           }}
         />
       )}

@@ -13,6 +13,9 @@ import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
 import { TrackingUpdateForm } from '@/components/forms/TrackingUpdateForm';
 import { useToast } from '@/hooks/use-toast';
+import { Skeleton } from '@/components/ui/skeleton';
+import { useTrackingModuleData } from '@/hooks/useTrackingModuleData';
+import { useAuth } from '@/hooks/useAuth';
 
 interface TrackableOrder {
   id: string;
@@ -83,9 +86,11 @@ interface OrderDetailDialogProps {
 export function TrackingModule() {
   const { hasAccess, loading: authLoading } = useBusinessAuth();
   const { toast } = useToast();
-  const [orders, setOrders] = useState<TrackableOrder[]>([]);
-  const [debitNotes, setDebitNotes] = useState<TrackableOrder[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { company } = useAuth();
+  
+  // Use optimized data hook with parallel fetching and caching
+  const { orders, debitNotes, isLoading, refetch } = useTrackingModuleData(company?.id);
+  
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [editingOrder, setEditingOrder] = useState<TrackableOrder | null>(null);
@@ -99,181 +104,6 @@ export function TrackingModule() {
     key: string;
     direction: 'asc' | 'desc';
   } | null>(null);
-
-  const fetchTrackableOrders = async () => {
-    try {
-      setLoading(true);
-
-      // Debug: Check authentication
-      const { data: { user } } = await supabase.auth.getUser();
-      console.log('🔐 Current user:', user?.id);
-      console.log('🔐 User email:', user?.email);
-      
-      // Fetch sales invoices with their corresponding sales order tracking information
-      const { data: salesInvoices, error: invoicesError } = await supabase
-        .from('sales_invoices')
-        .select(`
-          id,
-          invoice_number,
-          status,
-          invoice_date,
-          total_amount,
-          subtotal_amount,
-          tax_amount,
-          discount_amount,
-          customer_name,
-          customer_id,
-          sales_order_id,
-          notes,
-          sales_orders(
-            id,
-            destination,
-            item_count,
-            eway_bill_no,
-            eway_bill_date,
-            carrier_transporter,
-            awb_no,
-            eta,
-            pod_document_url,
-            tracking_status,
-            dispatch_date,
-            delivery_date,
-            delivery_city,
-            customers(name)
-          )
-        `);
-
-      console.log('📦 Sales Invoices Query Result:', { 
-        count: salesInvoices?.length || 0, 
-        data: salesInvoices,
-        error: invoicesError 
-      });
-
-      if (invoicesError) {
-        console.error('❌ Error fetching sales invoices:', invoicesError);
-        return;
-      }
-
-      // Fetch debit notes with tracking fields and all necessary details
-      const { data: debitNotesData, error: debitError } = await supabase
-        .from('debit_notes')
-        .select(`
-          id,
-          debit_note_number,
-          status,
-          debit_note_date,
-          supplier_name,
-          total_amount,
-          subtotal_amount,
-          tax_amount,
-          discount_amount,
-          destination,
-          item_count,
-          eway_bill_no,
-          eway_bill_date,
-          carrier_transporter,
-          awb_no,
-          eta,
-          pod_document_url,
-          tracking_status,
-          dispatch_date,
-          delivery_date,
-          notes,
-          supplier_id
-        `);
-
-      console.log('📋 Debit Notes Query Result:', { 
-        count: debitNotesData?.length || 0, 
-        data: debitNotesData,
-        error: debitError 
-      });
-
-      if (debitError) {
-        console.error('❌ Error fetching debit notes:', debitError);
-        return;
-      }
-
-      // Format sales invoices with tracking information from their sales orders
-      const trackableSalesInvoices: TrackableOrder[] = (salesInvoices || []).map(invoice => {
-        const salesOrder = invoice.sales_orders;
-        
-        // Auto-populate destination from delivery_city if not already set
-        let autoDestination = salesOrder?.destination;
-        if (!autoDestination && salesOrder?.delivery_city) {
-          autoDestination = salesOrder.delivery_city;
-        }
-
-        return {
-          id: invoice.id,
-          order_number: invoice.invoice_number, // Display invoice number instead of order number
-          type: 'sales_invoice' as const,
-          status: invoice.status,
-          order_date: invoice.invoice_date,
-          customer_name: salesOrder?.customers?.name || invoice.customer_name,
-          customer_id: invoice.customer_id,
-          total_amount: invoice.total_amount,
-          subtotal_amount: invoice.subtotal_amount,
-          tax_amount: invoice.tax_amount,
-          discount_amount: invoice.discount_amount,
-          destination: autoDestination,
-          delivery_city: salesOrder?.delivery_city,
-          item_count: salesOrder?.item_count,
-          eway_bill_no: salesOrder?.eway_bill_no,
-          eway_bill_date: salesOrder?.eway_bill_date,
-          carrier_transporter: salesOrder?.carrier_transporter,
-          awb_no: salesOrder?.awb_no,
-          eta: salesOrder?.eta,
-          pod_document_url: salesOrder?.pod_document_url,
-          tracking_status: salesOrder?.tracking_status || 'pending',
-          dispatch_date: salesOrder?.dispatch_date,
-          delivery_date: salesOrder?.delivery_date,
-          notes: invoice.notes
-        };
-      });
-
-      // Format debit notes (destination remains as manually entered)
-      const trackableDebitNotes: TrackableOrder[] = (debitNotesData || []).map(note => ({
-        id: note.id,
-        order_number: note.debit_note_number,
-        type: 'debit_note' as const,
-        status: note.status,
-        order_date: note.debit_note_date,
-        supplier_name: note.supplier_name,
-        supplier_id: note.supplier_id,
-        total_amount: note.total_amount,
-        subtotal_amount: note.subtotal_amount,
-        tax_amount: note.tax_amount,
-        discount_amount: note.discount_amount,
-        destination: note.destination,
-        item_count: note.item_count,
-        eway_bill_no: note.eway_bill_no,
-        eway_bill_date: note.eway_bill_date,
-        carrier_transporter: note.carrier_transporter,
-        awb_no: note.awb_no,
-        eta: note.eta,
-        pod_document_url: note.pod_document_url,
-        tracking_status: note.tracking_status || 'pending',
-        dispatch_date: note.dispatch_date,
-        delivery_date: note.delivery_date,
-        notes: note.notes
-      }));
-
-      console.log('✅ Final trackable sales invoices:', trackableSalesInvoices.length);
-      console.log('✅ Final trackable debit notes:', trackableDebitNotes.length);
-
-      setOrders(trackableSalesInvoices);
-      setDebitNotes(trackableDebitNotes);
-    } catch (error) {
-      console.error('💥 CRITICAL ERROR in fetchTrackableOrders:', error);
-      toast({
-        title: "Error loading tracking data",
-        description: error instanceof Error ? error.message : "Unknown error",
-        variant: "destructive"
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const fetchOrderDetails = async (order: TrackableOrder): Promise<DetailedOrder> => {
     let items: OrderItem[] = [];
@@ -383,7 +213,7 @@ export function TrackingModule() {
   const handleTrackingUpdate = () => {
     setIsDialogOpen(false);
     setEditingOrder(null);
-    fetchTrackableOrders();
+    refetch();
   };
 
   const handleViewPOD = async (podUrl: string) => {

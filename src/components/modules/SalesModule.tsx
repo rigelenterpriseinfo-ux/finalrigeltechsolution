@@ -9,6 +9,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Card, CardContent } from '@/components/ui/card';
 import { StatsCard } from '@/components/ui/stats-card';
+import { Skeleton } from '@/components/ui/skeleton';
+import { useSalesModuleData } from '@/hooks/useSalesModuleData';
 
 // Import table and form components
 import { CustomerTable } from '@/components/tables/CustomerTable';
@@ -25,9 +27,15 @@ export default function SalesModule() {
   const { hasEditAccess, businessUser } = useBusinessAuth();
   const canEdit = hasEditAccess('sales');
   
-  // State for all modules
-  const [customers, setCustomers] = useState([]);
-  const [salesOrders, setSalesOrders] = useState([]);
+  // Use optimized data hook with parallel fetching and caching
+  const { 
+    customers, 
+    salesOrders, 
+    salesMetrics: salesMetricsData, 
+    isLoading, 
+    refetchAll 
+  } = useSalesModuleData(company?.id);
+  
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   // Function to create backorder entries when sales order has backorders
@@ -66,15 +74,15 @@ export default function SalesModule() {
     }
   };
   
-  // Sales metrics state
-  const [salesMetrics, setSalesMetrics] = useState({
+  // Extract sales metrics from cached data
+  const salesMetrics = salesMetricsData?.metrics || {
     pending_orders_count: 0,
     pending_orders_value: 0,
     total_backorder_units: 0,
     total_backorder_value: 0
-  });
-  const [topBackorderItems, setTopBackorderItems] = useState([]);
-  const [topBackorderCustomers, setTopBackorderCustomers] = useState([]);
+  };
+  const topBackorderItems = salesMetricsData?.topBackorderItems || [];
+  const topBackorderCustomers = salesMetricsData?.topBackorderCustomers || [];
   
   // Dialog states
   const [showCustomerDialog, setShowCustomerDialog] = useState(false);
@@ -90,161 +98,12 @@ export default function SalesModule() {
   
   const [loading, setLoading] = useState(false);
 
-  // Fetch functions
-  const fetchCustomers = async () => {
-    if (!company?.id) return;
-
-    try {
-      const { data, error } = await supabase
-        .from('customers')
-        .select('*')
-        .eq('company_id', company.id)
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-      setCustomers(data || []);
-    } catch (error) {
-      console.error('Error fetching customers:', error);
-      toast({
-        title: "Error",
-        description: "Failed to fetch customers",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const fetchSalesOrders = async () => {
-    if (!company?.id) return;
-
-    try {
-      const { data, error } = await supabase.rpc(
-        'get_sales_orders_with_delivery_summary',
-        { p_company_id: company.id }
-      );
-
-      if (error) throw error;
-
-      // Enrich with totals from the Sales Order Form (sales_order_items)
-      const orders = data || [];
-      const orderIds = orders.map((o: any) => o.id);
-      if (orderIds.length === 0) {
-        setSalesOrders(orders);
-        return;
-      }
-
-      // Fetch sales order items to get ordered quantities and backorders
-      const { data: itemsData, error: itemsError } = await supabase
-        .from('sales_order_items')
-        .select('sales_order_id, product_id, ordered_quantity, quantity, back_order_quantity')
-        .in('sales_order_id', orderIds);
-
-      if (itemsError) throw itemsError;
-
-      // Fetch invoice items to get invoiced quantities
-      const { data: invoiceItemsData, error: invoiceItemsError } = await supabase
-        .from('sales_invoice_items')
-        .select('sales_invoice_id, product_id, quantity_invoiced, sales_invoices!inner(sales_order_id, status)')
-        .in('sales_invoices.sales_order_id', orderIds)
-        .eq('sales_invoices.status', 'finalized');
-
-      if (invoiceItemsError) throw invoiceItemsError;
-
-      // Build map of invoiced quantities per sales order and product
-      const invoicedMap = new Map<string, number>();
-      for (const invItem of invoiceItemsData || []) {
-        const soId = invItem.sales_invoices?.sales_order_id;
-        if (!soId) continue;
-        const key = `${soId}_${invItem.product_id}`;
-        const prev = invoicedMap.get(key) || 0;
-        invoicedMap.set(key, prev + (invItem.quantity_invoiced || 0));
-      }
-
-      // Calculate aggregates using actual back_order_quantity from database
-      const aggregates = new Map<string, { ordered: number; invoiced: number; backorder: number }>();
-      for (const it of itemsData || []) {
-        const ordered = (it.ordered_quantity ?? it.quantity ?? 0) as number;
-        const key = `${it.sales_order_id}_${it.product_id}`;
-        const invoiced = invoicedMap.get(key) || 0;
-        const backorder = it.back_order_quantity || 0; // Use actual backorder from database
-        
-        const prev = aggregates.get(it.sales_order_id) || { ordered: 0, invoiced: 0, backorder: 0 };
-        aggregates.set(it.sales_order_id, {
-          ordered: prev.ordered + ordered,
-          invoiced: prev.invoiced + invoiced,
-          backorder: prev.backorder + backorder,
-        });
-      }
-
-      const enriched = orders.map((o: any) => {
-        const agg = aggregates.get(o.id);
-        if (!agg) return o;
-        return {
-          ...o,
-          total_ordered_qty: agg.ordered,
-          total_invoiced_qty: agg.invoiced,
-          total_backorder_qty: agg.backorder,
-          total_ready_to_deliver_qty: Math.max(0, agg.ordered - agg.invoiced - agg.backorder),
-        };
-      });
-
-      setSalesOrders(enriched);
-    } catch (error) {
-      console.error('Error fetching sales orders:', error);
-      toast({
-        title: "Error",
-        description: "Failed to fetch sales orders",
-        variant: "destructive",
-      });
-    }
-  };
-
-  // Fetch sales metrics
-  const fetchSalesMetrics = async () => {
-    if (!company?.id) return;
-
-    try {
-      const { data: metrics, error: metricsError } = await supabase.rpc(
-        'get_sales_metrics',
-        { p_company_id: company.id }
-      );
-
-      if (metricsError) throw metricsError;
-      if (metrics?.[0]) {
-        setSalesMetrics(metrics[0]);
-      }
-
-      const { data: items, error: itemsError } = await supabase.rpc(
-        'get_top_backorder_items',
-        { p_company_id: company.id, p_limit: 5 }
-      );
-
-      if (itemsError) throw itemsError;
-      setTopBackorderItems(items || []);
-
-      const { data: customers, error: customersError } = await supabase.rpc(
-        'get_top_backorder_customers',
-        { p_company_id: company.id, p_limit: 5 }
-      );
-
-      if (customersError) throw customersError;
-      setTopBackorderCustomers(customers || []);
-    } catch (error) {
-      console.error('Error fetching sales metrics:', error);
-      toast({
-        title: "Error",
-        description: "Failed to fetch sales metrics",
-        variant: "destructive",
-      });
-    }
-  };
-
+  // Refetch data when refresh is triggered
   useEffect(() => {
-    if (company?.id) {
-      fetchCustomers();
-      fetchSalesOrders();
-      fetchSalesMetrics();
+    if (refreshTrigger > 0) {
+      refetchAll();
     }
-  }, [company?.id, refreshTrigger]);
+  }, [refreshTrigger]);
 
   // Realtime subscription for sales invoices
   useEffect(() => {
@@ -320,7 +179,7 @@ export default function SalesModule() {
         title: "Success",
         description: "Customer deleted successfully",
       });
-      fetchCustomers();
+      refetchAll();
     } catch (error) {
       console.error('Error deleting customer:', error);
       toast({
@@ -370,7 +229,7 @@ export default function SalesModule() {
         });
       }
 
-      fetchCustomers();
+      refetchAll();
       setShowCustomerDialog(false);
       setEditingCustomer(null);
     } catch (error) {
@@ -666,9 +525,8 @@ export default function SalesModule() {
       setEditingSalesInvoice(null);
       setRefreshTrigger(prev => prev + 1);
       
-      // Refresh sales orders and metrics to update quantity tracking
-      fetchSalesOrders();
-      fetchSalesMetrics();
+      // Refresh all data
+      refetchAll();
 
       console.log('📢 SalesModule: Showing success toast');
       toast({
@@ -825,8 +683,7 @@ export default function SalesModule() {
         description: editingSalesOrder ? "Sales order updated successfully" : "Sales order created successfully",
       });
 
-      fetchSalesOrders();
-      fetchSalesMetrics();
+      refetchAll();
       setShowSalesOrderDialog(false);
       setEditingSalesOrder(null);
     } catch (error: any) {

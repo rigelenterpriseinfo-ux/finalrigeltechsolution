@@ -26,6 +26,8 @@ import { APARFilterProvider, useAPARFilters } from '@/contexts/APARFilterContext
 import { RSOTable } from '@/components/tables/RSOTable';
 import { CreditNoteTable } from '@/components/tables/CreditNoteTable';
 import { ReturnsDashboardStats } from '@/components/dashboard/ReturnsDashboardStats';
+import { Skeleton } from '@/components/ui/skeleton';
+import { useReturnsModuleData } from '@/hooks/useReturnsModuleData';
 import { 
   RotateCcw, 
   FileText, 
@@ -175,9 +177,23 @@ export function ReturnsModule() {
 
 function ReturnsModuleContent() {
   const { toast } = useToast();
-  const { user, company } = useAuth(); // Get both user and company from auth
+  const { user, company } = useAuth();
   const { arFilters, setARFilters, clearARFilters } = useAPARFilters();
   const [activeTab, setActiveTab] = useState('returns');
+  
+  // Use optimized data hook with parallel fetching and caching
+  const { 
+    returnOrders, 
+    creditNotes, 
+    warehouses, 
+    stats, 
+    isLoading, 
+    refetchAll 
+  } = useReturnsModuleData(company?.id);
+  
+  // Extract stats
+  const returnStats = stats?.returnStats || null;
+  const creditNoteStats = stats?.creditNoteStats || null;
   
   // Form states
   const [isCreateReturnFormOpen, setIsCreateReturnFormOpen] = useState(false);
@@ -187,15 +203,6 @@ function ReturnsModuleContent() {
   const [selectedRSOForView, setSelectedRSOForView] = useState<ReturnOrder | null>(null);
   const [editingRsoId, setEditingRsoId] = useState<string | null>(null);
 
-  // Data states
-  const [customers, setCustomers] = useState<Customer[]>([]);
-  const [returnOrders, setReturnOrders] = useState<ReturnOrder[]>([]);
-  const [creditNotes, setCreditNotes] = useState<CreditNote[]>([]);
-  const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
-  const [returnStats, setReturnStats] = useState<ReturnStats | null>(null);
-  const [creditNoteStats, setCreditNoteStats] = useState<CreditNoteStats | null>(null);
-  const [loading, setLoading] = useState(false);
-
   // Credit Note form state
   const [selectedRso, setSelectedRso] = useState<ReturnOrder | null>(null);
   const [selectedWarehouse, setSelectedWarehouse] = useState<Warehouse | null>(null);
@@ -203,181 +210,15 @@ function ReturnsModuleContent() {
   const [creditNoteItems, setCreditNoteItems] = useState<CreditNoteItem[]>([]);
   const [creditNoteStatus, setCreditNoteStatus] = useState<'Draft' | 'Confirmed'>('Draft');
   const [creditNoteNotes, setCreditNoteNotes] = useState('');
+  const [loading, setLoading] = useState(false);
 
   // Filter bins based on selected default warehouse
   const filteredBinsForLineItems = useMemo(() => {
     if (!selectedWarehouse?.name) return warehouses;
     
-    // Extract warehouse code from selected warehouse name (format: "Chennai - WH006")
     const selectedWarehouseCode = selectedWarehouse.name.split(' - ')[1];
-    
-    // Filter bins that belong to the selected warehouse
     return warehouses.filter(w => w.warehouse_code === selectedWarehouseCode);
   }, [warehouses, selectedWarehouse]);
-
-  // Load initial data
-  useEffect(() => {
-    console.log('ReturnsModule useEffect triggered with company:', company?.id);
-    if (company?.id) {
-      loadReturnOrders();
-      loadCreditNotes();
-      loadWarehouses();
-      loadReturnStats();
-      loadCreditNoteStats();
-    }
-  }, [company?.id]);
-
-  const loadReturnOrders = async () => {
-    console.log('loadReturnOrders called with company:', company?.id);
-    if (!company?.id) {
-      console.log('No company ID available, skipping RSO load');
-      return;
-    }
-    
-    try {
-      setLoading(true);
-      console.log('Fetching RSO data from Supabase...');
-      
-      const { data, error } = await supabase
-        .from('return_order_header')
-        .select('*')
-        .eq('company_id', company.id)
-        .order('created_at', { ascending: false });
-      
-      console.log('RSO query result:', { data, error, dataLength: data?.length });
-      
-      if (error) {
-        console.error('Error loading RSOs:', error);
-        toast({ title: "Error", description: "Failed to load return orders", variant: "destructive" });
-        return;
-      }
-      
-      const returnOrdersData: ReturnOrder[] = (data || []).map(order => ({
-        id: order.id,
-        rso_number: order.rso_number || 'Pending',
-        rso_date: order.rso_date,
-        customer_id: order.customer_id,
-        customer_name: order.customer_name,
-        invoice_number: order.invoice_number,
-        status: order.status as 'Draft' | 'Confirmed',
-        reason_for_credit: order.reason_for_credit,
-        total_amount: order.total_amount
-      }));
-      
-      console.log('Mapped RSO data:', returnOrdersData);
-      setReturnOrders(returnOrdersData);
-      console.log('RSO state updated with', returnOrdersData.length, 'items');
-      
-    } catch (err) {
-      console.error('Exception in loadReturnOrders:', err);
-      toast({ title: "Error", description: "Failed to load return orders", variant: "destructive" });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const loadWarehouses = async () => {
-    if (!company?.id) return;
-    
-    const { data, error } = await supabase
-      .from('warehouse_bins')
-      .select('id, bin_name, warehouse_name, warehouse_code, wh_bin_code')
-      .eq('company_id', company.id)
-      .order('warehouse_name, bin_name');
-    
-    if (error) {
-      toast({ title: "Error", description: "Failed to load warehouses", variant: "destructive" });
-      return;
-    }
-    
-    const warehouseData: Warehouse[] = (data || []).map(item => ({
-      id: item.id,
-      name: `${item.warehouse_name || 'Unknown'} - ${item.warehouse_code || 'N/A'}`, // For default location dropdown
-      location: `${item.wh_bin_code || 'N/A'} - ${item.bin_name || 'Unknown'}`, // For line items dropdown
-      warehouse_code: item.warehouse_code // Store warehouse code for filtering
-    }));
-    setWarehouses(warehouseData);
-  };
-
-  const loadCreditNotes = async () => {
-    if (!company?.id) return;
-    
-    const { data, error } = await supabase
-      .from('credit_notes')
-      .select(`
-        *,
-        return_order_header!rso_id (
-          rso_number
-        )
-      `)
-      .eq('company_id', company.id)
-      .order('created_at', { ascending: false });
-    
-    if (error) {
-      toast({ title: "Error", description: "Failed to load credit notes", variant: "destructive" });
-      return;
-    }
-    
-    const creditNotesData: CreditNote[] = (data || []).map(cn => ({
-      id: cn.id,
-      cn_number: cn.cn_number || 'Pending',
-      cn_date: cn.cn_date,
-      customer_name: cn.customer_name,
-      rso_id: cn.rso_id,
-      rso_number: cn.return_order_header?.rso_number || 'Unknown',
-      status: cn.status as 'Draft' | 'Confirmed',
-      total_amount: cn.total_amount
-    }));
-    
-    setCreditNotes(creditNotesData);
-  };
-
-  const loadReturnStats = async () => {
-    if (!company?.id) return;
-    
-    // Simple count and sum from return_order_header
-    const { data, error } = await supabase
-      .from('return_order_header')
-      .select('status, total_amount')
-      .eq('company_id', company.id);
-    
-    if (error) {
-      console.error('Error loading return stats:', error);
-      return;
-    }
-    
-    const stats = {
-      draft_count: data?.filter(r => r.status === 'Draft').length || 0,
-      draft_amount: data?.filter(r => r.status === 'Draft').reduce((sum, r) => sum + (r.total_amount || 0), 0) || 0,
-      confirmed_count: data?.filter(r => r.status === 'Confirmed').length || 0,
-      confirmed_amount: data?.filter(r => r.status === 'Confirmed').reduce((sum, r) => sum + (r.total_amount || 0), 0) || 0
-    };
-    
-    setReturnStats(stats);
-  };
-
-  const loadCreditNoteStats = async () => {
-    if (!company?.id) return;
-    
-    const { data, error } = await supabase
-      .from('credit_notes')
-      .select('status, total_amount')
-      .eq('company_id', company.id);
-    
-    if (error) {
-      console.error('Error loading credit note stats:', error);
-      return;
-    }
-    
-    const stats = {
-      draft_count: data?.filter(cn => cn.status === 'Draft').length || 0,
-      draft_amount: data?.filter(cn => cn.status === 'Draft').reduce((sum, cn) => sum + (cn.total_amount || 0), 0) || 0,
-      confirmed_count: data?.filter(cn => cn.status === 'Confirmed').length || 0,
-      confirmed_amount: data?.filter(cn => cn.status === 'Confirmed').reduce((sum, cn) => sum + (cn.total_amount || 0), 0) || 0
-    };
-    
-    setCreditNoteStats(stats);
-  };
 
   const loadRsoItems = async (rsoId: string) => {
     const { data, error } = await supabase
@@ -618,8 +459,7 @@ function ReturnsModuleContent() {
 
       // Reset form and reload data
       resetCreditNoteForm();
-      loadCreditNotes();
-      loadCreditNoteStats();
+      refetchAll();
       
       // Refresh inventory data if we're on that tab or need to update stock views
       if (typeof window !== 'undefined') {
@@ -815,8 +655,7 @@ function ReturnsModuleContent() {
       console.log(`✅ Stock reconciliation complete: ${reconciledCount} products reconciled`);
       
       // Refresh the data
-      loadReturnOrders();
-      loadCreditNotes();
+      refetchAll();
       
     } catch (error) {
       console.error('❌ Error during stock reconciliation:', error);
@@ -882,8 +721,7 @@ function ReturnsModuleContent() {
       });
 
       // Reload data
-      loadReturnOrders();
-      loadReturnStats();
+      refetchAll();
     } catch (error) {
       console.error('Error deleting RSO:', error);
       toast({
@@ -975,8 +813,8 @@ function ReturnsModuleContent() {
             <div className="flex space-x-2">
               <Button 
                 variant="outline"
-                onClick={loadReturnOrders}
-                disabled={loading}
+                onClick={refetchAll}
+                disabled={isLoading}
               >
                 <RotateCcw className="mr-2 h-4 w-4" />
                 Refresh
@@ -1009,8 +847,7 @@ function ReturnsModuleContent() {
                   setEditingRsoId(null);
                 }}
                 onSave={() => {
-                  loadReturnOrders();
-                  loadReturnStats();
+                  refetchAll();
                   setIsCreateRSOFormOpen(false);
                   setEditingRsoId(null);
                 }}
@@ -1040,11 +877,10 @@ function ReturnsModuleContent() {
               <Button 
                 variant="outline"
                 onClick={() => {
-                  console.log('Refresh button clicked - reloading RSO data');
-                  loadReturnOrders();
-                  loadCreditNotes();
+                  console.log('Refresh button clicked - reloading data');
+                  refetchAll();
                 }}
-                disabled={loading}
+                disabled={isLoading}
               >
                 <RotateCcw className="mr-2 h-4 w-4" />
                 Refresh
