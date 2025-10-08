@@ -28,6 +28,7 @@ import { BOMModule } from '@/components/modules/BOMModule';
 import { ProductViewDialog } from '@/components/dialogs/ProductViewDialog';
 import { EditProductDialog } from '@/components/dialogs/EditProductDialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { cn } from '@/lib/utils';
 import * as XLSX from 'xlsx';
 
 interface Product {
@@ -658,7 +659,7 @@ export function InventoryModule() {
                 }}
               >
                 <DialogTrigger asChild>
-                  <Button>
+                  <Button className={cn(showAddDialog && "bg-primary/90")}>
                     <Plus className="w-4 h-4 mr-2" />
                     Add Product
                   </Button>
@@ -1024,7 +1025,7 @@ export function InventoryModule() {
 
               {canEdit && (
                 <Button 
-                  className="bg-green-600 hover:bg-green-700 text-white"
+                  className={cn(showBOMDialog && "bg-primary/90")}
                   onClick={() => setShowBOMDialog(true)}
                 >
                   <Plus className="w-4 h-4 mr-2" />
@@ -1033,7 +1034,7 @@ export function InventoryModule() {
               )}
 
               <Button 
-                className="bg-purple-600 hover:bg-purple-700 text-white"
+                className={cn(showBinDialog && "bg-primary/90")}
                 onClick={() => setShowBinDialog(true)}
               >
                 <Plus className="w-4 h-4 mr-2" />
@@ -1042,7 +1043,7 @@ export function InventoryModule() {
 
               <Dialog open={showAdjustmentDialog} onOpenChange={setShowAdjustmentDialog}>
                 <DialogTrigger asChild>
-                  <Button className="bg-orange-600 hover:bg-orange-700 text-white">
+                  <Button className={cn(showAdjustmentDialog && "bg-primary/90")}>
                     <Plus className="w-4 h-4 mr-2" />
                     Inventory Adjustment
                   </Button>
@@ -1067,7 +1068,7 @@ export function InventoryModule() {
 
               <Dialog open={showTransferDialog} onOpenChange={setShowTransferDialog}>
                 <DialogTrigger asChild>
-                  <Button className="bg-teal-600 hover:bg-teal-700 text-white">
+                  <Button className={cn(showTransferDialog && "bg-primary/90")}>
                     <Plus className="w-4 h-4 mr-2" />
                     Inventory Transfer
                   </Button>
