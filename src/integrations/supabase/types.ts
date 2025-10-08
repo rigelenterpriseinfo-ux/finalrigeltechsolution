@@ -4584,6 +4584,10 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: string
       }
+      get_user_company_id_safe: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
       get_user_role: {
         Args: { p_user_id?: string }
         Returns: Database["public"]["Enums"]["app_role"]
@@ -4632,6 +4636,10 @@ export type Database = {
       }
       is_user_admin_v2: {
         Args: { p_user_id?: string }
+        Returns: boolean
+      }
+      is_user_owner_or_admin_safe: {
+        Args: Record<PropertyKey, never>
         Returns: boolean
       }
       process_backorder_fulfillment: {
