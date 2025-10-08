@@ -940,16 +940,16 @@ function ReturnsModuleContent() {
       <ReturnsDashboardStats companyId={company?.id} />
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid w-full grid-cols-2 bg-transparent border-b border-border p-0 h-auto rounded-none">
+        <TabsList className="grid w-full grid-cols-2 border-b border-border">
           <TabsTrigger 
             value="returns"
-            className="rounded-none border-b-2 border-transparent data-[state=active]:border-blue-500 data-[state=active]:text-blue-600 data-[state=active]:shadow-none pb-3 font-medium"
+            className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
           >
             Return Sales Orders
           </TabsTrigger>
           <TabsTrigger 
             value="credit-notes"
-            className="rounded-none border-b-2 border-transparent data-[state=active]:border-blue-500 data-[state=active]:text-blue-600 data-[state=active]:shadow-none pb-3 font-medium"
+            className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
           >
             Credit Notes
           </TabsTrigger>
