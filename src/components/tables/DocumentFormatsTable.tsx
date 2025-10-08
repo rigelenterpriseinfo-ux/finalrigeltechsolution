@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Edit, Trash2, Eye } from 'lucide-react';
+import { Plus, Edit, Eye } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
@@ -79,34 +79,6 @@ export const DocumentFormatsTable: React.FC = () => {
     setDialogOpen(true);
   };
 
-  const handleDelete = async (config: DocumentFormatConfig) => {
-    if (!confirm(`Are you sure you want to delete the ${DOCUMENT_TYPE_LABELS[config.document_type as keyof typeof DOCUMENT_TYPE_LABELS]} format configuration?`)) {
-      return;
-    }
-
-    try {
-      const { error } = await supabase
-        .from('document_format_configs')
-        .delete()
-        .eq('id', config.id);
-
-      if (error) throw error;
-
-      toast({
-        title: 'Success',
-        description: 'Document format configuration deleted successfully',
-      });
-      
-      fetchConfigs();
-    } catch (error) {
-      console.error('Error deleting config:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to delete document format configuration',
-        variant: 'destructive',
-      });
-    }
-  };
 
   const generatePreview = (config: DocumentFormatConfig) => {
     if (!config.prefix) return 'N/A';
@@ -176,15 +148,15 @@ export const DocumentFormatsTable: React.FC = () => {
                         onClick={() => handleEdit(config)}
                         className="h-8 w-8 p-0"
                       >
-                        <Edit className="h-4 w-4" />
+                        <Eye className="h-4 w-4" />
                       </Button>
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => handleDelete(config)}
-                        className="h-8 w-8 p-0 text-destructive hover:text-destructive"
+                        onClick={() => handleEdit(config)}
+                        className="h-8 w-8 p-0"
                       >
-                        <Trash2 className="h-4 w-4" />
+                        <Edit className="h-4 w-4" />
                       </Button>
                     </div>
                   </TableCell>
