@@ -605,26 +605,6 @@ export function TrackingModule() {
     });
   };
 
-  useEffect(() => {
-    const initializeTracking = async () => {
-      // Wait for hasAccess to be defined
-      if (!hasAccess || typeof hasAccess !== 'function') {
-        console.log('⏳ Waiting for hasAccess to be defined...');
-        return;
-      }
-      
-      if (hasAccess('tracking')) {
-        console.log('✅ User has access to tracking, fetching orders...');
-        await fetchTrackableOrders();
-      } else {
-        console.log('❌ User does NOT have access to tracking');
-        setLoading(false);
-      }
-    };
-    
-    initializeTracking();
-  }, [hasAccess]);
-
   // Early return for auth loading
   if (authLoading) {
     return (
@@ -655,7 +635,7 @@ export function TrackingModule() {
     );
   }
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="flex items-center justify-center h-48">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
