@@ -78,6 +78,13 @@ const UserManagement = () => {
     { key: 'settings', label: 'Settings', icon: Settings, description: 'Configure system settings and preferences' }
   ];
 
+  // Fetch users when company ID is available
+  useEffect(() => {
+    if (company?.id) {
+      fetchUsers();
+    }
+  }, [company?.id]);
+
   // Show loading state while authentication data is being fetched
   if (authLoading) {
     console.log('[UserManagement] Still loading auth data...');
@@ -92,13 +99,6 @@ const UserManagement = () => {
       </DashboardLayout>
     );
   }
-
-
-  useEffect(() => {
-    if (company?.id) {
-      fetchUsers();
-    }
-  }, [company?.id]);
 
   const fetchUsers = async () => {
     try {
