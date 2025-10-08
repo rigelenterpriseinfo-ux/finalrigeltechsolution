@@ -120,7 +120,7 @@ export function TrackingModule() {
           customer_id,
           sales_order_id,
           notes,
-          sales_orders!inner(
+          sales_orders(
             id,
             destination,
             item_count,
@@ -181,8 +181,8 @@ export function TrackingModule() {
         const salesOrder = invoice.sales_orders;
         
         // Auto-populate destination from delivery_city if not already set
-        let autoDestination = salesOrder.destination;
-        if (!autoDestination && salesOrder.delivery_city) {
+        let autoDestination = salesOrder?.destination;
+        if (!autoDestination && salesOrder?.delivery_city) {
           autoDestination = salesOrder.delivery_city;
         }
 
@@ -192,24 +192,24 @@ export function TrackingModule() {
           type: 'sales_invoice' as const,
           status: invoice.status,
           order_date: invoice.invoice_date,
-          customer_name: salesOrder.customers?.name || invoice.customer_name,
+          customer_name: salesOrder?.customers?.name || invoice.customer_name,
           customer_id: invoice.customer_id,
           total_amount: invoice.total_amount,
           subtotal_amount: invoice.subtotal_amount,
           tax_amount: invoice.tax_amount,
           discount_amount: invoice.discount_amount,
           destination: autoDestination,
-          delivery_city: salesOrder.delivery_city,
-          item_count: salesOrder.item_count,
-          eway_bill_no: salesOrder.eway_bill_no,
-          eway_bill_date: salesOrder.eway_bill_date,
-          carrier_transporter: salesOrder.carrier_transporter,
-          awb_no: salesOrder.awb_no,
-          eta: salesOrder.eta,
-          pod_document_url: salesOrder.pod_document_url,
-          tracking_status: salesOrder.tracking_status || 'pending',
-          dispatch_date: salesOrder.dispatch_date,
-          delivery_date: salesOrder.delivery_date,
+          delivery_city: salesOrder?.delivery_city,
+          item_count: salesOrder?.item_count,
+          eway_bill_no: salesOrder?.eway_bill_no,
+          eway_bill_date: salesOrder?.eway_bill_date,
+          carrier_transporter: salesOrder?.carrier_transporter,
+          awb_no: salesOrder?.awb_no,
+          eta: salesOrder?.eta,
+          pod_document_url: salesOrder?.pod_document_url,
+          tracking_status: salesOrder?.tracking_status || 'pending',
+          dispatch_date: salesOrder?.dispatch_date,
+          delivery_date: salesOrder?.delivery_date,
           notes: invoice.notes
         };
       });
