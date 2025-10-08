@@ -78,28 +78,6 @@ const UserManagement = () => {
     { key: 'settings', label: 'Settings', icon: Settings, description: 'Configure system settings and preferences' }
   ];
 
-  // Fetch users when company ID is available
-  useEffect(() => {
-    if (company?.id) {
-      fetchUsers();
-    }
-  }, [company?.id]);
-
-  // Show loading state while authentication data is being fetched
-  if (authLoading) {
-    console.log('[UserManagement] Still loading auth data...');
-    return (
-      <DashboardLayout title="User Management">
-        <div className="flex items-center justify-center h-screen">
-          <div className="text-center space-y-4">
-            <Loader2 className="h-8 w-8 animate-spin mx-auto text-primary" />
-            <p className="text-muted-foreground">Loading user permissions...</p>
-          </div>
-        </div>
-      </DashboardLayout>
-    );
-  }
-
   const fetchUsers = async () => {
     try {
       const { data, error } = await supabase
@@ -145,6 +123,28 @@ const UserManagement = () => {
       setIsLoading(false);
     }
   };
+
+  // Fetch users when company ID is available
+  useEffect(() => {
+    if (company?.id) {
+      fetchUsers();
+    }
+  }, [company?.id]);
+
+  // Show loading state while authentication data is being fetched
+  if (authLoading) {
+    console.log('[UserManagement] Still loading auth data...');
+    return (
+      <DashboardLayout title="User Management">
+        <div className="flex items-center justify-center h-screen">
+          <div className="text-center space-y-4">
+            <Loader2 className="h-8 w-8 animate-spin mx-auto text-primary" />
+            <p className="text-muted-foreground">Loading user permissions...</p>
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   const resetForm = () => {
     setFormData({
