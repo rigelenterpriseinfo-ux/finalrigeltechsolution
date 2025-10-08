@@ -22,6 +22,7 @@ interface TrackableOrder {
   id: string;
   order_number: string;
   type: 'sales' | 'debit_note' | 'sales_invoice';
+  sales_order_id?: string; // Add this field
   status: string;
   order_date: string;
   customer_name?: string;
@@ -832,7 +833,7 @@ export function TrackingModule() {
                               <DialogTitle>Update Tracking Information - {item.order_number}</DialogTitle>
                             </DialogHeader>
                             <TrackingUpdateForm
-                              orderId={item.id}
+                              orderId={item.type === 'sales_invoice' ? (item.sales_order_id || item.id) : item.id}
                               orderType={item.type === 'sales_invoice' ? 'sales' : item.type}
                               initialData={{
                                 destination: item.destination,

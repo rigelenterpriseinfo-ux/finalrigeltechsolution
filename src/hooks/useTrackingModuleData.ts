@@ -87,6 +87,7 @@ export const useTrackingModuleData = (companyId: string | undefined) => {
 
         return {
           id: invoice.id,
+          sales_order_id: invoice.sales_order_id, // Include the actual sales_order_id
           order_number: invoice.invoice_number,
           type: 'sales_invoice' as const,
           status: invoice.status,
@@ -154,39 +155,51 @@ export const useTrackingModuleData = (companyId: string | undefined) => {
   useEffect(() => {
     if (!companyId) return;
 
+    console.log('[useTrackingModuleData] Setting up real-time subscriptions for company:', companyId);
+
+    // Create unique channel names per company to avoid conflicts
     const salesOrdersChannel = supabase
-      .channel('sales_orders_tracking_changes')
+      .channel(`tracking-sales-orders-${companyId}`)
       .on(
         'postgres_changes',
         {
           event: 'UPDATE',
           schema: 'public',
           table: 'sales_orders',
+          filter: `company_id=eq.${companyId}`
         },
-        () => {
+        (payload) => {
+          console.log('[useTrackingModuleData] Sales order updated:', payload);
           // Invalidate cache when sales_orders are updated
           queryClient.invalidateQueries({ queryKey: ['tracking-orders', companyId] });
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        console.log('[useTrackingModuleData] Sales orders subscription status:', status);
+      });
 
     const debitNotesChannel = supabase
-      .channel('debit_notes_tracking_changes')
+      .channel(`tracking-debit-notes-${companyId}`)
       .on(
         'postgres_changes',
         {
           event: 'UPDATE',
           schema: 'public',
           table: 'debit_notes',
+          filter: `company_id=eq.${companyId}`
         },
-        () => {
+        (payload) => {
+          console.log('[useTrackingModuleData] Debit note updated:', payload);
           // Invalidate cache when debit_notes are updated
           queryClient.invalidateQueries({ queryKey: ['tracking-orders', companyId] });
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        console.log('[useTrackingModuleData] Debit notes subscription status:', status);
+      });
 
     return () => {
+      console.log('[useTrackingModuleData] Cleaning up subscriptions');
       supabase.removeChannel(salesOrdersChannel);
       supabase.removeChannel(debitNotesChannel);
     };

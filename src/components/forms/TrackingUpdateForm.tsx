@@ -123,6 +123,13 @@ export function TrackingUpdateForm({
 
       const tableName = orderType === 'sales' ? 'sales_orders' : 'debit_notes';
       
+      console.log('[TrackingUpdateForm] Updating tracking:', { 
+        orderId, 
+        orderType, 
+        tableName, 
+        data 
+      });
+      
       const updateData = {
         destination: data.destination,
         item_count: data.item_count,
@@ -137,10 +144,13 @@ export function TrackingUpdateForm({
         pod_document_url: data.pod_document_url,
       };
 
-      const { error } = await supabase
+      const { error, data: result } = await supabase
         .from(tableName)
         .update(updateData)
-        .eq('id', orderId);
+        .eq('id', orderId)
+        .select();
+
+      console.log('[TrackingUpdateForm] Update result:', { error, result });
 
       if (error) {
         throw error;
