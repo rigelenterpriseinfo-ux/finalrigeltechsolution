@@ -1,5 +1,6 @@
 import React from 'react';
 import { cn } from '@/lib/utils';
+import { useBusinessAuth } from '@/hooks/useBusinessAuth';
 import { 
   BarChart3, 
   Package, 
@@ -25,21 +26,23 @@ interface NavigationItem {
   id: string;
   label: string;
   icon: React.ElementType;
+  section?: string; // Section permission required
+  public?: boolean; // Always visible (dashboard, profile)
 }
 
 const navigationItems: NavigationItem[] = [
-  { id: 'dashboard', label: 'Welcome back, Girish!', icon: BarChart3 },
-  { id: 'inventory', label: 'Inventory', icon: Package },
-  { id: 'purchase', label: 'Purchase', icon: ShoppingCart },
-  { id: 'sales', label: 'Sales', icon: FileText },
-  { id: 'returns', label: 'Returns', icon: RotateCcw },
-  { id: 'payments', label: 'Payments', icon: CreditCard },
-  { id: 'reports', label: 'Reports', icon: TrendingUp },
-  { id: 'tracking', label: 'Track & Trace', icon: MapPin },
-  { id: 'ai', label: 'AI Assistant', icon: Bot },
-  { id: 'users', label: 'Team Management', icon: Users },
-  { id: 'profile', label: 'Company Profile', icon: Building2 },
-  { id: 'settings', label: 'Settings', icon: Settings },
+  { id: 'dashboard', label: 'Welcome back, Girish!', icon: BarChart3, public: true },
+  { id: 'inventory', label: 'Inventory', icon: Package, section: 'inventory' },
+  { id: 'purchase', label: 'Purchase', icon: ShoppingCart, section: 'purchases' },
+  { id: 'sales', label: 'Sales', icon: FileText, section: 'sales' },
+  { id: 'returns', label: 'Returns', icon: RotateCcw, section: 'returns' },
+  { id: 'payments', label: 'Payments', icon: CreditCard, section: 'payments' },
+  { id: 'reports', label: 'Reports', icon: TrendingUp, section: 'reports' },
+  { id: 'tracking', label: 'Track & Trace', icon: MapPin, section: 'tracking' },
+  { id: 'ai', label: 'AI Assistant', icon: Bot, section: 'ai' },
+  { id: 'users', label: 'Team Management', icon: Users, section: 'users' },
+  { id: 'profile', label: 'Company Profile', icon: Building2, public: true },
+  { id: 'settings', label: 'Settings', icon: Settings, section: 'settings' },
 ];
 
 export const NavigationSidebar: React.FC<NavigationSidebarProps> = ({
@@ -47,6 +50,21 @@ export const NavigationSidebar: React.FC<NavigationSidebarProps> = ({
   onNavigate,
   className
 }) => {
+  const { hasAccess, loading: authLoading } = useBusinessAuth();
+
+  // Filter navigation items based on permissions
+  const visibleItems = navigationItems.filter(item => {
+    // Show public items (dashboard, profile) to everyone
+    if (item.public) return true;
+    
+    // If section permission is defined, check access
+    if (item.section) {
+      return hasAccess && hasAccess(item.section);
+    }
+    
+    return true;
+  });
+
   return (
     <div className={cn(
       "w-64 bg-background border-r border-border flex flex-col h-screen overflow-y-auto",
@@ -57,29 +75,35 @@ export const NavigationSidebar: React.FC<NavigationSidebarProps> = ({
       </div>
       
       <nav className="flex-1 p-2">
-        <ul className="space-y-1">
-          {navigationItems.map((item) => {
-            const Icon = item.icon;
-            const isActive = activeView === item.id;
-            
-            return (
-              <li key={item.id}>
-                <button
-                  onClick={() => onNavigate(item.id)}
-                  className={cn(
-                    "w-full flex items-center gap-2 sm:gap-3 px-2 sm:px-3 py-3 text-sm rounded-md transition-colors text-left min-h-[48px]",
-                    isActive 
-                      ? "bg-primary text-primary-foreground font-medium" 
-                      : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-                  )}
-                >
-                  <Icon className="h-4 w-4 flex-shrink-0" />
-                  <span className="truncate">{item.label}</span>
-                </button>
-              </li>
-            );
-          })}
-        </ul>
+        {authLoading ? (
+          <div className="flex items-center justify-center py-8">
+            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
+          </div>
+        ) : (
+          <ul className="space-y-1">
+            {visibleItems.map((item) => {
+              const Icon = item.icon;
+              const isActive = activeView === item.id;
+              
+              return (
+                <li key={item.id}>
+                  <button
+                    onClick={() => onNavigate(item.id)}
+                    className={cn(
+                      "w-full flex items-center gap-2 sm:gap-3 px-2 sm:px-3 py-3 text-sm rounded-md transition-colors text-left min-h-[48px]",
+                      isActive 
+                        ? "bg-primary text-primary-foreground font-medium" 
+                        : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                    )}
+                  >
+                    <Icon className="h-4 w-4 flex-shrink-0" />
+                    <span className="truncate">{item.label}</span>
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        )}
       </nav>
     </div>
   );
