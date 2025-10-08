@@ -1,7 +1,11 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { useEffect } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 
 export const useTrackingModuleData = (companyId: string | undefined) => {
+  const queryClient = useQueryClient();
+
   // Parallel fetch all tracking data
   const trackingQuery = useQuery({
     queryKey: ['tracking-orders', companyId],
@@ -145,6 +149,48 @@ export const useTrackingModuleData = (companyId: string | undefined) => {
     staleTime: 2 * 60 * 1000, // 2 minutes for tracking (more real-time)
     refetchOnWindowFocus: false,
   });
+
+  // Real-time subscription for sales_orders and debit_notes updates
+  useEffect(() => {
+    if (!companyId) return;
+
+    const salesOrdersChannel = supabase
+      .channel('sales_orders_tracking_changes')
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'sales_orders',
+        },
+        () => {
+          // Invalidate cache when sales_orders are updated
+          queryClient.invalidateQueries({ queryKey: ['tracking-orders', companyId] });
+        }
+      )
+      .subscribe();
+
+    const debitNotesChannel = supabase
+      .channel('debit_notes_tracking_changes')
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'debit_notes',
+        },
+        () => {
+          // Invalidate cache when debit_notes are updated
+          queryClient.invalidateQueries({ queryKey: ['tracking-orders', companyId] });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(salesOrdersChannel);
+      supabase.removeChannel(debitNotesChannel);
+    };
+  }, [companyId, queryClient]);
 
   return {
     orders: trackingQuery.data?.salesInvoices || [],
