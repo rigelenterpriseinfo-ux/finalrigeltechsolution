@@ -169,12 +169,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     console.log('Checking for existing session...');
     supabase.auth.getSession().then(({ data: { session } }) => {
       console.log('Initial session check:', { session: !!session, user: !!session?.user });
-      setSession(session);
-      setUser(session?.user ?? null);
+      // Don't update state here - let onAuthStateChange handle it to avoid race conditions
+      // If no session exists, set loading to false immediately
       if (!session) {
         console.log('No initial session found');
+        setSession(null);
+        setUser(null);
         setLoading(false);
       }
+      // If session exists, onAuthStateChange will be triggered and handle the state updates
     });
 
     return () => subscription.unsubscribe();
