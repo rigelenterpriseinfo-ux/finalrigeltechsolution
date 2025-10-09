@@ -1365,37 +1365,11 @@ export function InventoryModule() {
         </TabsContent>
 
         <TabsContent value="adjustments" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center space-x-2">
-                <ClipboardList className="w-5 h-5" />
-                <span>Inventory Adjustments History</span>
-              </CardTitle>
-              <CardDescription>
-                Track all inventory adjustments with detailed audit trail
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <InventoryAdjustmentTable refreshTrigger={adjustmentRefreshTrigger} />
-            </CardContent>
-          </Card>
+          <InventoryAdjustmentTable refreshTrigger={adjustmentRefreshTrigger} />
         </TabsContent>
 
         <TabsContent value="transactions" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center space-x-2">
-                <TrendingUp className="w-5 h-5" />
-                <span>Inventory Transactions</span>
-              </CardTitle>
-              <CardDescription>
-                Complete movement history for all inventory transactions
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <InventoryTransactionTable refreshTrigger={adjustmentRefreshTrigger} />
-            </CardContent>
-          </Card>
+          <InventoryTransactionTable refreshTrigger={adjustmentRefreshTrigger} />
         </TabsContent>
 
         <TabsContent value="stock" className="space-y-6">
