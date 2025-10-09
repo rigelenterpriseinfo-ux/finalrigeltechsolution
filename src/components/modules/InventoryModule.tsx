@@ -14,7 +14,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { useBusinessAuth } from '@/hooks/useBusinessAuth';
 import { useIsMobile } from '@/hooks/use-mobile';
-import { Plus, Search, Package, AlertTriangle, Edit, Trash2, Eye, Download, ArrowUpDown, ArrowUp, ArrowDown, ChevronLeft, ChevronRight, MapPin, TrendingUp, ClipboardList, ArrowRightLeft, CheckCircle, XCircle, RotateCcw } from 'lucide-react';
+import { Plus, Search, Package, AlertTriangle, Edit, Trash2, Eye, Download, ArrowUpDown, ArrowUp, ArrowDown, ChevronLeft, ChevronRight, MapPin, TrendingUp, ClipboardList, ArrowRightLeft, CheckCircle, XCircle, RotateCcw, FileSpreadsheet, Filter } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { WarehouseBinForm } from '@/components/forms/WarehouseBinForm';
 import { WarehouseBinTable } from '@/components/tables/WarehouseBinTable';
@@ -70,6 +70,7 @@ export function InventoryModule() {
   const [loading, setLoading] = useState(true);
   const [productsWithTransactions, setProductsWithTransactions] = useState<Set<string>>(new Set());
   const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [showViewDialog, setShowViewDialog] = useState(false);
@@ -262,14 +263,13 @@ export function InventoryModule() {
     setWarehouseBinStats(binStats);
   };
 
-  // Fetch products from Supabase
+  // Fetch products from Supabase (including inactive for filtering)
   const fetchProducts = async () => {
     try {
       setLoading(true);
       const { data, error } = await supabase
         .from('products')
         .select('*')
-        .eq('is_active', true)
         .order('name', { ascending: true });
 
       if (error) throw error;
@@ -567,11 +567,24 @@ export function InventoryModule() {
 
   // Filter and sort products
   const filteredProducts = useMemo(() => {
-    let filtered = products.filter(product =>
-      product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      product.sku.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (product.description && product.description.toLowerCase().includes(searchTerm.toLowerCase()))
-    );
+    let filtered = products.filter(product => {
+      // Enhanced search: SKU, Name, Type, Category
+      const searchLower = searchTerm.toLowerCase();
+      const matchesSearch = (
+        product.name.toLowerCase().includes(searchLower) ||
+        product.sku.toLowerCase().includes(searchLower) ||
+        (product.description && product.description.toLowerCase().includes(searchLower)) ||
+        product.product_type.toLowerCase().includes(searchLower) ||
+        product.product_category.toLowerCase().includes(searchLower)
+      );
+      
+      // Status filter
+      const matchesStatus = statusFilter === 'all' ||
+        (statusFilter === 'active' && product.is_active) ||
+        (statusFilter === 'inactive' && !product.is_active);
+      
+      return matchesSearch && matchesStatus;
+    });
 
     if (sortConfig) {
       filtered.sort((a, b) => {
@@ -589,7 +602,7 @@ export function InventoryModule() {
     }
 
     return filtered;
-  }, [products, searchTerm, sortConfig]);
+  }, [products, searchTerm, sortConfig, statusFilter]);
 
   // Pagination
   const totalPages = Math.ceil(filteredProducts.length / itemsPerPage);
@@ -1128,21 +1141,41 @@ export function InventoryModule() {
 
         <TabsContent value="products" className="space-y-6">
 
-          {/* Search and Export */}
-            <div className="flex justify-between items-center">
-              <div className="relative w-72">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+          {/* Search, Filters, and Export */}
+            <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+              {/* Left: Search */}
+              <div className="relative flex-1 max-w-md">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
-                  placeholder="Search products..." aria-label="Search products by name, SKU, or description"
+                  placeholder="Search by name, SKU, type, or category..."
                   value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
+                  onChange={(e) => {
+                    setSearchTerm(e.target.value);
+                    setCurrentPage(1);
+                  }}
                   className="pl-10"
                 />
               </div>
-              <div className="flex items-center gap-2">
-                <Button variant="outline" onClick={exportToExcel}>
-                  <Download className="w-4 h-4 mr-2" />
-                  Export to Excel
+              
+              {/* Right: Filters + Export */}
+              <div className="flex gap-2 items-center">
+                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                  <SelectTrigger className="w-32">
+                    <SelectValue placeholder="Status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Status</SelectItem>
+                    <SelectItem value="active">Active</SelectItem>
+                    <SelectItem value="inactive">Inactive</SelectItem>
+                  </SelectContent>
+                </Select>
+                
+                <Button
+                  onClick={exportToExcel}
+                  className="gap-2 bg-teal-50 text-teal-700 border border-teal-200 hover:bg-teal-100"
+                >
+                  <FileSpreadsheet className="h-4 w-4" />
+                  Export
                 </Button>
               </div>
             </div>

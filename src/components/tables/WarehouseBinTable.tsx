@@ -23,8 +23,10 @@ import {
   Download,
   ChevronDown,
   ChevronRight as ChevronRightIcon,
-  FileSpreadsheet
+  FileSpreadsheet,
+  Filter
 } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
@@ -76,6 +78,7 @@ export const WarehouseBinTable: React.FC<WarehouseBinTableProps> = ({ refreshTri
   const [sortConfig, setSortConfig] = useState<SortConfig>({ key: 'created_at', direction: 'desc' });
   const [currentPage, setCurrentPage] = useState(1);
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
+  const [statusFilter, setStatusFilter] = useState<string>('all');
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [showViewDialog, setShowViewDialog] = useState(false);
   const [editingBin, setEditingBin] = useState<WarehouseBin | null>(null);
@@ -196,14 +199,22 @@ export const WarehouseBinTable: React.FC<WarehouseBinTableProps> = ({ refreshTri
 
   // Enhanced search and sort functionality
   const filteredBins = useMemo(() => {
-    let filtered = bins.filter(bin =>
-      (bin.wh_bin_code?.toLowerCase() ?? '').includes(searchTerm.toLowerCase()) ||
-      (bin.bin_name?.toLowerCase() ?? '').includes(searchTerm.toLowerCase()) ||
-      (bin.warehouse_name?.toLowerCase() ?? '').includes(searchTerm.toLowerCase()) ||
-      (bin.warehouse_code?.toLowerCase() ?? '').includes(searchTerm.toLowerCase()) ||
-      (bin.city?.toLowerCase() ?? '').includes(searchTerm.toLowerCase()) ||
-      (bin.contact_person_name?.toLowerCase() ?? '').includes(searchTerm.toLowerCase())
-    );
+    let filtered = bins.filter(bin => {
+      const matchesSearch = (
+        (bin.wh_bin_code?.toLowerCase() ?? '').includes(searchTerm.toLowerCase()) ||
+        (bin.bin_name?.toLowerCase() ?? '').includes(searchTerm.toLowerCase()) ||
+        (bin.warehouse_name?.toLowerCase() ?? '').includes(searchTerm.toLowerCase()) ||
+        (bin.warehouse_code?.toLowerCase() ?? '').includes(searchTerm.toLowerCase()) ||
+        (bin.city?.toLowerCase() ?? '').includes(searchTerm.toLowerCase()) ||
+        (bin.contact_person_name?.toLowerCase() ?? '').includes(searchTerm.toLowerCase())
+      );
+      
+      const matchesStatus = statusFilter === 'all' ||
+        (statusFilter === 'active' && bin.is_active) ||
+        (statusFilter === 'inactive' && !bin.is_active);
+      
+      return matchesSearch && matchesStatus;
+    });
 
     // Apply sorting
     if (sortConfig) {
@@ -427,25 +438,44 @@ export const WarehouseBinTable: React.FC<WarehouseBinTableProps> = ({ refreshTri
         <CardTitle>Warehouse & BIN Locations</CardTitle>
       </CardHeader>
       <CardContent className="space-y-6">
-        {/* Search and Export Controls */}
-        <div className="flex items-center justify-between gap-4">
-        <div className="relative flex-1 max-w-sm">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            placeholder="Search warehouses and bins..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10"
-          />
+        {/* Search, Filters, and Export */}
+        <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+          {/* Left: Search */}
+          <div className="relative flex-1 max-w-md">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              placeholder="Search by warehouse name, code, bin name, code..."
+              value={searchTerm}
+              onChange={(e) => {
+                setSearchTerm(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="pl-10"
+            />
+          </div>
+          
+          {/* Right: Filters + Export */}
+          <div className="flex gap-2 items-center">
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-32">
+                <SelectValue placeholder="Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Status</SelectItem>
+                <SelectItem value="active">Active</SelectItem>
+                <SelectItem value="inactive">Inactive</SelectItem>
+              </SelectContent>
+            </Select>
+            
+            <Button
+              onClick={exportToExcel}
+              className="gap-2 bg-teal-50 text-teal-700 border border-teal-200 hover:bg-teal-100"
+            >
+              <FileSpreadsheet className="h-4 w-4" />
+              Export
+            </Button>
+          </div>
         </div>
-        <Button 
-          onClick={exportToExcel} 
-          className="h-9 px-4 gap-2 rounded-md bg-teal-50 text-teal-700 border border-teal-200 hover:bg-teal-100 font-medium transition-colors"
-        >
-          <FileSpreadsheet className="h-4 w-4" />
-          Export Excel
-        </Button>
-      </div>
 
       {/* Enhanced Table with Expandable Rows */}
       <div className="border rounded-lg overflow-hidden">

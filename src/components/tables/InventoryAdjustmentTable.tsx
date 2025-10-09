@@ -307,57 +307,60 @@ export const InventoryAdjustmentTable: React.FC<InventoryAdjustmentTableProps> =
   return (
     <Card>
       <CardHeader className="border-b border-border">
-        <CardTitle>Inventory Adjustments</CardTitle>
+        <CardTitle>Adjustments</CardTitle>
       </CardHeader>
       <CardContent className="w-full space-y-4">
-        {/* Enhanced Filters and Actions */}
-        <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-          <Input
-            placeholder="Search by product, SKU, warehouse, bin, reason..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10 bg-background/50 border-border/50 focus:bg-background"
-          />
-        </div>
-        
-        <div className="flex gap-2 items-center">
-          <Select value={typeFilter} onValueChange={setTypeFilter}>
-            <SelectTrigger className="w-32 bg-background/50 border-border/50">
-              <Filter className="h-4 w-4 mr-2" />
-              <SelectValue placeholder="Type" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Types</SelectItem>
-              <SelectItem value="positive">Positive</SelectItem>
-              <SelectItem value="negative">Negative</SelectItem>
-            </SelectContent>
-          </Select>
+        {/* Search, Filters, and Export */}
+        <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+          {/* Left: Search */}
+          <div className="relative flex-1 max-w-md">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              placeholder="Search by product, SKU, warehouse, bin, reason..."
+              value={searchTerm}
+              onChange={(e) => {
+                setSearchTerm(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="pl-10"
+            />
+          </div>
           
-          <Select value={reasonFilter} onValueChange={setReasonFilter}>
-            <SelectTrigger className="w-40 bg-background/50 border-border/50">
-              <SelectValue placeholder="Reason" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Reasons</SelectItem>
-              <SelectItem value="damaged">Damaged</SelectItem>
-              <SelectItem value="expired">Expired</SelectItem>
-              <SelectItem value="lost">Lost</SelectItem>
-              <SelectItem value="found">Found</SelectItem>
-              <SelectItem value="recount">Recount</SelectItem>
-              <SelectItem value="other">Other</SelectItem>
-            </SelectContent>
-          </Select>
-          
-          <Button
-            onClick={handleExportToExcel}
-            variant="outline"
-            className="flex items-center gap-2 bg-green-50 hover:bg-green-100 text-green-700 border-green-200"
-          >
-            <FileSpreadsheet className="h-4 w-4" />
-            Export
-          </Button>
+          {/* Right: Filters + Export */}
+          <div className="flex gap-2 items-center">
+            <Select value={typeFilter} onValueChange={setTypeFilter}>
+              <SelectTrigger className="w-32">
+                <SelectValue placeholder="Type" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Types</SelectItem>
+                <SelectItem value="positive">Positive</SelectItem>
+                <SelectItem value="negative">Negative</SelectItem>
+              </SelectContent>
+            </Select>
+            
+            <Select value={reasonFilter} onValueChange={setReasonFilter}>
+              <SelectTrigger className="w-32">
+                <SelectValue placeholder="Reason" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Reasons</SelectItem>
+                <SelectItem value="damaged">Damaged</SelectItem>
+                <SelectItem value="expired">Expired</SelectItem>
+                <SelectItem value="lost">Lost</SelectItem>
+                <SelectItem value="found">Found</SelectItem>
+                <SelectItem value="recount">Recount</SelectItem>
+                <SelectItem value="other">Other</SelectItem>
+              </SelectContent>
+            </Select>
+            
+            <Button
+              onClick={handleExportToExcel}
+              className="gap-2 bg-teal-50 text-teal-700 border border-teal-200 hover:bg-teal-100"
+            >
+              <FileSpreadsheet className="h-4 w-4" />
+              Export
+            </Button>
         </div>
       </div>
 
