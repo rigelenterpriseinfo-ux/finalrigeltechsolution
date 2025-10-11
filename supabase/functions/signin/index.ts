@@ -66,15 +66,24 @@ async function legacyHashPassword(password: string): Promise<string> {
 // Verify password with multiple format support
 async function verifyPassword(providedPassword: string, storedPasswordHash: string): Promise<boolean> {
   try {
+    console.log(`[DEBUG] Verifying password - Hash length: ${storedPasswordHash.length}, Hash prefix: ${storedPasswordHash.substring(0, 10)}`);
+    console.log(`[DEBUG] Password length: ${providedPassword.length}`);
+    console.log(`[DEBUG] Is bcrypt hash: ${isBcryptHash(storedPasswordHash)}`);
+    
     if (isBcryptHash(storedPasswordHash)) {
       // Modern bcrypt password - use bcrypt verification
-      return await bcrypt.compare(providedPassword, storedPasswordHash);
+      console.log(`[DEBUG] Using bcrypt verification`);
+      const result = await bcrypt.compare(providedPassword, storedPasswordHash);
+      console.log(`[DEBUG] Bcrypt compare result: ${result}`);
+      return result;
     } else if (isLegacySHA256Hash(storedPasswordHash)) {
       // Legacy SHA-256 hashed password - compare hashes (will be upgraded)
+      console.log(`[DEBUG] Using SHA-256 verification`);
       const providedHash = await legacyHashPassword(providedPassword);
       return providedHash === storedPasswordHash;
     } else {
       // Legacy plaintext password - direct comparison (will be upgraded)
+      console.log(`[DEBUG] Using plaintext comparison`);
       return providedPassword === storedPasswordHash;
     }
   } catch (error) {
