@@ -25,6 +25,7 @@ const EnhancedAuth = () => {
   const [businessRefNo, setBusinessRefNo] = useState('');
   const [username, setUsername] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [skipRedirect, setSkipRedirect] = useState(false);
   
   const { signIn, signUp, resetPassword, user, session, loading: authLoading } = useAuth();
 
@@ -48,29 +49,38 @@ const EnhancedAuth = () => {
     setLoading(false);
   }, [location, toast]);
 
-  // Clear any stale auth state on mount
+  // Clear any stale auth state on mount and prevent immediate redirect
   useEffect(() => {
-    console.log('EnhancedAuth mounted, clearing stale auth state');
+    console.log('EnhancedAuth mounted');
+    setSkipRedirect(true);
+    
     // Clear any stale session when auth page loads
     const clearStaleAuth = async () => {
       const { data: { session } } = await supabase.auth.getSession();
-      if (session && !session.access_token) {
-        console.log('Found stale session, clearing...');
+      console.log('Current session check:', !!session);
+      if (session) {
+        console.log('Clearing existing session to allow login');
         await supabase.auth.signOut();
       }
     };
     clearStaleAuth();
   }, []);
 
-  // Redirect if already logged in with valid session
+  // Redirect if already logged in with valid session (but not if we just navigated here)
   useEffect(() => {
-    console.log('Auth redirect check:', { user: !!user, session: !!session, authLoading });
+    console.log('Auth redirect check:', { user: !!user, session: !!session, authLoading, skipRedirect });
+    // Don't redirect immediately after mount - give time to clear stale state
+    if (skipRedirect) {
+      const timer = setTimeout(() => setSkipRedirect(false), 500);
+      return () => clearTimeout(timer);
+    }
+    
     // Only redirect if we have both user AND valid session, and auth is not loading
-    if (!authLoading && user && session) {
+    if (!authLoading && user && session && !skipRedirect) {
       console.log('Valid session found, redirecting to home');
       navigate('/');
     }
-  }, [user, session, authLoading, navigate]);
+  }, [user, session, authLoading, navigate, skipRedirect]);
 
   const handleSignIn = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
