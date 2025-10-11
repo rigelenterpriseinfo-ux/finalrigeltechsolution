@@ -64,7 +64,7 @@ export const PowerBIKPICard = ({
       )}
       onClick={onClick}
     >
-      <CardContent className="p-6">
+      <CardContent className="p-6 flex flex-col min-h-[140px]">
         <div className="flex items-start justify-between mb-4">
           <span className={POWER_BI_THEME.typography.kpiLabel}>
             {title}
@@ -72,7 +72,7 @@ export const PowerBIKPICard = ({
           <Icon className="h-5 w-5 text-muted-foreground" />
         </div>
         
-        <div className={cn(POWER_BI_THEME.typography.kpiValue, 'mb-2')}>
+        <div className={cn(POWER_BI_THEME.typography.kpiValue, 'mb-4')}>
           {value}
         </div>
         

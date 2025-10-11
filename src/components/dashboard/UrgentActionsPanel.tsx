@@ -141,7 +141,10 @@ export const UrgentActionsPanel: React.FC<UrgentActionsPanelProps> = ({
                 </div>
                 <p className="text-sm text-muted-foreground mb-2">{action.description}</p>
                 {action.value && (
-                  <p className="text-xs text-muted-foreground mb-3">{action.value}</p>
+                  <p className="text-xs text-muted-foreground mb-2">{action.value}</p>
+                )}
+                {action.details && (
+                  <p className="text-xs text-muted-foreground mb-3 font-medium">{action.details}</p>
                 )}
                 <Button
                   size="sm"
