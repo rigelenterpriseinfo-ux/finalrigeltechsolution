@@ -48,10 +48,26 @@ const EnhancedAuth = () => {
     setLoading(false);
   }, [location, toast]);
 
+  // Clear any stale auth state on mount
+  useEffect(() => {
+    console.log('EnhancedAuth mounted, clearing stale auth state');
+    // Clear any stale session when auth page loads
+    const clearStaleAuth = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session && !session.access_token) {
+        console.log('Found stale session, clearing...');
+        await supabase.auth.signOut();
+      }
+    };
+    clearStaleAuth();
+  }, []);
+
   // Redirect if already logged in with valid session
   useEffect(() => {
+    console.log('Auth redirect check:', { user: !!user, session: !!session, authLoading });
     // Only redirect if we have both user AND valid session, and auth is not loading
     if (!authLoading && user && session) {
+      console.log('Valid session found, redirecting to home');
       navigate('/');
     }
   }, [user, session, authLoading, navigate]);

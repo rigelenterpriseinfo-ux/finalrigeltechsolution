@@ -225,9 +225,9 @@ const Index = () => {
               </div>
             </div>
             <Button 
-              onClick={async () => {
-                // Clear any stale auth state before navigating
-                await supabase.auth.signOut();
+              onClick={() => {
+                console.log('Sign In button clicked');
+                // Navigate directly, let EnhancedAuth handle any stale state
                 navigate('/auth');
               }} 
               variant="outline" 
