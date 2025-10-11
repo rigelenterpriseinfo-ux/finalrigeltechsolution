@@ -41,6 +41,14 @@ export function CompanyProfile({ readonly = false }: CompanyProfileProps) {
     gstn: '',
     logoUrl: '',
     tagline: '',
+    bankName: '',
+    branchName: '',
+    accountNumber: '',
+    accountType: 'current',
+    ifscCode: '',
+    swiftCode: '',
+    accountHolderName: '',
+    upiId: '',
   });
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
@@ -179,6 +187,20 @@ export function CompanyProfile({ readonly = false }: CompanyProfileProps) {
         }
       }
 
+      // Validate IFSC code format if provided
+      if (formData.ifscCode) {
+        const ifscRegex = /^[A-Z]{4}0[A-Z0-9]{6}$/;
+        if (!ifscRegex.test(formData.ifscCode)) {
+          toast({
+            title: "Invalid IFSC Code",
+            description: "IFSC code must be 11 characters (e.g., SBIN0001234)",
+            variant: "destructive",
+          });
+          setIsLoading(false);
+          return;
+        }
+      }
+
       // Sanitize form inputs before submission
       const sanitizedData = {
         name: sanitizeHtml(formData.name),
@@ -204,6 +226,14 @@ export function CompanyProfile({ readonly = false }: CompanyProfileProps) {
         business_ref_no: generateBusinessId(formData.name),
         logo_url: logoUrl,
         tagline: sanitizeHtml(formData.tagline),
+        bank_name: sanitizeHtml(formData.bankName),
+        branch_name: sanitizeHtml(formData.branchName),
+        account_number: formData.accountNumber,
+        account_type: formData.accountType,
+        ifsc_code: formData.ifscCode.toUpperCase(),
+        swift_code: formData.swiftCode ? formData.swiftCode.toUpperCase() : null,
+        account_holder_name: sanitizeHtml(formData.accountHolderName),
+        upi_id: formData.upiId || null,
         updated_at: new Date().toISOString(),
       };
 
@@ -357,6 +387,14 @@ export function CompanyProfile({ readonly = false }: CompanyProfileProps) {
         gstn: (company as any).gstn || '',
         logoUrl: (company as any).logo_url || '',
         tagline: (company as any).tagline || '',
+        bankName: (company as any).bank_name || '',
+        branchName: (company as any).branch_name || '',
+        accountNumber: (company as any).account_number || '',
+        accountType: (company as any).account_type || 'current',
+        ifscCode: (company as any).ifsc_code || '',
+        swiftCode: (company as any).swift_code || '',
+        accountHolderName: (company as any).account_holder_name || '',
+        upiId: (company as any).upi_id || '',
       });
       setLogoFile(null);
       setLogoPreview((company as any).logo_url || null);
@@ -388,6 +426,14 @@ export function CompanyProfile({ readonly = false }: CompanyProfileProps) {
         gstn: (company as any).gstn || '',
         logoUrl: (company as any).logo_url || '',
         tagline: (company as any).tagline || '',
+        bankName: (company as any).bank_name || '',
+        branchName: (company as any).branch_name || '',
+        accountNumber: (company as any).account_number || '',
+        accountType: (company as any).account_type || 'current',
+        ifscCode: (company as any).ifsc_code || '',
+        swiftCode: (company as any).swift_code || '',
+        accountHolderName: (company as any).account_holder_name || '',
+        upiId: (company as any).upi_id || '',
       }));
       
       // Set logo preview if URL exists
@@ -820,6 +866,139 @@ export function CompanyProfile({ readonly = false }: CompanyProfileProps) {
                           <option value="active">Active</option>
                           <option value="inactive">Inactive</option>
                         </select>
+                      </div>
+                    </div>
+                  </div>
+
+                  <Separator />
+
+                  {/* Bank Details Section */}
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-medium flex items-center gap-2">
+                      <Building2 className="h-5 w-5 text-primary" />
+                      Bank Details
+                    </h3>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="account-holder-name" className="text-base font-medium">
+                          Account Holder Name
+                        </Label>
+                        <Input
+                          id="account-holder-name"
+                          value={formData.accountHolderName}
+                          onChange={canEdit ? (e) => handleInputChange('accountHolderName', e.target.value) : undefined}
+                          placeholder="As per bank records"
+                          disabled={!canEdit}
+                          className={!canEdit ? "bg-muted/50" : ""}
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="bank-name" className="text-base font-medium">
+                          Bank Name
+                        </Label>
+                        <Input
+                          id="bank-name"
+                          value={formData.bankName}
+                          onChange={canEdit ? (e) => handleInputChange('bankName', e.target.value) : undefined}
+                          placeholder="e.g., State Bank of India"
+                          disabled={!canEdit}
+                          className={!canEdit ? "bg-muted/50" : ""}
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="branch-name" className="text-base font-medium">
+                          Branch Name
+                        </Label>
+                        <Input
+                          id="branch-name"
+                          value={formData.branchName}
+                          onChange={canEdit ? (e) => handleInputChange('branchName', e.target.value) : undefined}
+                          placeholder="e.g., Mumbai Main Branch"
+                          disabled={!canEdit}
+                          className={!canEdit ? "bg-muted/50" : ""}
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="account-type" className="text-base font-medium">
+                          Account Type
+                        </Label>
+                        <select
+                          id="account-type"
+                          value={formData.accountType}
+                          onChange={canEdit ? (e) => handleInputChange('accountType', e.target.value) : undefined}
+                          disabled={!canEdit}
+                          className={`flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 ${!canEdit ? "bg-muted/50" : ""}`}
+                        >
+                          <option value="savings">Savings</option>
+                          <option value="current">Current</option>
+                          <option value="other">Other</option>
+                        </select>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="account-number" className="text-base font-medium">
+                          Account Number
+                        </Label>
+                        <Input
+                          id="account-number"
+                          type={canEdit ? "text" : "password"}
+                          value={formData.accountNumber}
+                          onChange={canEdit ? (e) => handleInputChange('accountNumber', e.target.value) : undefined}
+                          placeholder="Enter account number"
+                          disabled={!canEdit}
+                          className={!canEdit ? "bg-muted/50" : ""}
+                        />
+                        {!canEdit && formData.accountNumber && (
+                          <p className="text-xs text-muted-foreground">Account number is masked for security</p>
+                        )}
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="ifsc-code" className="text-base font-medium">
+                          IFSC Code
+                        </Label>
+                        <Input
+                          id="ifsc-code"
+                          value={formData.ifscCode}
+                          onChange={canEdit ? (e) => handleInputChange('ifscCode', e.target.value.toUpperCase()) : undefined}
+                          placeholder="e.g., SBIN0001234"
+                          maxLength={11}
+                          disabled={!canEdit}
+                          className={!canEdit ? "bg-muted/50" : ""}
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="swift-code" className="text-base font-medium">
+                          SWIFT Code <span className="text-xs text-muted-foreground">(Optional)</span>
+                        </Label>
+                        <Input
+                          id="swift-code"
+                          value={formData.swiftCode}
+                          onChange={canEdit ? (e) => handleInputChange('swiftCode', e.target.value.toUpperCase()) : undefined}
+                          placeholder="e.g., SBININBBXXX"
+                          maxLength={11}
+                          disabled={!canEdit}
+                          className={!canEdit ? "bg-muted/50" : ""}
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="upi-id" className="text-base font-medium">
+                          UPI ID <span className="text-xs text-muted-foreground">(Optional)</span>
+                        </Label>
+                        <Input
+                          id="upi-id"
+                          value={formData.upiId}
+                          onChange={canEdit ? (e) => handleInputChange('upiId', e.target.value) : undefined}
+                          placeholder="yourcompany@bank"
+                          disabled={!canEdit}
+                          className={!canEdit ? "bg-muted/50" : ""}
+                        />
                       </div>
                     </div>
                   </div>
