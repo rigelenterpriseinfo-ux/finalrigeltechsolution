@@ -810,23 +810,13 @@ function ReturnsModuleContent() {
 
           {/* Create RSO Button */}
           <div className="flex justify-end items-center">
-            <div className="flex space-x-2">
-              <Button 
-                variant="outline"
-                onClick={refetchAll}
-                disabled={isLoading}
-              >
-                <RotateCcw className="mr-2 h-4 w-4" />
-                Refresh
-              </Button>
-              <Button 
-                onClick={() => setIsCreateRSOFormOpen(true)}
-                disabled={loading}
-              >
-                <Plus className="mr-2 h-4 w-4" />
-                Create RSO
-              </Button>
-            </div>
+            <Button 
+              onClick={() => setIsCreateRSOFormOpen(true)}
+              disabled={loading}
+            >
+              <Plus className="mr-2 h-4 w-4" />
+              Create RSO
+            </Button>
           </div>
 
           {/* RSO Form Dialog */}
@@ -873,26 +863,13 @@ function ReturnsModuleContent() {
 
           {/* Create Credit Note Button */}
           <div className="flex justify-end items-center">
-            <div className="flex space-x-2">
-              <Button 
-                variant="outline"
-                onClick={() => {
-                  console.log('Refresh button clicked - reloading data');
-                  refetchAll();
-                }}
-                disabled={isLoading}
-              >
-                <RotateCcw className="mr-2 h-4 w-4" />
-                Refresh
-              </Button>
-              <Button 
-                onClick={() => setIsCreateCreditNoteFormOpen(true)}
-                disabled={loading}
-              >
-                <Plus className="mr-2 h-4 w-4" />
-                Add Credit Note
-              </Button>
-            </div>
+            <Button 
+              onClick={() => setIsCreateCreditNoteFormOpen(true)}
+              disabled={loading}
+            >
+              <Plus className="mr-2 h-4 w-4" />
+              Add Credit Note
+            </Button>
           </div>
 
           {/* Credit Note Form Dialog */}

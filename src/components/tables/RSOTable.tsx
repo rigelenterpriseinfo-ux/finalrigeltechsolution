@@ -1080,6 +1080,22 @@ export function RSOTable({
                                 </TooltipContent>
                               </Tooltip>
 
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => exportToPDF(order)}
+                                    className="h-8 w-8 text-gray-600 hover:text-red-600 hover:bg-red-50 transition-colors"
+                                  >
+                                    <FileText className="h-4 w-4" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p className="text-sm">Export to PDF</p>
+                                </TooltipContent>
+                              </Tooltip>
+
                               {order.status === 'Draft' && (
                                 <Tooltip>
                                   <TooltipTrigger asChild>
