@@ -22,7 +22,6 @@ const EnhancedAuth = () => {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [activeTab, setActiveTab] = useState<'signin' | 'forgot'>('signin');
   const [captchaToken, setCaptchaToken] = useState<string>('');
-  const [businessRefNo, setBusinessRefNo] = useState('');
   const [username, setUsername] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [skipRedirect, setSkipRedirect] = useState(false);
@@ -88,10 +87,6 @@ const EnhancedAuth = () => {
     // Validate form
     const newErrors: Record<string, string> = {};
     
-    if (!businessRefNo.trim()) {
-      newErrors.businessRefNo = 'Business ID is required';
-    }
-    
     if (!username.trim()) {
       newErrors.username = 'Username is required';
     }
@@ -115,7 +110,6 @@ const EnhancedAuth = () => {
     try {
       const { data, error } = await supabase.functions.invoke('signin', {
         body: {
-          businessRefNo: businessRefNo.trim(),
           username: username.trim(),
           password: passwords.password
         }
@@ -146,9 +140,9 @@ const EnhancedAuth = () => {
       const errorMessage = error.message || "Sign in failed";
       
       if (errorMessage.includes('Invalid credentials') || errorMessage.includes('Invalid')) {
-        setErrors({ general: 'Invalid Business ID, username, or password.' });
+        setErrors({ general: 'Invalid username or password.' });
       } else if (errorMessage.includes('suspended') || errorMessage.includes('not active')) {
-        setErrors({ general: 'This business is not active. Contact support.' });
+        setErrors({ general: 'This account is not active. Contact support.' });
       } else if (errorMessage.includes('attempts') || errorMessage.includes('rate')) {
         setErrors({ general: 'Too many attempts. Try again in a few minutes.' });
       } else {
@@ -234,38 +228,15 @@ const EnhancedAuth = () => {
                   )}
                   
                   <div className="space-y-2">
-                    <Label htmlFor="businessRefNo" className="flex items-center gap-2">
-                      <Building2 className="h-4 w-4" />
-                      Business ID
-                    </Label>
-                    <Input
-                      id="businessRefNo"
-                      name="businessRefNo"
-                      type="text"
-                      placeholder="BUS-YYYYMMDD-XXXXX"
-                      required
-                      className={`font-mono ${errors.businessRefNo ? 'border-destructive' : ''}`}
-                      value={businessRefNo}
-                      onChange={(e) => {
-                        setBusinessRefNo(e.target.value);
-                        setErrors(prev => ({ ...prev, businessRefNo: '', general: '' }));
-                      }}
-                    />
-                    {errors.businessRefNo && (
-                      <p className="text-xs text-destructive">{errors.businessRefNo}</p>
-                    )}
-                  </div>
-                  
-                  <div className="space-y-2">
                     <Label htmlFor="username" className="flex items-center gap-2">
                       <User className="h-4 w-4" />
-                      Username
+                      Username or Email
                     </Label>
                     <Input
                       id="username"
                       name="username"
                       type="text"
-                      placeholder="admin.user"
+                      placeholder="Enter your username or email"
                       required
                       className={errors.username ? 'border-destructive' : ''}
                       value={username}

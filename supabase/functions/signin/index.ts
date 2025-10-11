@@ -112,7 +112,7 @@ serve(async (req) => {
   }
 
   try {
-    const { businessRefNo, username, password }: SigninRequest = await req.json();
+    const { username, password }: SigninRequest = await req.json();
 
     if (!username || !password) {
       console.log("Missing username or password");
@@ -135,7 +135,7 @@ serve(async (req) => {
       );
     }
     
-    console.log(`Secure login attempt for: ${normalizedUsername}, business: ${businessRefNo || 'none'}`);
+    console.log(`Secure login attempt for: ${normalizedUsername}`);
 
     // Initialize Supabase client with service role key
     const supabase = createClient(
@@ -176,7 +176,8 @@ serve(async (req) => {
     }
 
     // Query company_users with case-insensitive matching on both username and email
-    let query = supabase
+    // Username is unique across the system, so no businessRefNo filter needed
+    const { data: userData, error: userError } = await supabase
       .from("company_users")
       .select(`
         id,
@@ -201,17 +202,11 @@ serve(async (req) => {
           status
         )
        `)
-      .or(`username.ilike.${normalizedUsername},email.ilike.${normalizedUsername}`);
-
-    if (businessRefNo) {
-      // @ts-ignore - postgrest filter on related table
-      query = query.eq("companies.business_ref_no", businessRefNo);
-    }
-
-    const { data: userData, error: userError } = await query.single();
+      .or(`username.ilike.${normalizedUsername},email.ilike.${normalizedUsername}`)
+      .single();
 
     if (userError || !userData) {
-      console.log(`User not found - Business: ${businessRefNo}, Username: ${normalizedUsername}, Error: ${userError?.message}`);
+      console.log(`User not found - Username: ${normalizedUsername}, Error: ${userError?.message}`);
       return new Response(
         JSON.stringify({ success: false, error: "Invalid credentials" }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }

@@ -24,7 +24,6 @@ const GatedSignin = () => {
   
   const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
-    businessRefNo: '',
     username: '',
     password: ''
   });
@@ -36,12 +35,7 @@ const GatedSignin = () => {
   };
 
   const validateForm = () => {
-    const { businessRefNo, username, password } = formData;
-
-    if (!businessRefNo.trim()) {
-      toast({ title: "Business ID is required", variant: "destructive" });
-      return false;
-    }
+    const { username, password } = formData;
 
     if (!username.trim()) {
       toast({ title: "Username is required", variant: "destructive" });
@@ -65,7 +59,6 @@ const GatedSignin = () => {
     try {
       const { data, error } = await supabase.functions.invoke('signin', {
         body: {
-          businessRefNo: formData.businessRefNo.trim(),
           username: formData.username.trim(),
           password: formData.password
         }
@@ -132,33 +125,15 @@ const GatedSignin = () => {
           <CardContent>
             <form onSubmit={handleSignin} className="space-y-6">
               <div className="space-y-2">
-                <Label htmlFor="businessRefNo" className="flex items-center gap-2">
-                  <Building2 className="h-4 w-4" />
-                  Business ID
-                </Label>
-                <Input
-                  id="businessRefNo"
-                  value={formData.businessRefNo}
-                  onChange={(e) => handleInputChange('businessRefNo', e.target.value)}
-                  placeholder="BUS-20250827-ABC12"
-                  required
-                  className="font-mono"
-                />
-                <p className="text-xs text-muted-foreground">
-                  Your unique Business ID received during registration
-                </p>
-              </div>
-
-              <div className="space-y-2">
                 <Label htmlFor="username" className="flex items-center gap-2">
                   <User className="h-4 w-4" />
-                  Username
+                  Username or Email
                 </Label>
                 <Input
                   id="username"
                   value={formData.username}
                   onChange={(e) => handleInputChange('username', e.target.value)}
-                  placeholder="admin.user"
+                  placeholder="Enter your username or email"
                   required
                 />
               </div>
