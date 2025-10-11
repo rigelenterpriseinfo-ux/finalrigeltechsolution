@@ -1,136 +1,143 @@
-import { useState, useEffect } from 'react';
-import { Navigate, useSearchParams, useLocation } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { PasswordStrength } from '@/components/ui/password-strength';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { useAuth } from '@/hooks/useAuth';
-import { Loader2, Building2, Mail, Lock, Eye, EyeOff, Shield, CheckCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { emailSchema, passwordSchema, nameSchema } from '@/lib/security';
-import Captcha from '@/components/ui/captcha';
+import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/integrations/supabase/client';
+import { Eye, EyeOff, Loader2, Shield, Building2, User, Lock, LogIn } from 'lucide-react';
+import { Captcha } from '@/components/ui/captcha';
 
-export default function EnhancedAuth() {
-  const { user, signIn, signUp, resetPassword, loading } = useAuth();
-  const [isLoading, setIsLoading] = useState(false);
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [activeTab, setActiveTab] = useState('signin');
-  const [captchaToken, setCaptchaToken] = useState<string | undefined>(undefined);
-  const [searchParams] = useSearchParams();
+const EnhancedAuth = () => {
+  const navigate = useNavigate();
   const location = useLocation();
   const { toast } = useToast();
+  const [isLoading, setIsLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [passwords, setPasswords] = useState({ password: '', confirmPassword: '' });
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [activeTab, setActiveTab] = useState<'signin' | 'forgot'>('signin');
+  const [captchaToken, setCaptchaToken] = useState<string>('');
+  const [businessRefNo, setBusinessRefNo] = useState('');
+  const [username, setUsername] = useState('');
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  
+  const { signIn, signUp, resetPassword, user } = useAuth();
 
-  // Get initial tab from URL params or location state
   useEffect(() => {
-    const tabFromUrl = searchParams.get('tab');
-    const tabFromState = location.state?.tab;
-    if (tabFromUrl) {
-      setActiveTab(tabFromUrl);
-    } else if (tabFromState) {
-      setActiveTab(tabFromState);
+    // Check if there's a tab parameter in the URL
+    const searchParams = new URLSearchParams(location.search);
+    const tab = searchParams.get('tab');
+    if (tab === 'forgot') {
+      setActiveTab('forgot');
     }
-  }, [searchParams, location.state]);
 
-  // Show success message from business registration
-  useEffect(() => {
-    if (location.state?.message) {
+    // Check if there's a success message from business registration
+    const state = location.state as { fromRegistration?: boolean; message?: string };
+    if (state?.fromRegistration && state?.message) {
       toast({
-        title: "Success!",
-        description: location.state.message,
-        duration: 5000,
+        title: "Registration Complete",
+        description: state.message,
       });
     }
-  }, [location.state, toast]);
 
-  // Redirect if already authenticated
-  if (user && !loading) {
-    return <Navigate to="/dashboard" replace />;
-  }
+    setLoading(false);
+  }, [location, toast]);
+
+  // Redirect if already logged in
+  useEffect(() => {
+    if (user) {
+      navigate('/');
+    }
+  }, [user, navigate]);
 
   const handleSignIn = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    
+    // Validate form
+    const newErrors: Record<string, string> = {};
+    
+    if (!businessRefNo.trim()) {
+      newErrors.businessRefNo = 'Business ID is required';
+    } else if (!businessRefNo.startsWith('BUS-')) {
+      newErrors.businessRefNo = 'Business ID must start with BUS-';
+    }
+    
+    if (!username.trim()) {
+      newErrors.username = 'Username is required';
+    }
+    
+    if (!passwords.password) {
+      newErrors.password = 'Password is required';
+    }
+    
+    // Validate captcha if configured
+    const captchaElement = document.querySelector('meta[name="turnstile-sitekey"]');
+    if (captchaElement && !captchaToken) {
+      newErrors.captcha = 'Please complete the captcha verification';
+    }
+    
+    setErrors(newErrors);
+    if (Object.keys(newErrors).length > 0) return;
+    
     setIsLoading(true);
-    
-    const formData = new FormData(e.currentTarget);
-    const email = formData.get('email') as string;
-    const password = formData.get('password') as string;
-    
-    const result = await signIn(email, password, captchaToken);
-    setIsLoading(false);
-  };
 
-  const handleSignUp = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    setIsLoading(true);
-    
-    const formData = new FormData(e.currentTarget);
-    const email = formData.get('email') as string;
-    const password = formData.get('password') as string;
-    const companyName = formData.get('companyName') as string;
-    const firstName = formData.get('firstName') as string;
-    const lastName = formData.get('lastName') as string;
-    const phone = formData.get('phone') as string;
-    const city = formData.get('city') as string;
-    const state = formData.get('state') as string;
-    const country = formData.get('country') as string;
-    
-    // Enhanced validation using security schemas
     try {
-      emailSchema.parse(email);
-      passwordSchema.parse(password);
-      nameSchema.parse(companyName);
-      nameSchema.parse(firstName);
-      nameSchema.parse(lastName);
-      nameSchema.parse(city);
-      nameSchema.parse(state);
-      nameSchema.parse(country);
-    } catch (validationError: any) {
+      const { data, error } = await supabase.functions.invoke('signin', {
+        body: {
+          businessRefNo: businessRefNo.trim(),
+          username: username.trim(),
+          password: passwords.password
+        }
+      });
+
+      if (error) throw error;
+
+      if (data?.success) {
+        // Sign in with Supabase Auth to create a proper session
+        const { error: authError } = await supabase.auth.signInWithPassword({
+          email: data.user.email,
+          password: passwords.password
+        });
+
+        if (authError) {
+          throw new Error('Authentication failed: ' + authError.message);
+        }
+
+        toast({
+          title: "Welcome back!",
+          description: `Successfully signed in as ${data.user.email}`,
+        });
+        navigate('/');
+      } else {
+        throw new Error(data?.error || 'Sign in failed');
+      }
+    } catch (error: any) {
+      const errorMessage = error.message || "Sign in failed";
+      
+      if (errorMessage.includes('Invalid credentials') || errorMessage.includes('Invalid')) {
+        setErrors({ general: 'Invalid Business ID, username, or password.' });
+      } else if (errorMessage.includes('suspended') || errorMessage.includes('not active')) {
+        setErrors({ general: 'This business is not active. Contact support.' });
+      } else if (errorMessage.includes('attempts') || errorMessage.includes('rate')) {
+        setErrors({ general: 'Too many attempts. Try again in a few minutes.' });
+      } else {
+        setErrors({ general: errorMessage });
+      }
+      
       toast({
-        title: "Validation failed",
-        description: validationError.errors?.[0]?.message || "Please check your input",
+        title: "Sign In Failed",
+        description: errorMessage,
         variant: "destructive",
       });
+    } finally {
       setIsLoading(false);
-      return;
+      setCaptchaToken('');
     }
-    
-    // Validate passwords match
-    if (password !== confirmPassword) {
-      toast({
-        title: "Passwords don't match",
-        description: "Please make sure both passwords are identical.",
-        variant: "destructive",
-      });
-      setIsLoading(false);
-      return;
-    }
-    
-    // Validate phone number (10 digits)
-    const phoneRegex = /^\d{10}$/;
-    if (!phoneRegex.test(phone.replace(/\D/g, ''))) {
-      toast({
-        title: "Invalid phone number",
-        description: "Phone number must be exactly 10 digits",
-        variant: "destructive",
-      });
-      setIsLoading(false);
-      return;
-    }
-    
-    const result = await signUp(email, password, companyName, firstName, lastName, phone, city, state, country);
-    
-    if (!result?.error) {
-      // Successfully signed up, redirect will happen from useEffect
-      return;
-    }
-    
-    setIsLoading(false);
   };
 
   const handleForgotPassword = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -138,182 +145,240 @@ export default function EnhancedAuth() {
     setIsLoading(true);
     
     const formData = new FormData(e.currentTarget);
-    const email = formData.get('reset-email') as string;
-    
-    await resetPassword(email);
-    setIsLoading(false);
+    const email = formData.get('email') as string;
+
+    try {
+      await resetPassword(email);
+      toast({
+        title: "Password Reset Email Sent",
+        description: "Please check your email for the reset link.",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Password Reset Failed",
+        description: error.message || "Unable to send reset email. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-subtle">
-        <div className="text-center space-y-4">
-          <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto" />
-          <p className="text-muted-foreground">Loading...</p>
-        </div>
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-subtle p-4">
-      <div className="w-full max-w-lg">
-        {/* Header */}
-        <div className="flex items-center justify-center mb-8">
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
-              <Building2 className="h-7 w-7 text-primary" />
+    <div className="min-h-screen bg-gradient-subtle flex items-center justify-center p-4">
+      <div className="w-full max-w-md">
+        <Card className="shadow-elevated">
+          <CardHeader className="text-center space-y-4">
+            <div className="flex justify-center">
+              <div className="p-3 rounded-full bg-primary/10">
+                <Building2 className="h-8 w-8 text-primary" />
+              </div>
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-foreground">Rigel Inventory</h1>
-              <p className="text-sm text-muted-foreground">Business Management Platform</p>
+              <CardTitle className="text-2xl">Rigel Inventory</CardTitle>
+              <CardDescription>Business Portal</CardDescription>
             </div>
-          </div>
-        </div>
+            <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
+              <Shield className="h-3 w-3" />
+              <span>Secured with advanced encryption</span>
+            </div>
+          </CardHeader>
 
-        {/* Security Badge */}
-        <div className="flex items-center justify-center gap-2 mb-6 text-xs text-muted-foreground">
-          <Shield className="h-4 w-4" />
-          <span>Secure Login • 256-bit SSL Encryption</span>
-        </div>
+          <CardContent>
+            <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'signin' | 'forgot')}>
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="signin">Sign In</TabsTrigger>
+                <TabsTrigger value="forgot">Forgot Password</TabsTrigger>
+              </TabsList>
 
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-2 mb-6">
-            <TabsTrigger value="signin" className="text-sm">Sign In</TabsTrigger>
-            <TabsTrigger value="forgot" className="text-sm">Reset Password</TabsTrigger>
-          </TabsList>
-          
-          {/* Sign In Tab */}
-          <TabsContent value="signin">
-            <Card className="shadow-elevated border-0">
-              <CardHeader className="text-center pb-6">
-                <CardTitle className="text-2xl">Welcome back</CardTitle>
-                <CardDescription className="text-base">
-                  Sign in to your account to access your ERP dashboard
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <form onSubmit={handleSignIn} className="space-y-6">
-                  <div className="space-y-2">
-                    <Label htmlFor="signin-email" className="text-sm font-medium">Email Address</Label>
-                    <div className="relative">
-                      <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                      <Input
-                        id="signin-email"
-                        name="email"
-                        type="email"
-                        placeholder="your@email.com"
-                        className="pl-10 h-12"
-                        required
-                      />
+              <TabsContent value="signin" className="space-y-4">
+                <form onSubmit={handleSignIn} className="space-y-4">
+                  {errors.general && (
+                    <div className="text-sm text-destructive bg-destructive/10 p-3 rounded-md">
+                      {errors.general}
                     </div>
+                  )}
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="businessRefNo" className="flex items-center gap-2">
+                      <Building2 className="h-4 w-4" />
+                      Business ID
+                    </Label>
+                    <Input
+                      id="businessRefNo"
+                      name="businessRefNo"
+                      type="text"
+                      placeholder="BUS-YYYYMMDD-XXXXX"
+                      required
+                      className={`font-mono ${errors.businessRefNo ? 'border-destructive' : ''}`}
+                      value={businessRefNo}
+                      onChange={(e) => {
+                        setBusinessRefNo(e.target.value);
+                        setErrors(prev => ({ ...prev, businessRefNo: '', general: '' }));
+                      }}
+                    />
+                    {errors.businessRefNo && (
+                      <p className="text-xs text-destructive">{errors.businessRefNo}</p>
+                    )}
                   </div>
                   
                   <div className="space-y-2">
-                    <Label htmlFor="signin-password" className="text-sm font-medium">Password</Label>
+                    <Label htmlFor="username" className="flex items-center gap-2">
+                      <User className="h-4 w-4" />
+                      Username
+                    </Label>
+                    <Input
+                      id="username"
+                      name="username"
+                      type="text"
+                      placeholder="admin.user"
+                      required
+                      className={errors.username ? 'border-destructive' : ''}
+                      value={username}
+                      onChange={(e) => {
+                        setUsername(e.target.value);
+                        setErrors(prev => ({ ...prev, username: '', general: '' }));
+                      }}
+                    />
+                    {errors.username && (
+                      <p className="text-xs text-destructive">{errors.username}</p>
+                    )}
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="password" className="flex items-center gap-2">
+                      <Lock className="h-4 w-4" />
+                      Password
+                    </Label>
                     <div className="relative">
-                      <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                       <Input
-                        id="signin-password"
+                        id="password"
                         name="password"
                         type={showPassword ? "text" : "password"}
                         placeholder="Enter your password"
-                        className="pl-10 pr-10 h-12"
                         required
+                        autoComplete="current-password"
+                        className={`pr-10 ${errors.password ? 'border-destructive' : ''}`}
+                        value={passwords.password}
+                        onChange={(e) => {
+                          setPasswords(prev => ({ ...prev, password: e.target.value }));
+                          setErrors(prev => ({ ...prev, password: '', general: '' }));
+                        }}
                       />
-                      <button
+                      <Button
                         type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="absolute right-0 top-0 h-full px-3"
                         onClick={() => setShowPassword(!showPassword)}
-                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground"
                       >
                         {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                      </button>
+                      </Button>
                     </div>
+                    {errors.password && (
+                      <p className="text-xs text-destructive">{errors.password}</p>
+                    )}
                   </div>
-                  
-                  <Captcha onVerify={(t) => setCaptchaToken(t)} />
-                  <Button type="submit" className="w-full h-12 btn-gradient text-base" disabled={isLoading}>
+
+                  <Captcha 
+                    onVerify={(token) => {
+                      setCaptchaToken(token);
+                      setErrors(prev => ({ ...prev, captcha: '' }));
+                    }}
+                    onExpire={() => setCaptchaToken('')}
+                  />
+                  {errors.captcha && (
+                    <p className="text-xs text-destructive">{errors.captcha}</p>
+                  )}
+
+                  <Button 
+                    type="submit" 
+                    className="w-full btn-gradient" 
+                    size="lg"
+                    disabled={isLoading}
+                  >
                     {isLoading ? (
                       <>
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                         Signing in...
                       </>
                     ) : (
-                      'Sign In'
+                      <>
+                        <LogIn className="mr-2 h-4 w-4" />
+                        Sign In
+                      </>
                     )}
                   </Button>
-                  
-                  <div className="text-center">
-                    <button
-                      type="button"
-                      onClick={() => setActiveTab('forgot')}
-                      className="text-sm text-primary hover:underline font-medium"
-                    >
-                      Forgot your password?
-                    </button>
-                  </div>
                 </form>
-              </CardContent>
-            </Card>
-          </TabsContent>
-          
-          {/* Forgot Password Tab */}
-          <TabsContent value="forgot">
-            <Card className="shadow-elevated border-0">
-              <CardHeader className="text-center pb-6">
-                <CardTitle className="text-2xl">Reset your password</CardTitle>
-                <CardDescription className="text-base">
-                  Enter your email address and we'll send you a link to reset your password
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <form onSubmit={handleForgotPassword} className="space-y-6">
+              </TabsContent>
+
+              <TabsContent value="forgot" className="space-y-4">
+                <form onSubmit={handleForgotPassword} className="space-y-4">
                   <div className="space-y-2">
-                    <Label htmlFor="reset-email" className="text-sm font-medium">Email Address</Label>
-                    <div className="relative">
-                      <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                      <Input
-                        id="reset-email"
-                        name="reset-email"
-                        type="email"
-                        placeholder="your@email.com"
-                        className="pl-10 h-12"
-                        required
-                      />
-                    </div>
+                    <Label htmlFor="forgot-email">Email</Label>
+                    <Input
+                      id="forgot-email"
+                      name="email"
+                      type="email"
+                      placeholder="you@example.com"
+                      required
+                      autoComplete="email"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Enter your registered email address to receive a password reset link.
+                    </p>
                   </div>
-                  
-                  <Button type="submit" className="w-full h-12 btn-gradient text-base" disabled={isLoading}>
+
+                  <Button 
+                    type="submit" 
+                    className="w-full" 
+                    disabled={isLoading}
+                  >
                     {isLoading ? (
                       <>
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Sending reset link...
+                        Sending...
                       </>
                     ) : (
-                      'Send Reset Link'
+                      "Send Reset Link"
                     )}
                   </Button>
-                  
-                  <div className="text-center">
-                    <button
-                      type="button"
-                      onClick={() => setActiveTab('signin')}
-                      className="text-sm text-muted-foreground hover:underline"
-                    >
-                      Back to sign in
-                    </button>
-                  </div>
                 </form>
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
+              </TabsContent>
+            </Tabs>
+          </CardContent>
 
-        {/* Footer */}
-        <div className="text-center mt-8 text-xs text-muted-foreground">
-          <p>By continuing, you agree to our Terms of Service and Privacy Policy</p>
-        </div>
+          <CardFooter className="flex-col space-y-4">
+            <div className="text-center text-xs text-muted-foreground">
+              <p>Only registered, paid businesses can sign in.</p>
+              <p className="mt-2">
+                By signing in, you agree to our{' '}
+                <a href="/terms" className="text-primary hover:underline">Terms of Service</a>
+                {' '}and{' '}
+                <a href="/privacy" className="text-primary hover:underline">Privacy Policy</a>.
+              </p>
+            </div>
+            
+            <Button
+              variant="ghost"
+              onClick={() => navigate('/')}
+              className="w-full"
+            >
+              ← Back to Home
+            </Button>
+          </CardFooter>
+        </Card>
       </div>
     </div>
   );
-}
+};
+
+export default EnhancedAuth;
