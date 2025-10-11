@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { PowerBICard } from '@/components/ui/powerbi-card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -26,8 +26,7 @@ import {
   Loader2,
   Download,
   FileSpreadsheet,
-  AlertTriangle,
-  Lock
+  AlertTriangle
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
@@ -437,11 +436,11 @@ export function RSOTable({
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'Draft':
-        return 'bg-slate-100 text-slate-700 border border-slate-200 hover:bg-slate-200';
+        return 'bg-gray-50 text-gray-700 border border-gray-200';
       case 'Confirmed':
-        return 'bg-blue-100 text-blue-700 border border-blue-200 hover:bg-blue-200';
+        return 'bg-blue-50 text-blue-700 border border-blue-200';
       default:
-        return 'bg-slate-100 text-slate-700 border border-slate-200 hover:bg-slate-200';
+        return 'bg-gray-50 text-gray-700 border border-gray-200';
     }
   };
 
@@ -450,15 +449,15 @@ export function RSOTable({
     const cns = creditNotes.filter(cn => cn.rso_id === rsoId);
     
     if (!hasCreditNote) {
-      return { color: 'bg-red-100 text-red-700 border border-red-200', text: 'CN Pending' };
+      return { color: 'bg-red-50 text-red-700 border border-red-200', text: 'CN Pending' };
     }
     
     const hasConfirmed = cns.some(cn => cn.status === 'Confirmed');
     if (hasConfirmed) {
-      return { color: 'bg-green-100 text-green-700 border border-green-200', text: 'CN Processed' };
+      return { color: 'bg-green-50 text-green-700 border border-green-200', text: 'CN Processed' };
     }
     
-    return { color: 'bg-amber-100 text-amber-700 border border-amber-200', text: 'CN Draft' };
+    return { color: 'bg-amber-50 text-amber-700 border border-amber-200', text: 'CN Draft' };
   };
 
   const canDeleteRSO = (rsoId: string) => {
@@ -560,6 +559,17 @@ export function RSOTable({
 
       if (error) throw error;
 
+      // Fetch complete customer data
+      const { data: customerData, error: customerError } = await supabase
+        .from('customers')
+        .select('*')
+        .eq('id', order.customer_id)
+        .single();
+
+      if (customerError) {
+        console.error('Error fetching customer:', customerError);
+      }
+
       // Fetch RSO line items
       const { data: rsoItems, error: itemsError } = await supabase
         .from('return_order_lines')
@@ -645,111 +655,260 @@ export function RSOTable({
       doc.text(`RSO #: ${rsoDetail.rso_number}`, 195, 37, { align: 'right' });
       doc.text(`Date: ${formatDate(new Date(rsoDetail.rso_date), 'dd/MM/yyyy')}`, 195, 43, { align: 'right' });
 
-      yPos = 63;
+      let currentY = 63;
 
-      // ========== CUSTOMER DETAILS ==========
-      doc.setFillColor(245, 245, 245);
-      doc.rect(10, yPos, 190, 30, 'F');
+      // ========== CUSTOMER DETAILS & DELIVERY ADDRESS (TWO COLUMNS) ==========
+      const leftColumnX = 14;
+      const rightColumnX = 110;
+      let detailsY = currentY;
 
+      // Left Column - Customer Details
       doc.setFontSize(9);
       doc.setFont('helvetica', 'bold');
+      doc.setFillColor(240, 240, 240);
       doc.setTextColor(0, 0, 0);
-      doc.text('Customer Details', 15, yPos + 6);
+      doc.rect(leftColumnX, detailsY, 90, 6, 'F');
+      doc.text('CUSTOMER DETAILS', leftColumnX + 2, detailsY + 4);
 
-      doc.setFontSize(8);
+      detailsY += 8;
       doc.setFont('helvetica', 'normal');
-      doc.text(`Customer Name: ${rsoDetail.customer_name}`, 15, yPos + 12);
-      doc.text(`Invoice Number: ${rsoDetail.invoice_number}`, 15, yPos + 18);
-      doc.text(`Invoice Date: ${formatDate(new Date(rsoDetail.invoice_date), 'dd/MM/yyyy')}`, 15, yPos + 24);
+      doc.setFontSize(8);
+      doc.text(`${customerData?.name || rsoDetail.customer_name || 'N/A'}`, leftColumnX + 2, detailsY);
+      detailsY += 4;
+      if (customerData?.address_line1) {
+        doc.text(customerData.address_line1, leftColumnX + 2, detailsY);
+        detailsY += 4;
+      }
+      if (customerData?.address_line2) {
+        doc.text(customerData.address_line2, leftColumnX + 2, detailsY);
+        detailsY += 4;
+      }
+      const cityLine = [customerData?.city, customerData?.state, customerData?.pin_code].filter(Boolean).join(', ');
+      if (cityLine) {
+        doc.text(cityLine, leftColumnX + 2, detailsY);
+        detailsY += 4;
+      }
+      if (customerData?.country) {
+        doc.text(customerData.country, leftColumnX + 2, detailsY);
+        detailsY += 4;
+      }
+      if (customerData?.gstin) {
+        doc.text(`GSTIN: ${customerData.gstin}`, leftColumnX + 2, detailsY);
+        detailsY += 4;
+      }
+      if (customerData?.phone) {
+        doc.text(`Phone: ${customerData.phone}`, leftColumnX + 2, detailsY);
+        detailsY += 4;
+      }
+      if (customerData?.email) {
+        doc.text(`Email: ${customerData.email}`, leftColumnX + 2, detailsY);
+      }
 
-      doc.text(`Reason for Credit: ${rsoDetail.reason_for_credit}`, 110, yPos + 12);
-      doc.text(`Status: ${rsoDetail.status}`, 110, yPos + 18);
+      // Right Column - Delivery Address
+      let deliveryY = currentY;
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(9);
+      doc.setFillColor(240, 240, 240);
+      doc.rect(rightColumnX, deliveryY, 90, 6, 'F');
+      doc.text('DELIVERY ADDRESS', rightColumnX + 2, deliveryY + 4);
 
-      yPos += 38;
+      deliveryY += 8;
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8);
 
-      // ========== LINE ITEMS TABLE ==========
+      if (rsoDetail.delivery_same_as_company) {
+        doc.text('Same as Company Address', rightColumnX + 2, deliveryY);
+        deliveryY += 4;
+        if (companyData?.address_line1) {
+          doc.text(companyData.address_line1, rightColumnX + 2, deliveryY);
+          deliveryY += 4;
+        }
+        if (companyData?.address_line2) {
+          doc.text(companyData.address_line2, rightColumnX + 2, deliveryY);
+          deliveryY += 4;
+        }
+        const compCityLine = [companyData?.city, companyData?.state, companyData?.postal_code].filter(Boolean).join(', ');
+        if (compCityLine) {
+          doc.text(compCityLine, rightColumnX + 2, deliveryY);
+          deliveryY += 4;
+        }
+        if (companyData?.country) {
+          doc.text(companyData.country, rightColumnX + 2, deliveryY);
+        }
+      } else {
+        if (rsoDetail.delivery_address_line1) {
+          doc.text(rsoDetail.delivery_address_line1, rightColumnX + 2, deliveryY);
+          deliveryY += 4;
+        }
+        if (rsoDetail.delivery_address_line2) {
+          doc.text(rsoDetail.delivery_address_line2, rightColumnX + 2, deliveryY);
+          deliveryY += 4;
+        }
+        const delCityLine = [rsoDetail.delivery_city, rsoDetail.delivery_country, rsoDetail.delivery_pin_code].filter(Boolean).join(', ');
+        if (delCityLine) {
+          doc.text(delCityLine, rightColumnX + 2, deliveryY);
+        }
+      }
+
+      currentY = Math.max(detailsY, deliveryY) + 10;
+
+      // ========== ORDER DETAILS BOX ==========
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(9);
+      doc.setFillColor(240, 240, 240);
+      doc.rect(14, currentY, 182, 6, 'F');
+      doc.text('ORDER DETAILS', 16, currentY + 4);
+
+      currentY += 8;
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8);
+
+      const orderDetailsLeft = [
+        { label: 'RSO Date:', value: rsoDetail.created_at ? formatDate(new Date(rsoDetail.created_at), 'dd-MMM-yyyy') : 'N/A' },
+        { label: 'Invoice No:', value: rsoDetail.invoice_number || 'N/A' },
+        { label: 'Invoice Date:', value: rsoDetail.invoice_date ? formatDate(new Date(rsoDetail.invoice_date), 'dd-MMM-yyyy') : 'N/A' },
+      ];
+
+      const orderDetailsRight = [
+        { label: 'Status:', value: rsoDetail.status || 'Draft' },
+        { label: 'Reason:', value: rsoDetail.reason_for_credit || 'N/A' },
+        { label: 'Currency:', value: 'INR' },
+      ];
+
+      let detailX = 16;
+      orderDetailsLeft.forEach((detail) => {
+        doc.setFont('helvetica', 'bold');
+        doc.text(detail.label, detailX, currentY);
+        doc.setFont('helvetica', 'normal');
+        doc.text(detail.value, detailX + 25, currentY);
+        currentY += 5;
+      });
+
+      currentY -= 15; // Reset to align with left column
+      detailX = 110;
+      orderDetailsRight.forEach((detail) => {
+        doc.setFont('helvetica', 'bold');
+        doc.text(detail.label, detailX, currentY);
+        doc.setFont('helvetica', 'normal');
+        doc.text(detail.value, detailX + 25, currentY);
+        currentY += 5;
+      });
+
+      currentY += 10;
+      yPos = currentY;
+
+      // ========== LINE ITEMS TABLE (SIMPLIFIED) ==========
       const tableData = rsoItems?.map((item: any, index: number) => [
-        index + 1,
-        item.product_sku,
-        item.product_name,
-        item.hsn_sac_code || '-',
-        item.invoice_qty,
-        item.return_qty,
-        `₹${item.unit_price.toFixed(2)}`,
-        `${item.discount_percentage || 0}%`,
-        `₹${item.discount_amount.toFixed(2)}`,
-        `${item.cgst_rate || 0}%`,
-        `${item.sgst_rate || 0}%`,
-        `${item.igst_rate || 0}%`,
-        `₹${item.tax_amount.toFixed(2)}`,
-        `₹${item.line_total.toFixed(2)}`
+        (index + 1).toString(),
+        item.product_sku || '',
+        item.product_name || '',
+        item.hsn_sac_code || '',
+        item.return_qty?.toString() || '0',
+        `₹${parseFloat(item.unit_price || 0).toFixed(2)}`,
+        `${parseFloat(item.discount_percentage || 0).toFixed(2)}%`,
+        `₹${parseFloat(item.discount_amount || 0).toFixed(2)}`,
+        `${parseFloat(item.cgst_rate || item.igst_rate || 0).toFixed(2)}%`,
+        `₹${parseFloat(item.tax_amount || 0).toFixed(2)}`,
+        `₹${parseFloat(item.line_total || 0).toFixed(2)}`
       ]) || [];
 
       (doc as any).autoTable({
         startY: yPos,
         head: [[
-          'S.No', 'SKU', 'Product', 'HSN', 'Inv Qty', 'Ret Qty', 
-          'Rate', 'Disc%', 'Disc Amt', 'CGST%', 'SGST%', 'IGST%', 'Tax', 'Amount'
+          'S.No',
+          'Item Code',
+          'Description',
+          'HSN/SAC',
+          'Qty',
+          'Rate',
+          'Disc%',
+          'Disc Amt',
+          'Tax%',
+          'Tax Amt',
+          'Amount'
         ]],
         body: tableData,
         theme: 'grid',
         headStyles: {
           fillColor: [41, 128, 185],
           textColor: 255,
-          fontSize: 7,
           fontStyle: 'bold',
+          fontSize: 8,
           halign: 'center'
         },
         bodyStyles: {
           fontSize: 7,
-          textColor: [0, 0, 0]
+          cellPadding: 2
         },
         columnStyles: {
-          0: { halign: 'center', cellWidth: 10 },
-          1: { halign: 'left', cellWidth: 18 },
-          2: { halign: 'left', cellWidth: 35 },
-          3: { halign: 'center', cellWidth: 15 },
-          4: { halign: 'right', cellWidth: 12 },
-          5: { halign: 'right', cellWidth: 12 },
-          6: { halign: 'right', cellWidth: 15 },
-          7: { halign: 'right', cellWidth: 12 },
-          8: { halign: 'right', cellWidth: 15 },
-          9: { halign: 'right', cellWidth: 12 },
-          10: { halign: 'right', cellWidth: 12 },
-          11: { halign: 'right', cellWidth: 12 },
-          12: { halign: 'right', cellWidth: 15 },
-          13: { halign: 'right', cellWidth: 18 }
+          0: { halign: 'center', cellWidth: 12 },
+          1: { halign: 'left', cellWidth: 20 },
+          2: { halign: 'left', cellWidth: 40 },
+          3: { halign: 'center', cellWidth: 18 },
+          4: { halign: 'center', cellWidth: 12 },
+          5: { halign: 'right', cellWidth: 18 },
+          6: { halign: 'right', cellWidth: 14 },
+          7: { halign: 'right', cellWidth: 16 },
+          8: { halign: 'right', cellWidth: 12 },
+          9: { halign: 'right', cellWidth: 16 },
+          10: { halign: 'right', cellWidth: 20 }
         },
-        margin: { left: 10, right: 10 }
+        margin: { left: 14, right: 14 }
       });
 
-      yPos = (doc as any).lastAutoTable.finalY + 10;
+      currentY = (doc as any).lastAutoTable.finalY + 10;
 
-      // ========== TOTALS SECTION ==========
-      doc.setFillColor(245, 245, 245);
-      doc.rect(130, yPos, 70, 25, 'F');
+      // ========== TOTALS SECTION (RIGHT ALIGNED) ==========
+      // Recalculate totals from line items for accuracy
+      const calculatedSubtotal = rsoItems?.reduce((sum: number, item: any) => 
+        sum + parseFloat(item.line_subtotal || 0), 0) || 0;
+      const calculatedTax = rsoItems?.reduce((sum: number, item: any) => 
+        sum + parseFloat(item.tax_amount || 0), 0) || 0;
+      const calculatedTotal = calculatedSubtotal + calculatedTax;
 
-      doc.setFontSize(8);
-      doc.setFont('helvetica', 'normal');
-      doc.text('Subtotal:', 135, yPos + 6);
-      doc.text(`₹${rsoDetail.subtotal_amount?.toFixed(2) || '0.00'}`, 195, yPos + 6, { align: 'right' });
+      const summaryX = 130;
+      const summaryWidth = 66;
+      let summaryY = currentY;
 
-      doc.text('Total Tax:', 135, yPos + 12);
-      doc.text(`₹${rsoDetail.tax_amount?.toFixed(2) || '0.00'}`, 195, yPos + 12, { align: 'right' });
-
-      doc.setFont('helvetica', 'bold');
       doc.setFontSize(9);
-      doc.text('Grand Total:', 135, yPos + 20);
-      doc.text(`₹${rsoDetail.total_amount.toFixed(2)}`, 195, yPos + 20, { align: 'right' });
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(0, 0, 0);
 
-      yPos += 30;
+      // Subtotal
+      doc.text('Subtotal:', summaryX, summaryY);
+      doc.text(`₹${calculatedSubtotal.toFixed(2)}`, summaryX + summaryWidth, summaryY, { align: 'right' });
+      summaryY += 5;
+
+      // Tax
+      doc.text('Tax Amount:', summaryX, summaryY);
+      doc.text(`₹${calculatedTax.toFixed(2)}`, summaryX + summaryWidth, summaryY, { align: 'right' });
+      summaryY += 5;
+
+      // Line separator
+      doc.setLineWidth(0.5);
+      doc.line(summaryX, summaryY, summaryX + summaryWidth, summaryY);
+      summaryY += 5;
+
+      // Total (highlighted)
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(10);
+      doc.setFillColor(41, 128, 185);
+      doc.rect(summaryX - 2, summaryY - 4, summaryWidth + 4, 7, 'F');
+      doc.setTextColor(255, 255, 255);
+      doc.text('Total Amount:', summaryX, summaryY);
+      doc.text(`₹${calculatedTotal.toFixed(2)}`, summaryX + summaryWidth, summaryY, { align: 'right' });
+      doc.setTextColor(0, 0, 0);
+      doc.setFont('helvetica', 'normal');
+
+      summaryY += 10;
+      yPos = summaryY;
 
       // ========== AMOUNT IN WORDS ==========
       doc.setFontSize(8);
       doc.setFont('helvetica', 'bold');
       doc.text('Amount in Words:', 10, yPos);
       doc.setFont('helvetica', 'normal');
-      doc.text(convertNumberToWords(rsoDetail.total_amount), 10, yPos + 5, { maxWidth: 190 });
+      doc.text(convertNumberToWords(calculatedTotal), 10, yPos + 5, { maxWidth: 190 });
 
       yPos += 15;
 
@@ -813,25 +972,23 @@ export function RSOTable({
 
   if (loading) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Return Sales Orders</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex justify-center items-center py-8">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
-            <span className="ml-2">Loading return orders...</span>
-          </div>
-        </CardContent>
-      </Card>
+      <PowerBICard title="Return Sales Orders">
+        <div className="flex justify-center items-center py-8">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <span className="ml-2">Loading return orders...</span>
+        </div>
+      </PowerBICard>
     );
   }
 
   return (
     <>
-      <Card className={cn("transition-all duration-200", isActive && "ring-2 ring-primary shadow-lg")}>
-        <CardHeader>
-          <CardTitle className="flex items-center justify-between flex-wrap gap-4">
+      <PowerBICard 
+        title="Return Sales Orders"
+        className={cn("transition-all duration-200", isActive && "ring-2 ring-primary")}
+      >
+        <div className="space-y-4">
+          <div className="flex items-center justify-between flex-wrap gap-4">
             <div className="flex items-center gap-2 flex-wrap">
               <div className="relative">
                 <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -881,9 +1038,9 @@ export function RSOTable({
                 Export to Excel
               </Button>
             </div>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
+          </div>
+          
+          <div>
           {currentOrders.length === 0 ? (
             <div className="text-center py-12">
               <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
@@ -899,63 +1056,63 @@ export function RSOTable({
               <TooltipProvider>
                 <Table>
                   <TableHeader>
-                    <TableRow>
+                    <TableRow className="border-b border-gray-200">
                       <TableHead 
-                        className="cursor-pointer hover:bg-muted/50 transition-colors"
+                        className="cursor-pointer hover:bg-gray-50 transition-colors text-gray-700"
                         onClick={() => handleSort('rso_number')}
                       >
                         <div className="flex items-center gap-2">
                           RSO Number
-                          {getSortIcon('rso_number')}
+                          <span className="text-gray-400">{getSortIcon('rso_number')}</span>
                         </div>
                       </TableHead>
                       <TableHead 
-                        className="cursor-pointer hover:bg-muted/50 transition-colors"
+                        className="cursor-pointer hover:bg-gray-50 transition-colors text-gray-700"
                         onClick={() => handleSort('rso_date')}
                       >
                         <div className="flex items-center gap-2">
                           RSO Date
-                          {getSortIcon('rso_date')}
+                          <span className="text-gray-400">{getSortIcon('rso_date')}</span>
                         </div>
                       </TableHead>
                       <TableHead 
-                        className="cursor-pointer hover:bg-muted/50 transition-colors"
+                        className="cursor-pointer hover:bg-gray-50 transition-colors text-gray-700"
                         onClick={() => handleSort('customer_name')}
                       >
                         <div className="flex items-center gap-2">
                           Customer
-                          {getSortIcon('customer_name')}
+                          <span className="text-gray-400">{getSortIcon('customer_name')}</span>
                         </div>
                       </TableHead>
                       <TableHead 
-                        className="cursor-pointer hover:bg-muted/50 transition-colors"
+                        className="cursor-pointer hover:bg-gray-50 transition-colors text-gray-700"
                         onClick={() => handleSort('invoice_number')}
                       >
                         <div className="flex items-center gap-2">
                           Invoice Number
-                          {getSortIcon('invoice_number')}
+                          <span className="text-gray-400">{getSortIcon('invoice_number')}</span>
                         </div>
                       </TableHead>
                       <TableHead 
-                        className="cursor-pointer hover:bg-muted/50 transition-colors"
+                        className="cursor-pointer hover:bg-gray-50 transition-colors text-gray-700"
                         onClick={() => handleSort('status')}
                       >
                         <div className="flex items-center gap-2">
                           Status
-                          {getSortIcon('status')}
+                          <span className="text-gray-400">{getSortIcon('status')}</span>
                         </div>
                       </TableHead>
-                      <TableHead>CN Status</TableHead>
+                      <TableHead className="text-gray-700">CN Status</TableHead>
                       <TableHead 
-                        className="cursor-pointer hover:bg-muted/50 transition-colors text-right"
+                        className="cursor-pointer hover:bg-gray-50 transition-colors text-right text-gray-700"
                         onClick={() => handleSort('total_amount')}
                       >
                         <div className="flex items-center gap-2 justify-end">
                           Amount
-                          {getSortIcon('total_amount')}
+                          <span className="text-gray-400">{getSortIcon('total_amount')}</span>
                         </div>
                       </TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
+                      <TableHead className="text-right text-gray-700">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -966,7 +1123,7 @@ export function RSOTable({
                       const linkedCNs = rsoLinkedCNs.get(order.id) || [];
                       
                       return (
-                        <TableRow key={order.id} className="hover:bg-muted/50 transition-colors">
+                        <TableRow key={order.id} className="hover:bg-gray-50 transition-colors border-b border-gray-100">
                           <TableCell className="font-medium">{order.rso_number}</TableCell>
                           <TableCell>{new Date(order.rso_date).toLocaleDateString()}</TableCell>
                           <TableCell>{order.customer_name}</TableCell>
@@ -1011,14 +1168,16 @@ export function RSOTable({
                                 <TooltipTrigger asChild>
                                   <Button
                                     variant="ghost"
-                                    size="sm"
+                                    size="icon"
                                     onClick={() => onView(order.id)}
-                                    className="hover:bg-primary/10 hover:text-primary transition-colors"
+                                    className="h-8 w-8 text-gray-600 hover:text-primary hover:bg-gray-100 transition-colors"
                                   >
                                     <Eye className="h-4 w-4" />
                                   </Button>
                                 </TooltipTrigger>
-                                <TooltipContent>View RSO</TooltipContent>
+                                <TooltipContent>
+                                  <p className="text-sm">View RSO</p>
+                                </TooltipContent>
                               </Tooltip>
 
                               {order.status === 'Draft' && (
@@ -1027,17 +1186,23 @@ export function RSOTable({
                                     <span>
                                       <Button
                                         variant="ghost"
-                                        size="sm"
+                                        size="icon"
                                         onClick={() => canEdit ? onEdit(order.id) : undefined}
                                         disabled={!canEdit}
-                                        className={canEdit ? "hover:bg-blue-100 hover:text-blue-700 transition-colors" : "opacity-50 cursor-not-allowed"}
+                                        className={cn(
+                                          "h-8 w-8",
+                                          canEdit 
+                                            ? "text-gray-600 hover:text-blue-600 hover:bg-blue-50 transition-colors" 
+                                            : "text-gray-300 cursor-not-allowed opacity-50"
+                                        )}
                                       >
-                                        {!canEdit && <Lock className="h-3 w-3 mr-1" />}
                                         <Edit className="h-4 w-4" />
                                       </Button>
                                     </span>
                                   </TooltipTrigger>
-                                  <TooltipContent>{getEditTooltip(order.id)}</TooltipContent>
+                                  <TooltipContent>
+                                    <p className="text-sm">{getEditTooltip(order.id)}</p>
+                                  </TooltipContent>
                                 </Tooltip>
                               )}
 
@@ -1046,15 +1211,15 @@ export function RSOTable({
                                   <TooltipTrigger asChild>
                                     <Button
                                       variant="ghost"
-                                      size="sm"
+                                      size="icon"
                                       onClick={() => onViewCreditNotes(order)}
-                                      className="hover:bg-blue-100 hover:text-blue-700 transition-colors"
+                                      className="h-8 w-8 text-gray-600 hover:text-blue-600 hover:bg-blue-50 transition-colors"
                                     >
                                       <FileText className="h-4 w-4" />
                                     </Button>
                                   </TooltipTrigger>
                                   <TooltipContent>
-                                    View {linkedCNs.length} Credit Note{linkedCNs.length > 1 ? 's' : ''}
+                                    <p className="text-sm">View {linkedCNs.length} Credit Note{linkedCNs.length > 1 ? 's' : ''}</p>
                                   </TooltipContent>
                                 </Tooltip>
                               )}
@@ -1063,28 +1228,32 @@ export function RSOTable({
                                 <TooltipTrigger asChild>
                                   <Button
                                     variant="ghost"
-                                    size="sm"
+                                    size="icon"
                                     onClick={() => onExport ? onExport(order) : exportToExcel(order)}
-                                    className="hover:bg-green-100 hover:text-green-700 transition-colors"
+                                    className="h-8 w-8 text-gray-600 hover:text-green-600 hover:bg-green-50 transition-colors"
                                   >
                                     <Download className="h-4 w-4" />
                                   </Button>
                                 </TooltipTrigger>
-                                <TooltipContent>Export to Excel</TooltipContent>
+                                <TooltipContent>
+                                  <p className="text-sm">Export to Excel</p>
+                                </TooltipContent>
                               </Tooltip>
 
                               <Tooltip>
                                 <TooltipTrigger asChild>
                                   <Button
                                     variant="ghost"
-                                    size="sm"
+                                    size="icon"
                                     onClick={() => exportToPDF(order)}
-                                    className="hover:bg-red-50 hover:text-red-700 border border-transparent hover:border-red-200 transition-colors"
+                                    className="h-8 w-8 text-gray-600 hover:text-red-600 hover:bg-red-50 transition-colors"
                                   >
                                     <FileText className="h-4 w-4" />
                                   </Button>
                                 </TooltipTrigger>
-                                <TooltipContent>Export to PDF</TooltipContent>
+                                <TooltipContent>
+                                  <p className="text-sm">Export to PDF</p>
+                                </TooltipContent>
                               </Tooltip>
 
                               {order.status === 'Draft' && (
@@ -1093,17 +1262,23 @@ export function RSOTable({
                                     <span>
                                       <Button
                                         variant="ghost"
-                                        size="sm"
+                                        size="icon"
                                         onClick={() => handleDeleteClick(order)}
                                         disabled={!canDelete}
-                                        className={canDelete ? "hover:bg-destructive/10 hover:text-destructive transition-colors" : "opacity-50 cursor-not-allowed"}
+                                        className={cn(
+                                          "h-8 w-8",
+                                          canDelete 
+                                            ? "text-gray-600 hover:text-red-600 hover:bg-red-50 transition-colors" 
+                                            : "text-gray-300 cursor-not-allowed opacity-50"
+                                        )}
                                       >
-                                        {!canDelete && <Lock className="h-3 w-3 mr-1" />}
                                         <Trash2 className="h-4 w-4" />
                                       </Button>
                                     </span>
                                   </TooltipTrigger>
-                                  <TooltipContent>{getDeleteTooltip(order.id)}</TooltipContent>
+                                  <TooltipContent>
+                                    <p className="text-sm">{getDeleteTooltip(order.id)}</p>
+                                  </TooltipContent>
                                 </Tooltip>
                               )}
                             </div>
@@ -1144,8 +1319,9 @@ export function RSOTable({
               </div>
             </>
           )}
-        </CardContent>
-      </Card>
+          </div>
+        </div>
+      </PowerBICard>
 
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>

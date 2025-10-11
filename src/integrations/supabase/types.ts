@@ -360,9 +360,14 @@ export type Database = {
       }
       companies: {
         Row: {
+          account_holder_name: string | null
+          account_number: string | null
+          account_type: string | null
           address: string | null
           address_line1: string | null
           address_line2: string | null
+          bank_name: string | null
+          branch_name: string | null
           business_ref_no: string | null
           city: string | null
           country: string | null
@@ -370,6 +375,7 @@ export type Database = {
           email: string | null
           gstn: string | null
           id: string
+          ifsc_code: string | null
           last_payment_date: string | null
           logo_url: string | null
           name: string
@@ -383,14 +389,21 @@ export type Database = {
           subscription_plan: string | null
           subscription_start_date: string | null
           subscription_status: string | null
+          swift_code: string | null
           tagline: string | null
           updated_at: string
+          upi_id: string | null
           website: string | null
         }
         Insert: {
+          account_holder_name?: string | null
+          account_number?: string | null
+          account_type?: string | null
           address?: string | null
           address_line1?: string | null
           address_line2?: string | null
+          bank_name?: string | null
+          branch_name?: string | null
           business_ref_no?: string | null
           city?: string | null
           country?: string | null
@@ -398,6 +411,7 @@ export type Database = {
           email?: string | null
           gstn?: string | null
           id?: string
+          ifsc_code?: string | null
           last_payment_date?: string | null
           logo_url?: string | null
           name: string
@@ -411,14 +425,21 @@ export type Database = {
           subscription_plan?: string | null
           subscription_start_date?: string | null
           subscription_status?: string | null
+          swift_code?: string | null
           tagline?: string | null
           updated_at?: string
+          upi_id?: string | null
           website?: string | null
         }
         Update: {
+          account_holder_name?: string | null
+          account_number?: string | null
+          account_type?: string | null
           address?: string | null
           address_line1?: string | null
           address_line2?: string | null
+          bank_name?: string | null
+          branch_name?: string | null
           business_ref_no?: string | null
           city?: string | null
           country?: string | null
@@ -426,6 +447,7 @@ export type Database = {
           email?: string | null
           gstn?: string | null
           id?: string
+          ifsc_code?: string | null
           last_payment_date?: string | null
           logo_url?: string | null
           name?: string
@@ -439,8 +461,10 @@ export type Database = {
           subscription_plan?: string | null
           subscription_start_date?: string | null
           subscription_status?: string | null
+          swift_code?: string | null
           tagline?: string | null
           updated_at?: string
+          upi_id?: string | null
           website?: string | null
         }
         Relationships: []
@@ -2073,6 +2097,7 @@ export type Database = {
           cost_price: number
           created_at: string
           description: string | null
+          expiry_date: string | null
           gst_percentage: number | null
           height_cm: number | null
           hsn_code: string | null
@@ -2081,11 +2106,13 @@ export type Database = {
           is_taxable: boolean | null
           length_cm: number | null
           max_stock_level: number | null
+          mfg_date: string | null
           min_stock_level: number
           mrp: number | null
           name: string
           product_category: string | null
           product_type: string | null
+          shelf_life_days: number | null
           sku: string
           stock_quantity: number
           unit: string | null
@@ -2104,6 +2131,7 @@ export type Database = {
           cost_price?: number
           created_at?: string
           description?: string | null
+          expiry_date?: string | null
           gst_percentage?: number | null
           height_cm?: number | null
           hsn_code?: string | null
@@ -2112,11 +2140,13 @@ export type Database = {
           is_taxable?: boolean | null
           length_cm?: number | null
           max_stock_level?: number | null
+          mfg_date?: string | null
           min_stock_level?: number
           mrp?: number | null
           name: string
           product_category?: string | null
           product_type?: string | null
+          shelf_life_days?: number | null
           sku: string
           stock_quantity?: number
           unit?: string | null
@@ -2135,6 +2165,7 @@ export type Database = {
           cost_price?: number
           created_at?: string
           description?: string | null
+          expiry_date?: string | null
           gst_percentage?: number | null
           height_cm?: number | null
           hsn_code?: string | null
@@ -2143,11 +2174,13 @@ export type Database = {
           is_taxable?: boolean | null
           length_cm?: number | null
           max_stock_level?: number | null
+          mfg_date?: string | null
           min_stock_level?: number
           mrp?: number | null
           name?: string
           product_category?: string | null
           product_type?: string | null
+          shelf_life_days?: number | null
           sku?: string
           stock_quantity?: number
           unit?: string | null
@@ -3291,6 +3324,7 @@ export type Database = {
           details: Json | null
           id: string
           ip_address: unknown | null
+          severity: string | null
           user_agent: string | null
           user_id: string | null
         }
@@ -3300,6 +3334,7 @@ export type Database = {
           details?: Json | null
           id?: string
           ip_address?: unknown | null
+          severity?: string | null
           user_agent?: string | null
           user_id?: string | null
         }
@@ -3309,6 +3344,7 @@ export type Database = {
           details?: Json | null
           id?: string
           ip_address?: unknown | null
+          severity?: string | null
           user_agent?: string | null
           user_id?: string | null
         }

@@ -41,11 +41,11 @@ export function ChartWrapper({
 
   return (
     <Card className={cn(
-      'overflow-hidden border-border/50 hover:border-primary/30 transition-all duration-300 hover:shadow-lg',
+      'overflow-hidden border-border bg-card shadow-sm hover:shadow-md transition-shadow duration-200',
       className
     )}>
-      <CardHeader className="border-b border-border/50 bg-muted/20">
-        <CardTitle className="text-xl">{title}</CardTitle>
+      <CardHeader className="border-b border-border">
+        <CardTitle className="text-base font-medium">{title}</CardTitle>
         {description && (
           <CardDescription className="text-sm">{description}</CardDescription>
         )}

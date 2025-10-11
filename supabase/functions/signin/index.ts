@@ -1,7 +1,7 @@
 // @ts-nocheck
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
-import * as bcrypt from "https://deno.land/x/bcrypt@v0.4.1/mod.ts";
+import bcrypt from "npm:bcryptjs@2.4.3";
 
 // Whitelisted origins for CORS
 const allowedOrigins = [
@@ -66,15 +66,24 @@ async function legacyHashPassword(password: string): Promise<string> {
 // Verify password with multiple format support
 async function verifyPassword(providedPassword: string, storedPasswordHash: string): Promise<boolean> {
   try {
+    console.log(`[DEBUG] Verifying password - Hash length: ${storedPasswordHash.length}, Hash prefix: ${storedPasswordHash.substring(0, 10)}`);
+    console.log(`[DEBUG] Password length: ${providedPassword.length}`);
+    console.log(`[DEBUG] Is bcrypt hash: ${isBcryptHash(storedPasswordHash)}`);
+    
     if (isBcryptHash(storedPasswordHash)) {
       // Modern bcrypt password - use bcrypt verification
-      return await bcrypt.compare(providedPassword, storedPasswordHash);
+      console.log(`[DEBUG] Using bcrypt verification`);
+      const result = await bcrypt.compare(providedPassword, storedPasswordHash);
+      console.log(`[DEBUG] Bcrypt compare result: ${result}`);
+      return result;
     } else if (isLegacySHA256Hash(storedPasswordHash)) {
       // Legacy SHA-256 hashed password - compare hashes (will be upgraded)
+      console.log(`[DEBUG] Using SHA-256 verification`);
       const providedHash = await legacyHashPassword(providedPassword);
       return providedHash === storedPasswordHash;
     } else {
       // Legacy plaintext password - direct comparison (will be upgraded)
+      console.log(`[DEBUG] Using plaintext comparison`);
       return providedPassword === storedPasswordHash;
     }
   } catch (error) {
@@ -426,10 +435,7 @@ serve(async (req) => {
       is_active: true,
     }, { onConflict: 'user_id' });
 
-    // Extract real client IP
-    const clientIp = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 
-                     req.headers.get('x-real-ip') || 
-                     '127.0.0.1';
+    // Extract user agent for security logging (clientIp already declared above)
     const userAgent = req.headers.get('user-agent') || 'unknown';
     
     // Log successful login for security monitoring

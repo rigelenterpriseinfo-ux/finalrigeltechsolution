@@ -14,7 +14,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { useBusinessAuth } from '@/hooks/useBusinessAuth';
 import { useIsMobile } from '@/hooks/use-mobile';
-import { Plus, Search, Package, AlertTriangle, Edit, Trash2, Eye, Download, ArrowUpDown, ArrowUp, ArrowDown, ChevronLeft, ChevronRight, MapPin, TrendingUp, ClipboardList, ArrowRightLeft, CheckCircle, XCircle, RotateCcw } from 'lucide-react';
+import { Plus, Search, Package, AlertTriangle, Edit, Trash2, Eye, Download, ArrowUpDown, ArrowUp, ArrowDown, ChevronLeft, ChevronRight, MapPin, TrendingUp, ClipboardList, ArrowRightLeft, CheckCircle, XCircle, RotateCcw, FileSpreadsheet, Filter } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { WarehouseBinForm } from '@/components/forms/WarehouseBinForm';
 import { WarehouseBinTable } from '@/components/tables/WarehouseBinTable';
@@ -58,6 +58,9 @@ interface Product {
   product_category: 'raw_material' | 'finished_goods' | 'consumables' | 'assets' | 'others';
   created_at: string;
   updated_at: string;
+  mfg_date: string | null;
+  expiry_date: string | null;
+  shelf_life_days: number | null;
 }
 
 export function InventoryModule() {
@@ -70,6 +73,7 @@ export function InventoryModule() {
   const [loading, setLoading] = useState(true);
   const [productsWithTransactions, setProductsWithTransactions] = useState<Set<string>>(new Set());
   const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [showViewDialog, setShowViewDialog] = useState(false);
@@ -262,14 +266,13 @@ export function InventoryModule() {
     setWarehouseBinStats(binStats);
   };
 
-  // Fetch products from Supabase
+  // Fetch products from Supabase (including inactive for filtering)
   const fetchProducts = async () => {
     try {
       setLoading(true);
       const { data, error } = await supabase
         .from('products')
         .select('*')
-        .eq('is_active', true)
         .order('name', { ascending: true });
 
       if (error) throw error;
@@ -399,6 +402,10 @@ export function InventoryModule() {
       const height = formData.get('height_cm') ? parseFloat(formData.get('height_cm') as string) : null;
       const volumeCubicCm = (length && width && height) ? length * width * height : null;
 
+      const mfgDate = formData.get('mfg_date') as string;
+      const expiryDate = formData.get('expiry_date') as string;
+      const shelfLifeDays = formData.get('shelf_life_days') as string;
+
       const productData = {
         name: formData.get('name') as string,
         description: formData.get('description') as string,
@@ -421,7 +428,10 @@ export function InventoryModule() {
         product_type: formData.get('product_type') as 'goods' | 'service',
         product_category: formData.get('product_category') as 'raw_material' | 'finished_goods' | 'consumables' | 'assets' | 'others',
         company_id: profile?.company_id,
-        is_active: formData.get('is_active') !== 'off' // Default to true unless explicitly turned off
+        is_active: formData.get('is_active') !== 'off', // Default to true unless explicitly turned off
+        mfg_date: mfgDate || null,
+        expiry_date: expiryDate || null,
+        shelf_life_days: shelfLifeDays ? parseInt(shelfLifeDays) : null,
       };
 
       const { error } = await supabase
@@ -567,11 +577,24 @@ export function InventoryModule() {
 
   // Filter and sort products
   const filteredProducts = useMemo(() => {
-    let filtered = products.filter(product =>
-      product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      product.sku.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (product.description && product.description.toLowerCase().includes(searchTerm.toLowerCase()))
-    );
+    let filtered = products.filter(product => {
+      // Enhanced search: SKU, Name, Type, Category
+      const searchLower = searchTerm.toLowerCase();
+      const matchesSearch = (
+        product.name.toLowerCase().includes(searchLower) ||
+        product.sku.toLowerCase().includes(searchLower) ||
+        (product.description && product.description.toLowerCase().includes(searchLower)) ||
+        product.product_type.toLowerCase().includes(searchLower) ||
+        product.product_category.toLowerCase().includes(searchLower)
+      );
+      
+      // Status filter
+      const matchesStatus = statusFilter === 'all' ||
+        (statusFilter === 'active' && product.is_active) ||
+        (statusFilter === 'inactive' && !product.is_active);
+      
+      return matchesSearch && matchesStatus;
+    });
 
     if (sortConfig) {
       filtered.sort((a, b) => {
@@ -589,7 +612,7 @@ export function InventoryModule() {
     }
 
     return filtered;
-  }, [products, searchTerm, sortConfig]);
+  }, [products, searchTerm, sortConfig, statusFilter]);
 
   // Pagination
   const totalPages = Math.ceil(filteredProducts.length / itemsPerPage);
@@ -616,6 +639,9 @@ export function InventoryModule() {
       'Length (cm)': product.length_cm || '',
       'Width (cm)': product.width_cm || '',
       'Height (cm)': product.height_cm || '',
+      'Mfg Date': product.mfg_date ? new Date(product.mfg_date).toLocaleDateString() : '',
+      'Expiry Date': product.expiry_date ? new Date(product.expiry_date).toLocaleDateString() : '',
+      'Shelf Life (days)': product.shelf_life_days || '',
       'Status': product.is_active ? 'Active' : 'Inactive'
     }));
 
@@ -959,6 +985,43 @@ export function InventoryModule() {
                               </div>
                             </div>
                           )}
+
+                          {/* Product Lifecycle Fields */}
+                          <div>
+                            <Label className="text-xs font-medium text-muted-foreground">Product Lifecycle (Optional)</Label>
+                            <div className="space-y-2 mt-2">
+                              <div>
+                                <Label htmlFor="mfg_date" className="text-xs font-medium text-muted-foreground">Mfg Date</Label>
+                                <Input 
+                                  id="mfg_date" 
+                                  name="mfg_date" 
+                                  type="date"
+                                  className="mt-0.5 h-8 text-xs transition-all focus:scale-[1.02]" 
+                                />
+                              </div>
+                              <div>
+                                <Label htmlFor="expiry_date" className="text-xs font-medium text-muted-foreground">Expiry Date</Label>
+                                <Input 
+                                  id="expiry_date" 
+                                  name="expiry_date" 
+                                  type="date"
+                                  className="mt-0.5 h-8 text-xs transition-all focus:scale-[1.02]" 
+                                />
+                              </div>
+                              <div>
+                                <Label htmlFor="shelf_life_days" className="text-xs font-medium text-muted-foreground">Shelf Life (days)</Label>
+                                <Input 
+                                  id="shelf_life_days" 
+                                  name="shelf_life_days" 
+                                  type="number"
+                                  min="0"
+                                  step="1"
+                                  className="mt-0.5 h-8 text-xs transition-all focus:scale-[1.02]" 
+                                  placeholder="e.g., 365"
+                                />
+                              </div>
+                            </div>
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -1128,21 +1191,41 @@ export function InventoryModule() {
 
         <TabsContent value="products" className="space-y-6">
 
-          {/* Search and Export */}
-            <div className="flex justify-between items-center">
-              <div className="relative w-72">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+          {/* Search, Filters, and Export */}
+            <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+              {/* Left: Search */}
+              <div className="relative flex-1 max-w-md">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
-                  placeholder="Search products..." aria-label="Search products by name, SKU, or description"
+                  placeholder="Search by name, SKU, type, or category..."
                   value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
+                  onChange={(e) => {
+                    setSearchTerm(e.target.value);
+                    setCurrentPage(1);
+                  }}
                   className="pl-10"
                 />
               </div>
-              <div className="flex items-center gap-2">
-                <Button variant="outline" onClick={exportToExcel}>
-                  <Download className="w-4 h-4 mr-2" />
-                  Export to Excel
+              
+              {/* Right: Filters + Export */}
+              <div className="flex gap-2 items-center">
+                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                  <SelectTrigger className="w-32">
+                    <SelectValue placeholder="Status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Status</SelectItem>
+                    <SelectItem value="active">Active</SelectItem>
+                    <SelectItem value="inactive">Inactive</SelectItem>
+                  </SelectContent>
+                </Select>
+                
+                <Button
+                  onClick={exportToExcel}
+                  className="gap-2 bg-teal-50 text-teal-700 border border-teal-200 hover:bg-teal-100"
+                >
+                  <FileSpreadsheet className="h-4 w-4" />
+                  Export
                 </Button>
               </div>
             </div>
@@ -1332,37 +1415,11 @@ export function InventoryModule() {
         </TabsContent>
 
         <TabsContent value="adjustments" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center space-x-2">
-                <ClipboardList className="w-5 h-5" />
-                <span>Inventory Adjustments History</span>
-              </CardTitle>
-              <CardDescription>
-                Track all inventory adjustments with detailed audit trail
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <InventoryAdjustmentTable refreshTrigger={adjustmentRefreshTrigger} />
-            </CardContent>
-          </Card>
+          <InventoryAdjustmentTable refreshTrigger={adjustmentRefreshTrigger} />
         </TabsContent>
 
         <TabsContent value="transactions" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center space-x-2">
-                <TrendingUp className="w-5 h-5" />
-                <span>Inventory Transactions</span>
-              </CardTitle>
-              <CardDescription>
-                Complete movement history for all inventory transactions
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <InventoryTransactionTable refreshTrigger={adjustmentRefreshTrigger} />
-            </CardContent>
-          </Card>
+          <InventoryTransactionTable refreshTrigger={adjustmentRefreshTrigger} />
         </TabsContent>
 
         <TabsContent value="stock" className="space-y-6">

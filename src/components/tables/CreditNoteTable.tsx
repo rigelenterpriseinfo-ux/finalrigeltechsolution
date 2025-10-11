@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { PowerBICard } from '@/components/ui/powerbi-card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -16,6 +16,7 @@ import {
   Edit, 
   Download,
   FileText,
+  FileSpreadsheet,
   ChevronLeft, 
   ChevronRight,
   ArrowUpDown,
@@ -25,6 +26,9 @@ import {
   Loader2
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
+import { format as formatDate } from 'date-fns';
 import { CreditNoteTableMobile } from './CreditNoteTableMobile';
 
 interface CreditNote {
@@ -380,35 +384,306 @@ export function CreditNoteTable({
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'Draft':
-        return 'bg-slate-100 text-slate-700 border border-slate-200 hover:bg-slate-200';
+        return 'bg-gray-50 text-gray-700 border border-gray-200';
       case 'Confirmed':
-        return 'bg-blue-100 text-blue-700 border border-blue-200 hover:bg-blue-200';
+        return 'bg-blue-50 text-blue-700 border border-blue-200';
       default:
-        return 'bg-slate-100 text-slate-700 border border-slate-200 hover:bg-slate-200';
+        return 'bg-gray-50 text-gray-700 border border-gray-200';
+    }
+  };
+
+  // Export all credit notes to Excel
+  const exportAllToExcel = () => {
+    try {
+      const dataToExport = filteredNotes.map((note, index) => ({
+        'S.No': index + 1,
+        'CN Number': note.cn_number,
+        'CN Date': new Date(note.cn_date).toLocaleDateString('en-IN'),
+        'Customer Name': note.customer_name,
+        'RSO Number': note.rso_number,
+        'Status': note.status,
+        'Amount': note.total_amount.toFixed(2)
+      }));
+
+      const ws = XLSX.utils.json_to_sheet(dataToExport);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Credit Notes');
+      XLSX.writeFile(wb, `Credit-Notes-${new Date().toISOString().split('T')[0]}.xlsx`);
+
+      toast({
+        title: "Success",
+        description: `Exported ${filteredNotes.length} credit notes to Excel`,
+      });
+    } catch (error) {
+      console.error('Export failed:', error);
+      toast({
+        title: "Error",
+        description: "Failed to export credit notes",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const exportToPDF = async (note: CreditNote) => {
+    try {
+      const { data: cnDetail, error } = await supabase
+        .from('credit_notes')
+        .select(`
+          *,
+          customers (
+            name,
+            address_line1,
+            address_line2,
+            city,
+            state,
+            country,
+            pin_code,
+            gstin,
+            contact_person,
+            phone,
+            email
+          )
+        `)
+        .eq('id', note.id)
+        .single();
+      
+      if (error) throw error;
+      
+      const { data: cnItems, error: itemsError } = await supabase
+        .from('credit_note_items')
+        .select(`
+          *,
+          products (
+            sku,
+            name,
+            hsn_sac_code
+          )
+        `)
+        .eq('credit_note_id', note.id);
+      
+      if (itemsError) throw itemsError;
+      
+      const doc = new jsPDF();
+      let yPos = 15;
+      
+      // Header Section
+      doc.setFillColor(43, 136, 216);
+      doc.rect(0, 0, 210, 40, 'F');
+      
+      if (companyData?.logo_url) {
+        try {
+          doc.addImage(companyData.logo_url, 'PNG', 15, 8, 25, 25);
+        } catch (e) {
+          console.log('Logo not available');
+        }
+      }
+      
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(20);
+      doc.setFont('helvetica', 'bold');
+      doc.text(companyData?.name || 'Company Name', 45, 18);
+      
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'normal');
+      const addressParts = [
+        companyData?.address_line1,
+        companyData?.address_line2,
+        companyData?.city,
+        companyData?.state,
+        companyData?.country,
+        companyData?.postal_code
+      ].filter(Boolean);
+      doc.text(addressParts.join(', ') || 'Company Address', 45, 25);
+      doc.text(`GSTIN: ${companyData?.gstn || 'N/A'}`, 45, 30);
+      doc.text(`Phone: ${companyData?.phone || 'N/A'} | Email: ${companyData?.email || 'N/A'}`, 45, 35);
+      
+      yPos = 50;
+      doc.setTextColor(0, 0, 0);
+      
+      // Document Title
+      doc.setFontSize(16);
+      doc.setFont('helvetica', 'bold');
+      doc.text('CREDIT NOTE', 105, yPos, { align: 'center' });
+      yPos += 10;
+      
+      // Credit Note Details
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'normal');
+      
+      doc.text(`CN Number: ${cnDetail.cn_number}`, 15, yPos);
+      doc.text(`CN Date: ${formatDate(new Date(cnDetail.cn_date), 'dd/MM/yyyy')}`, 15, yPos + 5);
+      doc.text(`RSO Reference: ${cnDetail.rso_id || 'N/A'}`, 15, yPos + 10);
+      doc.text(`Status: ${cnDetail.status}`, 15, yPos + 15);
+      
+      doc.text('Customer Details:', 120, yPos);
+      doc.text(cnDetail.customer_name || 'N/A', 120, yPos + 5);
+      doc.text(`GSTIN: ${cnDetail.customers?.gstin || 'N/A'}`, 120, yPos + 10);
+      doc.text(`Phone: ${cnDetail.customers?.phone || 'N/A'}`, 120, yPos + 15);
+      
+      yPos += 25;
+      
+      // Line Items Table
+      const tableData = cnItems?.map((item: any, index: number) => [
+        index + 1,
+        item.products?.sku || item.product_sku || 'N/A',
+        item.products?.name || item.product_name || 'N/A',
+        item.products?.hsn_sac_code || item.hsn_sac_code || 'N/A',
+        item.return_qty,
+        `₹${item.unit_price.toFixed(2)}`,
+        `${item.discount_percentage || 0}%`,
+        `${((item.cgst_rate || 0) + (item.sgst_rate || 0) + (item.igst_rate || 0))}%`,
+        `₹${item.line_total.toFixed(2)}`
+      ]);
+      
+      (doc as any).autoTable({
+        startY: yPos,
+        head: [['S.No', 'SKU', 'Product Name', 'HSN', 'Qty', 'Rate', 'Disc%', 'Tax%', 'Amount']],
+        body: tableData,
+        theme: 'grid',
+        headStyles: {
+          fillColor: [43, 136, 216],
+          textColor: 255,
+          fontStyle: 'bold',
+          fontSize: 9
+        },
+        bodyStyles: {
+          fontSize: 8,
+          textColor: 50
+        },
+        alternateRowStyles: {
+          fillColor: [245, 245, 245]
+        },
+        columnStyles: {
+          0: { cellWidth: 15, halign: 'center' },
+          4: { halign: 'center' },
+          5: { halign: 'right' },
+          6: { halign: 'center' },
+          7: { halign: 'center' },
+          8: { halign: 'right' }
+        }
+      });
+      
+      yPos = (doc as any).lastAutoTable.finalY + 10;
+      
+      // Totals Section
+      const totalsX = 130;
+      doc.setFontSize(10);
+      
+      doc.text('Subtotal:', totalsX, yPos);
+      doc.text(`₹${cnDetail.subtotal_amount.toFixed(2)}`, 185, yPos, { align: 'right' });
+      
+      doc.text('Discount:', totalsX, yPos + 6);
+      doc.text(`₹${cnDetail.discount_amount.toFixed(2)}`, 185, yPos + 6, { align: 'right' });
+      
+      doc.text('Tax:', totalsX, yPos + 12);
+      doc.text(`₹${cnDetail.tax_amount.toFixed(2)}`, 185, yPos + 12, { align: 'right' });
+      
+      doc.setFont('helvetica', 'bold');
+      doc.setFillColor(43, 136, 216);
+      doc.rect(totalsX - 5, yPos + 16, 65, 8, 'F');
+      doc.setTextColor(255, 255, 255);
+      doc.text('Total Amount:', totalsX, yPos + 22);
+      doc.text(`₹${cnDetail.total_amount.toFixed(2)}`, 185, yPos + 22, { align: 'right' });
+      
+      doc.setTextColor(0, 0, 0);
+      doc.setFont('helvetica', 'normal');
+      yPos += 32;
+      
+      // Amount in Words
+      doc.setFontSize(9);
+      if (cnDetail.amount_in_words) {
+        doc.text(`Amount in Words: ${cnDetail.amount_in_words}`, 15, yPos);
+      } else {
+        doc.text(`Amount in Words: ${convertNumberToWords(cnDetail.total_amount)}`, 15, yPos);
+      }
+      yPos += 10;
+      
+      // Notes
+      if (cnDetail.notes) {
+        doc.setFont('helvetica', 'bold');
+        doc.text('Notes:', 15, yPos);
+        doc.setFont('helvetica', 'normal');
+        doc.text(cnDetail.notes, 15, yPos + 5, { maxWidth: 180 });
+        yPos += 15;
+      }
+      
+      // Terms & Conditions
+      if (yPos < 230) {
+        doc.setFontSize(8);
+        doc.setFont('helvetica', 'bold');
+        doc.text('Terms & Conditions:', 15, yPos);
+        doc.setFont('helvetica', 'normal');
+        yPos += 5;
+        
+        const terms = [
+          '1. This credit note is issued for goods returned in good condition',
+          '2. Credit will be applied to customer account within 3-5 business days',
+          '3. Original invoice reference must be provided for all returns',
+          '4. No cash refunds will be issued against this credit note'
+        ];
+        
+        terms.forEach(term => {
+          doc.text(term, 15, yPos);
+          yPos += 4;
+        });
+        
+        yPos += 10;
+        
+        // Authorization
+        doc.setFontSize(9);
+        doc.setFont('helvetica', 'bold');
+        doc.text('For ' + (companyData?.name || 'Company Name'), 15, yPos);
+        yPos += 15;
+        doc.text('Authorized Signatory', 15, yPos);
+      }
+      
+      // Footer
+      doc.setFontSize(7);
+      doc.setFont('helvetica', 'italic');
+      doc.setTextColor(128, 128, 128);
+      doc.text(
+        'This is a computer generated document and does not require signature',
+        105,
+        280,
+        { align: 'center' }
+      );
+      
+      const fileName = `CN_${cnDetail.cn_number}_${formatDate(new Date(), 'yyyyMMdd')}.pdf`;
+      doc.save(fileName);
+      
+      toast({
+        title: "PDF Export Successful",
+        description: `Credit Note ${cnDetail.cn_number} has been exported to PDF`,
+      });
+      
+    } catch (error) {
+      console.error('Export to PDF failed:', error);
+      toast({
+        title: "Export Failed",
+        description: "Failed to export credit note to PDF",
+        variant: "destructive",
+      });
     }
   };
 
   if (loading) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Credit Notes</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex justify-center items-center py-8">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
-            <span className="ml-2">Loading credit notes...</span>
-          </div>
-        </CardContent>
-      </Card>
+      <PowerBICard title="Credit Notes">
+        <div className="flex justify-center items-center py-8">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <span className="ml-2">Loading credit notes...</span>
+        </div>
+      </PowerBICard>
     );
   }
 
   return (
-    <Card className={cn("transition-all duration-200", isActive && "ring-2 ring-primary shadow-lg")}>
-      <CardHeader>
-        <CardTitle className="flex items-center justify-between flex-wrap gap-4">
-          <span>Credit Notes</span>
+    <PowerBICard 
+      title="Credit Notes"
+      className={cn("transition-all duration-200", isActive && "ring-2 ring-primary")}
+    >
+      <div className="space-y-4">
+        <div className="flex items-center justify-between flex-wrap gap-4">
           <div className="flex items-center gap-2 flex-wrap">
             <div className="relative">
               <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -436,9 +711,16 @@ export function CreditNoteTable({
               </SelectContent>
             </Select>
           </div>
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
+          <Button
+            onClick={exportAllToExcel}
+            className="gap-2 bg-green-600 hover:bg-green-700 text-white"
+          >
+            <FileSpreadsheet className="h-4 w-4" />
+            Export to Excel
+          </Button>
+        </div>
+        
+        <div>
         {currentNotes.length === 0 ? (
           <div className="text-center py-12">
             <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
@@ -454,67 +736,70 @@ export function CreditNoteTable({
               <TooltipProvider>
                 <Table>
                   <TableHeader>
-                    <TableRow>
+                    <TableRow className="border-b border-gray-200">
                       <TableHead 
-                        className="cursor-pointer hover:bg-muted/50 transition-colors"
+                        className="cursor-pointer hover:bg-gray-50 transition-colors text-gray-700"
                         onClick={() => handleSort('cn_number')}
                       >
                         <div className="flex items-center gap-2">
                           CN Number
-                          {getSortIcon('cn_number')}
+                          <span className="text-gray-400">{getSortIcon('cn_number')}</span>
                         </div>
                       </TableHead>
                       <TableHead 
-                        className="cursor-pointer hover:bg-muted/50 transition-colors"
+                        className="cursor-pointer hover:bg-gray-50 transition-colors text-gray-700"
                         onClick={() => handleSort('cn_date')}
                       >
                         <div className="flex items-center gap-2">
                           CN Date
-                          {getSortIcon('cn_date')}
+                          <span className="text-gray-400">{getSortIcon('cn_date')}</span>
                         </div>
                       </TableHead>
                       <TableHead 
-                        className="cursor-pointer hover:bg-muted/50 transition-colors"
+                        className="cursor-pointer hover:bg-gray-50 transition-colors text-gray-700"
                         onClick={() => handleSort('customer_name')}
                       >
                         <div className="flex items-center gap-2">
                           Customer
-                          {getSortIcon('customer_name')}
+                          <span className="text-gray-400">{getSortIcon('customer_name')}</span>
                         </div>
                       </TableHead>
                       <TableHead 
-                        className="cursor-pointer hover:bg-muted/50 transition-colors"
+                        className="cursor-pointer hover:bg-gray-50 transition-colors text-gray-700"
                         onClick={() => handleSort('rso_number')}
                       >
                         <div className="flex items-center gap-2">
                           RSO Number
-                          {getSortIcon('rso_number')}
+                          <span className="text-gray-400">{getSortIcon('rso_number')}</span>
                         </div>
                       </TableHead>
                       <TableHead 
-                        className="cursor-pointer hover:bg-muted/50 transition-colors"
+                        className="cursor-pointer hover:bg-gray-50 transition-colors text-gray-700"
                         onClick={() => handleSort('status')}
                       >
                         <div className="flex items-center gap-2">
                           Status
-                          {getSortIcon('status')}
+                          <span className="text-gray-400">{getSortIcon('status')}</span>
                         </div>
                       </TableHead>
                       <TableHead 
-                        className="cursor-pointer hover:bg-muted/50 transition-colors text-right"
+                        className="cursor-pointer hover:bg-gray-50 transition-colors text-right text-gray-700"
                         onClick={() => handleSort('total_amount')}
                       >
                         <div className="flex items-center gap-2 justify-end">
                           Amount
-                          {getSortIcon('total_amount')}
+                          <span className="text-gray-400">{getSortIcon('total_amount')}</span>
                         </div>
                       </TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
+                      <TableHead className="text-right text-gray-700">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {currentNotes.map((note) => (
-                      <TableRow key={note.id} className="hover:bg-muted/50 transition-colors">
+                    {currentNotes.map((note) => {
+                      const canEdit = note.status === 'Draft';
+                      
+                      return (
+                      <TableRow key={note.id} className="hover:bg-gray-50 transition-colors border-b border-gray-100">
                         <TableCell className="font-medium">{note.cn_number}</TableCell>
                         <TableCell>{new Date(note.cn_date).toLocaleDateString()}</TableCell>
                         <TableCell>{note.customer_name}</TableCell>
@@ -533,49 +818,80 @@ export function CreditNoteTable({
                               <TooltipTrigger asChild>
                                 <Button
                                   variant="ghost"
-                                  size="sm"
+                                  size="icon"
                                   onClick={() => onView(note.id)}
-                                  className="hover:bg-primary/10 hover:text-primary transition-colors"
+                                  className="h-8 w-8 text-gray-600 hover:text-primary hover:bg-gray-100 transition-colors"
                                 >
                                   <Eye className="h-4 w-4" />
                                 </Button>
                               </TooltipTrigger>
-                              <TooltipContent>View Credit Note</TooltipContent>
+                              <TooltipContent>
+                                <p className="text-sm">View Credit Note</p>
+                              </TooltipContent>
                             </Tooltip>
 
-                            {note.status === 'Draft' && (
-                              <Tooltip>
-                                <TooltipTrigger asChild>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <span>
                                   <Button
                                     variant="ghost"
-                                    size="sm"
-                                    onClick={() => onEdit(note.id)}
-                                    className="hover:bg-blue-100 hover:text-blue-700 transition-colors"
+                                    size="icon"
+                                    onClick={() => canEdit ? onEdit(note.id) : undefined}
+                                    disabled={!canEdit}
+                                    className={cn(
+                                      "h-8 w-8",
+                                      canEdit 
+                                        ? "text-gray-600 hover:text-blue-600 hover:bg-blue-50 transition-colors" 
+                                        : "text-gray-300 cursor-not-allowed opacity-50"
+                                    )}
                                   >
                                     <Edit className="h-4 w-4" />
                                   </Button>
-                                </TooltipTrigger>
-                                <TooltipContent>Edit Credit Note</TooltipContent>
-                              </Tooltip>
-                            )}
+                                </span>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p className="text-sm">
+                                  {canEdit ? 'Edit Credit Note' : 'Cannot edit confirmed credit note'}
+                                </p>
+                              </TooltipContent>
+                            </Tooltip>
 
                             <Tooltip>
                               <TooltipTrigger asChild>
                                 <Button
                                   variant="ghost"
-                                  size="sm"
+                                  size="icon"
                                   onClick={() => exportToExcel(note)}
-                                  className="hover:bg-green-100 hover:text-green-700 transition-colors"
+                                  className="h-8 w-8 text-gray-600 hover:text-green-600 hover:bg-green-50 transition-colors"
                                 >
                                   <Download className="h-4 w-4" />
                                 </Button>
                               </TooltipTrigger>
-                              <TooltipContent>Export to Excel</TooltipContent>
+                              <TooltipContent>
+                                <p className="text-sm">Export to Excel</p>
+                              </TooltipContent>
+                            </Tooltip>
+
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => exportToPDF(note)}
+                                  className="h-8 w-8 text-gray-600 hover:text-red-600 hover:bg-red-50 transition-colors"
+                                >
+                                  <FileText className="h-4 w-4" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p className="text-sm">Export to PDF</p>
+                              </TooltipContent>
                             </Tooltip>
                           </div>
                         </TableCell>
                       </TableRow>
-                    ))}
+                    );
+                    })}
                   </TableBody>
                 </Table>
               </TooltipProvider>
@@ -609,7 +925,8 @@ export function CreditNoteTable({
               </div>
             </>
           )}
-      </CardContent>
-    </Card>
+        </div>
+      </div>
+    </PowerBICard>
   );
 }
