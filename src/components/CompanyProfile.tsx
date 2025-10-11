@@ -132,13 +132,25 @@ export function CompanyProfile({ readonly = false }: CompanyProfileProps) {
     if (!logoFile || !company?.id) return null;
 
     try {
+      // Delete old logo if exists to prevent storage buildup
+      if (formData.logoUrl) {
+        try {
+          const oldPath = formData.logoUrl.split('/company-logos/')[1]?.split('?')[0];
+          if (oldPath) {
+            await supabase.storage.from('company-logos').remove([oldPath]);
+          }
+        } catch (e) {
+          console.log('Could not delete old logo, continuing with upload');
+        }
+      }
+
       const fileName = `${company.id}/logo-${Date.now()}.${logoFile.name.split('.').pop()}`;
       
       const { data, error } = await supabase.storage
         .from('company-logos')
         .upload(fileName, logoFile, {
           cacheControl: '3600',
-          upsert: true
+          upsert: false // Changed to false since we're using timestamp in filename
         });
 
       if (error) throw error;
@@ -147,7 +159,10 @@ export function CompanyProfile({ readonly = false }: CompanyProfileProps) {
         .from('company-logos')
         .getPublicUrl(data.path);
 
-      return publicUrl;
+      // Add cache-busting parameter to force browser to reload the image
+      const cacheBustedUrl = `${publicUrl}?t=${Date.now()}`;
+
+      return cacheBustedUrl;
     } catch (error: any) {
       toast({
         title: "Logo upload failed",
@@ -579,6 +594,7 @@ export function CompanyProfile({ readonly = false }: CompanyProfileProps) {
                                 src={logoPreview || formData.logoUrl}
                                 alt="Company logo"
                                 className="w-full h-full object-contain"
+                                key={logoPreview || formData.logoUrl} // Force re-render when URL changes
                               />
                             </div>
                             {canEdit && (
