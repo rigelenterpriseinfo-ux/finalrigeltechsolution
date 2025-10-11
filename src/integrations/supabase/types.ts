@@ -3324,6 +3324,7 @@ export type Database = {
           details: Json | null
           id: string
           ip_address: unknown | null
+          severity: string | null
           user_agent: string | null
           user_id: string | null
         }
@@ -3333,6 +3334,7 @@ export type Database = {
           details?: Json | null
           id?: string
           ip_address?: unknown | null
+          severity?: string | null
           user_agent?: string | null
           user_id?: string | null
         }
@@ -3342,6 +3344,7 @@ export type Database = {
           details?: Json | null
           id?: string
           ip_address?: unknown | null
+          severity?: string | null
           user_agent?: string | null
           user_id?: string | null
         }
