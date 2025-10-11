@@ -57,6 +57,7 @@ const GatedSignin = () => {
 
     setIsLoading(true);
     try {
+      console.log('Attempting signin with edge function...');
       const { data, error } = await supabase.functions.invoke('signin', {
         body: {
           username: formData.username.trim(),
@@ -64,7 +65,12 @@ const GatedSignin = () => {
         }
       });
 
-      if (error) throw error;
+      console.log('Edge function response:', { data, error });
+
+      if (error) {
+        console.error('Edge function error:', error);
+        throw new Error(error.message || 'Failed to connect to authentication service. Please ensure the edge functions are deployed.');
+      }
 
       if (data?.success) {
         // Now actually sign in with Supabase Auth to create a proper session
@@ -88,9 +94,20 @@ const GatedSignin = () => {
         throw new Error(data?.error || 'Sign in failed');
       }
     } catch (error: any) {
+      console.error('Signin error:', error);
+      
+      let errorMessage = error.message || "Please check your credentials and try again.";
+      
+      // Provide more helpful error messages
+      if (errorMessage.includes('Failed to fetch') || errorMessage.includes('NetworkError')) {
+        errorMessage = "Network error: Unable to connect to authentication service. Please check your internet connection and ensure edge functions are deployed.";
+      } else if (errorMessage.includes('CORS')) {
+        errorMessage = "CORS error: Authentication service configuration issue. Please contact support.";
+      }
+      
       toast({
         title: "Sign In Failed",
-        description: error.message || "Please check your credentials and try again.",
+        description: errorMessage,
         variant: "destructive"
       });
     } finally {
