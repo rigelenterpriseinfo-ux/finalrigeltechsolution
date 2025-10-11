@@ -76,8 +76,8 @@ const EnhancedAuth = () => {
     
     // Only redirect if we have both user AND valid session, and auth is not loading
     if (!authLoading && user && session && !skipRedirect) {
-      console.log('Valid session found, redirecting to home');
-      navigate('/');
+      console.log('Valid session found, redirecting to dashboard');
+      navigate('/dashboard');
     }
   }, [user, session, authLoading, navigate, skipRedirect]);
 
@@ -132,7 +132,7 @@ const EnhancedAuth = () => {
           title: "Welcome back!",
           description: `Successfully signed in as ${data.user.email}`,
         });
-        navigate('/');
+        navigate('/dashboard');
       } else {
         throw new Error(data?.error || 'Sign in failed');
       }

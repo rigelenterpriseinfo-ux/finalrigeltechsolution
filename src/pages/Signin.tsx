@@ -95,7 +95,7 @@ const Signin = () => {
         });
 
         // Redirect to main app
-        navigate('/');
+        navigate('/dashboard');
       } else {
         throw new Error(data?.error || 'Sign in failed');
       }
