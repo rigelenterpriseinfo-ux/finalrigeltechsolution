@@ -449,7 +449,7 @@ export function CompanyProfile({ readonly = false }: CompanyProfileProps) {
     <div className="max-w-4xl mx-auto space-y-6">
       {/* Header */}
       <div className="space-y-2">
-        <div className="flex items-center justify-between gap-3">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <div className="p-3 rounded-xl bg-primary/10 text-primary">
               <Building2 className="h-6 w-6" />
@@ -463,26 +463,32 @@ export function CompanyProfile({ readonly = false }: CompanyProfileProps) {
           </div>
           
           {/* Edit/Cancel Toggle Button */}
-          {!readonly && hasEditAccess('company_profile') && !isEditing && (
-            <Button 
-              onClick={() => setIsEditing(true)}
-              variant="default"
-              className="flex items-center gap-2"
-            >
-              <Edit className="h-4 w-4" />
-              Edit Profile
-            </Button>
-          )}
-          
-          {!readonly && hasEditAccess('company_profile') && isEditing && (
-            <Button 
-              onClick={handleCancelEdit}
-              variant="outline"
-              className="flex items-center gap-2"
-            >
-              <XCircle className="h-4 w-4" />
-              Cancel
-            </Button>
+          {!readonly && hasEditAccess('company_profile') ? (
+            !isEditing ? (
+              <Button 
+                onClick={() => setIsEditing(true)}
+                variant="default"
+                size="lg"
+                className="flex items-center gap-2 bg-primary hover:bg-primary/90 shadow-md"
+              >
+                <Edit className="h-5 w-5" />
+                <span className="font-semibold">Edit Profile</span>
+              </Button>
+            ) : (
+              <Button 
+                onClick={handleCancelEdit}
+                variant="outline"
+                size="lg"
+                className="flex items-center gap-2 border-2"
+              >
+                <XCircle className="h-5 w-5" />
+                <span className="font-semibold">Cancel</span>
+              </Button>
+            )
+          ) : !readonly && (
+            <div className="text-sm text-muted-foreground bg-muted/50 px-4 py-2 rounded-lg border">
+              ℹ️ You need admin/owner permissions to edit
+            </div>
           )}
         </div>
       </div>
@@ -1007,9 +1013,10 @@ export function CompanyProfile({ readonly = false }: CompanyProfileProps) {
 
               {/* Action Buttons */}
               {isEditing && (
-                <div className="border-t border-border bg-muted/30 px-6 py-4">
+                <div className="border-t-2 border-border bg-gradient-to-r from-primary/5 to-primary/10 px-6 py-5 sticky bottom-0">
                   <div className="flex flex-col-reverse sm:flex-row gap-3 sm:justify-between sm:items-center">
-                    <div className="text-xs text-muted-foreground">
+                    <div className="text-sm text-muted-foreground font-medium flex items-center gap-2">
+                      <span className="hidden sm:inline">💾</span>
                       All changes will be saved to the database
                     </div>
                     
@@ -1017,22 +1024,29 @@ export function CompanyProfile({ readonly = false }: CompanyProfileProps) {
                       <Button 
                         type="button" 
                         variant="outline" 
+                        size="lg"
                         onClick={handleCancelEdit}
                         disabled={isLoading}
+                        className="border-2"
                       >
-                        <XCircle className="mr-2 h-4 w-4" />
-                        Cancel
+                        <XCircle className="mr-2 h-5 w-5" />
+                        <span className="font-semibold">Cancel</span>
                       </Button>
                       
-                      <Button type="submit" disabled={isLoading} className="btn-gradient">
+                      <Button 
+                        type="submit" 
+                        disabled={isLoading} 
+                        size="lg"
+                        className="bg-primary hover:bg-primary/90 shadow-lg font-semibold min-w-[160px]"
+                      >
                         {isLoading ? (
                           <>
-                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                            Saving Changes...
+                            <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                            Saving...
                           </>
                         ) : (
                           <>
-                            <Save className="mr-2 h-4 w-4" />
+                            <Save className="mr-2 h-5 w-5" />
                             Save Changes
                           </>
                         )}
