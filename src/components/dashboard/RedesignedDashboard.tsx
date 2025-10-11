@@ -1,6 +1,6 @@
 import React, { memo, useState } from 'react';
 import { PowerBIHeroKPISection } from './PowerBIHeroKPISection';
-import { UrgentActionsPanel } from './UrgentActionsPanel';
+import { DashboardRightSidebar } from './DashboardRightSidebar';
 import { SupplyChainSection } from './SupplyChainSection';
 import { OperationalEfficiencySection } from './OperationalEfficiencySection';
 import { SalesSection } from './SalesSection';
@@ -108,70 +108,69 @@ const RedesignedDashboardComponent: React.FC<RedesignedDashboardProps> = ({ comp
       <SmartNotificationManager />
       <CommandPalette />
       <div className="min-h-screen bg-background pb-20 md:pb-0" role="main" aria-label="Dashboard">
+        {/* Page Header with Action Buttons */}
+        <header 
+          className={cn(
+            'flex items-center justify-between px-6 pt-6 pb-4',
+            isMobile && 'flex-wrap gap-3 px-4'
+          )}
+          role="banner"
+        >
+          <Badge variant="outline" className="text-xs" aria-label="Real-time updates enabled">
+            Live Updates
+          </Badge>
+          <div className="flex items-center gap-2" role="toolbar" aria-label="Dashboard actions">
+            <NotificationCenter />
+            <QuickFilters 
+              companyId={companyId}
+              filters={filters}
+              onFiltersChange={setFilters}
+            />
+            <EnhancedDateRangeFilter />
+            <DashboardExportButton
+              data={{
+                kpis: kpiData,
+                purchases: purchaseData,
+                inventory: inventoryData,
+                sales: salesData,
+                finance: financeData,
+              }}
+              companyName={company?.name}
+            />
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setShowCustomization(true);
+                trackEvent('open_customization');
+              }}
+              className="gap-2"
+              aria-label="Customize dashboard"
+            >
+              <Settings2 className="h-4 w-4" aria-hidden="true" />
+              <span className="hidden sm:inline">Customize</span>
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowShortcuts(true)}
+              className="gap-2"
+              aria-label="Show keyboard shortcuts"
+            >
+              <Keyboard className="h-4 w-4" aria-hidden="true" />
+              <span className="hidden sm:inline">Shortcuts</span>
+            </Button>
+            <DashboardRefreshButton onRefresh={handleRefreshAll} />
+          </div>
+        </header>
+
+        {/* Two-Column Layout: Main Content + Right Sidebar */}
         <div className={cn(
           'flex gap-6',
-          isMobile ? 'flex-col p-4' : 'p-6'
+          isMobile ? 'flex-col px-4' : 'px-6'
         )}>
-          {/* Main Content */}
-          <div className={cn('flex-1', spacing)} role="region" aria-label="Dashboard content">
-          {/* Page Header with Action Buttons */}
-          <header 
-            className={cn(
-              'flex items-center justify-between mb-6',
-              isMobile && 'flex-wrap gap-3'
-            )}
-            role="banner"
-          >
-            <Badge variant="outline" className="text-xs" aria-label="Real-time updates enabled">
-              Live Updates
-            </Badge>
-            <div className="flex items-center gap-2" role="toolbar" aria-label="Dashboard actions">
-              <NotificationCenter />
-              <QuickFilters 
-                companyId={companyId}
-                filters={filters}
-                onFiltersChange={setFilters}
-              />
-              <EnhancedDateRangeFilter />
-              <DashboardExportButton
-                data={{
-                  kpis: kpiData,
-                  purchases: purchaseData,
-                  inventory: inventoryData,
-                  sales: salesData,
-                  finance: financeData,
-                }}
-                companyName={company?.name}
-              />
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  setShowCustomization(true);
-                  trackEvent('open_customization');
-                }}
-                className="gap-2"
-                aria-label="Customize dashboard"
-              >
-                <Settings2 className="h-4 w-4" aria-hidden="true" />
-                <span className="hidden sm:inline">Customize</span>
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setShowShortcuts(true)}
-                className="gap-2"
-                aria-label="Show keyboard shortcuts"
-              >
-                <Keyboard className="h-4 w-4" aria-hidden="true" />
-                <span className="hidden sm:inline">Shortcuts</span>
-              </Button>
-              <DashboardRefreshButton onRefresh={handleRefreshAll} />
-            </div>
-          </header>
-
-          {/* Dashboard Widgets */}
-          <div className={spacing}>
+          {/* Main Content Area */}
+          <div className={cn('flex-1 min-w-0', spacing)} role="region" aria-label="Dashboard content">
             {/* Hero KPI Section */}
             {customization.widgets.kpi?.visible && (
               <section aria-labelledby="kpi-section-title">
@@ -189,19 +188,6 @@ const RedesignedDashboardComponent: React.FC<RedesignedDashboardProps> = ({ comp
                       trackWidgetInteraction('kpi', 'reorder_stock');
                       navigate('/dashboard?module=purchase');
                     }}
-                  />
-                </DashboardSectionWrapper>
-              </section>
-            )}
-
-            {/* Urgent Actions Panel */}
-            {customization.widgets.urgentActions?.visible && (
-              <section aria-labelledby="urgent-actions-title">
-                <h2 id="urgent-actions-title" className="sr-only">Urgent Actions</h2>
-                <DashboardSectionWrapper>
-                  <UrgentActionsPanel
-                    actions={urgentActions}
-                    loading={actionsLoading}
                   />
                 </DashboardSectionWrapper>
               </section>
@@ -244,29 +230,36 @@ const RedesignedDashboardComponent: React.FC<RedesignedDashboardProps> = ({ comp
                 </DashboardSectionWrapper>
               </section>
             )}
-
           </div>
+
+          {/* Right Sidebar - Desktop Only */}
+          {!isMobile && customization.widgets.urgentActions?.visible && (
+            <DashboardRightSidebar 
+              urgentActions={urgentActions}
+              actionsLoading={actionsLoading}
+              companyId={companyId}
+            />
+          )}
         </div>
       </div>
 
-      {/* Keyboard Shortcuts Dialog */}
-      <KeyboardShortcutsDialog 
-        open={showShortcuts} 
-        onOpenChange={setShowShortcuts} 
-      />
+        {/* Keyboard Shortcuts Dialog */}
+        <KeyboardShortcutsDialog 
+          open={showShortcuts} 
+          onOpenChange={setShowShortcuts} 
+        />
 
-      {/* Dashboard Customization Dialog */}
-      <DashboardCustomizationDialog
-        open={showCustomization}
-        onOpenChange={setShowCustomization}
-      />
+        {/* Dashboard Customization Dialog */}
+        <DashboardCustomizationDialog
+          open={showCustomization}
+          onOpenChange={setShowCustomization}
+        />
 
-      {/* Mobile Navigation */}
-      {isMobile && <MobileNavigation />}
-    </div>
-    </PullToRefreshContainer>
-  );
-};
+        {/* Mobile Navigation */}
+        {isMobile && <MobileNavigation />}
+      </PullToRefreshContainer>
+    );
+  };
 
 // Memoize the component to prevent unnecessary re-renders
 export const RedesignedDashboard = memo(RedesignedDashboardComponent);
