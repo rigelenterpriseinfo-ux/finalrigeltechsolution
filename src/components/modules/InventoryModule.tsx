@@ -58,6 +58,9 @@ interface Product {
   product_category: 'raw_material' | 'finished_goods' | 'consumables' | 'assets' | 'others';
   created_at: string;
   updated_at: string;
+  mfg_date: string | null;
+  expiry_date: string | null;
+  shelf_life_days: number | null;
 }
 
 export function InventoryModule() {
@@ -399,6 +402,10 @@ export function InventoryModule() {
       const height = formData.get('height_cm') ? parseFloat(formData.get('height_cm') as string) : null;
       const volumeCubicCm = (length && width && height) ? length * width * height : null;
 
+      const mfgDate = formData.get('mfg_date') as string;
+      const expiryDate = formData.get('expiry_date') as string;
+      const shelfLifeDays = formData.get('shelf_life_days') as string;
+
       const productData = {
         name: formData.get('name') as string,
         description: formData.get('description') as string,
@@ -421,7 +428,10 @@ export function InventoryModule() {
         product_type: formData.get('product_type') as 'goods' | 'service',
         product_category: formData.get('product_category') as 'raw_material' | 'finished_goods' | 'consumables' | 'assets' | 'others',
         company_id: profile?.company_id,
-        is_active: formData.get('is_active') !== 'off' // Default to true unless explicitly turned off
+        is_active: formData.get('is_active') !== 'off', // Default to true unless explicitly turned off
+        mfg_date: mfgDate || null,
+        expiry_date: expiryDate || null,
+        shelf_life_days: shelfLifeDays ? parseInt(shelfLifeDays) : null,
       };
 
       const { error } = await supabase
@@ -629,6 +639,9 @@ export function InventoryModule() {
       'Length (cm)': product.length_cm || '',
       'Width (cm)': product.width_cm || '',
       'Height (cm)': product.height_cm || '',
+      'Mfg Date': product.mfg_date ? new Date(product.mfg_date).toLocaleDateString() : '',
+      'Expiry Date': product.expiry_date ? new Date(product.expiry_date).toLocaleDateString() : '',
+      'Shelf Life (days)': product.shelf_life_days || '',
       'Status': product.is_active ? 'Active' : 'Inactive'
     }));
 
@@ -972,6 +985,43 @@ export function InventoryModule() {
                               </div>
                             </div>
                           )}
+
+                          {/* Product Lifecycle Fields */}
+                          <div>
+                            <Label className="text-xs font-medium text-muted-foreground">Product Lifecycle (Optional)</Label>
+                            <div className="space-y-2 mt-2">
+                              <div>
+                                <Label htmlFor="mfg_date" className="text-xs font-medium text-muted-foreground">Mfg Date</Label>
+                                <Input 
+                                  id="mfg_date" 
+                                  name="mfg_date" 
+                                  type="date"
+                                  className="mt-0.5 h-8 text-xs transition-all focus:scale-[1.02]" 
+                                />
+                              </div>
+                              <div>
+                                <Label htmlFor="expiry_date" className="text-xs font-medium text-muted-foreground">Expiry Date</Label>
+                                <Input 
+                                  id="expiry_date" 
+                                  name="expiry_date" 
+                                  type="date"
+                                  className="mt-0.5 h-8 text-xs transition-all focus:scale-[1.02]" 
+                                />
+                              </div>
+                              <div>
+                                <Label htmlFor="shelf_life_days" className="text-xs font-medium text-muted-foreground">Shelf Life (days)</Label>
+                                <Input 
+                                  id="shelf_life_days" 
+                                  name="shelf_life_days" 
+                                  type="number"
+                                  min="0"
+                                  step="1"
+                                  className="mt-0.5 h-8 text-xs transition-all focus:scale-[1.02]" 
+                                  placeholder="e.g., 365"
+                                />
+                              </div>
+                            </div>
+                          </div>
                         </div>
                       </div>
                     </div>

@@ -2073,6 +2073,7 @@ export type Database = {
           cost_price: number
           created_at: string
           description: string | null
+          expiry_date: string | null
           gst_percentage: number | null
           height_cm: number | null
           hsn_code: string | null
@@ -2081,11 +2082,13 @@ export type Database = {
           is_taxable: boolean | null
           length_cm: number | null
           max_stock_level: number | null
+          mfg_date: string | null
           min_stock_level: number
           mrp: number | null
           name: string
           product_category: string | null
           product_type: string | null
+          shelf_life_days: number | null
           sku: string
           stock_quantity: number
           unit: string | null
@@ -2104,6 +2107,7 @@ export type Database = {
           cost_price?: number
           created_at?: string
           description?: string | null
+          expiry_date?: string | null
           gst_percentage?: number | null
           height_cm?: number | null
           hsn_code?: string | null
@@ -2112,11 +2116,13 @@ export type Database = {
           is_taxable?: boolean | null
           length_cm?: number | null
           max_stock_level?: number | null
+          mfg_date?: string | null
           min_stock_level?: number
           mrp?: number | null
           name: string
           product_category?: string | null
           product_type?: string | null
+          shelf_life_days?: number | null
           sku: string
           stock_quantity?: number
           unit?: string | null
@@ -2135,6 +2141,7 @@ export type Database = {
           cost_price?: number
           created_at?: string
           description?: string | null
+          expiry_date?: string | null
           gst_percentage?: number | null
           height_cm?: number | null
           hsn_code?: string | null
@@ -2143,11 +2150,13 @@ export type Database = {
           is_taxable?: boolean | null
           length_cm?: number | null
           max_stock_level?: number | null
+          mfg_date?: string | null
           min_stock_level?: number
           mrp?: number | null
           name?: string
           product_category?: string | null
           product_type?: string | null
+          shelf_life_days?: number | null
           sku?: string
           stock_quantity?: number
           unit?: string | null
