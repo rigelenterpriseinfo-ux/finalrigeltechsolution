@@ -124,7 +124,7 @@ export const Header: React.FC<HeaderProps> = ({
               </Button>
             ) : (
               <Button 
-                onClick={() => navigate('/auth')}
+                onClick={() => navigate('/signin')}
                 variant="ghost" 
                 size={isMobile ? "sm" : "sm"} 
                 className="text-white hover:bg-white/20 hover:text-white min-h-[44px] md:min-h-auto border border-white/20"

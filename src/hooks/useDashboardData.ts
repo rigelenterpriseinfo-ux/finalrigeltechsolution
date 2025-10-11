@@ -21,7 +21,6 @@ export interface UrgentAction {
   description: string;
   count: number;
   value?: string;
-  details?: string;
   type: 'low_stock' | 'overdue_po' | 'unpaid_invoice' | 'backorder';
   timestamp: string;
 }
@@ -133,13 +132,10 @@ export const useDashboardData = (companyId: string | undefined) => {
         .from('products')
         .select('id, name, stock_quantity, unit_price')
         .eq('company_id', companyId)
-        .lt('stock_quantity', 10)
-        .order('stock_quantity', { ascending: true })
-        .limit(3);
+        .lt('stock_quantity', 10);
 
       if (criticalStock && criticalStock.length > 0) {
         const totalValue = criticalStock.reduce((sum, p) => sum + (p.stock_quantity * p.unit_price), 0);
-        const details = criticalStock.map(p => `${p.name} (SOH: ${p.stock_quantity})`).join(', ');
         actions.push({
           id: 'critical-stock',
           priority: 'critical',
@@ -147,7 +143,6 @@ export const useDashboardData = (companyId: string | undefined) => {
           description: `${criticalStock.length} items are critically low (< 10 units)`,
           count: criticalStock.length,
           value: `Value at Risk: ₹${totalValue.toLocaleString('en-IN')}`,
-          details: details,
           type: 'low_stock',
           timestamp: 'Now',
         });
@@ -162,19 +157,15 @@ export const useDashboardData = (companyId: string | undefined) => {
         .select('id, po_number, total_amount')
         .eq('company_id', companyId)
         .eq('status', 'open')
-        .lt('expected_date', sevenDaysAgo.toISOString())
-        .order('expected_date', { ascending: true })
-        .limit(3);
+        .lt('expected_date', sevenDaysAgo.toISOString());
 
       if (overduePOs && overduePOs.length > 0) {
-        const details = overduePOs.map(po => `${po.po_number} (₹${po.total_amount.toLocaleString('en-IN')})`).join(', ');
         actions.push({
           id: 'overdue-pos',
           priority: 'high',
           title: 'Overdue Purchase Orders',
           description: `${overduePOs.length} POs are overdue by more than 7 days`,
           count: overduePOs.length,
-          details: details,
           type: 'overdue_po',
           timestamp: '7+ days',
         });
@@ -208,20 +199,11 @@ export const useDashboardData = (companyId: string | undefined) => {
       // Info: Pending backorders
       const { data: backorders } = await supabase
         .from('sales_order_items')
-        .select(`
-          id, 
-          back_order_quantity,
-          inventory:product_id (
-            name
-          )
-        `)
-        .gt('back_order_quantity', 0)
-        .order('back_order_quantity', { ascending: false })
-        .limit(3);
+        .select('id, back_order_quantity')
+        .gt('back_order_quantity', 0);
 
       if (backorders && backorders.length > 0) {
         const totalBackorder = backorders.reduce((sum, b) => sum + b.back_order_quantity, 0);
-        const details = backorders.map(b => `${b.inventory?.name || 'Unknown'} (${b.back_order_quantity} units)`).join(', ');
         actions.push({
           id: 'backorders',
           priority: 'info',
@@ -229,7 +211,6 @@ export const useDashboardData = (companyId: string | undefined) => {
           description: `${backorders.length} orders have items on backorder`,
           count: backorders.length,
           value: `Total Units: ${totalBackorder}`,
-          details: details,
           type: 'backorder',
           timestamp: 'Pending',
         });

@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Search, Edit, Trash2, ChevronLeft, ChevronRight, ArrowUpDown, ArrowUp, ArrowDown, Download, Eye, FileText, FileSpreadsheet } from "lucide-react";
+import { Search, Edit, Trash2, ChevronLeft, ChevronRight, ArrowUpDown, ArrowUp, ArrowDown, Download, Eye, FileText } from "lucide-react";
 import { useIsMobile } from '@/hooks/use-mobile';
 import { CustomerTableMobile } from './CustomerTableMobile';
 import { exportToExcel } from '@/utils/excelExport';
@@ -428,42 +428,40 @@ export const CustomerTable: React.FC<CustomerTableProps> = ({
       <Card>
         <CardContent>
           {/* Search, Filter and Export Controls */}
-          <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between mb-4 pt-6">
-            {/* Left: Search */}
-            <div className="relative flex-1 max-w-md">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                placeholder="Search by name or reference..."
-                value={searchTerm}
-                onChange={(e) => {
-                  setSearchTerm(e.target.value);
-                  setCurrentPage(1);
-                }}
-                className="pl-10"
-              />
+          <div className="flex gap-4 items-center mb-4 pt-6">
+            <div className="w-96">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+                <Input
+                  placeholder="Search by name or reference..."
+                  value={searchTerm}
+                  onChange={(e) => {
+                    setSearchTerm(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                  className="pl-10"
+                />
+              </div>
             </div>
-            
-            {/* Right: Filters + Export */}
-            <div className="flex gap-2 items-center">
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-32">
-                  <SelectValue placeholder="Status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Status</SelectItem>
-                  <SelectItem value="active">Active</SelectItem>
-                  <SelectItem value="inactive">Inactive</SelectItem>
-                </SelectContent>
-              </Select>
-              
-              <Button
-                onClick={handleExportToExcel}
-                className="gap-2 bg-teal-50 text-teal-700 border border-teal-200 hover:bg-teal-100"
-              >
-                <FileSpreadsheet className="h-4 w-4" />
-                Export
-              </Button>
-            </div>
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-[140px]">
+                <SelectValue placeholder="Filter Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Status</SelectItem>
+                <SelectItem value="active">Active</SelectItem>
+                <SelectItem value="inactive">Inactive</SelectItem>
+              </SelectContent>
+            </Select>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleExportToExcel}
+              className="h-9 px-4 gap-2 rounded-md bg-teal-50 text-teal-700 border border-teal-200 hover:bg-teal-100 font-medium transition-colors"
+            >
+              <Download className="h-4 w-4" />
+              Export
+            </Button>
           </div>
         {loading ? (
           <div className="flex items-center justify-center p-8">

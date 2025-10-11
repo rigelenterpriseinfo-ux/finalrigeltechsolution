@@ -33,9 +33,6 @@ interface Product {
   is_active: boolean;
   product_type: 'goods' | 'service';
   product_category: 'raw_material' | 'finished_goods' | 'consumables' | 'assets' | 'others';
-  mfg_date: string | null;
-  expiry_date: string | null;
-  shelf_life_days: number | null;
 }
 
 interface EditProductDialogProps {
@@ -91,9 +88,6 @@ export const EditProductDialog: React.FC<EditProductDialogProps> = ({
           max_stock_level: formData.max_stock_level,
           product_type: formData.product_type,
           product_category: formData.product_category,
-          mfg_date: formData.mfg_date || null,
-          expiry_date: formData.expiry_date || null,
-          shelf_life_days: formData.shelf_life_days || null,
         })
         .eq('id', product.id);
 
@@ -407,41 +401,6 @@ export const EditProductDialog: React.FC<EditProductDialogProps> = ({
                       min="0"
                       value={formData.max_stock_level || ''}
                       onChange={(e) => handleInputChange('max_stock_level', parseInt(e.target.value) || null)}
-                    />
-                  </div>
-                </div>
-
-                {/* Product Lifecycle Fields */}
-                <div className="space-y-3 pt-3 border-t">
-                  <h4 className="text-sm font-medium">Product Lifecycle (Optional)</h4>
-                  <div>
-                    <Label htmlFor="mfg_date">Mfg Date</Label>
-                    <Input
-                      id="mfg_date"
-                      type="date"
-                      value={formData.mfg_date || ''}
-                      onChange={(e) => handleInputChange('mfg_date', e.target.value || null)}
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="expiry_date">Expiry Date</Label>
-                    <Input
-                      id="expiry_date"
-                      type="date"
-                      value={formData.expiry_date || ''}
-                      onChange={(e) => handleInputChange('expiry_date', e.target.value || null)}
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="shelf_life_days">Shelf Life (days)</Label>
-                    <Input
-                      id="shelf_life_days"
-                      type="number"
-                      min="0"
-                      step="1"
-                      placeholder="e.g., 365"
-                      value={formData.shelf_life_days || ''}
-                      onChange={(e) => handleInputChange('shelf_life_days', parseInt(e.target.value) || null)}
                     />
                   </div>
                 </div>

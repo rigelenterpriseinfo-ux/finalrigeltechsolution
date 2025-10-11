@@ -1,7 +1,7 @@
 import React, { memo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { TrendingUp, FileText, RotateCcw } from 'lucide-react';
 import { useSalesData } from '@/hooks/useSalesData';
 import { useNavigate } from 'react-router-dom';
@@ -43,23 +43,15 @@ const SalesSectionComponent: React.FC<SalesSectionProps> = ({ companyId }) => {
           </CardHeader>
           <CardContent>
             {data?.salesTrend && data.salesTrend.length > 0 ? (
-              <ResponsiveContainer width="100%" height={280}>
-                <ComposedChart data={data.salesTrend}>
+              <ResponsiveContainer width="100%" height={240}>
+                <LineChart data={data.salesTrend}>
                   <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.3} />
                   <XAxis 
                     dataKey="week" 
                     tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }}
                   />
                   <YAxis 
-                    yAxisId="left"
-                    tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }}
-                    label={{ value: 'Value (₹)', angle: -90, position: 'insideLeft', style: { fontSize: 11, fill: 'hsl(var(--muted-foreground))' } }}
-                  />
-                  <YAxis 
-                    yAxisId="right"
-                    orientation="right"
-                    tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }}
-                    label={{ value: 'Quantity', angle: 90, position: 'insideRight', style: { fontSize: 11, fill: 'hsl(var(--muted-foreground))' } }}
+                    tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }}
                   />
                   <Tooltip 
                     contentStyle={customTooltipStyle.contentStyle}
@@ -69,38 +61,24 @@ const SalesSectionComponent: React.FC<SalesSectionProps> = ({ companyId }) => {
                       name === 'revenue' 
                         ? `₹${value.toLocaleString('en-IN')}` 
                         : value.toLocaleString('en-IN'),
-                      name === 'revenue' ? 'Sales Value' : 'Sales Quantity'
+                      name === 'revenue' ? 'Revenue' : 'Quantity'
                     ]}
                   />
-                  <Legend 
-                    verticalAlign="top"
-                    height={40}
-                    iconType="rect"
-                    formatter={(value: string) => {
-                      return value === 'revenue' ? 'Sales Value (₹)' : 'Sales Quantity';
-                    }}
-                    wrapperStyle={{
-                      paddingBottom: '12px',
-                      fontSize: '12px',
-                      fontWeight: 500,
-                    }}
-                  />
-                  <Bar 
-                    yAxisId="left"
+                  <Line 
+                    type="monotone" 
                     dataKey="revenue" 
-                    fill="#2B88D8"
-                    radius={[4, 4, 0, 0]}
-                    barSize={40}
+                    stroke={CHART_COLORS.primary}
+                    strokeWidth={2}
+                    dot={{ fill: CHART_COLORS.primary, r: 4 }}
                   />
                   <Line 
-                    yAxisId="right"
                     type="monotone" 
                     dataKey="quantity" 
-                    stroke="#107C41"
-                    strokeWidth={2.5}
-                    dot={{ fill: '#107C41', r: 5 }}
+                    stroke={CHART_COLORS.success}
+                    strokeWidth={2}
+                    dot={{ fill: CHART_COLORS.success, r: 4 }}
                   />
-                </ComposedChart>
+                </LineChart>
               </ResponsiveContainer>
             ) : (
               <div className="h-60 flex items-center justify-center text-muted-foreground">

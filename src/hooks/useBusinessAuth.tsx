@@ -124,14 +124,6 @@ export const useBusinessAuth = () => {
     // Return undefined during loading to indicate "don't know yet"
     if (loading) return undefined;
     
-    // Special handling for company_profile - OWNER and ADMIN always have access
-    if (section === 'company_profile') {
-      const role = businessUser?.access_type;
-      if (role === 'OWNER' || role === 'ADMIN') {
-        return true;
-      }
-    }
-    
     // Only check section permissions after loading completes
     return sectionPermissions[section] === 'edit';
   };

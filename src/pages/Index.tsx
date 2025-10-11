@@ -4,7 +4,6 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Badge } from '@/components/ui/badge';
 import { Check, Users, Package, TrendingUp, Shield, Globe, ArrowRight, Building2, Star, ShoppingCart, RotateCcw, DollarSign, Bot, MapPin, Zap, Clock, BarChart3, Sparkles, CheckCircle2, AlertTriangle, Archive, Search, FileText, Smartphone } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { supabase } from '@/integrations/supabase/client';
 
 const Index = () => {
   const navigate = useNavigate();
@@ -224,17 +223,7 @@ const Index = () => {
                 <p className="text-xs text-muted-foreground">Navigate Your Business to Success</p>
               </div>
             </div>
-            <Button 
-              onClick={async () => {
-                console.log('Sign In button clicked - clearing auth first');
-                // Force sign out before navigating to ensure clean slate
-                await supabase.auth.signOut();
-                console.log('Auth cleared, navigating to /auth');
-                setTimeout(() => navigate('/auth'), 100);
-              }} 
-              variant="outline" 
-              className="hover-scale"
-            >
+            <Button onClick={() => navigate('/auth')} variant="outline" className="hover-scale">
               Sign In
             </Button>
           </div>
