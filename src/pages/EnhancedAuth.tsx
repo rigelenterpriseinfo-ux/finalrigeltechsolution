@@ -26,7 +26,7 @@ const EnhancedAuth = () => {
   const [username, setUsername] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
   
-  const { signIn, signUp, resetPassword, user } = useAuth();
+  const { signIn, signUp, resetPassword, user, session, loading: authLoading } = useAuth();
 
   useEffect(() => {
     // Check if there's a tab parameter in the URL
@@ -48,12 +48,20 @@ const EnhancedAuth = () => {
     setLoading(false);
   }, [location, toast]);
 
-  // Redirect if already logged in
+  // Redirect if already logged in with valid session
   useEffect(() => {
-    if (user) {
+    console.log('Auth redirect check:', { user: !!user, session: !!session, authLoading });
+    
+    // Only redirect if we have both user AND valid session, and auth is not loading
+    if (!authLoading && user && session) {
+      console.log('Valid session found, redirecting to home');
       navigate('/');
+    } else if (!authLoading && user && !session) {
+      // If we have a user but no session, it's stale - clear it
+      console.log('Stale user detected, clearing auth state');
+      supabase.auth.signOut();
     }
-  }, [user, navigate]);
+  }, [user, session, authLoading, navigate]);
 
   const handleSignIn = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
