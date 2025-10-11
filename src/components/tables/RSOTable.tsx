@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { PowerBICard } from '@/components/ui/powerbi-card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -26,8 +26,7 @@ import {
   Loader2,
   Download,
   FileSpreadsheet,
-  AlertTriangle,
-  Lock
+  AlertTriangle
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
@@ -437,11 +436,11 @@ export function RSOTable({
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'Draft':
-        return 'bg-slate-100 text-slate-700 border border-slate-200 hover:bg-slate-200';
+        return 'bg-gray-50 text-gray-700 border border-gray-200';
       case 'Confirmed':
-        return 'bg-blue-100 text-blue-700 border border-blue-200 hover:bg-blue-200';
+        return 'bg-blue-50 text-blue-700 border border-blue-200';
       default:
-        return 'bg-slate-100 text-slate-700 border border-slate-200 hover:bg-slate-200';
+        return 'bg-gray-50 text-gray-700 border border-gray-200';
     }
   };
 
@@ -450,15 +449,15 @@ export function RSOTable({
     const cns = creditNotes.filter(cn => cn.rso_id === rsoId);
     
     if (!hasCreditNote) {
-      return { color: 'bg-red-100 text-red-700 border border-red-200', text: 'CN Pending' };
+      return { color: 'bg-red-50 text-red-700 border border-red-200', text: 'CN Pending' };
     }
     
     const hasConfirmed = cns.some(cn => cn.status === 'Confirmed');
     if (hasConfirmed) {
-      return { color: 'bg-green-100 text-green-700 border border-green-200', text: 'CN Processed' };
+      return { color: 'bg-green-50 text-green-700 border border-green-200', text: 'CN Processed' };
     }
     
-    return { color: 'bg-amber-100 text-amber-700 border border-amber-200', text: 'CN Draft' };
+    return { color: 'bg-amber-50 text-amber-700 border border-amber-200', text: 'CN Draft' };
   };
 
   const canDeleteRSO = (rsoId: string) => {
@@ -813,25 +812,23 @@ export function RSOTable({
 
   if (loading) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Return Sales Orders</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex justify-center items-center py-8">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
-            <span className="ml-2">Loading return orders...</span>
-          </div>
-        </CardContent>
-      </Card>
+      <PowerBICard title="Return Sales Orders">
+        <div className="flex justify-center items-center py-8">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <span className="ml-2">Loading return orders...</span>
+        </div>
+      </PowerBICard>
     );
   }
 
   return (
     <>
-      <Card className={cn("transition-all duration-200", isActive && "ring-2 ring-primary shadow-lg")}>
-        <CardHeader>
-          <CardTitle className="flex items-center justify-between flex-wrap gap-4">
+      <PowerBICard 
+        title="Return Sales Orders"
+        className={cn("transition-all duration-200", isActive && "ring-2 ring-primary")}
+      >
+        <div className="space-y-4">
+          <div className="flex items-center justify-between flex-wrap gap-4">
             <div className="flex items-center gap-2 flex-wrap">
               <div className="relative">
                 <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -881,9 +878,9 @@ export function RSOTable({
                 Export to Excel
               </Button>
             </div>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
+          </div>
+          
+          <div>
           {currentOrders.length === 0 ? (
             <div className="text-center py-12">
               <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
@@ -899,63 +896,63 @@ export function RSOTable({
               <TooltipProvider>
                 <Table>
                   <TableHeader>
-                    <TableRow>
+                    <TableRow className="border-b border-gray-200">
                       <TableHead 
-                        className="cursor-pointer hover:bg-muted/50 transition-colors"
+                        className="cursor-pointer hover:bg-gray-50 transition-colors text-gray-700"
                         onClick={() => handleSort('rso_number')}
                       >
                         <div className="flex items-center gap-2">
                           RSO Number
-                          {getSortIcon('rso_number')}
+                          <span className="text-gray-400">{getSortIcon('rso_number')}</span>
                         </div>
                       </TableHead>
                       <TableHead 
-                        className="cursor-pointer hover:bg-muted/50 transition-colors"
+                        className="cursor-pointer hover:bg-gray-50 transition-colors text-gray-700"
                         onClick={() => handleSort('rso_date')}
                       >
                         <div className="flex items-center gap-2">
                           RSO Date
-                          {getSortIcon('rso_date')}
+                          <span className="text-gray-400">{getSortIcon('rso_date')}</span>
                         </div>
                       </TableHead>
                       <TableHead 
-                        className="cursor-pointer hover:bg-muted/50 transition-colors"
+                        className="cursor-pointer hover:bg-gray-50 transition-colors text-gray-700"
                         onClick={() => handleSort('customer_name')}
                       >
                         <div className="flex items-center gap-2">
                           Customer
-                          {getSortIcon('customer_name')}
+                          <span className="text-gray-400">{getSortIcon('customer_name')}</span>
                         </div>
                       </TableHead>
                       <TableHead 
-                        className="cursor-pointer hover:bg-muted/50 transition-colors"
+                        className="cursor-pointer hover:bg-gray-50 transition-colors text-gray-700"
                         onClick={() => handleSort('invoice_number')}
                       >
                         <div className="flex items-center gap-2">
                           Invoice Number
-                          {getSortIcon('invoice_number')}
+                          <span className="text-gray-400">{getSortIcon('invoice_number')}</span>
                         </div>
                       </TableHead>
                       <TableHead 
-                        className="cursor-pointer hover:bg-muted/50 transition-colors"
+                        className="cursor-pointer hover:bg-gray-50 transition-colors text-gray-700"
                         onClick={() => handleSort('status')}
                       >
                         <div className="flex items-center gap-2">
                           Status
-                          {getSortIcon('status')}
+                          <span className="text-gray-400">{getSortIcon('status')}</span>
                         </div>
                       </TableHead>
-                      <TableHead>CN Status</TableHead>
+                      <TableHead className="text-gray-700">CN Status</TableHead>
                       <TableHead 
-                        className="cursor-pointer hover:bg-muted/50 transition-colors text-right"
+                        className="cursor-pointer hover:bg-gray-50 transition-colors text-right text-gray-700"
                         onClick={() => handleSort('total_amount')}
                       >
                         <div className="flex items-center gap-2 justify-end">
                           Amount
-                          {getSortIcon('total_amount')}
+                          <span className="text-gray-400">{getSortIcon('total_amount')}</span>
                         </div>
                       </TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
+                      <TableHead className="text-right text-gray-700">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -966,7 +963,7 @@ export function RSOTable({
                       const linkedCNs = rsoLinkedCNs.get(order.id) || [];
                       
                       return (
-                        <TableRow key={order.id} className="hover:bg-muted/50 transition-colors">
+                        <TableRow key={order.id} className="hover:bg-gray-50 transition-colors border-b border-gray-100">
                           <TableCell className="font-medium">{order.rso_number}</TableCell>
                           <TableCell>{new Date(order.rso_date).toLocaleDateString()}</TableCell>
                           <TableCell>{order.customer_name}</TableCell>
@@ -1011,14 +1008,16 @@ export function RSOTable({
                                 <TooltipTrigger asChild>
                                   <Button
                                     variant="ghost"
-                                    size="sm"
+                                    size="icon"
                                     onClick={() => onView(order.id)}
-                                    className="hover:bg-primary/10 hover:text-primary transition-colors"
+                                    className="h-8 w-8 text-gray-600 hover:text-primary hover:bg-gray-100 transition-colors"
                                   >
                                     <Eye className="h-4 w-4" />
                                   </Button>
                                 </TooltipTrigger>
-                                <TooltipContent>View RSO</TooltipContent>
+                                <TooltipContent>
+                                  <p className="text-sm">View RSO</p>
+                                </TooltipContent>
                               </Tooltip>
 
                               {order.status === 'Draft' && (
@@ -1027,17 +1026,23 @@ export function RSOTable({
                                     <span>
                                       <Button
                                         variant="ghost"
-                                        size="sm"
+                                        size="icon"
                                         onClick={() => canEdit ? onEdit(order.id) : undefined}
                                         disabled={!canEdit}
-                                        className={canEdit ? "hover:bg-blue-100 hover:text-blue-700 transition-colors" : "opacity-50 cursor-not-allowed"}
+                                        className={cn(
+                                          "h-8 w-8",
+                                          canEdit 
+                                            ? "text-gray-600 hover:text-blue-600 hover:bg-blue-50 transition-colors" 
+                                            : "text-gray-300 cursor-not-allowed opacity-50"
+                                        )}
                                       >
-                                        {!canEdit && <Lock className="h-3 w-3 mr-1" />}
                                         <Edit className="h-4 w-4" />
                                       </Button>
                                     </span>
                                   </TooltipTrigger>
-                                  <TooltipContent>{getEditTooltip(order.id)}</TooltipContent>
+                                  <TooltipContent>
+                                    <p className="text-sm">{getEditTooltip(order.id)}</p>
+                                  </TooltipContent>
                                 </Tooltip>
                               )}
 
@@ -1046,15 +1051,15 @@ export function RSOTable({
                                   <TooltipTrigger asChild>
                                     <Button
                                       variant="ghost"
-                                      size="sm"
+                                      size="icon"
                                       onClick={() => onViewCreditNotes(order)}
-                                      className="hover:bg-blue-100 hover:text-blue-700 transition-colors"
+                                      className="h-8 w-8 text-gray-600 hover:text-blue-600 hover:bg-blue-50 transition-colors"
                                     >
                                       <FileText className="h-4 w-4" />
                                     </Button>
                                   </TooltipTrigger>
                                   <TooltipContent>
-                                    View {linkedCNs.length} Credit Note{linkedCNs.length > 1 ? 's' : ''}
+                                    <p className="text-sm">View {linkedCNs.length} Credit Note{linkedCNs.length > 1 ? 's' : ''}</p>
                                   </TooltipContent>
                                 </Tooltip>
                               )}
@@ -1063,28 +1068,16 @@ export function RSOTable({
                                 <TooltipTrigger asChild>
                                   <Button
                                     variant="ghost"
-                                    size="sm"
+                                    size="icon"
                                     onClick={() => onExport ? onExport(order) : exportToExcel(order)}
-                                    className="hover:bg-green-100 hover:text-green-700 transition-colors"
+                                    className="h-8 w-8 text-gray-600 hover:text-green-600 hover:bg-green-50 transition-colors"
                                   >
                                     <Download className="h-4 w-4" />
                                   </Button>
                                 </TooltipTrigger>
-                                <TooltipContent>Export to Excel</TooltipContent>
-                              </Tooltip>
-
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => exportToPDF(order)}
-                                    className="hover:bg-red-50 hover:text-red-700 border border-transparent hover:border-red-200 transition-colors"
-                                  >
-                                    <FileText className="h-4 w-4" />
-                                  </Button>
-                                </TooltipTrigger>
-                                <TooltipContent>Export to PDF</TooltipContent>
+                                <TooltipContent>
+                                  <p className="text-sm">Export to Excel</p>
+                                </TooltipContent>
                               </Tooltip>
 
                               {order.status === 'Draft' && (
@@ -1093,17 +1086,23 @@ export function RSOTable({
                                     <span>
                                       <Button
                                         variant="ghost"
-                                        size="sm"
+                                        size="icon"
                                         onClick={() => handleDeleteClick(order)}
                                         disabled={!canDelete}
-                                        className={canDelete ? "hover:bg-destructive/10 hover:text-destructive transition-colors" : "opacity-50 cursor-not-allowed"}
+                                        className={cn(
+                                          "h-8 w-8",
+                                          canDelete 
+                                            ? "text-gray-600 hover:text-red-600 hover:bg-red-50 transition-colors" 
+                                            : "text-gray-300 cursor-not-allowed opacity-50"
+                                        )}
                                       >
-                                        {!canDelete && <Lock className="h-3 w-3 mr-1" />}
                                         <Trash2 className="h-4 w-4" />
                                       </Button>
                                     </span>
                                   </TooltipTrigger>
-                                  <TooltipContent>{getDeleteTooltip(order.id)}</TooltipContent>
+                                  <TooltipContent>
+                                    <p className="text-sm">{getDeleteTooltip(order.id)}</p>
+                                  </TooltipContent>
                                 </Tooltip>
                               )}
                             </div>
@@ -1144,8 +1143,9 @@ export function RSOTable({
               </div>
             </>
           )}
-        </CardContent>
-      </Card>
+          </div>
+        </div>
+      </PowerBICard>
 
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
