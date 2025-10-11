@@ -1,5 +1,5 @@
 import React, { memo, useState } from 'react';
-import { HeroKPISection } from './HeroKPISection';
+import { PowerBIHeroKPISection } from './PowerBIHeroKPISection';
 import { UrgentActionsPanel } from './UrgentActionsPanel';
 import { SupplyChainSection } from './SupplyChainSection';
 import { OperationalEfficiencySection } from './OperationalEfficiencySection';
@@ -177,7 +177,7 @@ const RedesignedDashboardComponent: React.FC<RedesignedDashboardProps> = ({ comp
               <section aria-labelledby="kpi-section-title">
                 <h2 id="kpi-section-title" className="sr-only">Key Performance Indicators</h2>
                 <DashboardSectionWrapper>
-                  <HeroKPISection
+                  <PowerBIHeroKPISection
                     data={kpiData}
                     loading={kpiLoading}
                     companyId={companyId}

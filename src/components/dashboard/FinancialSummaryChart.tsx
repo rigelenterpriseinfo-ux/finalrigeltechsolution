@@ -1,9 +1,10 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { subDays, format } from 'date-fns';
+import { POWER_BI_CHART_CONFIG } from '@/lib/powerBiChartConfig';
 
 interface FinancialSummaryChartProps {
   companyId?: string;
@@ -72,13 +73,13 @@ export const FinancialSummaryChart: React.FC<FinancialSummaryChartProps> = ({ co
 
   if (isLoading) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Financial Summary (30 Days)</CardTitle>
+      <Card className="border-border bg-card shadow-sm">
+        <CardHeader className="border-b border-border">
+          <CardTitle className="text-base font-medium">Financial Summary (30 Days)</CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="pt-6">
           <div className="h-[300px] flex items-center justify-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#2B88D8]"></div>
           </div>
         </CardContent>
       </Card>
@@ -86,28 +87,36 @@ export const FinancialSummaryChart: React.FC<FinancialSummaryChartProps> = ({ co
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Financial Summary (30 Days)</CardTitle>
+    <Card className="border-border bg-card shadow-sm hover:shadow-md transition-shadow">
+      <CardHeader className="border-b border-border">
+        <CardTitle className="text-base font-medium">Financial Summary (30 Days)</CardTitle>
       </CardHeader>
-      <CardContent>
+      <CardContent className="pt-6">
         <ResponsiveContainer width="100%" height={300}>
-          <BarChart data={chartData}>
-            <CartesianGrid strokeDasharray="3 3" />
-            <XAxis dataKey="week" />
-            <YAxis />
+          <BarChart 
+            data={chartData}
+            margin={POWER_BI_CHART_CONFIG.chartDefaults.margin}
+          >
+            <CartesianGrid {...POWER_BI_CHART_CONFIG.gridStyle} />
+            <XAxis 
+              dataKey="week"
+              tick={POWER_BI_CHART_CONFIG.axisStyle.tick}
+              axisLine={POWER_BI_CHART_CONFIG.axisStyle.axisLine}
+            />
+            <YAxis
+              tick={POWER_BI_CHART_CONFIG.axisStyle.tick}
+              axisLine={POWER_BI_CHART_CONFIG.axisStyle.axisLine}
+            />
             <Tooltip
               formatter={(value: number) => `₹${value.toLocaleString()}`}
-              contentStyle={{
-                backgroundColor: 'hsl(var(--background))',
-                border: '1px solid hsl(var(--border))',
-                borderRadius: '6px',
-              }}
+              contentStyle={POWER_BI_CHART_CONFIG.tooltipStyle.contentStyle}
+              labelStyle={POWER_BI_CHART_CONFIG.tooltipStyle.labelStyle}
+              itemStyle={POWER_BI_CHART_CONFIG.tooltipStyle.itemStyle}
             />
             <Legend />
-            <Bar dataKey="sales" fill="hsl(var(--primary))" name="Sales" />
-            <Bar dataKey="purchases" fill="hsl(142.1 76.2% 36.3%)" name="Purchases" />
-            <Bar dataKey="profit" fill="hsl(221.2 83.2% 53.3%)" name="Profit" />
+            <Bar dataKey="sales" fill={POWER_BI_CHART_CONFIG.colors.primary} name="Sales" />
+            <Bar dataKey="purchases" fill={POWER_BI_CHART_CONFIG.colors.secondary} name="Purchases" />
+            <Bar dataKey="profit" fill={POWER_BI_CHART_CONFIG.colors.success} name="Profit" />
           </BarChart>
         </ResponsiveContainer>
       </CardContent>
