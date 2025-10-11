@@ -63,8 +63,6 @@ const EnhancedAuth = () => {
     
     if (!businessRefNo.trim()) {
       newErrors.businessRefNo = 'Business ID is required';
-    } else if (!businessRefNo.startsWith('BUS-')) {
-      newErrors.businessRefNo = 'Business ID must start with BUS-';
     }
     
     if (!username.trim()) {
