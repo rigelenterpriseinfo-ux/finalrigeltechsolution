@@ -859,6 +859,13 @@ export function RSOTable({
       currentY = (doc as any).lastAutoTable.finalY + 10;
 
       // ========== TOTALS SECTION (RIGHT ALIGNED) ==========
+      // Recalculate totals from line items for accuracy
+      const calculatedSubtotal = rsoItems?.reduce((sum: number, item: any) => 
+        sum + parseFloat(item.line_subtotal || 0), 0) || 0;
+      const calculatedTax = rsoItems?.reduce((sum: number, item: any) => 
+        sum + parseFloat(item.tax_amount || 0), 0) || 0;
+      const calculatedTotal = calculatedSubtotal + calculatedTax;
+
       const summaryX = 130;
       const summaryWidth = 66;
       let summaryY = currentY;
@@ -869,12 +876,12 @@ export function RSOTable({
 
       // Subtotal
       doc.text('Subtotal:', summaryX, summaryY);
-      doc.text(`₹${(rsoDetail.subtotal_amount || 0).toFixed(2)}`, summaryX + summaryWidth, summaryY, { align: 'right' });
+      doc.text(`₹${calculatedSubtotal.toFixed(2)}`, summaryX + summaryWidth, summaryY, { align: 'right' });
       summaryY += 5;
 
       // Tax
       doc.text('Tax Amount:', summaryX, summaryY);
-      doc.text(`₹${(rsoDetail.tax_amount || 0).toFixed(2)}`, summaryX + summaryWidth, summaryY, { align: 'right' });
+      doc.text(`₹${calculatedTax.toFixed(2)}`, summaryX + summaryWidth, summaryY, { align: 'right' });
       summaryY += 5;
 
       // Line separator
@@ -889,7 +896,7 @@ export function RSOTable({
       doc.rect(summaryX - 2, summaryY - 4, summaryWidth + 4, 7, 'F');
       doc.setTextColor(255, 255, 255);
       doc.text('Total Amount:', summaryX, summaryY);
-      doc.text(`₹${(rsoDetail.total_amount || 0).toFixed(2)}`, summaryX + summaryWidth, summaryY, { align: 'right' });
+      doc.text(`₹${calculatedTotal.toFixed(2)}`, summaryX + summaryWidth, summaryY, { align: 'right' });
       doc.setTextColor(0, 0, 0);
       doc.setFont('helvetica', 'normal');
 
@@ -901,7 +908,7 @@ export function RSOTable({
       doc.setFont('helvetica', 'bold');
       doc.text('Amount in Words:', 10, yPos);
       doc.setFont('helvetica', 'normal');
-      doc.text(convertNumberToWords(rsoDetail.total_amount), 10, yPos + 5, { maxWidth: 190 });
+      doc.text(convertNumberToWords(calculatedTotal), 10, yPos + 5, { maxWidth: 190 });
 
       yPos += 15;
 
