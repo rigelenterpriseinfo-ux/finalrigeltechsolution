@@ -49,21 +49,13 @@ const EnhancedAuth = () => {
     setLoading(false);
   }, [location, toast]);
 
-  // Clear any stale auth state on mount and prevent immediate redirect
+  // Clear any stale auth state on mount
   useEffect(() => {
     console.log('EnhancedAuth mounted');
     setSkipRedirect(true);
-    
-    // Clear any stale session when auth page loads
-    const clearStaleAuth = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      console.log('Current session check:', !!session);
-      if (session) {
-        console.log('Clearing existing session to allow login');
-        await supabase.auth.signOut();
-      }
-    };
-    clearStaleAuth();
+    // Keep skip redirect active for 1 second to prevent immediate redirects
+    const timer = setTimeout(() => setSkipRedirect(false), 1000);
+    return () => clearTimeout(timer);
   }, []);
 
   // Redirect if already logged in with valid session (but not if we just navigated here)

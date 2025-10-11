@@ -225,10 +225,12 @@ const Index = () => {
               </div>
             </div>
             <Button 
-              onClick={() => {
-                console.log('Sign In button clicked');
-                // Navigate directly, let EnhancedAuth handle any stale state
-                navigate('/auth');
+              onClick={async () => {
+                console.log('Sign In button clicked - clearing auth first');
+                // Force sign out before navigating to ensure clean slate
+                await supabase.auth.signOut();
+                console.log('Auth cleared, navigating to /auth');
+                setTimeout(() => navigate('/auth'), 100);
               }} 
               variant="outline" 
               className="hover-scale"
