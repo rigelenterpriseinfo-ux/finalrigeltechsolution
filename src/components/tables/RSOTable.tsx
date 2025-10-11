@@ -559,6 +559,17 @@ export function RSOTable({
 
       if (error) throw error;
 
+      // Fetch complete customer data
+      const { data: customerData, error: customerError } = await supabase
+        .from('customers')
+        .select('*')
+        .eq('id', order.customer_id)
+        .single();
+
+      if (customerError) {
+        console.error('Error fetching customer:', customerError);
+      }
+
       // Fetch RSO line items
       const { data: rsoItems, error: itemsError } = await supabase
         .from('return_order_lines')
@@ -644,104 +655,246 @@ export function RSOTable({
       doc.text(`RSO #: ${rsoDetail.rso_number}`, 195, 37, { align: 'right' });
       doc.text(`Date: ${formatDate(new Date(rsoDetail.rso_date), 'dd/MM/yyyy')}`, 195, 43, { align: 'right' });
 
-      yPos = 63;
+      let currentY = 63;
 
-      // ========== CUSTOMER DETAILS ==========
-      doc.setFillColor(245, 245, 245);
-      doc.rect(10, yPos, 190, 30, 'F');
+      // ========== CUSTOMER DETAILS & DELIVERY ADDRESS (TWO COLUMNS) ==========
+      const leftColumnX = 14;
+      const rightColumnX = 110;
+      let detailsY = currentY;
 
+      // Left Column - Customer Details
       doc.setFontSize(9);
       doc.setFont('helvetica', 'bold');
+      doc.setFillColor(240, 240, 240);
       doc.setTextColor(0, 0, 0);
-      doc.text('Customer Details', 15, yPos + 6);
+      doc.rect(leftColumnX, detailsY, 90, 6, 'F');
+      doc.text('CUSTOMER DETAILS', leftColumnX + 2, detailsY + 4);
 
-      doc.setFontSize(8);
+      detailsY += 8;
       doc.setFont('helvetica', 'normal');
-      doc.text(`Customer Name: ${rsoDetail.customer_name}`, 15, yPos + 12);
-      doc.text(`Invoice Number: ${rsoDetail.invoice_number}`, 15, yPos + 18);
-      doc.text(`Invoice Date: ${formatDate(new Date(rsoDetail.invoice_date), 'dd/MM/yyyy')}`, 15, yPos + 24);
+      doc.setFontSize(8);
+      doc.text(`${customerData?.name || rsoDetail.customer_name || 'N/A'}`, leftColumnX + 2, detailsY);
+      detailsY += 4;
+      if (customerData?.address_line1) {
+        doc.text(customerData.address_line1, leftColumnX + 2, detailsY);
+        detailsY += 4;
+      }
+      if (customerData?.address_line2) {
+        doc.text(customerData.address_line2, leftColumnX + 2, detailsY);
+        detailsY += 4;
+      }
+      const cityLine = [customerData?.city, customerData?.state, customerData?.pin_code].filter(Boolean).join(', ');
+      if (cityLine) {
+        doc.text(cityLine, leftColumnX + 2, detailsY);
+        detailsY += 4;
+      }
+      if (customerData?.country) {
+        doc.text(customerData.country, leftColumnX + 2, detailsY);
+        detailsY += 4;
+      }
+      if (customerData?.gstin) {
+        doc.text(`GSTIN: ${customerData.gstin}`, leftColumnX + 2, detailsY);
+        detailsY += 4;
+      }
+      if (customerData?.phone) {
+        doc.text(`Phone: ${customerData.phone}`, leftColumnX + 2, detailsY);
+        detailsY += 4;
+      }
+      if (customerData?.email) {
+        doc.text(`Email: ${customerData.email}`, leftColumnX + 2, detailsY);
+      }
 
-      doc.text(`Reason for Credit: ${rsoDetail.reason_for_credit}`, 110, yPos + 12);
-      doc.text(`Status: ${rsoDetail.status}`, 110, yPos + 18);
+      // Right Column - Delivery Address
+      let deliveryY = currentY;
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(9);
+      doc.setFillColor(240, 240, 240);
+      doc.rect(rightColumnX, deliveryY, 90, 6, 'F');
+      doc.text('DELIVERY ADDRESS', rightColumnX + 2, deliveryY + 4);
 
-      yPos += 38;
+      deliveryY += 8;
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8);
 
-      // ========== LINE ITEMS TABLE ==========
+      if (rsoDetail.delivery_same_as_company) {
+        doc.text('Same as Company Address', rightColumnX + 2, deliveryY);
+        deliveryY += 4;
+        if (companyData?.address_line1) {
+          doc.text(companyData.address_line1, rightColumnX + 2, deliveryY);
+          deliveryY += 4;
+        }
+        if (companyData?.address_line2) {
+          doc.text(companyData.address_line2, rightColumnX + 2, deliveryY);
+          deliveryY += 4;
+        }
+        const compCityLine = [companyData?.city, companyData?.state, companyData?.postal_code].filter(Boolean).join(', ');
+        if (compCityLine) {
+          doc.text(compCityLine, rightColumnX + 2, deliveryY);
+          deliveryY += 4;
+        }
+        if (companyData?.country) {
+          doc.text(companyData.country, rightColumnX + 2, deliveryY);
+        }
+      } else {
+        if (rsoDetail.delivery_address_line1) {
+          doc.text(rsoDetail.delivery_address_line1, rightColumnX + 2, deliveryY);
+          deliveryY += 4;
+        }
+        if (rsoDetail.delivery_address_line2) {
+          doc.text(rsoDetail.delivery_address_line2, rightColumnX + 2, deliveryY);
+          deliveryY += 4;
+        }
+        const delCityLine = [rsoDetail.delivery_city, rsoDetail.delivery_country, rsoDetail.delivery_pin_code].filter(Boolean).join(', ');
+        if (delCityLine) {
+          doc.text(delCityLine, rightColumnX + 2, deliveryY);
+        }
+      }
+
+      currentY = Math.max(detailsY, deliveryY) + 10;
+
+      // ========== ORDER DETAILS BOX ==========
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(9);
+      doc.setFillColor(240, 240, 240);
+      doc.rect(14, currentY, 182, 6, 'F');
+      doc.text('ORDER DETAILS', 16, currentY + 4);
+
+      currentY += 8;
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8);
+
+      const orderDetailsLeft = [
+        { label: 'RSO Date:', value: rsoDetail.created_at ? formatDate(new Date(rsoDetail.created_at), 'dd-MMM-yyyy') : 'N/A' },
+        { label: 'Invoice No:', value: rsoDetail.invoice_number || 'N/A' },
+        { label: 'Invoice Date:', value: rsoDetail.invoice_date ? formatDate(new Date(rsoDetail.invoice_date), 'dd-MMM-yyyy') : 'N/A' },
+      ];
+
+      const orderDetailsRight = [
+        { label: 'Status:', value: rsoDetail.status || 'Draft' },
+        { label: 'Reason:', value: rsoDetail.reason_for_credit || 'N/A' },
+        { label: 'Currency:', value: 'INR' },
+      ];
+
+      let detailX = 16;
+      orderDetailsLeft.forEach((detail) => {
+        doc.setFont('helvetica', 'bold');
+        doc.text(detail.label, detailX, currentY);
+        doc.setFont('helvetica', 'normal');
+        doc.text(detail.value, detailX + 25, currentY);
+        currentY += 5;
+      });
+
+      currentY -= 15; // Reset to align with left column
+      detailX = 110;
+      orderDetailsRight.forEach((detail) => {
+        doc.setFont('helvetica', 'bold');
+        doc.text(detail.label, detailX, currentY);
+        doc.setFont('helvetica', 'normal');
+        doc.text(detail.value, detailX + 25, currentY);
+        currentY += 5;
+      });
+
+      currentY += 10;
+      yPos = currentY;
+
+      // ========== LINE ITEMS TABLE (SIMPLIFIED) ==========
       const tableData = rsoItems?.map((item: any, index: number) => [
-        index + 1,
-        item.product_sku,
-        item.product_name,
-        item.hsn_sac_code || '-',
-        item.invoice_qty,
-        item.return_qty,
-        `₹${item.unit_price.toFixed(2)}`,
-        `${item.discount_percentage || 0}%`,
-        `₹${item.discount_amount.toFixed(2)}`,
-        `${item.cgst_rate || 0}%`,
-        `${item.sgst_rate || 0}%`,
-        `${item.igst_rate || 0}%`,
-        `₹${item.tax_amount.toFixed(2)}`,
-        `₹${item.line_total.toFixed(2)}`
+        (index + 1).toString(),
+        item.product_sku || '',
+        item.product_name || '',
+        item.hsn_sac_code || '',
+        item.return_qty?.toString() || '0',
+        `₹${parseFloat(item.unit_price || 0).toFixed(2)}`,
+        `${parseFloat(item.discount_percentage || 0).toFixed(2)}%`,
+        `₹${parseFloat(item.discount_amount || 0).toFixed(2)}`,
+        `${parseFloat(item.cgst_rate || item.igst_rate || 0).toFixed(2)}%`,
+        `₹${parseFloat(item.tax_amount || 0).toFixed(2)}`,
+        `₹${parseFloat(item.line_total || 0).toFixed(2)}`
       ]) || [];
 
       (doc as any).autoTable({
         startY: yPos,
         head: [[
-          'S.No', 'SKU', 'Product', 'HSN', 'Inv Qty', 'Ret Qty', 
-          'Rate', 'Disc%', 'Disc Amt', 'CGST%', 'SGST%', 'IGST%', 'Tax', 'Amount'
+          'S.No',
+          'Item Code',
+          'Description',
+          'HSN/SAC',
+          'Qty',
+          'Rate',
+          'Disc%',
+          'Disc Amt',
+          'Tax%',
+          'Tax Amt',
+          'Amount'
         ]],
         body: tableData,
         theme: 'grid',
         headStyles: {
           fillColor: [41, 128, 185],
           textColor: 255,
-          fontSize: 7,
           fontStyle: 'bold',
+          fontSize: 8,
           halign: 'center'
         },
         bodyStyles: {
           fontSize: 7,
-          textColor: [0, 0, 0]
+          cellPadding: 2
         },
         columnStyles: {
-          0: { halign: 'center', cellWidth: 10 },
-          1: { halign: 'left', cellWidth: 18 },
-          2: { halign: 'left', cellWidth: 35 },
-          3: { halign: 'center', cellWidth: 15 },
-          4: { halign: 'right', cellWidth: 12 },
-          5: { halign: 'right', cellWidth: 12 },
-          6: { halign: 'right', cellWidth: 15 },
-          7: { halign: 'right', cellWidth: 12 },
-          8: { halign: 'right', cellWidth: 15 },
-          9: { halign: 'right', cellWidth: 12 },
-          10: { halign: 'right', cellWidth: 12 },
-          11: { halign: 'right', cellWidth: 12 },
-          12: { halign: 'right', cellWidth: 15 },
-          13: { halign: 'right', cellWidth: 18 }
+          0: { halign: 'center', cellWidth: 12 },
+          1: { halign: 'left', cellWidth: 20 },
+          2: { halign: 'left', cellWidth: 40 },
+          3: { halign: 'center', cellWidth: 18 },
+          4: { halign: 'center', cellWidth: 12 },
+          5: { halign: 'right', cellWidth: 18 },
+          6: { halign: 'right', cellWidth: 14 },
+          7: { halign: 'right', cellWidth: 16 },
+          8: { halign: 'right', cellWidth: 12 },
+          9: { halign: 'right', cellWidth: 16 },
+          10: { halign: 'right', cellWidth: 20 }
         },
-        margin: { left: 10, right: 10 }
+        margin: { left: 14, right: 14 }
       });
 
-      yPos = (doc as any).lastAutoTable.finalY + 10;
+      currentY = (doc as any).lastAutoTable.finalY + 10;
 
-      // ========== TOTALS SECTION ==========
-      doc.setFillColor(245, 245, 245);
-      doc.rect(130, yPos, 70, 25, 'F');
+      // ========== TOTALS SECTION (RIGHT ALIGNED) ==========
+      const summaryX = 130;
+      const summaryWidth = 66;
+      let summaryY = currentY;
 
-      doc.setFontSize(8);
-      doc.setFont('helvetica', 'normal');
-      doc.text('Subtotal:', 135, yPos + 6);
-      doc.text(`₹${rsoDetail.subtotal_amount?.toFixed(2) || '0.00'}`, 195, yPos + 6, { align: 'right' });
-
-      doc.text('Total Tax:', 135, yPos + 12);
-      doc.text(`₹${rsoDetail.tax_amount?.toFixed(2) || '0.00'}`, 195, yPos + 12, { align: 'right' });
-
-      doc.setFont('helvetica', 'bold');
       doc.setFontSize(9);
-      doc.text('Grand Total:', 135, yPos + 20);
-      doc.text(`₹${rsoDetail.total_amount.toFixed(2)}`, 195, yPos + 20, { align: 'right' });
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(0, 0, 0);
 
-      yPos += 30;
+      // Subtotal
+      doc.text('Subtotal:', summaryX, summaryY);
+      doc.text(`₹${(rsoDetail.subtotal_amount || 0).toFixed(2)}`, summaryX + summaryWidth, summaryY, { align: 'right' });
+      summaryY += 5;
+
+      // Tax
+      doc.text('Tax Amount:', summaryX, summaryY);
+      doc.text(`₹${(rsoDetail.tax_amount || 0).toFixed(2)}`, summaryX + summaryWidth, summaryY, { align: 'right' });
+      summaryY += 5;
+
+      // Line separator
+      doc.setLineWidth(0.5);
+      doc.line(summaryX, summaryY, summaryX + summaryWidth, summaryY);
+      summaryY += 5;
+
+      // Total (highlighted)
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(10);
+      doc.setFillColor(41, 128, 185);
+      doc.rect(summaryX - 2, summaryY - 4, summaryWidth + 4, 7, 'F');
+      doc.setTextColor(255, 255, 255);
+      doc.text('Total Amount:', summaryX, summaryY);
+      doc.text(`₹${(rsoDetail.total_amount || 0).toFixed(2)}`, summaryX + summaryWidth, summaryY, { align: 'right' });
+      doc.setTextColor(0, 0, 0);
+      doc.setFont('helvetica', 'normal');
+
+      summaryY += 10;
+      yPos = summaryY;
 
       // ========== AMOUNT IN WORDS ==========
       doc.setFontSize(8);
