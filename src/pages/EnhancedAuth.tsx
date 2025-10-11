@@ -50,16 +50,9 @@ const EnhancedAuth = () => {
 
   // Redirect if already logged in with valid session
   useEffect(() => {
-    console.log('Auth redirect check:', { user: !!user, session: !!session, authLoading });
-    
     // Only redirect if we have both user AND valid session, and auth is not loading
     if (!authLoading && user && session) {
-      console.log('Valid session found, redirecting to home');
       navigate('/');
-    } else if (!authLoading && user && !session) {
-      // If we have a user but no session, it's stale - clear it
-      console.log('Stale user detected, clearing auth state');
-      supabase.auth.signOut();
     }
   }, [user, session, authLoading, navigate]);
 
