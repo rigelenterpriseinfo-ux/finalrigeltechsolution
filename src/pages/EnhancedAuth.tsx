@@ -75,9 +75,10 @@ const EnhancedAuth = () => {
       newErrors.password = 'Password is required';
     }
     
-    // Validate captcha if configured
+    // Validate captcha if configured with a valid site key
     const captchaElement = document.querySelector('meta[name="turnstile-sitekey"]');
-    if (captchaElement && !captchaToken) {
+    const siteKey = captchaElement?.getAttribute('content');
+    if (siteKey && siteKey.trim() !== '' && !captchaToken) {
       newErrors.captcha = 'Please complete the captcha verification';
     }
     
