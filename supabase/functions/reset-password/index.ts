@@ -3,6 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 
 const allowedOrigins = [
   'https://63be031f-eceb-4ef8-a148-241fcdfde80c.lovableproject.com',
+  'https://www.rigelinventory.com',
   'http://localhost:3000',
   'http://localhost:5173',
 ];
