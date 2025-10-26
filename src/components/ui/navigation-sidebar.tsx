@@ -33,7 +33,7 @@ interface NavigationItem {
 const navigationItems: NavigationItem[] = [
   { id: 'dashboard', label: 'Welcome back, Girish!', icon: BarChart3, public: true },
   { id: 'inventory', label: 'Inventory', icon: Package, section: 'inventory' },
-  { id: 'purchase', label: 'Purchase', icon: ShoppingCart, section: 'purchases' },
+  { id: 'purchase', label: 'Purchase', icon: ShoppingCart, section: 'purchase' },
   { id: 'sales', label: 'Sales', icon: FileText, section: 'sales' },
   { id: 'returns', label: 'Returns', icon: RotateCcw, section: 'returns' },
   { id: 'payments', label: 'Payments', icon: CreditCard, section: 'payments' },
