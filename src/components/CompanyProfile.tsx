@@ -196,9 +196,15 @@ export function CompanyProfile({ readonly = false }: CompanyProfileProps) {
       // Upload logo if a new file was selected
       let logoUrl = formData.logoUrl; // Keep existing logo URL
       if (logoFile) {
+        console.log('[CompanyProfile] Uploading new logo file...');
         const uploadedLogoUrl = await uploadLogo();
         if (uploadedLogoUrl) {
           logoUrl = uploadedLogoUrl;
+          console.log('[CompanyProfile] Logo uploaded successfully:', logoUrl);
+          // Update form data immediately to ensure it's included in the database update
+          setFormData(prev => ({ ...prev, logoUrl: uploadedLogoUrl }));
+        } else {
+          console.error('[CompanyProfile] Logo upload returned null');
         }
       }
 
@@ -347,12 +353,17 @@ export function CompanyProfile({ readonly = false }: CompanyProfileProps) {
           .update({ company_id: targetCompanyId })
           .eq('user_id', user.id);
         } else {
-          const { error } = await supabase
+          console.log('[CompanyProfile] Updating company with logo_url:', sanitizedData.logo_url);
+          
+          const { data: updatedData, error } = await supabase
             .from('companies')
             .update(sanitizedData)
-            .eq('id', targetCompanyId);
+            .eq('id', targetCompanyId)
+            .select('logo_url')
+            .single();
 
           if (error) {
+            console.error('[CompanyProfile] Database update failed:', error);
             toast({
               title: "Update failed",
               description: error.message,
@@ -360,6 +371,17 @@ export function CompanyProfile({ readonly = false }: CompanyProfileProps) {
             });
             setIsLoading(false);
             return;
+          }
+          
+          console.log('[CompanyProfile] Database updated successfully, logo_url:', updatedData?.logo_url);
+          
+          // Update local state immediately with the saved logo URL
+          if (updatedData?.logo_url) {
+            setFormData(prev => ({ ...prev, logoUrl: updatedData.logo_url }));
+            const cacheBustedUrl = updatedData.logo_url.includes('?') 
+              ? `${updatedData.logo_url}&refresh=${Date.now()}` 
+              : `${updatedData.logo_url}?refresh=${Date.now()}`;
+            setLogoPreview(cacheBustedUrl);
           }
         }
 
@@ -451,9 +473,14 @@ export function CompanyProfile({ readonly = false }: CompanyProfileProps) {
         upiId: (company as any).upi_id || '',
       }));
       
-      // Set logo preview if URL exists
+      // Set logo preview if URL exists with cache-busting
       if ((company as any).logo_url) {
-        setLogoPreview((company as any).logo_url);
+        const logoUrl = (company as any).logo_url;
+        // Add cache-busting parameter if not already present
+        const cacheBustedUrl = logoUrl.includes('?') 
+          ? `${logoUrl}&t=${Date.now()}` 
+          : `${logoUrl}?t=${Date.now()}`;
+        setLogoPreview(cacheBustedUrl);
       }
     } else {
       console.log('[CompanyProfile] No company data in useEffect');
@@ -591,10 +618,14 @@ export function CompanyProfile({ readonly = false }: CompanyProfileProps) {
                           <div className="relative group">
                             <div className="w-24 h-24 rounded-lg border-2 border-dashed border-border overflow-hidden bg-muted/50">
                               <img
-                                src={logoPreview || formData.logoUrl}
+                                src={logoPreview || (formData.logoUrl ? `${formData.logoUrl}${formData.logoUrl.includes('?') ? '&' : '?'}v=${Date.now()}` : '')}
                                 alt="Company logo"
                                 className="w-full h-full object-contain"
-                                key={logoPreview || formData.logoUrl} // Force re-render when URL changes
+                                key={`logo-${Date.now()}`}
+                                onError={(e) => {
+                                  console.error('[CompanyProfile] Logo load error:', e);
+                                  e.currentTarget.style.display = 'none';
+                                }}
                               />
                             </div>
                             {canEdit && (
