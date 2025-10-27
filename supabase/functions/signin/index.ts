@@ -7,6 +7,7 @@ import bcrypt from "npm:bcryptjs@2.4.3";
 const allowedOrigins = [
   'https://63be031f-eceb-4ef8-a148-241fcdfde80c.lovableproject.com',
   'https://www.rigelinventory.com',
+  'https://rigelinventory.com',
   'http://localhost:3000',
   'http://localhost:5173',
 ];

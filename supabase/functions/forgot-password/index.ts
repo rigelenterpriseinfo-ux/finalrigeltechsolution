@@ -5,6 +5,7 @@ import { Resend } from "https://esm.sh/resend@2.0.0";
 const allowedOrigins = [
   'https://63be031f-eceb-4ef8-a148-241fcdfde80c.lovableproject.com',
   'https://www.rigelinventory.com',
+  'https://rigelinventory.com',
   'http://localhost:3000',
   'http://localhost:5173',
 ];
