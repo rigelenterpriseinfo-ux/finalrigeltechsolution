@@ -3323,7 +3323,7 @@ export type Database = {
           created_at: string
           details: Json | null
           id: string
-          ip_address: unknown | null
+          ip_address: unknown
           severity: string | null
           user_agent: string | null
           user_id: string | null
@@ -3333,7 +3333,7 @@ export type Database = {
           created_at?: string
           details?: Json | null
           id?: string
-          ip_address?: unknown | null
+          ip_address?: unknown
           severity?: string | null
           user_agent?: string | null
           user_id?: string | null
@@ -3343,7 +3343,7 @@ export type Database = {
           created_at?: string
           details?: Json | null
           id?: string
-          ip_address?: unknown | null
+          ip_address?: unknown
           severity?: string | null
           user_agent?: string | null
           user_id?: string | null
@@ -4320,45 +4320,27 @@ export type Database = {
         Args: { current_user_id?: string; target_role: string }
         Returns: boolean
       }
-      check_email_exists: {
-        Args: { email_to_check: string }
-        Returns: boolean
-      }
+      check_email_exists: { Args: { email_to_check: string }; Returns: boolean }
       check_security_anomalies: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           anomaly_type: string
           count: number
           details: Json
         }[]
       }
-      cleanup_expired_otps: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
-      cleanup_expired_security_data: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
-      cleanup_expired_tokens: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
-      cleanup_old_audit_logs: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
-      cleanup_old_rate_limits: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
+      cleanup_expired_otps: { Args: never; Returns: undefined }
+      cleanup_expired_security_data: { Args: never; Returns: undefined }
+      cleanup_expired_tokens: { Args: never; Returns: undefined }
+      cleanup_old_audit_logs: { Args: never; Returns: undefined }
+      cleanup_old_rate_limits: { Args: never; Returns: undefined }
       confirm_return_order: {
         Args: { p_return_order_id: string }
         Returns: Json
       }
-      create_return_order: {
-        Args:
-          | {
+      create_return_order:
+        | {
+            Args: {
               p_company_id: string
               p_customer_id: string
               p_delivery_address_line1?: string
@@ -4372,7 +4354,10 @@ export type Database = {
               p_reason_for_credit: string
               p_return_lines: Json
             }
-          | {
+            Returns: Json
+          }
+        | {
+            Args: {
               p_company_id: string
               p_customer_id: string
               p_delivery_address_line1?: string
@@ -4387,14 +4372,14 @@ export type Database = {
               p_return_lines: Json
               p_status?: string
             }
-        Returns: Json
-      }
+            Returns: Json
+          }
       delete_confirmed_return_order: {
         Args: { p_return_order_id: string }
         Returns: Json
       }
       detect_security_anomalies: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           anomaly_type: string
           details: Json
@@ -4412,78 +4397,42 @@ export type Database = {
           status: string
         }[]
       }
-      generate_business_ref: {
-        Args: Record<PropertyKey, never>
-        Returns: string
-      }
+      generate_business_ref: { Args: never; Returns: string }
       generate_business_ref_no: {
         Args: { company_name: string }
         Returns: string
       }
-      generate_cn_number: {
-        Args: { comp_id: string }
-        Returns: string
-      }
+      generate_cn_number: { Args: { comp_id: string }; Returns: string }
       generate_company_invoice_number: {
         Args: { comp_id: string }
         Returns: string
       }
-      generate_customer_id: {
-        Args: { customer_name: string }
-        Returns: string
-      }
+      generate_customer_id: { Args: { customer_name: string }; Returns: string }
       generate_customer_ref: {
         Args: { customer_name: string }
         Returns: string
       }
-      generate_debit_note_number: {
-        Args: { comp_id: string }
-        Returns: string
-      }
+      generate_debit_note_number: { Args: { comp_id: string }; Returns: string }
       generate_debit_note_number_by_supplier: {
         Args: { p_company_id: string; p_supplier_id: string }
         Returns: string
       }
-      generate_gated_business_ref_no: {
-        Args: Record<PropertyKey, never>
-        Returns: string
-      }
-      generate_grn_number: {
-        Args: { comp_id: string }
-        Returns: string
-      }
-      generate_invoice_number: {
-        Args: { comp_id: string }
-        Returns: string
-      }
-      generate_performa_invoice_number: {
-        Args: Record<PropertyKey, never>
-        Returns: string
-      }
-      generate_po_number: {
-        Args: { comp_id: string }
-        Returns: string
-      }
+      generate_gated_business_ref_no: { Args: never; Returns: string }
+      generate_grn_number: { Args: { comp_id: string }; Returns: string }
+      generate_invoice_number: { Args: { comp_id: string }; Returns: string }
+      generate_performa_invoice_number: { Args: never; Returns: string }
+      generate_po_number: { Args: { comp_id: string }; Returns: string }
       generate_rso_number: {
         Args: { p_company_id: string; p_customer_id: string }
         Returns: string
       }
-      generate_so_number: {
-        Args: { comp_id: string }
-        Returns: string
-      }
+      generate_so_number: { Args: { comp_id: string }; Returns: string }
       generate_supplier_ref: {
         Args: { supplier_name: string }
         Returns: string
       }
-      generate_transfer_number: {
-        Args: { comp_id: string }
-        Returns: string
-      }
-      generate_user_ref: {
-        Args: { comp_id: string }
-        Returns: string
-      }
+      generate_transfer_number: { Args: { comp_id: string }; Returns: string }
+      generate_user_ref: { Args: { comp_id: string }; Returns: string }
       get_backorder_summary: {
         Args: { p_company_id: string }
         Returns: {
@@ -4524,12 +4473,9 @@ export type Database = {
         Args: { p_product_id: string; p_purchase_order_id: string }
         Returns: number
       }
-      get_current_company_context: {
-        Args: Record<PropertyKey, never>
-        Returns: string
-      }
+      get_current_company_context: { Args: never; Returns: string }
       get_current_user_role: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: Database["public"]["Enums"]["app_role"]
       }
       get_invoice_returned_quantities: {
@@ -4539,14 +4485,8 @@ export type Database = {
           returned_qty: number
         }[]
       }
-      get_purchase_order_status: {
-        Args: { po_id: string }
-        Returns: string
-      }
-      get_return_order_stats: {
-        Args: { p_company_id: string }
-        Returns: Json
-      }
+      get_purchase_order_status: { Args: { po_id: string }; Returns: string }
+      get_return_order_stats: { Args: { p_company_id: string }; Returns: Json }
       get_sales_metrics: {
         Args: { p_company_id: string }
         Returns: {
@@ -4616,22 +4556,13 @@ export type Database = {
           total_backorder_qty: number
         }[]
       }
-      get_user_company_id: {
-        Args: Record<PropertyKey, never>
-        Returns: string
-      }
-      get_user_company_id_safe: {
-        Args: Record<PropertyKey, never>
-        Returns: string
-      }
+      get_user_company_id: { Args: never; Returns: string }
+      get_user_company_id_safe: { Args: never; Returns: string }
       get_user_role: {
         Args: { p_user_id?: string }
         Returns: Database["public"]["Enums"]["app_role"]
       }
-      get_user_role_safe: {
-        Args: Record<PropertyKey, never>
-        Returns: string
-      }
+      get_user_role_safe: { Args: never; Returns: string }
       get_warehouse_bin_aging_summary: {
         Args: { p_company_id: string }
         Returns: {
@@ -4662,22 +4593,10 @@ export type Database = {
         Args: { p_new_password_hash: string; p_user_id: string }
         Returns: boolean
       }
-      is_super_admin: {
-        Args: Record<PropertyKey, never>
-        Returns: boolean
-      }
-      is_user_admin: {
-        Args: Record<PropertyKey, never>
-        Returns: boolean
-      }
-      is_user_admin_v2: {
-        Args: { p_user_id?: string }
-        Returns: boolean
-      }
-      is_user_owner_or_admin_safe: {
-        Args: Record<PropertyKey, never>
-        Returns: boolean
-      }
+      is_super_admin: { Args: never; Returns: boolean }
+      is_user_admin: { Args: never; Returns: boolean }
+      is_user_admin_v2: { Args: { p_user_id?: string }; Returns: boolean }
+      is_user_owner_or_admin_safe: { Args: never; Returns: boolean }
       process_backorder_fulfillment: {
         Args: {
           p_backorder_ids: string[]
@@ -4701,18 +4620,12 @@ export type Database = {
         Args: { p_credit_note_id: string }
         Returns: Json
       }
-      process_grn_inventory: {
-        Args: { p_grn_id: string }
-        Returns: undefined
-      }
+      process_grn_inventory: { Args: { p_grn_id: string }; Returns: undefined }
       process_grn_inventory_enhanced: {
         Args: { p_grn_id: string }
         Returns: Json
       }
-      process_sales_invoice: {
-        Args: { p_invoice_id: string }
-        Returns: Json
-      }
+      process_sales_invoice: { Args: { p_invoice_id: string }; Returns: Json }
       record_inventory_transaction: {
         Args: {
           p_bin_id: string
@@ -4733,10 +4646,7 @@ export type Database = {
         Args: { p_grn_id: string }
         Returns: Json
       }
-      user_company_id: {
-        Args: Record<PropertyKey, never>
-        Returns: string
-      }
+      user_company_id: { Args: never; Returns: string }
     }
     Enums: {
       app_role: "owner" | "admin" | "manager" | "staff"

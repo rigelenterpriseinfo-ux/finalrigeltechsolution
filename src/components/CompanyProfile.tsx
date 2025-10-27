@@ -153,7 +153,15 @@ export function CompanyProfile({ readonly = false }: CompanyProfileProps) {
           upsert: false // Changed to false since we're using timestamp in filename
         });
 
-      if (error) throw error;
+      if (error) {
+        console.error('[CompanyProfile] Storage upload error:', error);
+        toast({
+          title: "Logo upload failed",
+          description: error.message || "Failed to upload logo to storage. Please check your permissions.",
+          variant: "destructive",
+        });
+        throw error;
+      }
 
       const { data: { publicUrl } } = supabase.storage
         .from('company-logos')
@@ -164,9 +172,10 @@ export function CompanyProfile({ readonly = false }: CompanyProfileProps) {
 
       return cacheBustedUrl;
     } catch (error: any) {
+      console.error('[CompanyProfile] Logo upload failed:', error);
       toast({
         title: "Logo upload failed",
-        description: error.message,
+        description: error.message || "Failed to upload logo. Please check your permissions and try again.",
         variant: "destructive",
       });
       return null;
@@ -204,7 +213,9 @@ export function CompanyProfile({ readonly = false }: CompanyProfileProps) {
           // Update form data immediately to ensure it's included in the database update
           setFormData(prev => ({ ...prev, logoUrl: uploadedLogoUrl }));
         } else {
-          console.error('[CompanyProfile] Logo upload returned null');
+          console.error('[CompanyProfile] Logo upload returned null - stopping submission');
+          setIsLoading(false);
+          return; // Don't proceed with database update if logo upload failed
         }
       }
 
