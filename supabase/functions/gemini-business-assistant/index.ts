@@ -94,6 +94,67 @@ serve(async (req) => {
       });
     }
 
+    // Check user has admin or owner role (AI assistant requires elevated permissions)
+    const { data: roleData, error: roleError } = await supabase
+      .from('user_roles')
+      .select('role')
+      .eq('user_id', userData.user.id)
+      .maybeSingle();
+    
+    if (roleError || !roleData || !['owner', 'admin'].includes(roleData.role)) {
+      console.error('Insufficient permissions for AI assistant - user role:', roleData?.role);
+      return new Response(JSON.stringify({ 
+        error: 'Insufficient permissions',
+        response: 'AI Assistant is only available to company administrators and owners. Please contact your administrator for access.' 
+      }), {
+        status: 403,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Verify company has appropriate subscription for AI features
+    const { data: company, error: companyError } = await supabase
+      .from('companies')
+      .select('subscription_plan, subscription_status')
+      .eq('id', companyId)
+      .single();
+    
+    if (companyError || !company) {
+      console.error('Company lookup failed:', companyError);
+      return new Response(JSON.stringify({ 
+        error: 'Company not found',
+        response: 'Unable to verify company subscription. Please try again.' 
+      }), {
+        status: 403,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Check subscription plan (AI requires premium or enterprise)
+    const allowedPlans = ['premium', 'enterprise', 'trial']; // Include trial for testing
+    if (!company.subscription_plan || !allowedPlans.includes(company.subscription_plan.toLowerCase())) {
+      console.log('AI access denied - subscription plan:', company.subscription_plan);
+      return new Response(JSON.stringify({ 
+        error: 'Feature not available',
+        response: 'AI Assistant is available on Premium and Enterprise plans. Please upgrade your subscription to access this feature.' 
+      }), {
+        status: 403,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Check subscription is active
+    if (company.subscription_status && company.subscription_status !== 'active' && company.subscription_status !== 'trial') {
+      console.log('AI access denied - subscription status:', company.subscription_status);
+      return new Response(JSON.stringify({ 
+        error: 'Subscription inactive',
+        response: 'Your subscription is not active. Please contact support or renew your subscription to continue using AI Assistant.' 
+      }), {
+        status: 403,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     console.log('Processing business query:', message);
     console.log('Company ID:', companyId);
     console.log('User ID:', userData.user.id);
