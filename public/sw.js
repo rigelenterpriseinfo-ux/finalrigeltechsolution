@@ -67,7 +67,14 @@ self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
 
-  // Skip cross-origin requests
+  // NEVER cache Supabase edge functions, auth, or database requests
+  if (url.hostname.includes('supabase.co')) {
+    // Always bypass service worker for Supabase requests
+    event.respondWith(fetch(request));
+    return;
+  }
+
+  // Skip other cross-origin requests
   if (url.origin !== location.origin) {
     return;
   }

@@ -57,7 +57,12 @@ const GatedSignin = () => {
 
     setIsLoading(true);
     try {
+      console.log('=== SIGNIN DEBUG INFO ===');
+      console.log('Request origin:', window.location.origin);
+      console.log('Request hostname:', window.location.hostname);
+      console.log('Username:', formData.username.trim());
       console.log('Attempting signin with edge function...');
+      
       const { data, error } = await supabase.functions.invoke('signin', {
         body: {
           username: formData.username.trim(),
@@ -66,10 +71,29 @@ const GatedSignin = () => {
       });
 
       console.log('Edge function response:', { data, error });
-
+      
       if (error) {
-        console.error('Edge function error:', error);
-        throw new Error(error.message || 'Failed to connect to authentication service. Please ensure the edge functions are deployed.');
+        console.error('=== DETAILED ERROR INFO ===');
+        console.error('Error object:', error);
+        console.error('Error name:', error.name);
+        console.error('Error message:', error.message);
+        console.error('Error context:', error.context);
+        console.error('Full error JSON:', JSON.stringify(error, null, 2));
+        
+        // Provide specific error messages based on error type
+        let userMessage = error.message || 'Failed to connect to authentication service.';
+        
+        if (error.message?.includes('Failed to fetch') || error.message?.includes('NetworkError')) {
+          userMessage = 'Network error: Please check your internet connection. If the problem persists, try clearing your browser cache.';
+        } else if (error.message?.includes('CORS') || error.message?.includes('cross-origin')) {
+          userMessage = 'Configuration error: CORS issue detected. Please contact support with error code: CORS-001';
+        } else if (error.message?.includes('timeout')) {
+          userMessage = 'Request timeout: The server took too long to respond. Please try again.';
+        } else if (error.message?.includes('Failed to send a request')) {
+          userMessage = 'Unable to reach authentication service. Please clear your browser cache (Ctrl+Shift+Delete) and try again. If the issue persists, contact support with error code: REQ-001';
+        }
+        
+        throw new Error(userMessage);
       }
 
       if (data?.success) {
