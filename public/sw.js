@@ -1,7 +1,8 @@
 // Service Worker for PWA and Offline Support
-const CACHE_NAME = 'inventory-app-v1';
-const STATIC_CACHE = 'inventory-static-v1';
-const DYNAMIC_CACHE = 'inventory-dynamic-v1';
+const CACHE_VERSION = 'v2';
+const CACHE_NAME = `inventory-app-${CACHE_VERSION}`;
+const STATIC_CACHE = `inventory-static-${CACHE_VERSION}`;
+const DYNAMIC_CACHE = `inventory-dynamic-${CACHE_VERSION}`;
 
 // Resources to cache immediately
 const STATIC_ASSETS = [
@@ -21,27 +22,27 @@ const API_CACHE_PATTERNS = [
 
 // Install event - cache static assets
 self.addEventListener('install', (event) => {
-  console.log('Service Worker: Installing');
+  console.log('[ServiceWorker] Installing version:', CACHE_VERSION);
   
   event.waitUntil(
     caches.open(STATIC_CACHE)
       .then((cache) => {
-        console.log('Service Worker: Caching static assets');
+        console.log('[ServiceWorker] Caching static assets');
         return cache.addAll(STATIC_ASSETS);
       })
       .then(() => {
-        console.log('Service Worker: Static assets cached');
+        console.log('[ServiceWorker] Static assets cached, forcing immediate activation');
         return self.skipWaiting();
       })
       .catch((error) => {
-        console.error('Service Worker: Failed to cache static assets', error);
+        console.error('[ServiceWorker] Failed to cache static assets', error);
       })
   );
 });
 
 // Activate event - clean up old caches
 self.addEventListener('activate', (event) => {
-  console.log('Service Worker: Activating');
+  console.log('[ServiceWorker] Activating version:', CACHE_VERSION);
   
   event.waitUntil(
     caches.keys()
@@ -49,14 +50,14 @@ self.addEventListener('activate', (event) => {
         return Promise.all(
           cacheNames.map((cacheName) => {
             if (cacheName !== STATIC_CACHE && cacheName !== DYNAMIC_CACHE) {
-              console.log('Service Worker: Deleting old cache', cacheName);
+              console.log('[ServiceWorker] Deleting old cache:', cacheName);
               return caches.delete(cacheName);
             }
           })
         );
       })
       .then(() => {
-        console.log('Service Worker: Activated');
+        console.log('[ServiceWorker] Activated, taking control of all clients');
         return self.clients.claim();
       })
   );
@@ -69,13 +70,15 @@ self.addEventListener('fetch', (event) => {
 
   // NEVER cache Supabase edge functions, auth, or database requests
   if (url.hostname.includes('supabase.co')) {
-    // Always bypass service worker for Supabase requests
+    console.log('[ServiceWorker] ✅ Bypassing cache for Supabase request:', url.pathname);
+    // Always bypass service worker for Supabase requests - no caching whatsoever
     event.respondWith(fetch(request));
     return;
   }
 
   // Skip other cross-origin requests
   if (url.origin !== location.origin) {
+    console.log('[ServiceWorker] Skipping cross-origin request:', url.hostname);
     return;
   }
 
