@@ -18,27 +18,6 @@ export const CompanyAuth = ({ onSuccess }: CompanyAuthProps) => {
     password: ""
   });
 
-  // Add fetch interceptor for debugging
-  useEffect(() => {
-    const originalFetch = window.fetch;
-    window.fetch = async (...args) => {
-      const [url, options] = args;
-      console.log('🌐 FETCH INTERCEPTOR - Request:', url, options?.method || 'GET');
-      
-      try {
-        const response = await originalFetch(...args);
-        console.log('🌐 FETCH INTERCEPTOR - Response:', url, response.status, response.statusText);
-        return response;
-      } catch (error) {
-        console.error('🌐 FETCH INTERCEPTOR - Error:', url, error);
-        throw error;
-      }
-    };
-    
-    return () => {
-      window.fetch = originalFetch;
-    };
-  }, []);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -59,80 +38,34 @@ export const CompanyAuth = ({ onSuccess }: CompanyAuthProps) => {
     setIsLoading(true);
 
     try {
-      console.log('=== NETWORK DIAGNOSTICS ===');
-      console.log('Supabase URL:', 'https://rkqgxrwnvyccxumiwfip.supabase.co');
-      console.log('Expected edge function URL:', 'https://rkqgxrwnvyccxumiwfip.supabase.co/functions/v1/signin');
-      console.log('Online status:', navigator.onLine);
-
-      const { data, error } = await supabase.functions.invoke('signin', {
-        body: {
+      // Use direct fetch to avoid Supabase client issues
+      const response = await fetch('https://rkqgxrwnvyccxumiwfip.supabase.co/functions/v1/signin', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJrcWd4cndudnljY3h1bWl3ZmlwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU5Mzg5NTQsImV4cCI6MjA3MTUxNDk1NH0.SEhJgtkYlZ5HilQOKi3rJ2nAO1pcPBhH8WbmNyKT0Zw',
+        },
+        body: JSON.stringify({
           businessRefNo: formData.businessRefNo,
           username: formData.username,
           password: formData.password
-        }
+        })
       });
-
-      if (error) {
-        console.error('Signin error:', error);
-        
-        // Try direct fetch fallback if Supabase client fails
-        if (error.message?.includes('Failed to send a request')) {
-          console.log('⚠️ Attempting direct fetch fallback...');
-          
-          try {
-            const response = await fetch('https://rkqgxrwnvyccxumiwfip.supabase.co/functions/v1/signin', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJrcWd4cndudnljY3h1bWl3ZmlwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU5Mzg5NTQsImV4cCI6MjA3MTUxNDk1NH0.SEhJgtkYlZ5HilQOKi3rJ2nAO1pcPBhH8WbmNyKT0Zw',
-              },
-              body: JSON.stringify({
-                businessRefNo: formData.businessRefNo,
-                username: formData.username,
-                password: formData.password
-              })
-            });
-            
-            const directData = await response.json();
-            console.log('✅ Direct fetch result:', directData);
-            
-            if (directData.success) {
-              const { error: authError } = await supabase.auth.signInWithPassword({
-                email: directData.user.email,
-                password: formData.password
-              });
-
-              if (authError) {
-                toast.error("Authentication failed: " + authError.message);
-                return;
-              }
-
-              toast.success("Sign in successful!");
-              onSuccess(directData);
-              return;
-            }
-          } catch (directError) {
-            console.error('❌ Direct fetch failed:', directError);
-          }
-        }
-        
-        toast.error("Sign in failed. Please try again.");
-        return;
-      }
-
+      
+      const data = await response.json();
+      
       if (!data.success) {
         toast.error(data.error || "Invalid credentials");
         return;
       }
 
-      // Now actually sign in with Supabase Auth to create a proper session
+      // Sign in with Supabase Auth
       const { error: authError } = await supabase.auth.signInWithPassword({
         email: data.user.email,
         password: formData.password
       });
 
       if (authError) {
-        console.error('Auth error:', authError);
         toast.error("Authentication failed: " + authError.message);
         return;
       }

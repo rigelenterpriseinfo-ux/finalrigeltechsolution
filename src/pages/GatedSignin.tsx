@@ -30,27 +30,6 @@ const GatedSignin = () => {
 
   const message = location.state?.message;
 
-  // Add fetch interceptor for debugging
-  useEffect(() => {
-    const originalFetch = window.fetch;
-    window.fetch = async (...args) => {
-      const [url, options] = args;
-      console.log('🌐 FETCH INTERCEPTOR - Request:', url, options?.method || 'GET');
-      
-      try {
-        const response = await originalFetch(...args);
-        console.log('🌐 FETCH INTERCEPTOR - Response:', url, response.status, response.statusText);
-        return response;
-      } catch (error) {
-        console.error('🌐 FETCH INTERCEPTOR - Error:', url, error);
-        throw error;
-      }
-    };
-    
-    return () => {
-      window.fetch = originalFetch;
-    };
-  }, []);
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -79,113 +58,23 @@ const GatedSignin = () => {
 
     setIsLoading(true);
     try {
-      console.log('=== NETWORK DIAGNOSTICS ===');
-      console.log('Supabase URL:', 'https://rkqgxrwnvyccxumiwfip.supabase.co');
-      console.log('Expected edge function URL:', 'https://rkqgxrwnvyccxumiwfip.supabase.co/functions/v1/signin');
-      console.log('Online status:', navigator.onLine);
-      console.log('User agent:', navigator.userAgent);
-      console.log('Request origin:', window.location.origin);
-      console.log('Request hostname:', window.location.hostname);
-      console.log('Username:', formData.username.trim());
-
-      // Test basic connectivity to Supabase
-      console.log('Testing Supabase connectivity...');
-      try {
-        const testResponse = await fetch('https://rkqgxrwnvyccxumiwfip.supabase.co/rest/v1/', {
-          method: 'HEAD',
-          headers: {
-            'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJrcWd4cndudnljY3h1bWl3ZmlwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU5Mzg5NTQsImV4cCI6MjA3MTUxNDk1NH0.SEhJgtkYlZ5HilQOKi3rJ2nAO1pcPBhH8WbmNyKT0Zw'
-          }
-        });
-        console.log('✅ Supabase connectivity test - Status:', testResponse.status);
-        console.log('✅ Supabase connectivity test - Headers:', [...testResponse.headers.entries()]);
-      } catch (testError) {
-        console.error('❌ Supabase connectivity test FAILED:', testError);
-      }
-
-      console.log('Attempting signin with edge function...');
-      
-      const { data, error } = await supabase.functions.invoke('signin', {
-        body: {
+      // Use direct fetch to avoid Supabase client issues
+      const response = await fetch('https://rkqgxrwnvyccxumiwfip.supabase.co/functions/v1/signin', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJrcWd4cndudnljY3h1bWl3ZmlwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU5Mzg5NTQsImV4cCI6MjA3MTUxNDk1NH0.SEhJgtkYlZ5HilQOKi3rJ2nAO1pcPBhH8WbmNyKT0Zw',
+        },
+        body: JSON.stringify({
           username: formData.username.trim(),
           password: formData.password
-        }
+        })
       });
-
-      console.log('Edge function response:', { data, error });
       
-      if (error) {
-        console.error('=== DETAILED ERROR INFO ===');
-        console.error('Error object:', error);
-        console.error('Error name:', error.name);
-        console.error('Error message:', error.message);
-        console.error('Error context:', error.context);
-        console.error('Full error JSON:', JSON.stringify(error, null, 2));
-        
-        // If the error is "Failed to send a request", try direct fetch fallback
-        if (error.message?.includes('Failed to send a request')) {
-          console.log('⚠️ Supabase client failed, attempting direct fetch fallback...');
-          
-          try {
-            const response = await fetch('https://rkqgxrwnvyccxumiwfip.supabase.co/functions/v1/signin', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJrcWd4cndudnljY3h1bWl3ZmlwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU5Mzg5NTQsImV4cCI6MjA3MTUxNDk1NH0.SEhJgtkYlZ5HilQOKi3rJ2nAO1pcPBhH8WbmNyKT0Zw',
-              },
-              body: JSON.stringify({
-                username: formData.username.trim(),
-                password: formData.password
-              })
-            });
-            
-            console.log('Direct fetch response status:', response.status);
-            const directData = await response.json();
-            console.log('✅ Direct fetch succeeded:', directData);
-            
-            if (directData.success) {
-              // Now actually sign in with Supabase Auth
-              const { error: authError } = await supabase.auth.signInWithPassword({
-                email: directData.user.email,
-                password: formData.password
-              });
-
-              if (authError) {
-                throw new Error('Authentication failed: ' + authError.message);
-              }
-
-              toast({
-                title: "Sign In Successful!",
-                description: `Welcome back, ${directData.user.email}!`
-              });
-
-              navigate('/dashboard');
-              return;
-            } else {
-              throw new Error(directData.error || 'Sign in failed');
-            }
-          } catch (directError: any) {
-            console.error('❌ Direct fetch also failed:', directError);
-            throw new Error('Unable to reach authentication service. Both Supabase client and direct fetch failed. Please check your network connection and try again.');
-          }
-        }
-        
-        // Provide specific error messages based on error type
-        let userMessage = error.message || 'Failed to connect to authentication service.';
-        
-        if (error.message?.includes('Failed to fetch') || error.message?.includes('NetworkError')) {
-          userMessage = 'Network error: Please check your internet connection. If the problem persists, try clearing your browser cache.';
-        } else if (error.message?.includes('CORS') || error.message?.includes('cross-origin')) {
-          userMessage = 'Configuration error: CORS issue detected. Please contact support with error code: CORS-001';
-        } else if (error.message?.includes('timeout')) {
-          userMessage = 'Request timeout: The server took too long to respond. Please try again.';
-        }
-        
-        throw new Error(userMessage);
-      }
-
-      if (data?.success) {
-        // Now actually sign in with Supabase Auth to create a proper session
+      const data = await response.json();
+      
+      if (data.success) {
+        // Sign in with Supabase Auth
         const { error: authError } = await supabase.auth.signInWithPassword({
           email: data.user.email,
           password: formData.password
@@ -200,10 +89,9 @@ const GatedSignin = () => {
           description: `Welcome back, ${data.user.email}!`
         });
 
-        // Redirect to main app
         navigate('/dashboard');
       } else {
-        throw new Error(data?.error || 'Sign in failed');
+        throw new Error(data.error || 'Sign in failed');
       }
     } catch (error: any) {
       console.error('Signin error:', error);
