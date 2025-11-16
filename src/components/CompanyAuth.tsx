@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase, SUPABASE_URL } from "@/integrations/supabase/client";
 
 interface CompanyAuthProps {
   onSuccess: (data: any) => void;
@@ -38,23 +38,25 @@ export const CompanyAuth = ({ onSuccess }: CompanyAuthProps) => {
     setIsLoading(true);
 
     try {
-      // Use direct fetch to avoid Supabase client issues
-      const response = await fetch('https://rkqgxrwnvyccxumiwfip.supabase.co/functions/v1/signin', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJrcWd4cndudnljY3h1bWl3ZmlwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU5Mzg5NTQsImV4cCI6MjA3MTUxNDk1NH0.SEhJgtkYlZ5HilQOKi3rJ2nAO1pcPBhH8WbmNyKT0Zw',
-        },
-        body: JSON.stringify({
+      console.log('[COMPANY AUTH] Attempting sign in');
+      
+      // Call edge function with proper error handling
+      const { data, error: invokeError } = await supabase.functions.invoke('signin', {
+        body: {
           businessRefNo: formData.businessRefNo,
           username: formData.username,
           password: formData.password
-        })
+        }
       });
       
-      const data = await response.json();
+      if (invokeError) {
+        console.error('[COMPANY AUTH] Invoke error:', invokeError);
+        throw new Error(invokeError.message || 'Failed to call sign-in function');
+      }
       
-      if (!data.success) {
+      console.log('[COMPANY AUTH] Response received:', data);
+      
+      if (!data?.success) {
         toast.error(data.error || "Invalid credentials");
         return;
       }
