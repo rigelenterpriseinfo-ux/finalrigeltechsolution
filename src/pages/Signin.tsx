@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase, SUPABASE_URL } from '@/integrations/supabase/client';
 import { 
   Loader2, 
   LogIn, 
@@ -69,23 +69,25 @@ const Signin = () => {
 
     setIsLoading(true);
     try {
-      // Use direct fetch to avoid Supabase client issues
-      const response = await fetch('https://rkqgxrwnvyccxumiwfip.supabase.co/functions/v1/signin', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJrcWd4cndudnljY3h1bWl3ZmlwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU5Mzg5NTQsImV4cCI6MjA3MTUxNDk1NH0.SEhJgtkYlZ5HilQOKi3rJ2nAO1pcPBhH8WbmNyKT0Zw',
-        },
-        body: JSON.stringify({
+      console.log('[SIGNIN] Attempting sign in for:', formData.username);
+      
+      // Call edge function with proper error handling
+      const { data, error: invokeError } = await supabase.functions.invoke('signin', {
+        body: {
           businessRefNo: formData.businessRefNo.trim(),
           username: formData.username.trim(),
           password: formData.password
-        })
+        }
       });
       
-      const data = await response.json();
+      if (invokeError) {
+        console.error('[SIGNIN] Invoke error:', invokeError);
+        throw new Error(invokeError.message || 'Failed to call sign-in function');
+      }
       
-      if (data.success) {
+      console.log('[SIGNIN] Response received:', data);
+      
+      if (data?.success) {
         // Sign in with Supabase Auth
         const { error: authError } = await supabase.auth.signInWithPassword({
           email: data.user.email,
