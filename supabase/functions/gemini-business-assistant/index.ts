@@ -20,7 +20,7 @@ function getCorsHeaders(req: Request) {
   };
 }
 
-const GEMINI_API_KEY = Deno.env.get('GOOGLE_GEMINI_API_KEY');
+const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 
@@ -47,8 +47,8 @@ serve(async (req) => {
 
     const { message, companyId, userId } = await req.json();
 
-    if (!GEMINI_API_KEY) {
-      throw new Error('Google Gemini API key not configured');
+    if (!LOVABLE_API_KEY) {
+      throw new Error('Lovable API key not configured');
     }
 
     // Initialize Supabase client with service role for database queries
@@ -685,8 +685,7 @@ async function getEnhancedBusinessInsights(supabase: any, companyId: string) {
 
 async function generateGeminiResponse(message: string, data: any, analysis: any) {
   // Return ONLY structured table data - no text response
-  const businessContext = `You are a data processor. Return ONLY "TABLE_DATA_ONLY" as response. 
-
+  const systemPrompt = `You are a data processor. Return ONLY "TABLE_DATA_ONLY" as response. 
   CRITICAL RULES:
   - Do NOT return any text, explanations, or formatted data
   - Do NOT create table markdown or any text output
@@ -694,57 +693,54 @@ async function generateGeminiResponse(message: string, data: any, analysis: any)
   - The table will be generated automatically from the data
   - No other text is allowed`;
 
-  let enhancedPrompt = `${businessContext}
-  
-  User Query: "${message}"
+  const userPrompt = `User Query: "${message}"
   Data: ${JSON.stringify(data)}
   
   Return only: TABLE_DATA_ONLY`;
 
-  const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`, {
+  const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
+      'Authorization': `Bearer ${LOVABLE_API_KEY}`,
     },
-      body: JSON.stringify({
-        contents: [{
-          parts: [{
-            text: enhancedPrompt
-          }]
-        }],
-        generationConfig: {
-          maxOutputTokens: 50, // Reduced further to prevent any extra text
-          temperature: 0.0, // Zero temperature for consistent output
-          topP: 0.1,
-          topK: 1
-        }
-      }),
+    body: JSON.stringify({
+      model: 'google/gemini-2.5-flash',
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt }
+      ],
+      max_tokens: 50,
+      temperature: 0.0,
+    }),
   });
 
-  console.log('Gemini API response status:', response.status, response.statusText);
+  console.log('Lovable AI response status:', response.status, response.statusText);
 
   if (!response.ok) {
     const errorText = await response.text();
-    console.error('Gemini API HTTP error:', response.status, response.statusText);
-    console.error('Gemini API error response:', errorText);
-    throw new Error(`Gemini API HTTP error: ${response.status} ${response.statusText} - ${errorText}`);
+    console.error('Lovable AI HTTP error:', response.status, response.statusText);
+    console.error('Lovable AI error response:', errorText);
+    
+    if (response.status === 429) {
+      throw new Error('Rate limit exceeded. Please try again in a moment.');
+    }
+    if (response.status === 402) {
+      throw new Error('AI credits exhausted. Please add credits to continue using the AI assistant.');
+    }
+    throw new Error(`Lovable AI HTTP error: ${response.status} ${response.statusText}`);
   }
 
   const result = await response.json();
-  console.log('Gemini API response:', result);
+  console.log('Lovable AI response:', result);
   
   if (result.error) {
-    console.error('Gemini API error:', result.error);
-    throw new Error(`Gemini API error: ${result.error.message || JSON.stringify(result.error)}`);
+    console.error('Lovable AI error:', result.error);
+    throw new Error(`Lovable AI error: ${result.error.message || JSON.stringify(result.error)}`);
   }
   
-  if (result.candidates && result.candidates[0] && result.candidates[0].content) {
-    // Always return table-only indicator - the actual table is generated from data
-    return "TABLE_DATA_ONLY";
-  } else {
-    console.error('Invalid Gemini API response structure:', result);
-    return "TABLE_DATA_ONLY";
-  }
+  // Always return table-only indicator - the actual table is generated from data
+  return "TABLE_DATA_ONLY";
 }
 
 // Filter data to show only essential fields
