@@ -2,12 +2,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.56.0';
 
-const allowedOrigins = [
-  'https://63be031f-eceb-4ef8-a148-241fcdfde80c.lovableproject.com',
-  'http://localhost:3000',
-  'http://localhost:5173',
-];
-
 const securityHeaders = {
   'X-Content-Type-Options': 'nosniff',
   'X-Frame-Options': 'DENY',
@@ -16,11 +10,10 @@ const securityHeaders = {
 };
 
 function getCorsHeaders(req: Request) {
-  const origin = req.headers.get('origin') || '';
-  const allowedOrigin = allowedOrigins.includes(origin) ? origin : allowedOrigins[0];
+  const origin = req.headers.get('origin') || '*';
   
   return {
-    'Access-Control-Allow-Origin': allowedOrigin,
+    'Access-Control-Allow-Origin': origin,
     'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
     ...securityHeaders,
@@ -130,18 +123,9 @@ serve(async (req) => {
       });
     }
 
-    // Check subscription plan (AI requires premium or enterprise)
-    const allowedPlans = ['premium', 'enterprise', 'trial']; // Include trial for testing
-    if (!company.subscription_plan || !allowedPlans.includes(company.subscription_plan.toLowerCase())) {
-      console.log('AI access denied - subscription plan:', company.subscription_plan);
-      return new Response(JSON.stringify({ 
-        error: 'Feature not available',
-        response: 'AI Assistant is available on Premium and Enterprise plans. Please upgrade your subscription to access this feature.' 
-      }), {
-        status: 403,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
+    // Check subscription plan (AI is available to all active companies)
+    // Allow all subscription plans including null/undefined for businesses without explicit plan
+    console.log('Company subscription - plan:', company.subscription_plan, 'status:', company.subscription_status);
 
     // Check subscription is active
     if (company.subscription_status && company.subscription_status !== 'active' && company.subscription_status !== 'trial') {
