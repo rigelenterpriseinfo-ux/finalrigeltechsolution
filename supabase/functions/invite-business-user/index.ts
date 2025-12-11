@@ -330,18 +330,47 @@ serve(async (req) => {
     // Ensure profile exists and is linked to company
     console.log('Creating/updating profile');
     const { first_name, last_name } = splitName(name);
-    const { error: profileUpsertError } = await admin.from('profiles').upsert({
-      user_id: authUserId,
-      company_id,
-      first_name,
-      last_name,
-      role: mapRoleToProfile(normalizedRole),
-      is_active: true,
-    }, { onConflict: 'user_id' });
-
-    if (profileUpsertError) {
-      console.error('Error creating/updating profile:', profileUpsertError);
-      return new Response(JSON.stringify({ error: `Failed to create profile: ${profileUpsertError.message}` }), { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } });
+    
+    // Check if profile already exists
+    const { data: existingProfile } = await admin
+      .from('profiles')
+      .select('id')
+      .eq('user_id', authUserId)
+      .maybeSingle();
+    
+    if (existingProfile) {
+      // Update existing profile
+      const { error: profileUpdateError } = await admin
+        .from('profiles')
+        .update({
+          company_id,
+          first_name,
+          last_name,
+          is_active: true,
+          updated_at: new Date().toISOString()
+        })
+        .eq('user_id', authUserId);
+      
+      if (profileUpdateError) {
+        console.error('Error updating profile:', profileUpdateError);
+        return new Response(JSON.stringify({ error: `Failed to update profile: ${profileUpdateError.message}` }), { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } });
+      }
+    } else {
+      // Insert new profile
+      const { error: profileInsertError } = await admin
+        .from('profiles')
+        .insert({
+          user_id: authUserId,
+          company_id,
+          first_name,
+          last_name,
+          is_active: true,
+        });
+      
+      if (profileInsertError) {
+        console.error('Error creating profile:', profileInsertError);
+        return new Response(JSON.stringify({ error: `Failed to create profile: ${profileInsertError.message}` }), { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } });
+      }
     }
 
     console.log('User creation completed successfully');
