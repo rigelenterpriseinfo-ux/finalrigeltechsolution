@@ -3,11 +3,10 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
 serve(async (req) => {
-  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -15,23 +14,30 @@ serve(async (req) => {
   try {
     const { email } = await req.json();
 
-    if (!email) {
+    if (!email || typeof email !== 'string') {
       return new Response(
         JSON.stringify({ error: 'Email is required' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    // Initialize Supabase client
+    // Basic email format validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email) || email.length > 255) {
+      return new Response(
+        JSON.stringify({ error: 'Invalid email format' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Check if email exists in business_registration_requests
     const { data: existingRequest, error: checkError } = await supabase
       .from("business_registration_requests")
-      .select("id, status")
-      .eq("email", email)
+      .select("id")
+      .eq("email", email.toLowerCase().trim())
       .limit(1)
       .maybeSingle();
 
@@ -43,17 +49,10 @@ serve(async (req) => {
       );
     }
 
+    // Return only available/not-available without leaking status details
     if (existingRequest) {
-      const message = existingRequest.status === 'pending' 
-        ? 'This email has a pending registration request'
-        : 'This email is already registered';
-      
       return new Response(
-        JSON.stringify({ 
-          available: false, 
-          status: existingRequest.status,
-          message 
-        }),
+        JSON.stringify({ available: false, message: 'This email is not available' }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -66,7 +65,7 @@ serve(async (req) => {
   } catch (error) {
     console.error('Error in check-email-availability:', error);
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: 'Internal server error' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
